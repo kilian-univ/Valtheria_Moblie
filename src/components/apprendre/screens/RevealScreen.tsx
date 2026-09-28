@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import ContinueButton from '../ContinueButton';
 import ValBubble from '../ValBubble';
 import { LessonScreenProps } from '../types';
@@ -37,7 +36,6 @@ export default function RevealScreen({ screen, screenIndex, colors, onNext, isLa
   };
 
   return (
-    <SafeAreaView>
         <ScrollView style={{ flex: 1, paddingBottom: 24 }}>
         <ValBubble val={screen.val.intro} colors={colors} />
 
@@ -105,6 +103,5 @@ export default function RevealScreen({ screen, screenIndex, colors, onNext, isLa
             </>
         )}
         </ScrollView>
-    </SafeAreaView>
   );
 }

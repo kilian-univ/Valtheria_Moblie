@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import ContinueCard from '@/src/components/apprendre/lesson-path/ContinueCard';
@@ -9,8 +9,9 @@ import ModuleCard from '@/src/components/apprendre/lesson-path/ModuleCard';
 import PathBackground, { getNodePosition, NODE_SPACING_Y, PATH_WIDTH } from '@/src/components/apprendre/lesson-path/PathBackground';
 import Header from '@/src/components/topbar/header';
 import { getApprendreStyles, palette } from '@/src/constants/style/Style';
-import { Lesson, Module, useApi } from '@/src/context/ApiContext';
+import { Lesson, useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { learningStore } from '@/src/state/learningStore';
 
 type LessonStatus = 'completed' | 'available' | 'locked';
 
@@ -33,29 +34,32 @@ export default function LearnScreen() {
   const { getModules, getProgress, startLesson, getLesson, isLoading: apiLoading, isAuthenticated } = useApi();
   const router = useRouter();
 
-  const [modules, setModules] = useState<Module[]>([]);
-  const [streak, setStreak] = useState(0);
-  const [xp, setXp] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [startingLessonId, setStartingLessonId] = useState<number | null>(null);
+  const { modules, streak, xp } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
 
-  useEffect(() => {
-    if (apiLoading) return;
-    if (!isAuthenticated) {
-      setError('Tu dois être connecté pour accéder à cette page.');
-      setIsLoading(false);
-      return;
-    }
-    Promise.all([getModules(), getProgress()])
-      .then(([modulesData, progressData]) => {
-        setModules(modulesData);
-        setStreak(progressData?.streak ?? 0);
-        setXp(progressData?.xp ?? 0);
-      })
-      .catch((err: any) => setError(err.message || 'Impossible de charger les leçons.'))
-      .finally(() => setIsLoading(false));
-  }, [apiLoading, isAuthenticated]);
+  useFocusEffect(
+    useCallback(() => {
+      if (apiLoading) return;
+      if (!isAuthenticated) {
+        setError('Tu dois être connecté pour accéder à cette page.');
+        setIsLoading(false);
+        return;
+      }
+      Promise.all([getModules(), getProgress()])
+        .then(([modulesData, progressData]) => {
+          learningStore.setState({
+            modules: modulesData,
+            streak: progressData?.streak ?? 0,
+            xp: progressData?.xp ?? 0,
+          });
+          setError(null);
+        })
+        .catch((err: any) => setError(err.message || 'Impossible de charger les leçons.'))
+        .finally(() => setIsLoading(false));
+    }, [apiLoading, isAuthenticated])
+  );
 
 
   const modulesWithStatus = useMemo(

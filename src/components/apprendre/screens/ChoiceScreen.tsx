@@ -37,7 +37,7 @@ export default function ChoiceScreen({ screen, screenIndex, colors, onNext, onRe
       type: 'choice',
       notion: screen.notion,
       correct: isFullyCorrect,
-      raw: { type: 'choice', selected: selectedIds },
+      raw: isMultiple ? selectedIds : selectedIds[0],
     });
   };
 

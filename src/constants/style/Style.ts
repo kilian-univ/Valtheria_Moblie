@@ -2114,3 +2114,295 @@ export function getSplashStyles(colorScheme: ColorScheme) {
     },
   });
 }
+
+export function getLessonEndStyles(colorScheme: ColorScheme) {
+  const colors = palette[colorScheme];
+
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.background },
+    content: { padding: 20, alignItems: 'center' },
+    valImage: {
+      width: 110,
+      height: 110,
+      borderRadius: 55,
+      borderWidth: 2,
+      borderColor: colors.gold,
+      marginTop: 24,
+      marginBottom: 16,
+    },
+    title: { color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 6 },
+    subtitle: { color: colors.subtitle, fontSize: 14, textAlign: 'center', marginBottom: 24 },
+    statsRow: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginBottom: 16 },
+    statTile: {
+      flex: 1,
+      padding: 14,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+    },
+    statValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
+    statValueGold: { color: colors.gold, fontSize: 20, fontWeight: '800' },
+    statLabel: { color: colors.subtitle, fontSize: 11, marginTop: 4 },
+    banner: {
+      alignSelf: 'stretch',
+      padding: 14,
+      borderRadius: 14,
+      backgroundColor: colors.gold + '22',
+      borderWidth: 1,
+      borderColor: colors.gold,
+      marginBottom: 16,
+    },
+    bannerText: { color: colors.gold, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+    card: {
+      alignSelf: 'stretch',
+      padding: 16,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 16,
+    },
+    cardTitle: { color: colors.text, fontSize: 14, fontWeight: '700', marginBottom: 10 },
+    notionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      paddingVertical: 6,
+    },
+    notionName: { color: colors.text, fontSize: 13, flex: 1 },
+    badgeDone: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: colors.success + '22' },
+    badgeSeen: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: colors.surfaceAlt },
+    badgeDoneText: { color: colors.success, fontSize: 11, fontWeight: '700' },
+    badgeSeenText: { color: colors.subtitle, fontSize: 11, fontWeight: '700' },
+  });
+}
+
+export function getLessonPlayerStyles(colorScheme: ColorScheme) {
+  const colors = palette[colorScheme];
+
+  return StyleSheet.create({
+    centered: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    centeredPadded: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+    },
+    errorText: {
+      color: colors.error,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    backLink: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    closeIcon: {
+      color: colors.text,
+      fontSize: 20,
+    },
+    progressTrack: {
+      flex: 1,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.surface,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: 4,
+      backgroundColor: colors.primary,
+    },
+  });
+}
+
+export function getDocumentStyles(colorScheme: ColorScheme) {
+  const colors = palette[colorScheme];
+
+  return StyleSheet.create({
+    scrollContent: {
+      paddingBottom: 24,
+    },
+    question: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '700',
+      marginHorizontal: 20,
+      marginBottom: 16,
+    },
+    card: {
+      marginHorizontal: 20,
+      padding: 14,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 8,
+    },
+    etablissement: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+    },
+    metaText: {
+      color: colors.subtitle,
+      fontSize: 11,
+      marginTop: 2,
+    },
+    colHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      paddingTop: 14,
+      paddingBottom: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginBottom: 6,
+    },
+    colHeaderText: {
+      color: colors.subtitle,
+      fontSize: 10.5,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    colDate: { width: 44 },
+    colLabel: { flex: 1 },
+    colAmount: { width: 84, textAlign: 'right' },
+    // Lignes : même bordure partout, seule la couleur change
+    line: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+    },
+    lineSelected: {
+      backgroundColor: colors.primary + '22',
+      borderColor: colors.primary,
+    },
+    lineCorrect: {
+      backgroundColor: colors.success + '22',
+      borderColor: colors.success,
+    },
+    lineWrong: {
+      backgroundColor: colors.error + '22',
+      borderColor: colors.error,
+    },
+    lineMissed: {
+      borderColor: colors.success,
+      borderStyle: 'dashed',
+    },
+    lineWrap: {
+      marginBottom: 4,
+    },
+    dateText: {
+      color: colors.subtitle,
+      fontSize: 12,
+      width: 44,
+    },
+    labelWrap: {
+      flex: 1,
+      paddingRight: 8,
+    },
+    labelText: {
+      color: colors.text,
+      fontSize: 12.5,
+      fontWeight: '600',
+    },
+    subLabelText: {
+      color: colors.subtitle,
+      fontSize: 10.5,
+      marginTop: 1,
+    },
+    amountNegative: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '700',
+      width: 84,
+      textAlign: 'right',
+    },
+    amountPositive: {
+      color: colors.success,
+      fontSize: 13,
+      fontWeight: '700',
+      width: 84,
+      textAlign: 'right',
+    },
+    revelationBox: {
+      marginTop: 4,
+      marginBottom: 6,
+      padding: 10,
+      borderRadius: 10,
+      backgroundColor: colors.gold + '1F',
+      borderWidth: 1,
+      borderColor: colors.gold + '55',
+    },
+    revelationText: {
+      color: colors.text,
+      fontSize: 12.5,
+      lineHeight: 18,
+    },
+    footerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingTop: 12,
+      marginTop: 6,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    footerLabel: {
+      color: colors.subtitle,
+      fontSize: 12,
+    },
+    footerValue: {
+      color: colors.text,
+      fontSize: 12.5,
+      fontWeight: '700',
+    },
+    aVenirText: {
+      color: colors.subtitle,
+      fontSize: 11,
+      marginTop: 6,
+    },
+    explanationBox: {
+      marginHorizontal: 20,
+      marginTop: 8,
+      padding: 14,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    explanationText: {
+      color: colors.subtitle,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+  });
+}

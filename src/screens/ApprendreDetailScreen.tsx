@@ -3,49 +3,61 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import LessonEndScreen from '@/src/components/apprendre/LessonEndScreen';
 import ScreenRenderer from '@/src/components/apprendre/ScreenRenderer';
 import { CollectedAnswer, Screen } from '@/src/components/apprendre/types';
-import { palette } from '@/src/constants/style/Style';
+import { getLessonPlayerStyles, palette } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { learningStore } from '@/src/state/learningStore';
 
 export default function ApprendreDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const { getLesson, completeLesson } = useApi();
+  const styles = getLessonPlayerStyles(colorScheme);
+  const { getLesson, completeLesson, getModules, getProgress } = useApi();
 
   const [screens, setScreens] = useState<Screen[]>([]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<CollectedAnswer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('APPRENDRE DETAIL — id reçu depuis la navigation:', id);
+  if (!id) {
+    setIsLoading(false);
+    return;
+  }
 
-    if (!id) {
-      console.log('APPRENDRE DETAIL — aucun id, on arrête ici.');
-      setIsLoading(false);
-      return;
-    }
+  getLesson(Number(id))
+    .then((data: any) => {
+      const resolvedScreens = Array.isArray(data) ? data : data.screens ?? [];
 
-    getLesson(Number(id))
-      .then((data: any) => {
-        console.log('LEÇON COMPLÈTE REÇUE:', JSON.stringify(data, null, 2));
-        // Le JSON reçu peut être soit { screens: [...] }, soit directement le tableau
-        const resolvedScreens = Array.isArray(data) ? data : data.screens ?? [];
-        console.log(`APPRENDRE DETAIL — ${resolvedScreens.length} écran(s) résolu(s).`);
-        setScreens(resolvedScreens);
-      })
-      .catch((err: any) => {
-        console.log('ERREUR LEÇON:', err.message);
-        setError(err.message || 'Leçon introuvable.');
-      })
-      .finally(() => setIsLoading(false));
-  }, [id]);
+      // DIAGNOSTIC : résumé de la leçon + JSON complet des types pas encore construits
+      console.log(
+        `LEÇON ${id} — "${data.title}" — types d'écrans :`,
+        resolvedScreens.map((s: any) => s.type).join(', ')
+      );
+
+      const HANDLED = ['reveal', 'choice', 'HANDLED '];
+      resolvedScreens
+        .filter((s: any) => !HANDLED.includes(s.type))
+        .forEach((s: any, i: number) => {
+          console.log(`ÉCRAN NON GÉRÉ [${s.type}] #${i}:`, JSON.stringify(s, null, 2));
+        });
+
+      setScreens(resolvedScreens);
+    })
+    .catch((err: any) => {
+      console.log('ERREUR LEÇON:', err.message);
+      setError(err.message || 'Leçon introuvable.');
+    })
+    .finally(() => setIsLoading(false));
+}, [id]);
 
   const current = screens[index];
   const progress = screens.length > 0 ? (index + 1) / screens.length : 0;
@@ -59,68 +71,81 @@ export default function ApprendreDetailScreen() {
   };
 
   const handleFinish = async () => {
-    if (!id) return;
+    if (!id || isSubmitting) return;
     setIsSubmitting(true);
+
     try {
-      const correct = answers.filter((a) => a.correct).length;
-      await completeLesson(Number(id), {
-        answers: answers.length > 0 ? answers : undefined,
-        correct_answers: answers.length > 0 ? undefined : correct,
-        total_questions: answers.length > 0 ? undefined : Math.max(1, answers.length),
+      // Format attendu : { "<index d'écran>": [tentative1, tentative2, ...] }
+      // Seuls les écrans notés sont envoyés (reveal & co. n'ont pas de verdict).
+      const responses: Record<string, any[]> = {};
+      answers.forEach((a) => {
+        if (!screens[a.screenIndex]?.scored) return;
+        const key = String(a.screenIndex);
+        if (!responses[key]) responses[key] = [];
+        responses[key].push(a.raw);
       });
-      router.back();
+
+      const res = await completeLesson(Number(id), { responses });
+      console.log('COMPLETE RÉSULTAT:', JSON.stringify(res, null, 2));
+
+      // 1. Instantané : XP et série viennent directement de la réponse de /complete
+      if (res?.user) {
+        learningStore.setState({ xp: res.user.xp, streak: res.user.streak });
+      }
+
+      // 2. En tâche de fond pendant que l'utilisateur lit l'écran de fin :
+      //    la leçon terminée et la suivante débloquée seront prêtes au retour.
+      Promise.all([getModules(), getProgress()])
+        .then(([modulesData, progressData]) => {
+          learningStore.setState({
+            modules: modulesData,
+            streak: progressData?.streak ?? 0,
+            xp: progressData?.xp ?? 0,
+          });
+        })
+        .catch(() => {});
+
+      setResult(res);
     } catch (err: any) {
+      console.log('ERREUR COMPLETE:', err.message);
       setError(err.message || 'Impossible de valider la leçon.');
+    } finally {
       setIsSubmitting(false);
     }
   };
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={styles.centered}>
         <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
 
+  if (result) {
+    return <LessonEndScreen result={result} colors={colors} onClose={() => router.back()} />;
+  }
+
   if (error || !current) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <Text style={{ color: colors.error, textAlign: 'center', marginBottom: 16 }}>
-          {error || 'Leçon introuvable.'}
-        </Text>
+      <View style={styles.centeredPadded}>
+        <Text style={styles.errorText}>{error || 'Leçon introuvable.'}</Text>
         <Pressable onPress={() => router.back()}>
-          <Text style={{ color: colors.primary, fontWeight: '600' }}>Retour</Text>
+          <Text style={styles.backLink}>Retour</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom']}>
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            paddingHorizontal: 16,
-            paddingTop: 12,
-            paddingBottom: 12,
-          }}
-        >
+    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <View style={styles.container}>
+        <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={{ color: colors.text, fontSize: 20 }}>✕</Text>
+            <Text style={styles.closeIcon}>✕</Text>
           </Pressable>
-          <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surface, overflow: 'hidden' }}>
-            <View
-              style={{
-                height: '100%',
-                width: `${progress * 100}%`,
-                backgroundColor: colors.primary,
-                borderRadius: 4,
-              }}
-            />
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
           </View>
         </View>
 

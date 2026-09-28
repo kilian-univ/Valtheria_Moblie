@@ -18,11 +18,11 @@ export default function TabLayout() {
         sceneStyle: { backgroundColor: colors.background },
       }}>
       <Tabs.Screen
-        name="index"
+        name="apprendre"
         options={{
-          title: 'Home',
+          title: 'Apprendre',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <Ionicons name="book" size={size} color={color} />
           ),
         }}
       />
@@ -41,15 +41,6 @@ export default function TabLayout() {
           title: 'Articles',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="folder" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="apprendre"
-        options={{
-          title: 'Apprendre',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book" size={size} color={color} />
           ),
         }}
       />

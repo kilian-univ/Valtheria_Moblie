@@ -1,4 +1,5 @@
 import ChoiceScreen from './screens/ChoiceScreen';
+import DocumentScreen from './screens/DocumentScreen';
 import FallbackScreen from './screens/FallbackScreen';
 import RevealScreen from './screens/RevealScreen';
 import { LessonScreenProps } from './types';
@@ -12,6 +13,8 @@ export default function ScreenRenderer(props: LessonScreenProps) {
       return <RevealScreen {...props} />;
     case 'choice':
       return <ChoiceScreen {...props} />;
+    case 'document':
+      return <DocumentScreen {...props} />;
     default:
       return <FallbackScreen {...props} />;
   }
