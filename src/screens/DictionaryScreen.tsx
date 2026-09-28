@@ -1,10 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  SectionList,
   Text,
   TextInput,
   View,
@@ -21,6 +21,24 @@ type Section = {
   data: DictionaryTerm[];
 };
 
+// Palette monochrome dorée : 4 nuances tirées de l'or de la marque, choisies
+// par hash de catégorie pour rester stable, sans jamais sortir de l'identité or/violet.
+function shadeOfGold(baseHex: string, category: string): string {
+  const shades = [1, 0.82, 0.64, 0.46];
+  let hash = 0;
+  for (let i = 0; i < category.length; i++) {
+    hash = category.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const factor = shades[Math.abs(hash) % shades.length];
+
+  const clean = baseHex.replace('#', '');
+  const num = parseInt(clean, 16);
+  const r = Math.min(255, Math.floor(((num >> 16) & 0xff) * factor));
+  const g = Math.min(255, Math.floor(((num >> 8) & 0xff) * factor));
+  const b = Math.min(255, Math.floor((num & 0xff) * factor));
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
 export default function DictionaryScreen() {
   const { getDictionaryTerms } = useApi();
   const { colorScheme } = useTheme();
@@ -35,7 +53,8 @@ export default function DictionaryScreen() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const sectionListRef = useRef<SectionList<DictionaryTerm, Section>>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const itemPositions = useRef<Record<string, number>>({});
   const appliedTermParam = useRef<string | null>(null);
 
   useEffect(() => {
@@ -45,13 +64,11 @@ export default function DictionaryScreen() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  // Liste des catégories uniques, triées alphabétiquement
   const categories = useMemo(() => {
     const unique = new Set(terms.map((t) => t.category));
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [terms]);
 
-  // Regroupe les termes par première lettre, triés alphabétiquement
   const sections: Section[] = useMemo(() => {
     let filtered = terms;
 
@@ -79,11 +96,9 @@ export default function DictionaryScreen() {
       .map(([title, data]) => ({ title, data }));
   }, [terms, query, selectedCategory]);
 
-  // Applique le terme reçu en paramètre (une seule fois par valeur reçue) :
-  // remplit la recherche, ouvre sa définition, et scrolle jusqu'à lui.
   useEffect(() => {
     if (!termParam || terms.length === 0) return;
-    if (appliedTermParam.current === termParam) return; // déjà traité pour cette valeur
+    if (appliedTermParam.current === termParam) return;
 
     appliedTermParam.current = termParam;
     setQuery(termParam);
@@ -95,32 +110,26 @@ export default function DictionaryScreen() {
     }
   }, [termParam, terms]);
 
-  // Scroll jusqu'à la section/l'item correspondant, une fois la liste filtrée recalculée
   useEffect(() => {
     if (!expanded) return;
-    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-      const itemIndex = sections[sectionIndex].data.findIndex((t) => t.term === expanded);
-      if (itemIndex !== -1) {
-        // Léger délai pour laisser le SectionList terminer son rendu après le filtre
-        setTimeout(() => {
-          sectionListRef.current?.scrollToLocation({
-            sectionIndex,
-            itemIndex,
-            animated: true,
-            viewPosition: 0.2,
-          });
-        }, 150);
-        break;
-      }
+    const y = itemPositions.current[expanded];
+    if (y !== undefined) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: Math.max(y - 100, 0), animated: true });
+      }, 150);
     }
   }, [expanded, sections]);
+
+  const toggleExpanded = (term: string) => {
+    setExpanded((prev) => (prev === term ? null : term));
+  };
 
   if (isLoading) {
     return (
       <View style={styles.container}>
         <Header showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator />
+          <ActivityIndicator color={colors.gold} />
         </View>
       </View>
     );
@@ -131,14 +140,22 @@ export default function DictionaryScreen() {
       <Header showBack />
 
       <View style={{ paddingHorizontal: 20 }}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Rechercher un terme"
-          placeholderTextColor={colors.subtitle}
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-        />
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={18} color={colors.subtitle} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInputWithIcon}
+            placeholder="Rechercher un terme"
+            placeholderTextColor={colors.subtitle}
+            value={query}
+            onChangeText={setQuery}
+            autoCapitalize="none"
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')} hitSlop={8} style={styles.searchClearBtn}>
+              <Ionicons name="close-circle" size={18} color={colors.subtitle} />
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {categories.length > 0 && (
@@ -162,11 +179,7 @@ export default function DictionaryScreen() {
               key={category}
               label={category}
               isActive={selectedCategory === category}
-              onPress={() =>
-                setSelectedCategory((prev) =>
-                  prev === category ? null : category
-                )
-              }
+              onPress={() => setSelectedCategory((prev) => (prev === category ? null : category))}
               colors={colors}
             />
           ))}
@@ -177,59 +190,73 @@ export default function DictionaryScreen() {
         <Text style={{ color: colors.error, paddingHorizontal: 20, marginTop: 8 }}>{error}</Text>
       )}
 
-      <SectionList
-        ref={sectionListRef}
-        sections={sections}
-        keyExtractor={(item) => item.term}
-        contentContainerStyle={styles.listContent}
-        stickySectionHeadersEnabled
-        onScrollToIndexFailed={() => {
-          // SectionList peut échouer si les hauteurs ne sont pas encore mesurées ;
-          // on retente une fois après un court délai plutôt que de crasher.
-          setTimeout(() => {
-            const sectionIndex = sections.findIndex((s) => s.data.some((t) => t.term === expanded));
-            if (sectionIndex === -1) return;
-            const itemIndex = sections[sectionIndex].data.findIndex((t) => t.term === expanded);
-            sectionListRef.current?.scrollToLocation({
-              sectionIndex,
-              itemIndex,
-              animated: true,
-              viewPosition: 0.2,
-            });
-          }, 300);
-        }}
-        renderSectionHeader={({ section }) => (
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionHeaderText}>{section.title}</Text>
-          </View>
-        )}
-        renderItem={({ item, index, section }) => {
-          const isLast = index === section.data.length - 1;
-          const isOpen = expanded === item.term;
+      {sections.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyIconText}>🔍</Text>
+          <Text style={styles.emptyText}>Aucun terme trouvé.</Text>
+        </View>
+      ) : (
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.listContent}>
+          {sections.map((section) => (
+            <View key={section.title}>
+              <View style={styles.sectionHeaderPill}>
+                <Text style={styles.sectionHeaderLetter}>{section.title}</Text>
+                <View style={styles.sectionHeaderLine} />
+              </View>
 
-          return (
-            <View style={index === 0 ? styles.card : undefined}>
-              <Pressable
-                style={[styles.item, isLast && styles.itemLast]}
-                onPress={() => setExpanded(isOpen ? null : item.term)}
-              >
-                <View style={styles.itemHeader}>
-                  <Text style={styles.term}>{item.term}</Text>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryBadgeText}>{item.category}</Text>
-                  </View>
-                </View>
-                {isOpen && <Text style={styles.definition}>{item.definition}</Text>}
-              </Pressable>
+              {section.data.map((item, index) => {
+                const isOpen = expanded === item.term;
+                const shade = shadeOfGold(colors.gold, item.category);
+                const itemKey = `${item.term}-${item.category}-${index}`;
+
+                return (
+                  <Pressable
+                    key={itemKey}
+                    collapsable={false}
+                    onLayout={(e) => {
+                      itemPositions.current[item.term] = e.nativeEvent.layout.y;
+                    }}
+                    style={isOpen ? styles.termCardOpen : styles.termCard}
+                    onPress={() => toggleExpanded(item.term)}
+                  >
+                    <View style={styles.termRow}>
+                      <View style={styles.termAccentBar} />
+                      <View style={[styles.termInitial, { backgroundColor: shade }]}>
+                        <Text style={styles.termInitialText}>{item.term.charAt(0).toUpperCase()}</Text>
+                      </View>
+
+                      <View style={styles.termContent}>
+                        <View style={styles.termHeaderRow}>
+                          <Text style={styles.termTitleText} numberOfLines={1}>
+                            {item.term}
+                          </Text>
+                          <View style={styles.chevronWrap}>
+                            <Ionicons
+                              name={isOpen ? 'chevron-up' : 'chevron-down'}
+                              size={14}
+                              color={colors.gold}
+                            />
+                          </View>
+                        </View>
+
+                        <View style={[styles.categoryTag, { backgroundColor: shade + '1F' }]}>
+                          <Text style={[styles.categoryTagText, { color: shade }]}>{item.category}</Text>
+                        </View>
+
+                        {isOpen && (
+                          <View style={styles.definitionWrap}>
+                            <Text style={styles.definitionText}>{item.definition}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
-          );
-        }}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>Aucun terme trouvé.</Text>
-          </View>
-        }
-      />
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }

@@ -30,7 +30,7 @@ export default function LearnScreen() {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const styles = getApprendreStyles(colorScheme);
-  const { getModules, getProgress, startLesson, isLoading: apiLoading, isAuthenticated } = useApi();
+  const { getModules, getProgress, startLesson, getLesson, isLoading: apiLoading, isAuthenticated } = useApi();
   const router = useRouter();
 
   const [modules, setModules] = useState<Module[]>([]);
@@ -56,6 +56,7 @@ export default function LearnScreen() {
       .catch((err: any) => setError(err.message || 'Impossible de charger les leçons.'))
       .finally(() => setIsLoading(false));
   }, [apiLoading, isAuthenticated]);
+
 
   const modulesWithStatus = useMemo(
     () => modules.map((mod) => ({ ...mod, lessons: withStatus(mod.lessons) })),
@@ -181,7 +182,7 @@ export default function LearnScreen() {
 
         {modules.length === 0 && !error && (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>Aucun module disponible pour le moment.</Text>
+            <Text style={styles.emptyText}>De nouveaux contenus arrivent bientôt sur cette page.</Text>
           </View>
         )}
       </ScrollView>

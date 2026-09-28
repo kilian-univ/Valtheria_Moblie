@@ -408,6 +408,162 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
       color: colors.subtitle,
       fontSize: 14,
     },
+        // Barre de recherche flottante
+    searchWrap: {
+      position: 'relative',
+      justifyContent: 'center',
+    },
+    searchIcon: {
+      position: 'absolute',
+      left: 16,
+      zIndex: 1,
+    },
+    searchInputWithIcon: {
+      borderWidth: 0,
+      borderRadius: 16,
+      paddingLeft: 44,
+      paddingRight: 40,
+      paddingVertical: 14,
+      fontSize: 15,
+      color: colors.text,
+      backgroundColor: colors.surface,
+      marginTop: 12,
+      marginBottom: 4,
+      shadowColor: '#000',
+      shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.06,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+    },
+    searchClearBtn: {
+      position: 'absolute',
+      right: 14,
+      padding: 4,
+    },
+    // En-tête de section, minimal et discret
+    sectionHeaderPill: {
+      backgroundColor: colors.background,
+      paddingTop: 24,
+      paddingBottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    sectionHeaderLetter: {
+      color: colors.gold,
+      fontSize: 13,
+      fontWeight: '800',
+      letterSpacing: 1,
+    },
+    sectionHeaderLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.border,
+    },
+    // Carte de terme (remplace la liste à puces plate)
+    termCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      marginBottom: 10,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: 'transparent',
+      shadowColor: '#000',
+      shadowOpacity: colorScheme === 'dark' ? 0.25 : 0.05,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
+    termCardOpen: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      marginBottom: 10,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.gold + '55',
+      shadowColor: colors.gold,
+      shadowOpacity: colorScheme === 'dark' ? 0.25 : 0.12,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
+    },
+    termRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      padding: 16,
+    },
+    termAccentBar: {
+      width: 3,
+      alignSelf: 'stretch',
+      borderRadius: 2,
+      backgroundColor: colors.gold,
+      marginRight: -2,
+    },
+    termInitial: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    termInitialText: {
+      color: colors.background,
+      fontSize: 16,
+      fontWeight: '800',
+    },
+    termContent: {
+      flex: 1,
+    },
+    termHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    termTitleText: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '700',
+      flex: 1,
+    },
+    chevronWrap: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    categoryTag: {
+      alignSelf: 'flex-start',
+      marginTop: 6,
+      paddingHorizontal: 9,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    categoryTagText: {
+      fontSize: 10.5,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    definitionWrap: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    definitionText: {
+      color: colors.subtitle,
+      fontSize: 13.5,
+      lineHeight: 20,
+    },
+    emptyIconText: {
+      fontSize: 36,
+      marginBottom: 6,
+      opacity: 0.5,
+    },
   });
 }
 
@@ -1891,6 +2047,70 @@ export function getFormStyles(colorScheme: ColorScheme) {
       fontSize: 12,
       fontWeight: '600',
       color: colors.primaryText,
+    },
+  });
+}
+
+export function getSplashStyles(colorScheme: ColorScheme) {
+  const colors = palette[colorScheme];
+
+  return StyleSheet.create({
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 999,
+    },
+    valEmoji: {
+      fontSize: 30,
+    },
+    wordmark: {
+      color: colors.text,
+      fontSize: 22,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+    },
+    tagline: {
+      color: colors.subtitle,
+      fontSize: 13,
+      marginTop: 4,
+    },
+    valAvatar: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.gold,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+      overflow: 'hidden',
+    },
+    valImage: {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+    },
+    welcomeText: {
+      color: colors.text,
+      fontSize: 20,
+      fontWeight: '800',
+      textAlign: 'center',
+      paddingHorizontal: 32,
+      marginBottom: 8,
+    },
+    welcomeSubtext: {
+      color: colors.subtitle,
+      fontSize: 14,
+      textAlign: 'center',
+      paddingHorizontal: 40,
+      lineHeight: 20,
     },
   });
 }
