@@ -109,7 +109,7 @@ export default function CashflowScreen() {
 
       {isLoading || apiLoading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={colors.gold} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>

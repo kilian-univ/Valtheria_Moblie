@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 
-import { ColorScheme, getBlockStyles, palette } from '../../constants/style/Style';
+import { ColorScheme, fonts, getBlockStyles, palette } from '../../constants/style/Style';
 
 // -----------------------------------------------------------------------
 // Construit une regex qui matche n'importe lequel des termes du dictionnaire,
@@ -94,7 +94,7 @@ function parseInline(text: string, colors: any, styles: any, termRegex: RegExp |
 
     if (match[1]) {
       parts.push(
-        <Text key={key++} style={{ fontWeight: '700' }}>
+        <Text key={key++} style={{ fontFamily: fonts.bodySemibold }}>
           {match[2]}
         </Text>
       );
@@ -126,7 +126,7 @@ function calloutColor(colors: any, color?: string) {
   if (color === 'gold') return colors.gold;
   if (color === 'green') return colors.success;
   if (color === 'red') return colors.error;
-  return colors.primary;
+  return colors.gold;
 }
 
 // -----------------------------------------------------------------------
@@ -160,7 +160,7 @@ function QuizBlock({ quiz, colorScheme }: { quiz: any; colorScheme: ColorScheme 
             <Text
               style={[
                 s.quizChoiceText,
-                showResult && isCorrect && { color: colors.success, fontWeight: '600' },
+                showResult && isCorrect && { color: colors.success, fontFamily: fonts.bodySemibold },
                 showResult && isSelected && !isCorrect && { color: colors.error },
               ]}
             >

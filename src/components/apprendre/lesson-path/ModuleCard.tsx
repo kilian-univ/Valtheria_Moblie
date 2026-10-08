@@ -22,7 +22,7 @@ export default function ModuleCard({
 }) {
   const ratio = total > 0 ? completed / total : 0;
   const widthAnim = useRef(new Animated.Value(0)).current;
-  const accent = color || colors.primary;
+  const accent = color || colors.gold;
 
   useEffect(() => {
     Animated.timing(widthAnim, { toValue: ratio, duration: 900, useNativeDriver: false }).start();

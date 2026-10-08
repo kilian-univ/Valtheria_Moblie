@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Text } from 'react-native';
 
-import { palette } from '../constants/style/Style';
+import { fonts, palette } from '../constants/style/Style';
 import { useTheme } from '../context/ThemeContext';
 
 type ToastProps = {
@@ -53,7 +53,7 @@ export default function Toast({ message, visible, onHide, duration = 2000 }: Toa
         opacity,
       }}
     >
-      <Text style={{ color: colors.text, fontSize: 14 }}>{message}</Text>
+      <Text style={{ color: colors.text, fontSize: 14, fontFamily: fonts.body }}>{message}</Text>
     </Animated.View>
   );
 }

@@ -67,7 +67,7 @@ export default function HistoryChart({
 
       {isLoading ? (
         <View style={styles.chartStateBox}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={colors.gold} />
         </View>
       ) : points.length === 0 ? (
         <View style={styles.chartStateBox}>

@@ -1,6 +1,4 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, Text, View } from 'react-native';
-import { darken } from './colorUtils';
 
 export default function ContinueCard({
   lessonTitle,
@@ -19,12 +17,7 @@ export default function ContinueCard({
 }) {
   return (
     <Pressable onPress={onPress} style={styles.continueCardWrap}>
-      <LinearGradient
-        colors={[colors.primary, darken(colors.primary, 0.4)]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.continueCardGradient}
-      >
+      <View style={styles.continueCard}>
         <View style={styles.continueCardTextWrap}>
           <Text style={styles.continueCardModule}>{moduleTitle.toUpperCase()}</Text>
           <Text style={styles.continueCardLesson} numberOfLines={2}>
@@ -36,7 +29,7 @@ export default function ContinueCard({
         <View style={styles.continueCardPlayWrap}>
           <View style={styles.continueCardPlayTriangle} />
         </View>
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 }

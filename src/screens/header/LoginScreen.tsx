@@ -67,7 +67,7 @@ export default function LoginScreen({ navigation }: any) {
           <TextInput
             style={input_styles.input}
             placeholder="Email"
-            placeholderTextColor="#9fb0bd"
+            placeholderTextColor={colors.subtitle}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -78,7 +78,7 @@ export default function LoginScreen({ navigation }: any) {
           <TextInput
             style={input_styles.input}
             placeholder="Mot de passe"
-            placeholderTextColor="#9fb0bd"
+            placeholderTextColor={colors.subtitle}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -91,13 +91,12 @@ export default function LoginScreen({ navigation }: any) {
             style={({ pressed }) => [
               bouton_styles.button,
               pressed && bouton_styles.buttonPressed,
-              isSubmitting && bouton_styles.buttonDisabled,
             ]}
             onPress={handleLogin}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="#0D1B2A" />
+              <ActivityIndicator color={colors.onGold} />
             ) : (
               <Text style={bouton_styles.buttonText}>Se connecter</Text>
             )}

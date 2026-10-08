@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+
+import { fonts } from '@/src/constants/style/Style';
 import ContinueButton from '../ContinueButton';
 import ValBubble from '../ValBubble';
 import { LessonScreenProps } from '../types';
@@ -48,12 +50,12 @@ export default function ChoiceScreen({ screen, screenIndex, colors, onNext, onRe
       <ValBubble val={feedbackVal} colors={colors} />
 
       {payload.subtitle && (
-        <Text style={{ color: colors.subtitle, fontSize: 13, marginHorizontal: 20, marginBottom: 8, lineHeight: 18 }}>
+        <Text style={{ color: colors.subtitle, fontSize: 13, fontFamily: fonts.body, marginHorizontal: 20, marginBottom: 8, lineHeight: 18 }}>
           {payload.subtitle}
         </Text>
       )}
 
-      <Text style={{ color: colors.text, fontSize: 17, fontWeight: '700', marginHorizontal: 20, marginBottom: 16 }}>
+      <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bodySemibold, marginHorizontal: 20, marginBottom: 16 }}>
         {payload.question}
       </Text>
 
@@ -62,7 +64,7 @@ export default function ChoiceScreen({ screen, screenIndex, colors, onNext, onRe
           const isSelected = selectedIds.includes(option.id);
 
           let backgroundColor = colors.surface;
-          let borderColor = colors.border;
+          let borderColor = colors.controlBorder;
 
           if (answered) {
             if (option.correct) {
@@ -73,8 +75,8 @@ export default function ChoiceScreen({ screen, screenIndex, colors, onNext, onRe
               borderColor = colors.error;
             }
           } else if (isSelected) {
-            backgroundColor = colors.primary + '22';
-            borderColor = colors.primary;
+            backgroundColor = colors.goldSoft;
+            borderColor = colors.gold;
           }
 
           return (
@@ -102,12 +104,12 @@ export default function ChoiceScreen({ screen, screenIndex, colors, onNext, onRe
                     height: 18,
                     borderRadius: 4,
                     borderWidth: 1.5,
-                    borderColor: isSelected ? colors.primary : colors.subtitle,
-                    backgroundColor: isSelected ? colors.primary : 'transparent',
+                    borderColor: isSelected ? colors.gold : colors.subtitle,
+                    backgroundColor: isSelected ? colors.gold : 'transparent',
                   }}
                 />
               )}
-              <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600', flex: 1 }}>{option.text}</Text>
+              <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.bodySemibold, flex: 1 }}>{option.text}</Text>
             </Pressable>
           );
         })}
@@ -119,7 +121,7 @@ export default function ChoiceScreen({ screen, screenIndex, colors, onNext, onRe
         <>
           {screen.explanation && (
             <View style={{ marginHorizontal: 20, marginTop: 4, marginBottom: 8, padding: 14, borderRadius: 12, backgroundColor: colors.surface }}>
-              <Text style={{ color: colors.subtitle, fontSize: 14, lineHeight: 20 }}>{screen.explanation}</Text>
+              <Text style={{ color: colors.subtitle, fontSize: 14, fontFamily: fonts.body, lineHeight: 20 }}>{screen.explanation}</Text>
             </View>
           )}
           {isLast ? (

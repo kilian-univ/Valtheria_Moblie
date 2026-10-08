@@ -63,10 +63,10 @@ export default function LessonNode({
     };
   }, [isCurrent, status]);
 
-  const baseColor =
-    status === 'completed' ? colors.gold : status === 'available' ? moduleColor || colors.primary : colors.surface;
-  const shadowColorBevel = status === 'locked' ? colors.border : darken(baseColor, 0.28);
-  const glyphColor = status === 'locked' ? colors.subtitle : colors.primaryText;
+  // Verrouillé = même apparence qu'un nœud disponible, seule l'opacité change (0.42)
+  const baseColor = status === 'completed' ? colors.gold : moduleColor || colors.gold;
+  const shadowColorBevel = darken(baseColor, 0.28);
+  const glyphColor = colors.onGold;
 
   const handlePressIn = () => {
     if (status === 'locked') return;
@@ -80,7 +80,15 @@ export default function LessonNode({
   const spin = ringRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
-    <View style={{ position: 'absolute', left: x - size / 2, top: y - size / 2 - BEVEL / 2, alignItems: 'center' }}>
+    <View
+      style={{
+        position: 'absolute',
+        left: x - size / 2,
+        top: y - size / 2 - BEVEL / 2,
+        alignItems: 'center',
+        opacity: status === 'locked' ? 0.42 : 1,
+      }}
+    >
       {/* Bulle "COMMENCER" flottante au-dessus */}
       {isCurrent && status !== 'locked' && (
         <Animated.View style={[styles.nodeBubble, { transform: [{ translateY: bounce }] }]}>
@@ -135,10 +143,6 @@ export default function LessonNode({
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: baseColor,
-              borderWidth: status === 'locked' ? 2 : 0,
-              borderColor: status === 'locked' ? colors.border : 'transparent',
-              borderStyle: status === 'locked' ? 'dashed' : 'solid',
-              opacity: status === 'locked' ? 0.55 : isStarting ? 0.75 : 1,
             }}
           >
             {isStarting ? (

@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import Header from '@/src/components/topbar/header';
-import { palette } from '@/src/constants/style/Style';
+import { fonts, palette, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 
 type Tool = {
@@ -47,10 +47,10 @@ export default function OutilsScreen() {
       <Header showBack={false} />
 
       <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
-        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 4 }}>
+        <Text style={{ color: colors.text, fontSize: 22, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(22), marginBottom: 4 }}>
           Outils
         </Text>
-        <Text style={{ color: colors.subtitle, fontSize: 14, marginBottom: 12 }}>
+        <Text style={{ color: colors.subtitle, fontSize: 14, fontFamily: fonts.body, marginBottom: 12 }}>
           Pilote tes finances au quotidien
         </Text>
 
@@ -82,12 +82,12 @@ export default function OutilsScreen() {
               <Text style={{ fontSize: 22 }}>{tool.icon}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 2 }}>
+              <Text style={{ color: colors.text, fontSize: 16, fontFamily: fonts.bodySemibold, marginBottom: 2 }}>
                 {tool.title}
               </Text>
-              <Text style={{ color: colors.subtitle, fontSize: 13 }}>{tool.description}</Text>
+              <Text style={{ color: colors.subtitle, fontSize: 13, fontFamily: fonts.body }}>{tool.description}</Text>
             </View>
-            <Text style={{ color: colors.subtitle, fontSize: 18 }}>›</Text>
+            <Text style={{ color: colors.subtitle, fontSize: 18, fontFamily: fonts.body }}>›</Text>
           </Pressable>
         ))}
       </ScrollView>

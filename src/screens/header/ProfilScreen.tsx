@@ -20,6 +20,7 @@ import {
   getBoutonStyles,
   getProfileStyles,
   palette,
+  fonts,
 } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -198,20 +199,20 @@ export default function ProfileScreen() {
                     />
                     <Pressable style={profile_styles.smallBtn} onPress={savePseudo} disabled={pseudoSaving}>
                       {pseudoSaving ? (
-                        <ActivityIndicator size="small" color={colors.primaryText} />
+                        <ActivityIndicator size="small" color={colors.onGold} />
                       ) : (
                         <Text style={profile_styles.smallBtnText}>OK</Text>
                       )}
                     </Pressable>
                     <Pressable
-                      style={profile_styles.smallBtn}
+                      style={profile_styles.smallBtnSecondary}
                       onPress={() => {
                         setEditingPseudo(false);
                         setPseudo(user?.pseudo ?? '');
                         setPseudoError(null);
                       }}
                     >
-                      <Ionicons name="close" size={16} color={colors.primaryText} />
+                      <Ionicons name="close" size={16} color={colors.subtitle} />
                     </Pressable>
                   </View>
                   {pseudoError && <Text style={basiques_styles.error}>{pseudoError}</Text>}
@@ -226,7 +227,7 @@ export default function ProfileScreen() {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
                     onPress={() => setEditingPseudo(true)}
                   >
-                    <Text style={{ color: colors.subtitle, fontSize: 14 }}>{user?.pseudo}</Text>
+                    <Text style={{ color: colors.subtitle, fontSize: 14, fontFamily: fonts.body }}>{user?.pseudo}</Text>
                     <Ionicons name="pencil-outline" size={14} color={colors.gold} />
                   </Pressable>
                 </>
@@ -284,12 +285,12 @@ export default function ProfileScreen() {
                     )}
 
                     <Pressable
-                      style={[bouton_styles.button, passwordSaving && bouton_styles.buttonDisabled]}
+                      style={bouton_styles.button}
                       onPress={savePassword}
                       disabled={passwordSaving}
                     >
                       {passwordSaving ? (
-                        <ActivityIndicator color={colors.background} />
+                        <ActivityIndicator color={colors.onGold} />
                       ) : (
                         <Text style={bouton_styles.buttonText}>Mettre à jour</Text>
                       )}
@@ -314,7 +315,7 @@ export default function ProfileScreen() {
                 />
                 <Text style={profile_styles.rowLabel}>Thème</Text>
               </View>
-              <Text style={{ color: colors.subtitle, fontSize: 14 }}>
+              <Text style={{ color: colors.subtitle, fontSize: 14, fontFamily: fonts.body }}>
                 {colorScheme === 'dark' ? 'Sombre' : 'Clair'}
               </Text>
             </Pressable>

@@ -53,7 +53,7 @@ export default function PathBackground({
         const stroke = fromDone && toDone
           ? colors.gold
           : fromDone
-          ? moduleColor || colors.primary
+          ? moduleColor || colors.gold
           : colors.border;
 
         return (

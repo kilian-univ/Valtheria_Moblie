@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, Text, View } from 'react-native';
+
+import { fonts, titleLetterSpacing } from '@/src/constants/style/Style';
 import ContinueButton from '../ContinueButton';
 import ValBubble from '../ValBubble';
 import { LessonScreenProps } from '../types';
@@ -40,7 +42,7 @@ export default function RevealScreen({ screen, screenIndex, colors, onNext, isLa
         <ValBubble val={screen.val.intro} colors={colors} />
 
         {payload.question && (
-            <Text style={{ color: colors.text, fontSize: 16, marginHorizontal: 20, marginBottom: 20, lineHeight: 22 }}>
+            <Text style={{ color: colors.text, fontSize: 16, fontFamily: fonts.body, marginHorizontal: 20, marginBottom: 20, lineHeight: 22 }}>
             {payload.question}
             </Text>
         )}
@@ -57,12 +59,12 @@ export default function RevealScreen({ screen, screenIndex, colors, onNext, isLa
             }}
         >
             {payload.label && (
-            <Text style={{ color: colors.subtitle, fontSize: 13, marginBottom: 10, textAlign: 'center' }}>
+            <Text style={{ color: colors.subtitle, fontSize: 13, fontFamily: fonts.body, marginBottom: 10, textAlign: 'center' }}>
                 {payload.label}
             </Text>
             )}
 
-            <Text style={{ color: colors.gold, fontSize: 38, fontWeight: '800', textAlign: 'center', marginBottom: 16 }}>
+            <Text style={{ color: colors.gold, fontSize: 38, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(38), fontVariant: ['tabular-nums'], textAlign: 'center', marginBottom: 16 }}>
             {revealed ? `${displayValue.toLocaleString('fr-FR')} ${payload.unit ?? ''}` : '?'}
             </Text>
 
@@ -78,8 +80,8 @@ export default function RevealScreen({ screen, screenIndex, colors, onNext, isLa
                 opacity: line.dim ? 0.6 : 1,
                 }}
             >
-                <Text style={{ color: colors.text, fontSize: 13, flex: 1 }}>{line.label}</Text>
-                <Text style={{ color: line.key ? colors.gold : colors.text, fontSize: 13, fontWeight: line.key ? '700' : '400' }}>
+                <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.body, flex: 1 }}>{line.label}</Text>
+                <Text style={{ color: line.key ? colors.gold : colors.text, fontSize: 13, fontFamily: line.key ? fonts.bodySemibold : fonts.body, fontVariant: ['tabular-nums'] }}>
                 {Number(line.value).toLocaleString('fr-FR')} {payload.unit ?? ''}
                 </Text>
             </View>
@@ -92,7 +94,7 @@ export default function RevealScreen({ screen, screenIndex, colors, onNext, isLa
             <>
             {screen.explanation && (
                 <View style={{ marginHorizontal: 20, marginBottom: 8, padding: 14, borderRadius: 12, backgroundColor: colors.surface }}>
-                <Text style={{ color: colors.subtitle, fontSize: 14, lineHeight: 20 }}>{screen.explanation}</Text>
+                <Text style={{ color: colors.subtitle, fontSize: 14, fontFamily: fonts.body, lineHeight: 20 }}>{screen.explanation}</Text>
                 </View>
             )}
             {isLast ? (

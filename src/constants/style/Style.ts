@@ -1,7 +1,30 @@
 import { CHART_HEIGHT } from "@/src/components/outils/portfolio/chartConstants";
-import { StyleSheet } from "react-native";
+import { StyleSheet, TextStyle } from "react-native";
 
 export type ColorScheme = 'light' | 'dark';
+
+// Polices chargées dans app/_layout.tsx. La graisse est portée par la famille :
+// ne pas ajouter de fontWeight en plus (iOS retomberait sur la police système).
+export const fonts = {
+  title: 'Fraunces_500Medium',
+  body: 'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodySemibold: 'Inter_600SemiBold',
+} as const;
+
+// Titres Fraunces : interlettrage resserré proportionnel à la taille
+export const titleLetterSpacing = (fontSize: number) => Math.round(-0.022 * fontSize * 100) / 100;
+
+// Intitulé de section : petites capitales dorées
+export function sectionLabel(colors: { gold: string }): TextStyle {
+  return {
+    color: colors.gold,
+    fontFamily: fonts.bodySemibold,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  };
+}
 
 export const palette = {
   // Thème sombre — reprend le fond confirmé du site (#0D0D0F)
@@ -9,14 +32,19 @@ export const palette = {
     background: '#0D0D0F',
     surface: '#18181C',       // cartes, inputs, panneaux légèrement plus clairs
     surfaceAlt: '#232328',
-    text: '#F5F4F2',
-    subtitle: '#9A9AA2',
-    border: '#2C2C32',
-    primary: '#8B5CF6',       // violet — "légendaire", coffres, coach IA
-    primaryText: '#FFFFFF',
-    gold: '#E8B23D',          // XP, récompenses, coffre légendaire 
-    success: '#4ADE80',
-    error: '#F26B5E',
+    text: '#F2EFE8',
+    subtitle: 'rgba(242,239,232,0.46)',  // texte atténué
+    textFaint: 'rgba(242,239,232,0.26)', // texte faible
+    border: 'rgba(255,255,255,0.055)',   // filet de séparation
+    controlBorder: 'rgba(255,255,255,0.13)', // bordures de champs et de contrôles
+    gold: '#C9A84C',
+    goldSoft: 'rgba(201,168,76,0.13)',   // fond de sélection discret
+    onGold: '#0D0D0F',                   // texte posé sur l'or
+    success: '#3FA876',
+    error: '#E0715F',
+    shadow: '#000000',
+    blobLight: '#FFFFFF',                // taches du fond d'écran
+    blobDark: '#000000',
   },
 
   // Thème clair — même identité, inversée pour la lisibilité de jour
@@ -27,11 +55,17 @@ export const palette = {
     text: '#0D0D0F',
     subtitle: '#5B5B63',
     border: '#E2E1E6',
-    primary: '#7C3AED',
-    primaryText: '#FFFFFF',
     gold: '#E8B23D',
     success: '#16A34A',
     error: '#DC4C3E',
+    // Jetons ajoutés pour suivre la palette sombre (le thème clair n'est pas retravaillé)
+    textFaint: 'rgba(13,13,15,0.26)',
+    controlBorder: 'rgba(0,0,0,0.13)',
+    goldSoft: 'rgba(232,178,61,0.13)',
+    onGold: '#0D0D0F',
+    shadow: '#000000',
+    blobLight: '#000000',
+    blobDark: '#000000',
   },
 };
 
@@ -47,11 +81,13 @@ export function getBasiquesStyles(colorScheme: ColorScheme) {
     },
     title: {
       fontSize: 28,
-      fontWeight: '600',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(28),
       color: colors.text,
     },
     subtitle: {
       fontSize: 16,
+      fontFamily: fonts.body,
       color: colors.subtitle,
       marginBottom: 24,
     },
@@ -62,10 +98,12 @@ export function getBasiquesStyles(colorScheme: ColorScheme) {
     error: {
       color: colors.error,
       fontSize: 13,
+      fontFamily: fonts.body,
     },
     backBtn: {
         marginLeft: -20,
     },
+    sectionLabel: sectionLabel(colors),
 
   });
 }
@@ -83,13 +121,13 @@ export function getBackgroundStyles(colorScheme: ColorScheme) {
     blobLight: {
       position: 'absolute',
       borderRadius: 999,
-      backgroundColor: isDark ? '#FFFFFF' : '#000000',
+      backgroundColor: colors.blobLight,
       opacity: isDark ? 0.025 : 0.02,
     },
     blobDark: {
       position: 'absolute',
       borderRadius: 999,
-      backgroundColor: isDark ? '#000000' : '#000000',
+      backgroundColor: colors.blobDark,
       opacity: isDark ? 0.18 : 0.03,
     },
   });
@@ -101,7 +139,7 @@ export function getBoutonStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     button: {
       backgroundColor: colors.gold,
-      borderRadius: 8,
+      borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
       marginTop: 8,
@@ -110,12 +148,12 @@ export function getBoutonStyles(colorScheme: ColorScheme) {
       opacity: 0.85,
     },
     buttonDisabled: {
-      opacity: 0.6,
+      opacity: 0.42,
     },
     buttonText: {
-      color: colors.background,
-      fontWeight: '600',
+      color: colors.onGold,
       fontSize: 15,
+      fontFamily: fonts.bodySemibold,
     },
   });
 }
@@ -126,11 +164,12 @@ export function getInputStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     input: {
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
       borderRadius: 8,
       paddingHorizontal: 14,
       paddingVertical: 12,
       fontSize: 15,
+      fontFamily: fonts.body,
       color: colors.text,
     },
     link: {
@@ -138,6 +177,7 @@ export function getInputStyles(colorScheme: ColorScheme) {
       textAlign: 'center',
       marginTop: 16,
       fontSize: 13,
+      fontFamily: fonts.body,
     },
   });
 }
@@ -176,19 +216,19 @@ export function getHeaderStyles(colorScheme: ColorScheme) {
     },
     textBtnLabel: {
       fontSize: 14,
-      fontWeight: '500',
+      fontFamily: fonts.bodyMedium,
       color: colors.background,
     },
     pillBtn: {
       backgroundColor: colors.gold,
       paddingHorizontal: 16,
       paddingVertical: 8,
-      borderRadius: 20,
+      borderRadius: 12,
     },
     pillBtnLabel: {
-      color: colors.background,
-      fontWeight: '600',
+      color: colors.onGold,
       fontSize: 14,
+      fontFamily: fonts.bodySemibold,
     },
   });
 }
@@ -224,18 +264,19 @@ export function getProfileStyles(colorScheme: ColorScheme) {
       justifyContent: 'center',
     },
     avatarText: {
-      color: colors.background,
+      color: colors.onGold,
       fontSize: 22,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
     },
     pseudo: {
       color: colors.text,
       fontSize: 18,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
     },
     email: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       marginTop: 2,
     },
     badge: {
@@ -249,7 +290,7 @@ export function getProfileStyles(colorScheme: ColorScheme) {
     badgeText: {
       color: colors.gold,
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
     },
     statsRow: {
       flexDirection: 'row',
@@ -263,19 +304,17 @@ export function getProfileStyles(colorScheme: ColorScheme) {
     statValue: {
       color: colors.text,
       fontSize: 18,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     statLabel: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
       marginTop: 2,
     },
     sectionTitle: {
-      color: colors.subtitle,
-      fontSize: 12,
-      fontWeight: '600',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      ...sectionLabel(colors),
       marginBottom: 8,
       marginLeft: 4,
     },
@@ -298,10 +337,12 @@ export function getProfileStyles(colorScheme: ColorScheme) {
     rowLabel: {
       color: colors.text,
       fontSize: 15,
+      fontFamily: fonts.body,
     },
     rowLabelDanger: {
       color: colors.error,
       fontSize: 15,
+      fontFamily: fonts.body,
     },
     inlineEditRow: {
       flexDirection: 'row',
@@ -311,33 +352,43 @@ export function getProfileStyles(colorScheme: ColorScheme) {
     smallInput: {
       flex: 1,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
       borderRadius: 8,
       paddingHorizontal: 12,
       paddingVertical: 8,
       fontSize: 14,
+      fontFamily: fonts.body,
       color: colors.text,
       backgroundColor: colors.background,
     },
     smallBtn: {
-      backgroundColor: colors.primary,
-      borderRadius: 8,
+      backgroundColor: colors.gold,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    smallBtnSecondary: {
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.controlBorder,
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
     smallBtnText: {
-      color: colors.primaryText,
-      fontWeight: '600',
+      color: colors.onGold,
       fontSize: 13,
+      fontFamily: fonts.bodySemibold,
     },
     helperText: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
       marginTop: 6,
     },
     successText: {
       color: colors.success,
       fontSize: 12,
+      fontFamily: fonts.body,
       marginTop: 6,
     },
     coinIcon: {
@@ -366,11 +417,7 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
       paddingBottom: 8,
     },
     sectionHeaderText: {
-      color: colors.gold,
-      fontSize: 13,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      ...sectionLabel(colors),
     },
     card: {
       backgroundColor: colors.surface,
@@ -396,7 +443,7 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
     term: {
       color: colors.text,
       fontSize: 15,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
       flex: 1,
     },
     categoryBadge: {
@@ -409,21 +456,23 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
     categoryBadgeText: {
       color: colors.subtitle,
       fontSize: 11,
-      fontWeight: '500',
+      fontFamily: fonts.bodyMedium,
     },
     definition: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       marginTop: 6,
       lineHeight: 18,
     },
     searchInput: {
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
       borderRadius: 10,
       paddingHorizontal: 14,
       paddingVertical: 10,
       fontSize: 14,
+      fontFamily: fonts.body,
       color: colors.text,
       backgroundColor: colors.surface,
       marginTop: 12,
@@ -437,6 +486,7 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
     emptyText: {
       color: colors.subtitle,
       fontSize: 14,
+      fontFamily: fonts.body,
     },
         // Barre de recherche flottante
     searchWrap: {
@@ -455,11 +505,12 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
       paddingRight: 40,
       paddingVertical: 14,
       fontSize: 15,
+      fontFamily: fonts.body,
       color: colors.text,
       backgroundColor: colors.surface,
       marginTop: 12,
       marginBottom: 4,
-      shadowColor: '#000',
+      shadowColor: colors.shadow,
       shadowOpacity: colorScheme === 'dark' ? 0.3 : 0.06,
       shadowRadius: 10,
       shadowOffset: { width: 0, height: 4 },
@@ -480,10 +531,7 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
       gap: 10,
     },
     sectionHeaderLetter: {
-      color: colors.gold,
-      fontSize: 13,
-      fontWeight: '800',
-      letterSpacing: 1,
+      ...sectionLabel(colors),
     },
     sectionHeaderLine: {
       flex: 1,
@@ -498,7 +546,7 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: 'transparent',
-      shadowColor: '#000',
+      shadowColor: colors.shadow,
       shadowOpacity: colorScheme === 'dark' ? 0.25 : 0.05,
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 3 },
@@ -540,7 +588,7 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
     termInitialText: {
       color: colors.background,
       fontSize: 16,
-      fontWeight: '800',
+      fontFamily: fonts.bodySemibold,
     },
     termContent: {
       flex: 1,
@@ -554,7 +602,7 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
     termTitleText: {
       color: colors.text,
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       flex: 1,
     },
     chevronWrap: {
@@ -574,7 +622,7 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
     },
     categoryTagText: {
       fontSize: 10.5,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       textTransform: 'uppercase',
       letterSpacing: 0.4,
     },
@@ -587,12 +635,13 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
     definitionText: {
       color: colors.subtitle,
       fontSize: 13.5,
+      fontFamily: fonts.body,
       lineHeight: 20,
     },
     emptyIconText: {
       fontSize: 36,
       marginBottom: 6,
-      opacity: 0.5,
+      opacity: 0.42,
     },
   });
 }
@@ -611,6 +660,7 @@ export function getArticlesStyles(colorScheme: ColorScheme) {
     },
     error: {
       color: colors.error,
+      fontFamily: fonts.body,
       paddingHorizontal: 20,
       marginTop: 8,
     },
@@ -645,22 +695,24 @@ export function getArticlesStyles(colorScheme: ColorScheme) {
     categoryBadgeText: {
       color: colors.subtitle,
       fontSize: 11,
-      fontWeight: '500',
+      fontFamily: fonts.bodyMedium,
     },
     title: {
       color: colors.text,
       fontSize: 16,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
       marginBottom: 4,
     },
     excerpt: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       lineHeight: 18,
     },
     date: {
       color: colors.subtitle,
       fontSize: 11,
+      fontFamily: fonts.body,
       marginTop: 8,
     },
     empty: {
@@ -671,6 +723,7 @@ export function getArticlesStyles(colorScheme: ColorScheme) {
     emptyText: {
       color: colors.subtitle,
       fontSize: 14,
+      fontFamily: fonts.body,
     },
   });
 }
@@ -705,12 +758,13 @@ export function getArticleDetailStyles(colorScheme: ColorScheme) {
     categoryBadgeText: {
       color: colors.subtitle,
       fontSize: 12,
-      fontWeight: '500',
+      fontFamily: fonts.bodyMedium,
     },
     title: {
       color: colors.text,
       fontSize: 24,
-      fontWeight: '700',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(24),
       lineHeight: 30,
       marginBottom: 8,
     },
@@ -723,6 +777,7 @@ export function getArticleDetailStyles(colorScheme: ColorScheme) {
     date: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
     },
     actions: {
       flexDirection: 'row',
@@ -731,10 +786,12 @@ export function getArticleDetailStyles(colorScheme: ColorScheme) {
     body: {
       color: colors.text,
       fontSize: 16,
+      fontFamily: fonts.body,
       lineHeight: 26,
     },
     error: {
       color: colors.error,
+      fontFamily: fonts.body,
       padding: 20,
     },
   });
@@ -747,20 +804,21 @@ export function getBlockStyles(colorScheme: ColorScheme) {
     h2: {
       color: colors.text,
       fontSize: 21,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       marginTop: 24,
       marginBottom: 10,
     },
     h3: {
       color: colors.text,
       fontSize: 18,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
       marginTop: 20,
       marginBottom: 8,
     },
     paragraph: {
       color: colors.text,
       fontSize: 16,
+      fontFamily: fonts.body,
       lineHeight: 25,
       marginBottom: 14,
     },
@@ -771,19 +829,21 @@ export function getBlockStyles(colorScheme: ColorScheme) {
     },
     quoteBlock: {
       borderLeftWidth: 3,
-      borderLeftColor: colors.primary,
+      borderLeftColor: colors.gold,
       paddingLeft: 14,
       marginVertical: 16,
     },
     quoteText: {
       color: colors.text,
       fontSize: 17,
+      fontFamily: fonts.body,
       fontStyle: 'italic',
       lineHeight: 24,
     },
     quoteAuthor: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       marginTop: 6,
     },
     calloutBlock: {
@@ -794,6 +854,7 @@ export function getBlockStyles(colorScheme: ColorScheme) {
     },
     calloutText: {
       fontSize: 14,
+      fontFamily: fonts.body,
       lineHeight: 21,
     },
     listBlock: {
@@ -807,12 +868,14 @@ export function getBlockStyles(colorScheme: ColorScheme) {
     listBullet: {
       color: colors.gold,
       fontSize: 16,
+      fontFamily: fonts.body,
       lineHeight: 22,
     },
     listItemText: {
       flex: 1,
       color: colors.text,
       fontSize: 15,
+      fontFamily: fonts.body,
       lineHeight: 22,
     },
     statCard: {
@@ -826,11 +889,14 @@ export function getBlockStyles(colorScheme: ColorScheme) {
     },
     statValue: {
       fontSize: 26,
-      fontWeight: '700',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(26),
+      fontVariant: ['tabular-nums'],
     },
     statLabel: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
       textAlign: 'center',
       marginTop: 6,
     },
@@ -853,7 +919,7 @@ export function getBlockStyles(colorScheme: ColorScheme) {
     quizQuestion: {
       color: colors.text,
       fontSize: 15,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
       marginBottom: 4,
     },
     quizChoice: {
@@ -865,15 +931,18 @@ export function getBlockStyles(colorScheme: ColorScheme) {
     quizChoiceText: {
       color: colors.text,
       fontSize: 14,
+      fontFamily: fonts.body,
     },
     quizExplanation: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       lineHeight: 19,
       marginTop: 4,
     },
       termLink: {
-      color: colors.primary,
+      color: colors.gold,
+      fontFamily: fonts.body,
       textDecorationLine: 'underline',
       textDecorationStyle: 'dotted',
     },
@@ -894,6 +963,7 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
     },
     error: {
       color: colors.error,
+      fontFamily: fonts.body,
       paddingHorizontal: 20,
       marginTop: 8,
     },
@@ -907,12 +977,14 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
     },
     emptyText: {
       color: colors.subtitle,
+      fontFamily: fonts.body,
     },
-    // Header dégradé
+    // Header (fond surface uni)
     headerWrap: {
       overflow: 'hidden',
     },
-    headerGradient: {
+    headerPanel: {
+      backgroundColor: colors.surface,
       paddingVertical: 22,
       paddingHorizontal: 20,
     },
@@ -958,7 +1030,7 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
       paddingVertical: 10,
       borderRadius: 18,
       backgroundColor: colors.background,
-      shadowColor: '#000',
+      shadowColor: colors.shadow,
       shadowOpacity: 0.15,
       shadowRadius: 6,
       shadowOffset: { width: 0, height: 3 },
@@ -969,18 +1041,20 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
     },
     statPillValue: {
       color: colors.text,
-      fontWeight: '800',
       fontSize: 17,
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     statPillValueGold: {
       color: colors.gold,
-      fontWeight: '800',
       fontSize: 17,
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     statPillLabel: {
       color: colors.subtitle,
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
     },
     pathSvg: {
       position: 'absolute',
@@ -999,7 +1073,7 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
     nodeBubbleText: {
       color: colors.background,
       fontSize: 11,
-      fontWeight: '800',
+      fontFamily: fonts.bodySemibold,
     },
     nodeBubbleArrow: {
       position: 'absolute',
@@ -1019,24 +1093,25 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
     nodeTitle: {
       color: colors.text,
       fontSize: 12,
+      fontFamily: fonts.body,
       marginTop: 10,
       maxWidth: 100,
       textAlign: 'center',
-      fontWeight: '400',
     },
     nodeTitleCurrent: {
       color: colors.text,
       fontSize: 12,
+      fontFamily: fonts.bodySemibold,
       marginTop: 10,
       maxWidth: 100,
       textAlign: 'center',
-      fontWeight: '700',
     },
     nodeXpText: {
       color: colors.gold,
       fontSize: 10,
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
       marginTop: 2,
-      fontWeight: '700',
     },
     nodeSpinnerGlyph: {
       fontSize: 18,
@@ -1084,12 +1159,13 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
     moduleTitleText: {
       color: colors.text,
       fontSize: 17,
-      fontWeight: '800',
+      fontFamily: fonts.bodySemibold,
       letterSpacing: 0.2,
     },
     moduleDifficultyText: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
       marginTop: 2,
       textTransform: 'capitalize',
     },
@@ -1097,11 +1173,11 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: 10,
-      backgroundColor: colors.gold + '22',
+      backgroundColor: colors.goldSoft,
     },
     moduleDoneBadgeText: {
       fontSize: 11,
-      fontWeight: '800',
+      fontFamily: fonts.bodySemibold,
       color: colors.gold,
     },
     moduleProgressRow: {
@@ -1123,7 +1199,8 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
     moduleProgressCount: {
       color: colors.subtitle,
       fontSize: 12,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
       minWidth: 38,
       textAlign: 'right',
     },
@@ -1132,7 +1209,8 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
       marginHorizontal: 20,
       marginBottom: 24,
     },
-    continueCardGradient: {
+    continueCard: {
+      backgroundColor: colors.surface,
       borderRadius: 20,
       padding: 20,
       flexDirection: 'row',
@@ -1142,28 +1220,30 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
       flex: 1,
     },
     continueCardModule: {
-      color: colors.primaryText,
+      color: colors.text,
       opacity: 0.85,
       fontSize: 12,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       marginBottom: 4,
     },
     continueCardLesson: {
-      color: colors.primaryText,
+      color: colors.text,
       fontSize: 18,
-      fontWeight: '800',
+      fontFamily: fonts.bodySemibold,
       marginBottom: 6,
     },
     continueCardXp: {
-      color: colors.primaryText,
+      color: colors.text,
       opacity: 0.85,
       fontSize: 12,
+      fontFamily: fonts.body,
+      fontVariant: ['tabular-nums'],
     },
     continueCardPlayWrap: {
       width: 52,
       height: 52,
-      borderRadius: 26,
-      backgroundColor: 'rgba(255,255,255,0.22)',
+      borderRadius: 12,
+      backgroundColor: colors.gold,
       alignItems: 'center',
       justifyContent: 'center',
       marginLeft: 12,
@@ -1177,7 +1257,7 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
       borderLeftWidth: 18,
       borderTopColor: 'transparent',
       borderBottomColor: 'transparent',
-      borderLeftColor: colors.primaryText,
+      borderLeftColor: colors.onGold,
     },
   });
 }
@@ -1204,11 +1284,13 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
     backChevron: {
       color: colors.text,
       fontSize: 20,
+      fontFamily: fonts.body,
     },
     headerTitle: {
       color: colors.text,
       fontSize: 18,
-      fontWeight: '700',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(18),
     },
     scrollContent: {
       padding: 20,
@@ -1216,6 +1298,7 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
     },
     error: {
       color: colors.error,
+      fontFamily: fonts.body,
       marginBottom: 16,
     },
     // Carte valeur actuelle
@@ -1231,23 +1314,28 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
     valueCardLabel: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       marginBottom: 4,
     },
     valueCardAmount: {
       color: colors.text,
       fontSize: 30,
-      fontWeight: '800',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(30),
+      fontVariant: ['tabular-nums'],
       marginBottom: 8,
     },
     valueCardGainPositive: {
       color: colors.success,
       fontSize: 14,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     valueCardGainNegative: {
       color: colors.error,
       fontSize: 14,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     // Rangée de 3 stats
     statsRow: {
@@ -1266,22 +1354,26 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
     statCardLabel: {
       color: colors.subtitle,
       fontSize: 11,
+      fontFamily: fonts.body,
       marginBottom: 4,
     },
     statCardValue: {
       color: colors.text,
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     statCardValuePositive: {
       color: colors.success,
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     statCardValueNegative: {
       color: colors.error,
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     // Bouton "+ Ajouter une position"
     addButton: {
@@ -1292,24 +1384,23 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
       paddingVertical: 12,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.primary,
+      borderColor: colors.gold,
       borderStyle: 'dashed',
       marginBottom: 20,
     },
     addButtonText: {
-      color: colors.primary,
-      fontWeight: '700',
+      color: colors.gold,
+      fontFamily: fonts.bodySemibold,
     },
     // Liste positions
     sectionTitle: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '700',
+      ...sectionLabel(colors),
       marginBottom: 10,
     },
     emptyText: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       fontStyle: 'italic',
     },
         // HistoryChart
@@ -1324,6 +1415,7 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
     chartTitle: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
       marginBottom: 10,
     },
     chartStateBox: {
@@ -1334,6 +1426,7 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
     chartEmptyText: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
     },
     chartRangeRow: {
       flexDirection: 'row',
@@ -1350,17 +1443,17 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
       paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 8,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
     },
     chartRangeText: {
       fontSize: 12,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       color: colors.subtitle,
     },
     chartRangeTextActive: {
       fontSize: 12,
-      fontWeight: '700',
-      color: colors.primaryText,
+      fontFamily: fonts.bodySemibold,
+      color: colors.onGold,
     },
         // PositionRow
     positionCard: {
@@ -1394,15 +1487,17 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
     positionTicker: {
       color: colors.text,
       fontSize: 14,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
     },
     positionName: {
       color: colors.subtitle,
       fontSize: 11,
+      fontFamily: fonts.body,
     },
     positionDeleteIcon: {
       color: colors.subtitle,
       fontSize: 16,
+      fontFamily: fonts.body,
     },
     positionBottomRow: {
       flexDirection: 'row',
@@ -1412,6 +1507,8 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
     positionSubline: {
       color: colors.subtitle,
       fontSize: 11,
+      fontFamily: fonts.body,
+      fontVariant: ['tabular-nums'],
     },
     positionValueWrap: {
       alignItems: 'flex-end',
@@ -1419,26 +1516,33 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
     positionValue: {
       color: colors.text,
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     positionGainPositive: {
       color: colors.success,
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     positionGainNegative: {
       color: colors.error,
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     positionDailyPositive: {
       color: colors.success,
       fontSize: 11,
+      fontFamily: fonts.body,
+      fontVariant: ['tabular-nums'],
       marginTop: 4,
     },
     positionDailyNegative: {
       color: colors.error,
       fontSize: 11,
+      fontFamily: fonts.body,
+      fontVariant: ['tabular-nums'],
       marginTop: 4,
     },
   });
@@ -1466,11 +1570,13 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     backChevron: {
       color: colors.text,
       fontSize: 20,
+      fontFamily: fonts.body,
     },
     headerTitle: {
       color: colors.text,
       fontSize: 18,
-      fontWeight: '700',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(18),
     },
     reminderBadge: {
       marginLeft: 'auto',
@@ -1480,9 +1586,9 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
       backgroundColor: colors.gold,
     },
     reminderBadgeText: {
-      color: colors.background,
+      color: colors.onGold,
       fontSize: 11,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
     },
     scrollContent: {
       padding: 20,
@@ -1490,13 +1596,14 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     },
     error: {
       color: colors.error,
+      fontFamily: fonts.body,
       marginBottom: 16,
     },
     // Bloc "juste atteint"
     achievedCard: {
       padding: 16,
       borderRadius: 14,
-      backgroundColor: colors.gold + '22',
+      backgroundColor: colors.goldSoft,
       borderWidth: 1,
       borderColor: colors.gold,
       marginBottom: 20,
@@ -1504,12 +1611,13 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     achievedTitle: {
       color: colors.gold,
       fontSize: 14,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       marginBottom: 4,
     },
     achievedItemText: {
       color: colors.text,
       fontSize: 13,
+      fontFamily: fonts.body,
     },
     // Bloc réconciliation
     reconCard: {
@@ -1523,7 +1631,7 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     reconTitle: {
       color: colors.text,
       fontSize: 14,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       marginBottom: 10,
     },
     reconRow: {
@@ -1538,16 +1646,19 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     reconColLabel: {
       color: colors.subtitle,
       fontSize: 11,
+      fontFamily: fonts.body,
       marginBottom: 2,
     },
     reconColValue: {
       color: colors.text,
       fontSize: 16,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     reconHint: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
       fontStyle: 'italic',
       marginTop: 4,
     },
@@ -1560,7 +1671,7 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     reconAlertErrorText: {
       color: colors.error,
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
     },
     reconAlertSuccess: {
       marginTop: 8,
@@ -1571,18 +1682,17 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     reconAlertSuccessText: {
       color: colors.success,
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
     },
     // Liste objectifs
     sectionTitle: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '700',
+      ...sectionLabel(colors),
       marginBottom: 10,
     },
     emptyText: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       fontStyle: 'italic',
     },
     goalCard: {
@@ -1596,7 +1706,7 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     goalTitle: {
       color: colors.text,
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       marginBottom: 8,
     },
     goalProgressTrack: {
@@ -1609,7 +1719,7 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     goalProgressFill: {
       height: '100%',
       borderRadius: 4,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
     },
     goalProgressFillDone: {
       height: '100%',
@@ -1619,6 +1729,8 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     goalAmountText: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
+      fontVariant: ['tabular-nums'],
     },
     goalDeleteBtn: {
       alignSelf: 'flex-end',
@@ -1627,7 +1739,7 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
     goalDeleteText: {
       color: colors.error,
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
     },
   });
 }
@@ -1654,11 +1766,13 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
     backChevron: {
       color: colors.text,
       fontSize: 20,
+      fontFamily: fonts.body,
     },
     headerTitle: {
       color: colors.text,
       fontSize: 18,
-      fontWeight: '700',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(18),
     },
     scrollContent: {
       padding: 20,
@@ -1666,11 +1780,13 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
     },
     error: {
       color: colors.error,
+      fontFamily: fonts.body,
       marginBottom: 16,
     },
     periodText: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       marginBottom: 12,
       textTransform: 'capitalize',
     },
@@ -1687,17 +1803,22 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
     resteLabel: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       marginBottom: 4,
     },
     restePositive: {
       color: colors.success,
       fontSize: 28,
-      fontWeight: '800',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(28),
+      fontVariant: ['tabular-nums'],
     },
     resteNegative: {
       color: colors.error,
       fontSize: 28,
-      fontWeight: '800',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(28),
+      fontVariant: ['tabular-nums'],
     },
     // Pastilles résumé
     summaryRow: {
@@ -1717,11 +1838,13 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
     summaryPillLabel: {
       color: colors.subtitle,
       fontSize: 11,
+      fontFamily: fonts.body,
       marginBottom: 4,
     },
     summaryPillValue: {
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     // Bouton "+ Ajouter une entrée"
     addButton: {
@@ -1732,17 +1855,18 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
       paddingVertical: 12,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.primary,
+      borderColor: colors.gold,
       borderStyle: 'dashed',
       marginBottom: 20,
     },
     addButtonText: {
-      color: colors.primary,
-      fontWeight: '700',
+      color: colors.gold,
+      fontFamily: fonts.bodySemibold,
     },
     emptyText: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       fontStyle: 'italic',
       textAlign: 'center',
     },
@@ -1758,7 +1882,7 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
     breakdownTitle: {
       color: colors.text,
       fontSize: 14,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       marginBottom: 12,
     },
     breakdownRow: {
@@ -1772,11 +1896,13 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
     breakdownCategoryText: {
       color: colors.text,
       fontSize: 12,
+      fontFamily: fonts.body,
     },
     breakdownTotalText: {
       color: colors.subtitle,
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     breakdownTrack: {
       height: 6,
@@ -1810,7 +1936,7 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
       borderWidth: 1,
       borderColor: colors.border,
       marginBottom: 10,
-      opacity: 0.5,
+      opacity: 0.42,
     },
     entryCategoryDot: {
       width: 10,
@@ -1823,7 +1949,7 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
     entryLabel: {
       color: colors.text,
       fontSize: 14,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
     },
     entryMetaRow: {
       flexDirection: 'row',
@@ -1833,21 +1959,25 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
     entryMetaText: {
       color: colors.subtitle,
       fontSize: 11,
+      fontFamily: fonts.body,
     },
     entryAmountRevenu: {
       color: colors.success,
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     entryAmountEpargne: {
       color: colors.gold,
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     entryAmountDepense: {
       color: colors.text,
       fontSize: 15,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     entryDeleteBtn: {
       paddingLeft: 4,
@@ -1855,6 +1985,7 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
     entryDeleteIcon: {
       color: colors.subtitle,
       fontSize: 16,
+      fontFamily: fonts.body,
     },
         // TypeTabs
     tabsWrap: {
@@ -1876,17 +2007,17 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
       paddingVertical: 8,
       borderRadius: 9,
       alignItems: 'center',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
     },
     tabText: {
       fontSize: 13,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       color: colors.subtitle,
     },
     tabTextActive: {
       fontSize: 13,
-      fontWeight: '700',
-      color: colors.primaryText,
+      fontFamily: fonts.bodySemibold,
+      color: colors.onGold,
     },
   });
 }
@@ -1906,27 +2037,29 @@ export function getFormStyles(colorScheme: ColorScheme) {
     title: {
       color: colors.text,
       fontSize: 14,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       marginBottom: 12,
     },
     input: {
       backgroundColor: colors.background,
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
       paddingHorizontal: 12,
       paddingVertical: 10,
       color: colors.text,
+      fontFamily: fonts.body,
       marginBottom: 10,
     },
     inputHalf: {
       backgroundColor: colors.background,
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
       paddingHorizontal: 12,
       paddingVertical: 10,
       color: colors.text,
+      fontFamily: fonts.body,
       flex: 1,
       marginBottom: 0,
     },
@@ -1948,25 +2081,25 @@ export function getFormStyles(colorScheme: ColorScheme) {
       borderRadius: 14,
       backgroundColor: colors.background,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
     },
     chipActive: {
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 14,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
     },
     chipText: {
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
       color: colors.text,
     },
     chipTextActive: {
       fontSize: 12,
-      fontWeight: '600',
-      color: colors.primaryText,
+      fontFamily: fonts.bodySemibold,
+      color: colors.onGold,
     },
     toggleRow: {
       flexDirection: 'row',
@@ -1980,26 +2113,26 @@ export function getFormStyles(colorScheme: ColorScheme) {
       alignItems: 'center',
       backgroundColor: colors.background,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
     },
     toggleOptionActive: {
       flex: 1,
       paddingVertical: 8,
       borderRadius: 10,
       alignItems: 'center',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
     },
     toggleOptionText: {
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
       color: colors.text,
     },
     toggleOptionTextActive: {
       fontSize: 12,
-      fontWeight: '600',
-      color: colors.primaryText,
+      fontFamily: fonts.bodySemibold,
+      color: colors.onGold,
     },
     actionsRow: {
       flexDirection: 'row',
@@ -2012,29 +2145,30 @@ export function getFormStyles(colorScheme: ColorScheme) {
     },
     cancelText: {
       color: colors.subtitle,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
     },
     submitBtn: {
       flex: 1,
       paddingVertical: 12,
-      borderRadius: 10,
+      borderRadius: 12,
       alignItems: 'center',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
     },
     submitBtnDisabled: {
       flex: 1,
       paddingVertical: 12,
-      borderRadius: 10,
+      borderRadius: 12,
       alignItems: 'center',
-      backgroundColor: colors.background,
+      backgroundColor: colors.gold,
+      opacity: 0.42,
     },
     submitText: {
-      color: colors.primaryText,
-      fontWeight: '700',
+      color: colors.onGold,
+      fontFamily: fonts.bodySemibold,
     },
     submitTextDisabled: {
-      color: colors.subtitle,
-      fontWeight: '700',
+      color: colors.onGold,
+      fontFamily: fonts.bodySemibold,
     },
         iconChipScroll: {
       marginBottom: 12,
@@ -2052,7 +2186,7 @@ export function getFormStyles(colorScheme: ColorScheme) {
       borderRadius: 10,
       backgroundColor: colors.background,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
     },
     iconChipActive: {
       flexDirection: 'row',
@@ -2061,22 +2195,22 @@ export function getFormStyles(colorScheme: ColorScheme) {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 10,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.controlBorder,
     },
     iconChipIcon: {
       fontSize: 13,
     },
     iconChipText: {
       fontSize: 12,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
       color: colors.text,
     },
     iconChipTextActive: {
       fontSize: 12,
-      fontWeight: '600',
-      color: colors.primaryText,
+      fontFamily: fonts.bodySemibold,
+      color: colors.onGold,
     },
   });
 }
@@ -2102,12 +2236,13 @@ export function getSplashStyles(colorScheme: ColorScheme) {
     wordmark: {
       color: colors.text,
       fontSize: 22,
-      fontWeight: '800',
-      letterSpacing: 0.5,
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(22),
     },
     tagline: {
       color: colors.subtitle,
       fontSize: 13,
+      fontFamily: fonts.body,
       marginTop: 4,
     },
     valAvatar: {
@@ -2130,7 +2265,8 @@ export function getSplashStyles(colorScheme: ColorScheme) {
     welcomeText: {
       color: colors.text,
       fontSize: 20,
-      fontWeight: '800',
+      fontFamily: fonts.title,
+      letterSpacing: titleLetterSpacing(20),
       textAlign: 'center',
       paddingHorizontal: 32,
       marginBottom: 8,
@@ -2138,6 +2274,7 @@ export function getSplashStyles(colorScheme: ColorScheme) {
     welcomeSubtext: {
       color: colors.subtitle,
       fontSize: 14,
+      fontFamily: fonts.body,
       textAlign: 'center',
       paddingHorizontal: 40,
       lineHeight: 20,
@@ -2160,8 +2297,8 @@ export function getLessonEndStyles(colorScheme: ColorScheme) {
       marginTop: 24,
       marginBottom: 16,
     },
-    title: { color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 6 },
-    subtitle: { color: colors.subtitle, fontSize: 14, textAlign: 'center', marginBottom: 24 },
+    title: { color: colors.text, fontSize: 24, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(24), marginBottom: 6 },
+    subtitle: { color: colors.subtitle, fontSize: 14, fontFamily: fonts.body, textAlign: 'center', marginBottom: 24 },
     statsRow: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginBottom: 16 },
     statTile: {
       flex: 1,
@@ -2172,19 +2309,19 @@ export function getLessonEndStyles(colorScheme: ColorScheme) {
       borderColor: colors.border,
       alignItems: 'center',
     },
-    statValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
-    statValueGold: { color: colors.gold, fontSize: 20, fontWeight: '800' },
-    statLabel: { color: colors.subtitle, fontSize: 11, marginTop: 4 },
+    statValue: { color: colors.text, fontSize: 20, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(20), fontVariant: ['tabular-nums'] },
+    statValueGold: { color: colors.gold, fontSize: 20, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(20), fontVariant: ['tabular-nums'] },
+    statLabel: { color: colors.subtitle, fontSize: 11, fontFamily: fonts.body, marginTop: 4 },
     banner: {
       alignSelf: 'stretch',
       padding: 14,
       borderRadius: 14,
-      backgroundColor: colors.gold + '22',
+      backgroundColor: colors.goldSoft,
       borderWidth: 1,
       borderColor: colors.gold,
       marginBottom: 16,
     },
-    bannerText: { color: colors.gold, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+    bannerText: { color: colors.gold, fontSize: 14, fontFamily: fonts.bodySemibold, textAlign: 'center' },
     card: {
       alignSelf: 'stretch',
       padding: 16,
@@ -2194,7 +2331,7 @@ export function getLessonEndStyles(colorScheme: ColorScheme) {
       borderColor: colors.border,
       marginBottom: 16,
     },
-    cardTitle: { color: colors.text, fontSize: 14, fontWeight: '700', marginBottom: 10 },
+    cardTitle: { color: colors.text, fontSize: 14, fontFamily: fonts.bodySemibold, marginBottom: 10 },
     notionRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -2202,11 +2339,11 @@ export function getLessonEndStyles(colorScheme: ColorScheme) {
       gap: 10,
       paddingVertical: 6,
     },
-    notionName: { color: colors.text, fontSize: 13, flex: 1 },
+    notionName: { color: colors.text, fontSize: 13, fontFamily: fonts.body, flex: 1 },
     badgeDone: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: colors.success + '22' },
     badgeSeen: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: colors.surfaceAlt },
-    badgeDoneText: { color: colors.success, fontSize: 11, fontWeight: '700' },
-    badgeSeenText: { color: colors.subtitle, fontSize: 11, fontWeight: '700' },
+    badgeDoneText: { color: colors.success, fontSize: 11, fontFamily: fonts.bodySemibold },
+    badgeSeenText: { color: colors.subtitle, fontSize: 11, fontFamily: fonts.bodySemibold },
   });
 }
 
@@ -2229,12 +2366,13 @@ export function getLessonPlayerStyles(colorScheme: ColorScheme) {
     },
     errorText: {
       color: colors.error,
+      fontFamily: fonts.body,
       textAlign: 'center',
       marginBottom: 16,
     },
     backLink: {
-      color: colors.primary,
-      fontWeight: '600',
+      color: colors.gold,
+      fontFamily: fonts.bodySemibold,
     },
     safeArea: {
       flex: 1,
@@ -2254,6 +2392,7 @@ export function getLessonPlayerStyles(colorScheme: ColorScheme) {
     closeIcon: {
       color: colors.text,
       fontSize: 20,
+      fontFamily: fonts.body,
     },
     progressTrack: {
       flex: 1,
@@ -2265,7 +2404,7 @@ export function getLessonPlayerStyles(colorScheme: ColorScheme) {
     progressFill: {
       height: '100%',
       borderRadius: 4,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
     },
   });
 }
@@ -2280,7 +2419,7 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
     question: {
       color: colors.text,
       fontSize: 17,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       marginHorizontal: 20,
       marginBottom: 16,
     },
@@ -2296,12 +2435,13 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
     etablissement: {
       color: colors.text,
       fontSize: 14,
-      fontWeight: '800',
+      fontFamily: fonts.bodySemibold,
       letterSpacing: 0.5,
     },
     metaText: {
       color: colors.subtitle,
       fontSize: 11,
+      fontFamily: fonts.body,
       marginTop: 2,
     },
     colHeaderRow: {
@@ -2317,7 +2457,7 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
     colHeaderText: {
       color: colors.subtitle,
       fontSize: 10.5,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       textTransform: 'uppercase',
       letterSpacing: 0.4,
     },
@@ -2335,8 +2475,8 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
       borderColor: 'transparent',
     },
     lineSelected: {
-      backgroundColor: colors.primary + '22',
-      borderColor: colors.primary,
+      backgroundColor: colors.goldSoft,
+      borderColor: colors.gold,
     },
     lineCorrect: {
       backgroundColor: colors.success + '22',
@@ -2356,6 +2496,8 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
     dateText: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
+      fontVariant: ['tabular-nums'],
       width: 44,
     },
     labelWrap: {
@@ -2365,24 +2507,27 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
     labelText: {
       color: colors.text,
       fontSize: 12.5,
-      fontWeight: '600',
+      fontFamily: fonts.bodySemibold,
     },
     subLabelText: {
       color: colors.subtitle,
       fontSize: 10.5,
+      fontFamily: fonts.body,
       marginTop: 1,
     },
     amountNegative: {
       color: colors.text,
       fontSize: 13,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
       width: 84,
       textAlign: 'right',
     },
     amountPositive: {
       color: colors.success,
       fontSize: 13,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
       width: 84,
       textAlign: 'right',
     },
@@ -2398,6 +2543,7 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
     revelationText: {
       color: colors.text,
       fontSize: 12.5,
+      fontFamily: fonts.body,
       lineHeight: 18,
     },
     footerRow: {
@@ -2411,15 +2557,18 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
     footerLabel: {
       color: colors.subtitle,
       fontSize: 12,
+      fontFamily: fonts.body,
     },
     footerValue: {
       color: colors.text,
       fontSize: 12.5,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
+      fontVariant: ['tabular-nums'],
     },
     aVenirText: {
       color: colors.subtitle,
       fontSize: 11,
+      fontFamily: fonts.body,
       marginTop: 6,
     },
     explanationBox: {
@@ -2432,6 +2581,7 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
     explanationText: {
       color: colors.subtitle,
       fontSize: 14,
+      fontFamily: fonts.body,
       lineHeight: 20,
     },
   });
@@ -2445,14 +2595,14 @@ export function getSliderStyles(colorScheme: ColorScheme) {
     question: {
       color: colors.text,
       fontSize: 17,
-      fontWeight: '700',
+      fontFamily: fonts.bodySemibold,
       marginHorizontal: 20,
       marginBottom: 28,
       lineHeight: 23,
     },
     valueWrap: { alignItems: 'center', marginBottom: 28 },
-    valueText: { color: colors.gold, fontSize: 44, fontWeight: '800' },
-    unitText: { color: colors.subtitle, fontSize: 14, marginTop: 2 },
+    valueText: { color: colors.gold, fontSize: 44, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(44), fontVariant: ['tabular-nums'] },
+    unitText: { color: colors.subtitle, fontSize: 14, fontFamily: fonts.body, marginTop: 2 },
     trackOuter: {
       marginHorizontal: 24,
       height: 40,
@@ -2467,14 +2617,14 @@ export function getSliderStyles(colorScheme: ColorScheme) {
     trackFill: {
       height: '100%',
       borderRadius: 4,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
     },
     thumb: {
       position: 'absolute',
       width: 28,
       height: 28,
       borderRadius: 14,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.gold,
       borderWidth: 3,
       borderColor: colors.background,
       top: 6,
@@ -2486,6 +2636,6 @@ export function getSliderStyles(colorScheme: ColorScheme) {
       marginHorizontal: 24,
       marginTop: 6,
     },
-    boundText: { color: colors.subtitle, fontSize: 11 },
+    boundText: { color: colors.subtitle, fontSize: 11, fontFamily: fonts.body, fontVariant: ['tabular-nums'] },
   });
 } 

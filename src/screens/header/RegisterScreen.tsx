@@ -70,7 +70,7 @@ export default function RegisterScreen({ navigation }: any) {
           <TextInput
             style={input_styles.input}
             placeholder="Nom"
-            placeholderTextColor="#9fb0bd"
+            placeholderTextColor={colors.subtitle}
             value={name}
             onChangeText={setName}
             autoCapitalize="words"
@@ -79,7 +79,7 @@ export default function RegisterScreen({ navigation }: any) {
           <TextInput
             style={input_styles.input}
             placeholder="Email"
-            placeholderTextColor="#9fb0bd"
+            placeholderTextColor={colors.subtitle}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -90,7 +90,7 @@ export default function RegisterScreen({ navigation }: any) {
           <TextInput
             style={input_styles.input}
             placeholder="Mot de passe"
-            placeholderTextColor="#9fb0bd"
+            placeholderTextColor={colors.subtitle}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -100,7 +100,7 @@ export default function RegisterScreen({ navigation }: any) {
           <TextInput
             style={input_styles.input}
             placeholder="Confirmer le mot de passe"
-            placeholderTextColor="#9fb0bd"
+            placeholderTextColor={colors.subtitle}
             value={passwordConfirmation}
             onChangeText={setPasswordConfirmation}
             secureTextEntry
@@ -113,13 +113,12 @@ export default function RegisterScreen({ navigation }: any) {
             style={({ pressed }) => [
               bouton_styles.button,
               pressed && bouton_styles.buttonPressed,
-              isSubmitting && bouton_styles.buttonDisabled,
             ]}
             onPress={handleRegister}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="#0D1B2A" />
+              <ActivityIndicator color={colors.onGold} />
             ) : (
               <Text style={bouton_styles.buttonText}>S'inscrire</Text>
             )}

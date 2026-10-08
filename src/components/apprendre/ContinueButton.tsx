@@ -1,5 +1,7 @@
 import { ActivityIndicator, Pressable, Text } from 'react-native';
 
+import { fonts } from '@/src/constants/style/Style';
+
 export default function ContinueButton({
   colors,
   onPress,
@@ -21,16 +23,17 @@ export default function ContinueButton({
         marginHorizontal: 20,
         marginTop: 24,
         paddingVertical: 14,
-        borderRadius: 14,
+        borderRadius: 12,
         alignItems: 'center',
-        backgroundColor: disabled ? colors.surface : colors.primary,
-        opacity: loading ? 0.7 : 1,
+        backgroundColor: colors.gold,
+        // Inactif = opacité 0.42 ; le chargement n'est pas un état inactif
+        opacity: disabled && !loading ? 0.42 : 1,
       }}
     >
       {loading ? (
-        <ActivityIndicator color={colors.primaryText} size="small" />
+        <ActivityIndicator color={colors.onGold} size="small" />
       ) : (
-        <Text style={{ color: disabled ? colors.subtitle : colors.primaryText, fontWeight: '700', fontSize: 15 }}>
+        <Text style={{ color: colors.onGold, fontFamily: fonts.bodySemibold, fontSize: 15 }}>
           {label}
         </Text>
       )}

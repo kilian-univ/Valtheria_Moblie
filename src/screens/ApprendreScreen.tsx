@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
@@ -96,7 +95,7 @@ export default function LearnScreen() {
       <ScreenBackground>
         <Header showBack={false} />
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={colors.gold} />
         </View>
       </ScreenBackground>
     );
@@ -107,12 +106,7 @@ export default function LearnScreen() {
       <Header showBack={false} />
 
       <View style={styles.headerWrap}>
-        <LinearGradient
-          colors={[colors.primary, colors.background]}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 2.0, y: 2.0 }}
-          style={styles.headerGradient}
-        >
+        <View style={styles.headerPanel}>
           <View style={styles.headerDecoCircleGold} />
           <View style={styles.headerDecoCircleBg} />
 
@@ -120,7 +114,7 @@ export default function LearnScreen() {
             <StatPill icon="🔥" value={streak} label="jours" colors={colors} styles={styles} />
             <StatPill icon="⭐" value={xp} label="XP" colors={colors} styles={styles} accent="gold" />
           </View>
-        </LinearGradient>
+        </View>
       </View>
 
       {error && <Text style={styles.error}>{error}</Text>}

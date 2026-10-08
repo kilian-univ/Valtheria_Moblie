@@ -118,7 +118,7 @@ export default function AddEntryForm({
         </Pressable>
         <Pressable onPress={handleSubmit} disabled={!canSubmit || isSubmitting} style={canSubmit ? styles.submitBtn : styles.submitBtnDisabled}>
           {isSubmitting ? (
-            <ActivityIndicator color={colors.primaryText} size="small" />
+            <ActivityIndicator color={colors.onGold} size="small" />
           ) : (
             <Text style={canSubmit ? styles.submitText : styles.submitTextDisabled}>Ajouter</Text>
           )}

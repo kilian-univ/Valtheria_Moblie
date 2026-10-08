@@ -117,7 +117,7 @@ export default function ApprendreDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.gold} />
       </View>
     );
   }

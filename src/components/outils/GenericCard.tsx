@@ -1,5 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
+import { fonts } from '@/src/constants/style/Style';
+
 // Affiche un objet de forme inconnue de façon lisible : essaie des champs
 // probables (label/title/name, amount/value/montant), sinon dump JSON compact.
 const LABEL_KEYS = ['label', 'title', 'name', 'category', 'ticker', 'asset'];
@@ -46,29 +48,29 @@ export default function GenericCard({
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1 }}>
             {label !== null && (
-              <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }} numberOfLines={1}>
+              <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.bodySemibold }} numberOfLines={1}>
                 {String(label)}
               </Text>
             )}
             {date !== null && (
-              <Text style={{ color: colors.subtitle, fontSize: 12, marginTop: 2 }}>{String(date)}</Text>
+              <Text style={{ color: colors.subtitle, fontSize: 12, fontFamily: fonts.body, marginTop: 2 }}>{String(date)}</Text>
             )}
           </View>
           {value !== null && (
-            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
+            <Text style={{ color: colors.gold, fontSize: 16, fontFamily: fonts.bodySemibold, fontVariant: ['tabular-nums'] }}>
               {typeof value === 'number' ? value.toLocaleString('fr-FR') : String(value)}
             </Text>
           )}
         </View>
       ) : (
-        <Text style={{ color: colors.subtitle, fontSize: 12, fontFamily: 'monospace' }}>
+        <Text style={{ color: colors.subtitle, fontSize: 12, fontFamily: fonts.body, fontVariant: ['tabular-nums'] }}>
           {JSON.stringify(item)}
         </Text>
       )}
 
       {onDelete && (
         <Pressable onPress={onDelete} style={{ alignSelf: 'flex-end', marginTop: 8 }}>
-          <Text style={{ color: colors.error, fontSize: 12, fontWeight: '600' }}>Supprimer</Text>
+          <Text style={{ color: colors.error, fontSize: 12, fontFamily: fonts.bodySemibold }}>Supprimer</Text>
         </Pressable>
       )}
     </Pressable>

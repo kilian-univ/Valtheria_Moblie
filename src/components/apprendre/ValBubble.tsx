@@ -1,4 +1,5 @@
 import { Image, Text, View } from 'react-native';
+import { fonts } from '@/src/constants/style/Style';
 import { ValLine } from './types';
 
 const VAL_NEUTRE = require('@/assets/images/md/val-neutre.webp');
@@ -44,7 +45,7 @@ export default function ValBubble({ val, colors }: { val?: ValLine; colors: any 
           borderColor: colors.border,
         }}
       >
-        <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{val.line}</Text>
+        <Text style={{ color: colors.text, fontSize: 14, fontFamily: fonts.body, lineHeight: 20 }}>{val.line}</Text>
       </View>
     </View>
   );
