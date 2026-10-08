@@ -2,22 +2,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import ScreenBackground from '@/src/components/common/ScreenBackground';
+import SpinningCoin from '@/src/components/common/SpinningCoin';
 import Header from '@/src/components/topbar/header';
 import {
-    getBasiquesStyles,
-    getBoutonStyles,
-    getProfileStyles,
-    palette,
+  getBasiquesStyles,
+  getBoutonStyles,
+  getProfileStyles,
+  palette,
 } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -98,7 +100,7 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/');
+    router.back();
   };
 
   const handleExport = async () => {
@@ -119,7 +121,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await deleteAccount();
-            router.replace('/');
+            router.back();
           } catch (err: any) {
             Alert.alert('Erreur', err.message);
           }
@@ -130,16 +132,17 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={basiques_styles.container}>
+      <ScreenBackground>
         <ActivityIndicator />
-      </View>
+      </ScreenBackground>
     );
   }
 
   const initial = user?.pseudo?.charAt(0)?.toUpperCase() ?? '?';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom']}>
+    <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+      <ScreenBackground>
       <Header showBack />
 
       <ScrollView contentContainerStyle={profile_styles.scroll}>
@@ -167,6 +170,7 @@ export default function ProfileScreen() {
             </View>
             <View style={profile_styles.statItem}>
               <Text style={profile_styles.statValue}>{user?.vals ?? 0}</Text>
+              <SpinningCoin style={profile_styles.coinIcon} />
               <Text style={profile_styles.statLabel}>Vals</Text>
             </View>
             <View style={profile_styles.statItem}>
@@ -345,6 +349,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView>
+      </ScreenBackground>
     </SafeAreaView>
   );
 }

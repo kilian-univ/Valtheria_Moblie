@@ -21,15 +21,15 @@ function RootLayoutContent() {
     <NavigationThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : CustomLightTheme}>
       <ApiProvider>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'fade',
-              contentStyle: { backgroundColor: colors.background },
-            }}
-          >
-            <Stack.Screen name="(tabs)" />
-          </Stack>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'fade',
+                contentStyle: { backgroundColor: colors.background },
+              }}
+            >
+              <Stack.Screen name="(tabs)" />
+            </Stack>
 
           {showSplash && <AnimatedSplash onFinish={() => setShowSplash(false)} />}
         </View>

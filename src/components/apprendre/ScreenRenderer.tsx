@@ -2,6 +2,7 @@ import ChoiceScreen from './screens/ChoiceScreen';
 import DocumentScreen from './screens/DocumentScreen';
 import FallbackScreen from './screens/FallbackScreen';
 import RevealScreen from './screens/RevealScreen';
+import SliderScreen from './screens/SliderScreen';
 import { LessonScreenProps } from './types';
 
 // Dispatch par type d'écran. Types encore non implémentés (uncover, hunch,
@@ -15,6 +16,8 @@ export default function ScreenRenderer(props: LessonScreenProps) {
       return <ChoiceScreen {...props} />;
     case 'document':
       return <DocumentScreen {...props} />;
+    case 'slider':
+      return <SliderScreen {...props} />;
     default:
       return <FallbackScreen {...props} />;
   }

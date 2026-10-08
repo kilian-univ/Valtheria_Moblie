@@ -12,6 +12,7 @@ import { getApprendreStyles, palette } from '@/src/constants/style/Style';
 import { Lesson, useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { learningStore } from '@/src/state/learningStore';
+import ScreenBackground from '../components/common/ScreenBackground';
 
 type LessonStatus = 'completed' | 'available' | 'locked';
 
@@ -92,24 +93,24 @@ export default function LearnScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.screen}>
+      <ScreenBackground>
         <Header showBack={false} />
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
         </View>
-      </View>
+      </ScreenBackground>
     );
   }
 
   return (
-    <View style={styles.screen}>
+    <ScreenBackground>
       <Header showBack={false} />
 
       <View style={styles.headerWrap}>
         <LinearGradient
           colors={[colors.primary, colors.background]}
           start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1.4 }}
+          end={{ x: 2.0, y: 2.0 }}
           style={styles.headerGradient}
         >
           <View style={styles.headerDecoCircleGold} />
@@ -156,8 +157,7 @@ export default function LearnScreen() {
 
               <View style={[styles.pathWrap, { width: PATH_WIDTH, height: pathHeight }]}>
                 <PathBackground
-                  totalCount={mod.lessons.length}
-                  completedCount={completed}
+                  lessons={mod.lessons}
                   colors={colors}
                   moduleColor={mod.color}
                 />
@@ -190,7 +190,7 @@ export default function LearnScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }
 

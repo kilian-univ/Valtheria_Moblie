@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Valtheraa",
-    "slug": "Valtheraa",
+    "name": "Valtheria",
+    "slug": "Valtheria",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "valtheraa",
+    "scheme": "valtheria",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {

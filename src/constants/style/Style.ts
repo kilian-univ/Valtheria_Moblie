@@ -70,6 +70,31 @@ export function getBasiquesStyles(colorScheme: ColorScheme) {
   });
 }
 
+export function getBackgroundStyles(colorScheme: ColorScheme) {
+  const colors = palette[colorScheme];
+  const isDark = colorScheme === 'dark';
+
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      overflow: 'hidden',
+    },
+    blobLight: {
+      position: 'absolute',
+      borderRadius: 999,
+      backgroundColor: isDark ? '#FFFFFF' : '#000000',
+      opacity: isDark ? 0.025 : 0.02,
+    },
+    blobDark: {
+      position: 'absolute',
+      borderRadius: 999,
+      backgroundColor: isDark ? '#000000' : '#000000',
+      opacity: isDark ? 0.18 : 0.03,
+    },
+  });
+}
+
 export function getBoutonStyles(colorScheme: ColorScheme) {
   const colors = palette[colorScheme];
 
@@ -314,6 +339,11 @@ export function getProfileStyles(colorScheme: ColorScheme) {
       color: colors.success,
       fontSize: 12,
       marginTop: 6,
+    },
+    coinIcon: {
+      width: 18,
+      height: 18,
+      marginBottom: 2,
     },
   });
 }
@@ -855,7 +885,7 @@ export function getApprendreStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: 'transparent',
     },
     centered: {
       flex: 1,
@@ -2406,3 +2436,56 @@ export function getDocumentStyles(colorScheme: ColorScheme) {
     },
   });
 }
+
+export function getSliderStyles(colorScheme: ColorScheme) {
+  const colors = palette[colorScheme];
+
+  return StyleSheet.create({
+    wrap: { flex: 1, paddingBottom: 24 },
+    question: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '700',
+      marginHorizontal: 20,
+      marginBottom: 28,
+      lineHeight: 23,
+    },
+    valueWrap: { alignItems: 'center', marginBottom: 28 },
+    valueText: { color: colors.gold, fontSize: 44, fontWeight: '800' },
+    unitText: { color: colors.subtitle, fontSize: 14, marginTop: 2 },
+    trackOuter: {
+      marginHorizontal: 24,
+      height: 40,
+      justifyContent: 'center',
+    },
+    trackBg: {
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.surfaceAlt,
+      overflow: 'hidden',
+    },
+    trackFill: {
+      height: '100%',
+      borderRadius: 4,
+      backgroundColor: colors.primary,
+    },
+    thumb: {
+      position: 'absolute',
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.primary,
+      borderWidth: 3,
+      borderColor: colors.background,
+      top: 6,
+      marginLeft: -14,
+    },
+    boundsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginHorizontal: 24,
+      marginTop: 6,
+    },
+    boundText: { color: colors.subtitle, fontSize: 11 },
+  });
+} 

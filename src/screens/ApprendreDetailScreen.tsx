@@ -43,7 +43,7 @@ export default function ApprendreDetailScreen() {
         resolvedScreens.map((s: any) => s.type).join(', ')
       );
 
-      const HANDLED = ['reveal', 'choice', 'HANDLED '];
+      const HANDLED = ['reveal', 'choice', 'document', 'slider'];
       resolvedScreens
         .filter((s: any) => !HANDLED.includes(s.type))
         .forEach((s: any, i: number) => {
