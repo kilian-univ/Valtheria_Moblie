@@ -24,6 +24,7 @@ import {
 } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { clearLastProfile } from '@/src/state/lastProfile';
 
 export default function ProfileScreen() {
   const { user, isLoading, logout, exportUser, deleteAccount, updateUser } = useApi();
@@ -100,6 +101,8 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
+    // Avant logout() : il déconnecte même si la requête échoue
+    await clearLastProfile();
     await logout();
     router.back();
   };
@@ -122,6 +125,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await deleteAccount();
+            await clearLastProfile();
             router.back();
           } catch (err: any) {
             Alert.alert('Erreur', err.message);

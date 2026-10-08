@@ -1,12 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import LessonEndScreen from '@/src/components/apprendre/LessonEndScreen';
+import LessonSkeleton from '@/src/components/apprendre/LessonSkeleton';
 import ScreenRenderer from '@/src/components/apprendre/ScreenRenderer';
 import { CollectedAnswer, Screen } from '@/src/components/apprendre/types';
-import { getLessonPlayerStyles, palette } from '@/src/constants/style/Style';
+import { SkeletonGroup } from '@/src/components/common/Skeleton';
+import { StaggerItem } from '@/src/components/common/Stagger';
+import { devSlowLoading } from '@/src/constants/dev';
+import { getLessonPlayerStyles, palette, size } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { learningStore } from '@/src/state/learningStore';
@@ -33,7 +38,9 @@ export default function ApprendreDetailScreen() {
     return;
   }
 
-  getLesson(Number(id))
+  // devSlowLoading : délai de test en développement seulement (constants/dev.ts)
+  devSlowLoading()
+    .then(() => getLesson(Number(id)))
     .then((data: any) => {
       const resolvedScreens = Array.isArray(data) ? data : data.screens ?? [];
 
@@ -114,19 +121,11 @@ export default function ApprendreDetailScreen() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={colors.gold} />
-      </View>
-    );
-  }
-
   if (result) {
     return <LessonEndScreen result={result} colors={colors} onClose={() => router.back()} />;
   }
 
-  if (error || !current) {
+  if (!isLoading && (error || !current)) {
     return (
       <View style={styles.centeredPadded}>
         <Text style={styles.errorText}>{error || 'Leçon introuvable.'}</Text>
@@ -138,27 +137,42 @@ export default function ApprendreDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={styles.closeIcon}>✕</Text>
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Fermer la leçon"
+            style={styles.closeButton}
+          >
+            <Ionicons name="close" size={size.icon} color={colors.text} />
           </Pressable>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
           </View>
         </View>
 
-        <ScreenRenderer
-          screen={current}
-          screenIndex={index}
-          colors={colors}
-          onNext={goNext}
-          onRecordAnswer={recordAnswer}
-          isLast={index === screens.length - 1}
-          onFinish={handleFinish}
-          isSubmitting={isSubmitting}
-        />
+        {/* Chargement de la leçon : la barre du haut est réelle, le reste
+            en squelette, tout de suite (aucune donnée affichée avant) */}
+        {isLoading || !current ? (
+          <SkeletonGroup>
+            <LessonSkeleton />
+          </SkeletonGroup>
+        ) : (
+          <StaggerItem index={0}>
+            <ScreenRenderer
+              screen={current}
+              screenIndex={index}
+              colors={colors}
+              onNext={goNext}
+              onRecordAnswer={recordAnswer}
+              isLast={index === screens.length - 1}
+              onFinish={handleFinish}
+              isSubmitting={isSubmitting}
+            />
+          </StaggerItem>
+        )}
       </View>
     </SafeAreaView>
   );

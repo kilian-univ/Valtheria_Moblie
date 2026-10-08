@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -68,26 +68,61 @@ type ValBubbleProps = {
   title?: string;
 };
 
-export default function ValBubble({ mood, text, title }: ValBubbleProps) {
+export function valAccessibilityLabel(text: string, title?: string): string {
   const plainText = text.replace(/\*\*([^*]+)\*\*/g, '$1');
-  const accessibilityLabel = `Val dit : ${title ? `${title}. ` : ''}${plainText}`;
+  return `Val dit : ${title ? `${title}. ` : ''}${plainText}`;
+}
 
+// Portrait de Val dans un cercle (décoratif : jamais lu)
+export function ValAvatar({ mood, diameter = size.valSm }: { mood: ValMood; diameter?: number }) {
   return (
-    <View style={styles.row} accessible accessibilityLabel={accessibilityLabel}>
-      <View
-        style={styles.avatar}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      >
-        <Image source={VAL_IMAGES[mood] ?? VAL_IMAGES.neutre} style={styles.avatarImage} resizeMode="cover" />
-      </View>
-      {/* key : un nouveau texte remonte la bulle et relance l'écriture */}
-      <Bubble key={`${title ?? ''}|${text}`} text={text} title={title} />
+    <View
+      style={{ width: diameter, height: diameter, borderRadius: diameter / 2, overflow: 'hidden' }}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Image
+        source={VAL_IMAGES[mood] ?? VAL_IMAGES.neutre}
+        resizeMode="cover"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: -((VAL_ZOOM - 1) * diameter) / 2,
+          width: diameter * VAL_ZOOM,
+          height: diameter * VAL_ZOOM,
+        }}
+      />
     </View>
   );
 }
 
-function Bubble({ text, title }: { text: string; title?: string }) {
+export function valImage(mood: ValMood): ImageSourcePropType {
+  return VAL_IMAGES[mood] ?? VAL_IMAGES.neutre;
+}
+
+export default function ValBubble({ mood, text, title }: ValBubbleProps) {
+  return (
+    <View style={styles.row} accessible accessibilityLabel={valAccessibilityLabel(text, title)}>
+      <ValAvatar mood={mood} />
+      {/* key : un nouveau texte remonte la bulle et relance l'écriture */}
+      <ValSpeechBubble key={`${title ?? ''}|${text}`} text={text} title={title} style={styles.bubbleWrap} />
+    </View>
+  );
+}
+
+type SpeechBubbleProps = {
+  text: string;
+  title?: string;
+  // Coin pointu tourné vers Val : en haut à gauche (Val à côté, en haut)
+  // ou en bas à gauche (Val à côté, en bas)
+  tail?: 'topLeft' | 'bottomLeft';
+  bordered?: boolean;
+  style?: StyleProp<ViewStyle>;
+};
+
+// Bulle de Val seule : apparition, écriture mot à mot, toucher = tout afficher.
+// Le parent porte le libellé accessible (valAccessibilityLabel).
+export function ValSpeechBubble({ text, title, tail = 'topLeft', bordered = false, style }: SpeechBubbleProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
@@ -130,11 +165,18 @@ function Bubble({ text, title }: { text: string; title?: string }) {
   const revealAll = () => setShown(words.length);
 
   return (
-    <Animated.View style={[styles.bubbleWrap, animatedStyle]}>
+    <Animated.View
+      style={[{ transformOrigin: tail === 'topLeft' ? 'top left' : 'bottom left' }, style, animatedStyle]}
+    >
       <Pressable
         onPress={revealAll}
         disabled={shown >= words.length}
-        style={[styles.bubble, { backgroundColor: colors.surface }]}
+        style={[
+          styles.bubble,
+          tail === 'topLeft' ? styles.tailTop : styles.tailBottom,
+          { backgroundColor: colors.surface },
+          bordered && { borderWidth: 1, borderColor: colors.goldLine },
+        ]}
       >
         {title ? (
           <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: colors.text }]}>
@@ -167,27 +209,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: space[3],
   },
-  avatar: {
-    width: size.valSm,
-    height: size.valSm,
-    borderRadius: size.valSm / 2,
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    position: 'absolute',
-    top: 0,
-    left: -((VAL_ZOOM - 1) * size.valSm) / 2,
-    width: size.valSm * VAL_ZOOM,
-    height: size.valSm * VAL_ZOOM,
-  },
   bubbleWrap: {
     flex: 1,
     marginTop: BUBBLE_TOP_OFFSET,
-    transformOrigin: 'top left',
+  },
+  tailTop: {
+    borderTopLeftRadius: BUBBLE_TIP_RADIUS,
+  },
+  tailBottom: {
+    borderBottomLeftRadius: BUBBLE_TIP_RADIUS,
   },
   bubble: {
     borderRadius: radius.lg,
-    borderTopLeftRadius: BUBBLE_TIP_RADIUS,
     borderCurve: 'continuous',
     paddingVertical: space[3],
     paddingHorizontal: space[4],

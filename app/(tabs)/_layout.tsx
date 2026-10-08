@@ -1,8 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { ComponentProps } from 'react';
+import { ColorValue } from 'react-native';
 
-import { palette } from '@/src/constants/style/Style';
+import { palette, textVariants } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
+
+// Icônes contour du Design System, de la même graisse pour les quatre onglets
+function tabIcon(name: IconName) {
+  return function TabIcon({ color, size }: { color: ColorValue; size: number }) {
+    return <Ionicons name={name} size={size} color={color} />;
+  };
+}
 
 export default function TabLayout() {
   const { colorScheme } = useTheme();
@@ -11,48 +22,24 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.gold,
         headerShown: false,
-        // tabBarButton: HapticTab,
-        tabBarStyle: { backgroundColor: colors.background },
+        tabBarActiveTintColor: colors.gold,
+        tabBarInactiveTintColor: colors.subtitle,
+        tabBarLabelStyle: {
+          fontFamily: textVariants.tabLabel.style.fontFamily,
+          fontSize: textVariants.tabLabel.style.fontSize,
+        },
+        tabBarStyle: {
+          backgroundColor: colors.background,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+        },
         sceneStyle: { backgroundColor: colors.background },
       }}>
-      <Tabs.Screen
-        name="apprendre"
-        options={{
-          title: 'Apprendre',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="dictionary"
-        options={{
-          title: 'Dictionnaire',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="journal" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="article"
-        options={{
-          title: 'Articles',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="folder" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="outils"
-        options={{
-          title: 'Outils',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="construct-outline" size={size} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="apprendre" options={{ title: 'Apprendre', tabBarIcon: tabIcon('school-outline') }} />
+      <Tabs.Screen name="dictionary" options={{ title: 'Dictionnaire', tabBarIcon: tabIcon('book-outline') }} />
+      <Tabs.Screen name="article" options={{ title: 'Articles', tabBarIcon: tabIcon('newspaper-outline') }} />
+      <Tabs.Screen name="outils" options={{ title: 'Outils', tabBarIcon: tabIcon('stats-chart-outline') }} />
     </Tabs>
   );
 }

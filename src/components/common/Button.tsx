@@ -1,13 +1,17 @@
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { durations, springs } from '@/src/constants/motion';
-import { opacityDisabled, palette, radius, size, space } from '@/src/constants/style/Style';
+import { opacityDisabled, palette, radius, reliefDepth, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { tap } from '@/src/utils/haptics';
 import AppText, { TextTone } from './AppText';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export type ButtonVariant = 'primary' | 'secondary' | 'text';
 
@@ -31,7 +35,8 @@ const LABEL_TONE: Record<ButtonVariant, TextTone> = {
   text: 'gold',
 };
 
-const PRESSED_SCALE = 0.97;
+const PRESSED_SCALE = 0.97; // secondary et text
+const SINK_DURATION = 80; // primary : la face s'enfonce dans sa tranche
 
 export default function Button({
   label,
@@ -46,45 +51,49 @@ export default function Button({
 }: ButtonProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const scale = useSharedValue(1);
+  const reduced = useReducedMotion();
+  const isPrimary = variant === 'primary';
+
+  // primary : enfoncement (0 → reliefDepth) ; autres : échelle (1 → 0,97)
+  const press = useSharedValue(0);
 
   const inactive = disabled || loading;
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.get() }],
-  }));
+  const faceStyle = useAnimatedStyle(() =>
+    isPrimary
+      ? { transform: [{ translateY: press.get() * reliefDepth }] }
+      : { transform: [{ scale: 1 - press.get() * (1 - PRESSED_SCALE) }] }
+  );
 
   const handlePressIn = () => {
-    scale.set(withTiming(PRESSED_SCALE, { duration: durations.pressIn }));
+    // Animations réduites : l'état pressé reste visible, sans mouvement progressif
+    press.set(reduced ? 1 : withTiming(1, { duration: isPrimary ? SINK_DURATION : durations.pressIn }));
+  };
+
+  const handlePressOut = () => {
+    press.set(reduced ? 0 : withSpring(0, springs.press));
   };
 
   // Vibration au relâchement : seulement si l'action part vraiment
   const handlePress = () => {
-    if (variant === 'primary') tap();
+    if (isPrimary) tap();
     onPress();
   };
 
-  const handlePressOut = () => {
-    scale.set(withSpring(1, springs.press));
-  };
+  const spinnerColor = isPrimary ? colors.onGold : variant === 'text' ? colors.gold : colors.text;
 
-  const variantStyle: ViewStyle =
-    variant === 'primary'
-      ? { backgroundColor: colors.gold, minHeight: size.buttonHeight, borderRadius: radius.md }
-      : variant === 'secondary'
-        ? {
-            minHeight: size.buttonHeight,
-            borderRadius: radius.md,
-            borderWidth: 1,
-            borderColor: colors.controlBorder,
-          }
-        : { minHeight: size.tapMin };
-
-  const spinnerColor = variant === 'primary' ? colors.onGold : variant === 'text' ? colors.gold : colors.text;
+  const content = (
+    <>
+      {loading ? <ActivityIndicator size="small" color={spinnerColor} /> : null}
+      <AppText variant="button" tone={LABEL_TONE[variant]} style={styles.label}>
+        {label}
+      </AppText>
+    </>
+  );
 
   return (
     <View style={[fullWidth && styles.fullWidth, style]}>
-      <AnimatedPressable
+      <Pressable
         onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -93,19 +102,31 @@ export default function Button({
         accessibilityLabel={label}
         accessibilityHint={disabled && disabledReason ? disabledReason : accessibilityHint}
         accessibilityState={{ disabled: inactive, busy: loading }}
-        style={[
-          styles.base,
-          variantStyle,
-          // En chargement le bouton reste plein : seul l'état désactivé estompe
-          disabled && !loading && styles.disabled,
-          animatedStyle,
-        ]}
+        // En chargement le bouton reste plein : seul l'état désactivé estompe
+        style={[isPrimary && styles.reliefWrap, disabled && !loading && styles.disabled]}
       >
-        {loading ? <ActivityIndicator size="small" color={spinnerColor} /> : null}
-        <AppText variant="button" tone={LABEL_TONE[variant]} style={styles.label}>
-          {label}
-        </AppText>
-      </AnimatedPressable>
+        {isPrimary ? (
+          <>
+            {/* Tranche : visible sous la face, recouverte quand la face s'enfonce */}
+            <View style={[styles.edge, { backgroundColor: colors.goldDeep }]} />
+            <Animated.View style={[styles.base, styles.primaryFace, { backgroundColor: colors.gold }, faceStyle]}>
+              {content}
+            </Animated.View>
+          </>
+        ) : (
+          <Animated.View
+            style={[
+              styles.base,
+              variant === 'secondary'
+                ? [styles.secondaryFace, { borderColor: colors.controlBorder }]
+                : styles.textFace,
+              faceStyle,
+            ]}
+          >
+            {content}
+          </Animated.View>
+        )}
+      </Pressable>
 
       {disabled && disabledReason ? (
         <AppText
@@ -133,6 +154,31 @@ const styles = StyleSheet.create({
     gap: space[2],
     paddingHorizontal: space[4],
     borderCurve: 'continuous',
+  },
+  // La place de la tranche est réservée sous la face
+  reliefWrap: {
+    paddingBottom: reliefDepth,
+  },
+  edge: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: reliefDepth,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+  },
+  primaryFace: {
+    minHeight: size.buttonHeight,
+    borderRadius: radius.md,
+  },
+  secondaryFace: {
+    minHeight: size.buttonHeight,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  textFace: {
+    minHeight: size.tapMin,
   },
   label: {
     flexShrink: 1,

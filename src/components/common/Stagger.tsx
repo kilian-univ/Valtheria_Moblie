@@ -33,7 +33,10 @@ export default function Stagger({ children, style }: StaggerProps) {
   );
 }
 
-function StaggerItem({ index, children }: { index: number; children: ReactNode }) {
+// Un seul élément de la cascade, à placer soi-même (index = rang d'apparition).
+// Utile quand certains éléments voisins sont déjà affichés et ne doivent pas
+// rejouer leur apparition (en-tête, intitulés de section).
+export function StaggerItem({ index, children }: { index: number; children: ReactNode }) {
   const reduced = useReducedMotion();
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(reduced ? 0 : RISE_DISTANCE);

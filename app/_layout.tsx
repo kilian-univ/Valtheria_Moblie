@@ -8,23 +8,27 @@ import { Stack } from 'expo-router';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 
-import AnimatedSplash from '@/src/components/splash/AnimatedSplash';
+import { SkeletonProvider } from '@/src/components/common/Skeleton';
+import LaunchScreen from '@/src/components/splash/LaunchScreen';
 import { palette } from '@/src/constants/style/Style';
 import { CustomDarkTheme, CustomLightTheme } from '@/src/constants/theme';
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-// Le splash natif reste affiché tant que les polices ne sont pas chargées
+// Le splash natif (fond #0D0D0F + logo, voir app.json) reste affiché tant que
+// les polices ne sont pas chargées ; LaunchScreen prend ensuite le relais au
+// même endroit, puis s'efface quand l'app est prête.
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutContent() {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const [showSplash, setShowSplash] = useState(true);
+  const hideLaunchScreen = useCallback(() => setShowSplash(false), []);
   const [fontsLoaded, fontError] = useFonts({
     Fraunces_500Medium,
     Inter_400Regular,
@@ -34,28 +38,30 @@ function RootLayoutContent() {
   // En cas d'erreur de chargement, on affiche l'app en police système plutôt que de bloquer
   const fontsReady = fontsLoaded || !!fontError;
 
-  useEffect(() => {
-    if (fontsReady) SplashScreen.hideAsync();
-  }, [fontsReady]);
+  // Le splash natif est masqué par LaunchScreen lui-même, une fois sa vue
+  // posée à l'écran : aucune image sans logo entre les deux.
 
   return (
     <NavigationThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : CustomLightTheme}>
       <ApiProvider>
-        <View style={{ flex: 1, backgroundColor: colors.background }}>
-          {fontsReady && (
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'fade',
-                contentStyle: { backgroundColor: colors.background },
-              }}
-            >
-              <Stack.Screen name="(tabs)" />
-            </Stack>
-          )}
+        {/* Une seule animation de reflet, partagée par tous les squelettes */}
+        <SkeletonProvider>
+          <View style={{ flex: 1, backgroundColor: colors.background }}>
+            {fontsReady && (
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'fade',
+                  contentStyle: { backgroundColor: colors.background },
+                }}
+              >
+                <Stack.Screen name="(tabs)" />
+              </Stack>
+            )}
 
-          {fontsReady && showSplash && <AnimatedSplash onFinish={() => setShowSplash(false)} />}
-        </View>
+            {fontsReady && showSplash && <LaunchScreen onFinish={hideLaunchScreen} />}
+          </View>
+        </SkeletonProvider>
         <StatusBar style="auto" />
       </ApiProvider>
     </NavigationThemeProvider>

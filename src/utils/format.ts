@@ -79,6 +79,13 @@ export function formatCompactAmount(value: number, currency: Currency = 'EUR'): 
   return `${sign}${digits(abs, 0, 0)}${NBSP}${symbol}`;
 }
 
+// Nombre entier, pour les totaux (XP, niveau)
+// formatInteger(1250) → "1 250"
+export function formatInteger(value: number): string {
+  const sign = value < 0 && !isZeroAt(value, 0) ? MINUS : '';
+  return `${sign}${digits(value, 0, 0)}`;
+}
+
 // formatXp(20) → "+ 20 XP"
 export function formatXp(value: number): string {
   const sign = value < 0 ? MINUS : '+';

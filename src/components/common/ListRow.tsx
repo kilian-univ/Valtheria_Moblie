@@ -16,6 +16,8 @@ type BaseProps = {
   // Élément à gauche (icône, pastille, avatar)
   leading?: ReactNode;
   showChevron?: boolean;
+  // Élément sous le sous-titre (barre de progression…)
+  footer?: ReactNode;
   // Dernière ligne du groupe : pas de filet en bas
   last?: boolean;
   onPress?: () => void;
@@ -48,6 +50,7 @@ export default function ListRow({
   valueTone = 'default',
   leading,
   showChevron = false,
+  footer,
   last = false,
   locked = false,
   lockedReason,
@@ -88,6 +91,7 @@ export default function ListRow({
             {shownSubtitle}
           </AppText>
         ) : null}
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
       </View>
 
       {value ? (
@@ -117,6 +121,9 @@ const styles = StyleSheet.create({
   texts: {
     flex: 1,
     gap: 2, // titre et sous-titre forment un seul bloc
+  },
+  footer: {
+    marginTop: space[2],
   },
   value: {
     fontVariant: ['tabular-nums'],

@@ -38,6 +38,10 @@ export const palette = {
     border: 'rgba(255,255,255,0.055)',   // filet de séparation
     controlBorder: 'rgba(255,255,255,0.13)', // bordures de champs et de contrôles
     gold: '#C9A84C',
+    goldDeep: '#977E39',                 // tranche du relief sous l'or (bouton, rond en cours)
+    goldHalo: 'rgba(201,168,76,0.15)',   // centre des halos dorés (0,15 au plus : discret)
+    goldLine: 'rgba(201,168,76,0.25)',   // filet doré discret (bulle de Val)
+    goldRing: 'rgba(201,168,76,0.45)',   // anneau autour de la leçon en cours
     goldSoft: 'rgba(201,168,76,0.13)',   // fond de sélection discret
     onGold: '#0D0D0F',                   // texte posé sur l'or
     success: '#3FA876',
@@ -48,7 +52,8 @@ export const palette = {
     surface2: '#202026',                 // surface pressée, deuxième niveau
     scrim: 'rgba(0,0,0,0.6)',            // voile sous les feuilles et modales
     focusRing: '#C9A84C',                // = gold
-    skeletonShine: 'rgba(255,255,255,0.05)', // reflet des squelettes de chargement
+    skeletonShine: 'rgba(255,255,255,0.06)', // reflet des squelettes de chargement
+    logoShine: 'rgba(242,239,232,0.35)',   // reflet qui traverse le logo au démarrage
     chart1: '#C9A84C',                   // = gold
     chart2: '#D9D2C3',
     chart3: '#7C9CC4',
@@ -71,6 +76,10 @@ export const palette = {
     textFaint: 'rgba(13,13,15,0.26)',
     controlBorder: 'rgba(0,0,0,0.13)',
     goldSoft: 'rgba(232,178,61,0.13)',
+    goldDeep: '#B08526',
+    goldHalo: 'rgba(232,178,61,0.12)',
+    goldLine: 'rgba(232,178,61,0.35)',
+    goldRing: 'rgba(232,178,61,0.45)',
     onGold: '#0D0D0F',
     shadow: '#000000',
     blobLight: '#000000',
@@ -79,6 +88,7 @@ export const palette = {
     scrim: 'rgba(0,0,0,0.4)',
     focusRing: '#E8B23D',                // = gold
     skeletonShine: 'rgba(0,0,0,0.05)',
+    logoShine: 'rgba(255,255,255,0.5)',
     chart1: '#E8B23D',                   // = gold
     chart2: '#8A8272',
     chart3: '#4F74A3',
@@ -104,6 +114,10 @@ export const size = {
 } as const;
 
 export const opacityDisabled = 0.42;
+
+// Épaisseur de la tranche sous les éléments en relief (bouton principal,
+// rond de la leçon en cours) ; la face s'y enfonce à l'appui.
+export const reliefDepth = 4;
 
 // ---------------------------------------------------------------------------
 // Styles de texte. maxFontSizeMultiplier est une prop de <Text>, pas un style :
@@ -1053,320 +1067,6 @@ export function getBlockStyles(colorScheme: ColorScheme) {
     },
   });
 }
-export function getApprendreStyles(colorScheme: ColorScheme) {
-  const colors = palette[colorScheme];
-
-  return StyleSheet.create({
-    screen: {
-      flex: 1,
-      backgroundColor: 'transparent',
-    },
-    centered: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    error: {
-      color: colors.error,
-      fontFamily: fonts.body,
-      paddingHorizontal: 20,
-      marginTop: 8,
-    },
-    scrollContent: {
-      paddingTop: 20,
-      paddingBottom: 60,
-    },
-    emptyWrap: {
-      alignItems: 'center',
-      marginTop: 40,
-    },
-    emptyText: {
-      color: colors.subtitle,
-      fontFamily: fonts.body,
-    },
-    // Header (fond surface uni)
-    headerWrap: {
-      overflow: 'hidden',
-    },
-    headerPanel: {
-      backgroundColor: colors.surface,
-      paddingVertical: 22,
-      paddingHorizontal: 20,
-    },
-    headerDecoCircleGold: {
-      position: 'absolute',
-      top: -40,
-      right: -30,
-      width: 140,
-      height: 140,
-      borderRadius: 70,
-      backgroundColor: colors.gold,
-      opacity: 0.12,
-    },
-    headerDecoCircleBg: {
-      position: 'absolute',
-      bottom: -50,
-      left: -20,
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: colors.background,
-      opacity: 0.08,
-    },
-    headerStatsRow: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: 14,
-    },
-    // Module path wrapper
-    moduleBlock: {
-      marginBottom: 32,
-    },
-    pathWrap: {
-      alignSelf: 'center',
-      position: 'relative',
-    },
-    // StatPill
-    statPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 7,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 18,
-      backgroundColor: colors.background,
-      shadowColor: colors.shadow,
-      shadowOpacity: 0.15,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 3,
-    },
-    statPillIcon: {
-      fontSize: 18,
-    },
-    statPillValue: {
-      color: colors.text,
-      fontSize: 17,
-      fontFamily: fonts.bodySemibold,
-      fontVariant: ['tabular-nums'],
-    },
-    statPillValueGold: {
-      color: colors.gold,
-      fontSize: 17,
-      fontFamily: fonts.bodySemibold,
-      fontVariant: ['tabular-nums'],
-    },
-    statPillLabel: {
-      color: colors.subtitle,
-      fontSize: 12,
-      fontFamily: fonts.bodySemibold,
-    },
-    pathSvg: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-    },
-        // LessonNode — bulle "COMMENCER"
-    nodeBubble: {
-      position: 'absolute',
-      top: -46,
-      backgroundColor: colors.text,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 10,
-    },
-    nodeBubbleText: {
-      color: colors.background,
-      fontSize: 11,
-      fontFamily: fonts.bodySemibold,
-    },
-    nodeBubbleArrow: {
-      position: 'absolute',
-      bottom: -5,
-      left: '50%',
-      marginLeft: -5,
-      width: 0,
-      height: 0,
-      borderLeftWidth: 5,
-      borderRightWidth: 5,
-      borderTopWidth: 5,
-      borderLeftColor: 'transparent',
-      borderRightColor: 'transparent',
-      borderTopColor: colors.text,
-    },
-    // LessonNode — textes sous le bouton
-    nodeTitle: {
-      color: colors.text,
-      fontSize: 12,
-      fontFamily: fonts.body,
-      marginTop: 10,
-      maxWidth: 100,
-      textAlign: 'center',
-    },
-    nodeTitleCurrent: {
-      color: colors.text,
-      fontSize: 12,
-      fontFamily: fonts.bodySemibold,
-      marginTop: 10,
-      maxWidth: 100,
-      textAlign: 'center',
-    },
-    nodeXpText: {
-      color: colors.gold,
-      fontSize: 10,
-      fontFamily: fonts.bodySemibold,
-      fontVariant: ['tabular-nums'],
-      marginTop: 2,
-    },
-    nodeSpinnerGlyph: {
-      fontSize: 18,
-    },
-        // ModuleCard
-    moduleCard: {
-      marginHorizontal: 20,
-      marginBottom: 30,
-      borderRadius: 20,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      overflow: 'hidden',
-    },
-    moduleCardBorderDone: {
-      borderColor: colors.gold,
-    },
-    moduleCardBorderActive: {
-      borderColor: colors.border,
-    },
-    moduleAccentBar: {
-      height: 4,
-    },
-    moduleBody: {
-      padding: 18,
-    },
-    moduleHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 14,
-    },
-    moduleIconWrap: {
-      width: 46,
-      height: 46,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
-    },
-    moduleIconText: {
-      fontSize: 22,
-    },
-    moduleTitleWrap: {
-      flex: 1,
-    },
-    moduleTitleText: {
-      color: colors.text,
-      fontSize: 17,
-      fontFamily: fonts.bodySemibold,
-      letterSpacing: 0.2,
-    },
-    moduleDifficultyText: {
-      color: colors.subtitle,
-      fontSize: 12,
-      fontFamily: fonts.body,
-      marginTop: 2,
-      textTransform: 'capitalize',
-    },
-    moduleDoneBadge: {
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 10,
-      backgroundColor: colors.goldSoft,
-    },
-    moduleDoneBadgeText: {
-      fontSize: 11,
-      fontFamily: fonts.bodySemibold,
-      color: colors.gold,
-    },
-    moduleProgressRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    moduleProgressTrack: {
-      flex: 1,
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: colors.background,
-      overflow: 'hidden',
-    },
-    moduleProgressFill: {
-      height: '100%',
-      borderRadius: 5,
-    },
-    moduleProgressCount: {
-      color: colors.subtitle,
-      fontSize: 12,
-      fontFamily: fonts.bodySemibold,
-      fontVariant: ['tabular-nums'],
-      minWidth: 38,
-      textAlign: 'right',
-    },
-        // ContinueCard
-    continueCardWrap: {
-      marginHorizontal: 20,
-      marginBottom: 24,
-    },
-    continueCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
-      padding: 20,
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    continueCardTextWrap: {
-      flex: 1,
-    },
-    continueCardModule: {
-      color: colors.text,
-      opacity: 0.85,
-      fontSize: 12,
-      fontFamily: fonts.bodySemibold,
-      marginBottom: 4,
-    },
-    continueCardLesson: {
-      color: colors.text,
-      fontSize: 18,
-      fontFamily: fonts.bodySemibold,
-      marginBottom: 6,
-    },
-    continueCardXp: {
-      color: colors.text,
-      opacity: 0.85,
-      fontSize: 12,
-      fontFamily: fonts.body,
-      fontVariant: ['tabular-nums'],
-    },
-    continueCardPlayWrap: {
-      width: 52,
-      height: 52,
-      borderRadius: 12,
-      backgroundColor: colors.gold,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: 12,
-    },
-    continueCardPlayTriangle: {
-      width: 0,
-      height: 0,
-      marginLeft: 4,
-      borderTopWidth: 11,
-      borderBottomWidth: 11,
-      borderLeftWidth: 18,
-      borderTopColor: 'transparent',
-      borderBottomColor: 'transparent',
-      borderLeftColor: colors.onGold,
-    },
-  });
-}
-
 export function getPortefeuilleStyles(colorScheme: ColorScheme) {
   const colors = palette[colorScheme];
 
@@ -2320,73 +2020,6 @@ export function getFormStyles(colorScheme: ColorScheme) {
   });
 }
 
-export function getSplashStyles(colorScheme: ColorScheme) {
-  const colors = palette[colorScheme];
-
-  return StyleSheet.create({
-    overlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 999,
-    },
-    valEmoji: {
-      fontSize: 30,
-    },
-    wordmark: {
-      color: colors.text,
-      fontSize: 22,
-      fontFamily: fonts.title,
-      letterSpacing: titleLetterSpacing(22),
-    },
-    tagline: {
-      color: colors.subtitle,
-      fontSize: 13,
-      fontFamily: fonts.body,
-      marginTop: 4,
-    },
-    valAvatar: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
-      backgroundColor: colors.surface,
-      borderWidth: 2,
-      borderColor: colors.gold,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 24,
-      overflow: 'hidden',
-    },
-    valImage: {
-      position: 'absolute',
-      width: '100%',
-      height: '100%',
-    },
-    welcomeText: {
-      color: colors.text,
-      fontSize: 20,
-      fontFamily: fonts.title,
-      letterSpacing: titleLetterSpacing(20),
-      textAlign: 'center',
-      paddingHorizontal: 32,
-      marginBottom: 8,
-    },
-    welcomeSubtext: {
-      color: colors.subtitle,
-      fontSize: 14,
-      fontFamily: fonts.body,
-      textAlign: 'center',
-      paddingHorizontal: 40,
-      lineHeight: 20,
-    },
-  });
-}
-
 export function getLessonEndStyles(colorScheme: ColorScheme) {
   const colors = palette[colorScheme];
 
@@ -2456,12 +2089,6 @@ export function getLessonPlayerStyles(colorScheme: ColorScheme) {
   const colors = palette[colorScheme];
 
   return StyleSheet.create({
-    centered: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     centeredPadded: {
       flex: 1,
       backgroundColor: colors.background,
@@ -2490,14 +2117,17 @@ export function getLessonPlayerStyles(colorScheme: ColorScheme) {
     topBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      gap: space[2],
+      paddingLeft: space[2],
+      paddingRight: space[4],
+      paddingVertical: space[1],
     },
-    closeIcon: {
-      color: colors.text,
-      fontSize: 20,
-      fontFamily: fonts.body,
+    // Croix du lecteur : zone de toucher de 44 × 44
+    closeButton: {
+      width: size.tapMin,
+      height: size.tapMin,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     progressTrack: {
       flex: 1,
