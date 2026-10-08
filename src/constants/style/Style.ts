@@ -33,7 +33,7 @@ export const palette = {
     surface: '#18181C',       // cartes, inputs, panneaux légèrement plus clairs
     surfaceAlt: '#232328',
     text: '#F2EFE8',
-    subtitle: 'rgba(242,239,232,0.46)',  // texte atténué
+    subtitle: 'rgba(242,239,232,0.52)',  // texte atténué
     textFaint: 'rgba(242,239,232,0.26)', // texte faible
     border: 'rgba(255,255,255,0.055)',   // filet de séparation
     controlBorder: 'rgba(255,255,255,0.13)', // bordures de champs et de contrôles
@@ -45,6 +45,15 @@ export const palette = {
     shadow: '#000000',
     blobLight: '#FFFFFF',                // taches du fond d'écran
     blobDark: '#000000',
+    surface2: '#202026',                 // surface pressée, deuxième niveau
+    scrim: 'rgba(0,0,0,0.6)',            // voile sous les feuilles et modales
+    focusRing: '#C9A84C',                // = gold
+    skeletonShine: 'rgba(255,255,255,0.05)', // reflet des squelettes de chargement
+    chart1: '#C9A84C',                   // = gold
+    chart2: '#D9D2C3',
+    chart3: '#7C9CC4',
+    chart4: '#A06E48',
+    chart5: '#64646E',
   },
 
   // Thème clair — même identité, inversée pour la lisibilité de jour
@@ -66,8 +75,104 @@ export const palette = {
     shadow: '#000000',
     blobLight: '#000000',
     blobDark: '#000000',
+    surface2: '#ECEBF0',
+    scrim: 'rgba(0,0,0,0.4)',
+    focusRing: '#E8B23D',                // = gold
+    skeletonShine: 'rgba(0,0,0,0.05)',
+    chart1: '#E8B23D',                   // = gold
+    chart2: '#8A8272',
+    chart3: '#4F74A3',
+    chart4: '#A06E48',
+    chart5: '#8C8C96',
   },
 };
+
+// ---------------------------------------------------------------------------
+// Jetons de mise en page (grille de 4 px)
+// ---------------------------------------------------------------------------
+export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40 } as const;
+
+export const radius = { sm: 6, md: 12, lg: 20, pill: 999 } as const;
+
+export const size = {
+  tapMin: 44,
+  buttonHeight: 52,
+  rowMin: 56,
+  icon: 24,
+  tabBar: 49,
+  valSm: 90,
+} as const;
+
+export const opacityDisabled = 0.42;
+
+// ---------------------------------------------------------------------------
+// Styles de texte. maxFontSizeMultiplier est une prop de <Text>, pas un style :
+// chaque variante porte donc son style ET son plafond d'agrandissement.
+// Utiliser <AppText variant="..."> (src/components/common/AppText.tsx) qui
+// applique les deux. Aucune couleur ici : elle dépend du thème.
+// ---------------------------------------------------------------------------
+type TextVariant = { style: TextStyle; maxFontSizeMultiplier: number };
+
+export const textVariants = {
+  hero: {
+    style: {
+      fontFamily: fonts.title,
+      fontSize: 44,
+      lineHeight: 48,
+      letterSpacing: -0.97,
+      fontVariant: ['tabular-nums'],
+    },
+    maxFontSizeMultiplier: 1.2,
+  },
+  title1: {
+    style: { fontFamily: fonts.title, fontSize: 30, lineHeight: 36, letterSpacing: titleLetterSpacing(30) },
+    maxFontSizeMultiplier: 1.3,
+  },
+  title2: {
+    style: { fontFamily: fonts.title, fontSize: 24, lineHeight: 30, letterSpacing: titleLetterSpacing(24) },
+    maxFontSizeMultiplier: 1.3,
+  },
+  title3: {
+    style: { fontFamily: fonts.title, fontSize: 20, lineHeight: 26, letterSpacing: titleLetterSpacing(20) },
+    maxFontSizeMultiplier: 1.3,
+  },
+  body: {
+    style: { fontFamily: fonts.body, fontSize: 16, lineHeight: 24 },
+    maxFontSizeMultiplier: 1.6,
+  },
+  bodyMedium: {
+    style: { fontFamily: fonts.bodyMedium, fontSize: 16, lineHeight: 22 },
+    maxFontSizeMultiplier: 1.6,
+  },
+  callout: {
+    style: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20 },
+    maxFontSizeMultiplier: 1.6,
+  },
+  caption: {
+    style: { fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 18 },
+    maxFontSizeMultiplier: 1.4,
+  },
+  button: {
+    style: { fontFamily: fonts.bodySemibold, fontSize: 16, lineHeight: 20 },
+    maxFontSizeMultiplier: 1.3,
+  },
+  tabLabel: {
+    style: { fontFamily: fonts.bodyMedium, fontSize: 11, lineHeight: 13 },
+    maxFontSizeMultiplier: 1.2,
+  },
+  sectionLabel: {
+    style: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 10,
+      lineHeight: 12,
+      letterSpacing: 1.4,
+      textTransform: 'uppercase',
+    },
+    maxFontSizeMultiplier: 1.2,
+  },
+} as const satisfies Record<string, TextVariant>;
+
+export type TextVariantName = keyof typeof textVariants;
 
 export function getBasiquesStyles(colorScheme: ColorScheme) {
   const colors = palette[colorScheme];
