@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react';
 import { useApi } from '@/src/context/ApiContext';
 import { getLastProfile, LastProfile, setLastProfile } from '@/src/state/lastProfile';
 
+// Lecture lancée dès le chargement de l'app, avant même celle du token par
+// ApiContext : le pseudo mémorisé est prêt quand le logo de démarrage s'efface.
+const startupProfile = getLastProfile();
+
 // Pseudo à afficher dès le démarrage, sans attendre le profil réseau :
 // - pseudo : le vrai s'il est arrivé, sinon le dernier connu sur ce téléphone ;
 // - pending : aucun pseudo connu pour l'instant mais il peut encore arriver
@@ -14,7 +18,7 @@ export function useKnownPseudo(): { pseudo?: string; pending: boolean } {
 
   useEffect(() => {
     let active = true;
-    getLastProfile().then((profile) => {
+    startupProfile.then((profile) => {
       if (!active) return;
       setCached(profile);
       setCacheRead(true);
