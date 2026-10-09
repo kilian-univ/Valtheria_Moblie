@@ -5,16 +5,23 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  decorForCategory,
   categoriesByCount,
   findEntry,
   highlightRange,
+  isFavorite,
   isUnauthorized,
+  neighbors,
+  pickDistractors,
+  quizFor,
+  shortDefinition,
+  toggleFavorite,
   letterSections,
   normalizeEntries,
   normalizeEntry,
   normalizeText,
   pushRecent,
-  recentEntries,
+  entriesForTerms,
   sameFamily,
   searchEntries,
   shareMessage,
@@ -22,6 +29,7 @@ import {
   termLetter,
   wordOfTheDay,
   type DictionaryEntry,
+  type Quiz,
 } from '../src/utils/dictionary';
 
 const RAW = [
@@ -205,7 +213,7 @@ test('récents : en tête, 3 au plus, sans doublon', () => {
 });
 
 test('récents disparus du dictionnaire ignorés', () => {
-  assert.deepEqual(byTerm(recentEntries(ENTRIES, ['ETF', 'Mot supprimé', 'action'])), ['ETF', 'Action']);
+  assert.deepEqual(byTerm(entriesForTerms(ENTRIES, ['ETF', 'Mot supprimé', 'action'])), ['ETF', 'Action']);
 });
 
 // ---------------------------------------------------------------------------
@@ -219,4 +227,152 @@ test('401 reconnu depuis le message d’ApiContext', () => {
   assert.equal(isUnauthorized(new Error('Unauthenticated.')), true);
   assert.equal(isUnauthorized(new Error('Erreur API')), false);
   assert.equal(isUnauthorized(new TypeError('Network request failed')), false);
+});
+
+// ---------------------------------------------------------------------------
+// Teste-toi
+// ---------------------------------------------------------------------------
+const DAY = new Date(2026, 9, 10, 9, 0);
+const SAME_DAY = new Date(2026, 9, 10, 22, 30);
+
+function checkQuiz(q: Quiz | null) {
+  assert.ok(q);
+  assert.equal(q.answers.length, 3);
+  assert.equal(q.answers.filter((a) => a.correct).length, 1);
+  assert.equal(q.answers.find((a) => a.correct)?.label, q.correctLabel);
+  assert.equal(new Set(q.answers.map((a) => normalizeText(a.label))).size, 3, 'trois réponses distinctes');
+  return q;
+}
+
+test('question stable : même mot, même jour → même question, même ordre des réponses', () => {
+  for (const entry of ENTRIES) {
+    const a = quizFor(ENTRIES, entry, DAY);
+    assert.deepEqual(quizFor(ENTRIES, entry, SAME_DAY), a);
+    assert.deepEqual(quizFor([...ENTRIES].reverse(), entry, DAY)?.question, a?.question);
+    checkQuiz(a);
+  }
+});
+
+test('« Une autre question » : un autre tirage, toujours valide', () => {
+  const action = findEntry(ENTRIES, 'Action')!;
+  const rounds = Array.from({ length: 8 }, (_, r) => checkQuiz(quizFor(ENTRIES, action, DAY, r)));
+  assert.ok(new Set(rounds.map((q) => JSON.stringify(q))).size > 1);
+  // Les deux types de question finissent par sortir
+  assert.deepEqual(new Set(rounds.map((q) => q.kind)), new Set(['term', 'definition']));
+});
+
+test('« Quel mot… ? » : définition d’un AUTRE mot de la même catégorie', () => {
+  const action = findEntry(ENTRIES, 'Action')!;
+  for (let r = 0; r < 20; r++) {
+    const q = quizFor(ENTRIES, action, DAY, r)!;
+    if (q.kind !== 'term') continue;
+    const target = findEntry(ENTRIES, q.correctLabel)!;
+    assert.notEqual(target.term, 'Action');
+    assert.equal(target.category, 'Bourse');
+    assert.equal(q.quote, target.definition);
+    assert.equal(q.question, 'Quel mot correspond à cette définition ?');
+  }
+});
+
+test('« Que veut dire… ? » : la bonne définition, courte', () => {
+  const action = findEntry(ENTRIES, 'Action')!;
+  for (let r = 0; r < 20; r++) {
+    const q = quizFor(ENTRIES, action, DAY, r)!;
+    if (q.kind !== 'definition') continue;
+    assert.equal(q.question, 'Que veut dire Action ?');
+    assert.equal(q.correctLabel, shortDefinition(action.definition));
+    assert.equal(q.quote, null);
+  }
+});
+
+test('mot seul dans sa catégorie : « Que veut dire… ? », mauvaises réponses prises ailleurs', () => {
+  const inflation = findEntry(ENTRIES, 'Inflation')!; // seul mot d’Économie
+  for (let r = 0; r < 10; r++) assert.equal(checkQuiz(quizFor(ENTRIES, inflation, DAY, r)).kind, 'definition');
+});
+
+test('mauvaises réponses : même catégorie d’abord, puis tout le dictionnaire', () => {
+  const random = () => 0.42;
+  const same = pickDistractors(ENTRIES, 'Bourse', ['Action'], 2, random);
+  assert.ok(same.every((e) => e.category === 'Bourse' && e.term !== 'Action'));
+  // Crédit n’a qu’un mot, exclu : on complète ailleurs
+  const filled = pickDistractors(ENTRIES, 'Crédit', ['Taux d’intérêt'], 2, random);
+  assert.equal(filled.length, 2);
+  assert.ok(filled.every((e) => e.term !== 'Taux d’intérêt'));
+  // Épargne a 3 mots : 2 viennent de la catégorie
+  const epargne = pickDistractors(ENTRIES, 'Épargne', ['Livret A'], 2, random);
+  assert.ok(epargne.every((e) => e.category === 'Épargne'));
+});
+
+test('mauvaises réponses : jamais deux fois la même définition', () => {
+  const twins = normalizeEntries([
+    { term: 'A1', definition: 'Même texte.', category: 'X' },
+    { term: 'A2', definition: 'Même texte.', category: 'X' },
+    { term: 'B', definition: 'Autre texte.', category: 'X' },
+    { term: 'C', definition: 'Encore un.', category: 'Y' },
+  ]);
+  const wrong = pickDistractors(twins, 'X', ['B'], 2, () => 0.1, (e) => e.definition);
+  assert.equal(new Set(wrong.map((e) => e.definition)).size, 2);
+});
+
+test('moins de 3 mots : pas de question', () => {
+  const two = ENTRIES.slice(0, 2);
+  assert.equal(quizFor(two, two[0], DAY), null);
+});
+
+test('définition courte : première phrase, 110 caractères au plus', () => {
+  assert.equal(shortDefinition('Hausse des prix. Elle réduit le pouvoir d’achat.'), 'Hausse des prix.');
+  const long = shortDefinition('mot '.repeat(60).trim());
+  assert.ok(long.length <= 110 && long.endsWith('…'));
+});
+
+// ---------------------------------------------------------------------------
+// Mes mots
+// ---------------------------------------------------------------------------
+test('mes mots : ajout en tête, retrait, sans doublon', () => {
+  let fav: string[] = [];
+  fav = toggleFavorite(fav, 'ETF');
+  fav = toggleFavorite(fav, 'Action');
+  assert.deepEqual(fav, ['Action', 'ETF']);
+  assert.equal(isFavorite(fav, 'etf'), true);
+  fav = toggleFavorite(fav, 'etf'); // retrait, accents et casse ignorés
+  assert.deepEqual(fav, ['Action']);
+  assert.equal(isFavorite(fav, 'ETF'), false);
+  fav = toggleFavorite(toggleFavorite(fav, 'Inflation'), 'Inflation');
+  assert.deepEqual(fav, ['Action']);
+});
+
+// ---------------------------------------------------------------------------
+// Précédent et suivant
+// ---------------------------------------------------------------------------
+test('précédent et suivant : ordre A-Z, null aux bornes', () => {
+  const first = neighbors(ENTRIES, findEntry(ENTRIES, 'Action')!);
+  assert.equal(first.previous, null);
+  assert.equal(first.next?.term, 'Dividende');
+  const last = neighbors(ENTRIES, findEntry(ENTRIES, 'Taux d’intérêt')!);
+  assert.equal(last.previous?.term, 'Obligation');
+  assert.equal(last.next, null);
+  const mid = neighbors(ENTRIES, findEntry(ENTRIES, 'ETF')!);
+  assert.deepEqual([mid.previous?.term, mid.next?.term], ['Épargne de précaution', 'Inflation']);
+});
+
+test('précédent et suivant avec filtre : dans la catégorie seulement', () => {
+  const etf = neighbors(ENTRIES, findEntry(ENTRIES, 'ETF')!, 'Bourse');
+  assert.deepEqual([etf.previous?.term, etf.next?.term], ['Dividende', 'Obligation']);
+  const obligation = neighbors(ENTRIES, findEntry(ENTRIES, 'Obligation')!, 'Bourse');
+  assert.equal(obligation.next, null, 'dernier de la catégorie');
+  // Mot hors de la catégorie filtrée : tout le dictionnaire
+  const inflation = neighbors(ENTRIES, findEntry(ENTRIES, 'Inflation')!, 'Bourse');
+  assert.deepEqual([inflation.previous?.term, inflation.next?.term], ['ETF', 'Intérêts composés']);
+});
+
+// ---------------------------------------------------------------------------
+// Illustration
+// ---------------------------------------------------------------------------
+test('décor selon la catégorie, accents et casse ignorés, pile de pièces par défaut', () => {
+  assert.equal(decorForCategory('Bourse'), 'graphique');
+  assert.equal(decorForCategory('ÉPARGNE'), 'tirelire');
+  assert.equal(decorForCategory('Crédit'), 'cle');
+  assert.equal(decorForCategory('Impôts'), 'carnet');
+  assert.equal(decorForCategory('Économie'), 'pile-pieces');
+  assert.equal(decorForCategory('constructor'), 'pile-pieces');
 });

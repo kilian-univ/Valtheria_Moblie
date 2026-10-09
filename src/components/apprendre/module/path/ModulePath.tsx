@@ -1,12 +1,13 @@
-import { ComponentProps, useEffect, useId, useState } from 'react';
-import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
+import { ComponentProps, useEffect, useState } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 import Animated, { SharedValue, useAnimatedStyle, useReducedMotion } from 'react-native-reanimated';
-import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 
 import GoldHalo from '@/src/components/common/GoldHalo';
+import GroundShadow from '@/src/components/common/GroundShadow';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import ValFullBody from '@/src/components/common/ValFullBody';
+import { DECOR_IMAGES } from '@/src/constants/decorImages';
 import { ModuleColors, palette, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { celebrate, success, warning } from '@/src/utils/haptics';
@@ -17,7 +18,6 @@ import {
   completedRatio,
   currentIndex,
   DECOR_SHADOW_H,
-  DecorName,
   DecorSpot,
   decorSpots,
   HALO_SIZE,
@@ -59,20 +59,6 @@ const DECOR_SHADOW_OPACITY = 0.4;
 // Déverrouillage : le rond réussi se remplit, puis le suivant s'ouvre
 const UNLOCK_DELAY = 650;
 const BOTTOM_ROOM = 32;
-
-const DECOR_IMAGES: Record<DecorName, ImageSourcePropType> = {
-  'pile-pieces': require('@/assets/images/decor/deco-pile-pieces.webp'),
-  tirelire: require('@/assets/images/decor/deco-tirelire.webp'),
-  'coffre-fort': require('@/assets/images/decor/deco-coffre-fort.webp'),
-  plante: require('@/assets/images/decor/deco-plante.webp'),
-  graphique: require('@/assets/images/decor/deco-graphique.webp'),
-  calculatrice: require('@/assets/images/decor/deco-calculatrice.webp'),
-  carnet: require('@/assets/images/decor/deco-carnet.webp'),
-  sablier: require('@/assets/images/decor/deco-sablier.webp'),
-  cle: require('@/assets/images/decor/deco-cle.webp'),
-  enveloppe: require('@/assets/images/decor/deco-enveloppe.webp'),
-  banque: require('@/assets/images/decor/deco-banque.webp'),
-};
 
 type ModulePathProps = {
   moduleId: number;
@@ -292,36 +278,6 @@ function CurrentHalo({ width, faceHeight, color }: { width: number; faceHeight: 
     >
       <GoldHalo color={color} />
     </View>
-  );
-}
-
-// Ombre au sol : ellipse noire floutée (dégradé radial)
-function GroundShadow({
-  width,
-  height,
-  opacity,
-  left,
-  top,
-}: {
-  width: number;
-  height: number;
-  opacity: number;
-  left: number;
-  top: number;
-}) {
-  const { colorScheme } = useTheme();
-  const theme = palette[colorScheme];
-  const id = useId().replace(/[^a-zA-Z0-9]/g, '');
-  return (
-    <Svg pointerEvents="none" width={width} height={height} style={[styles.abs, { left, top }]}>
-      <Defs>
-        <RadialGradient id={`gs${id}`} cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor={theme.groundShadow} stopOpacity={opacity} />
-          <Stop offset="1" stopColor={theme.groundShadow} stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Ellipse cx={width / 2} cy={height / 2} rx={width / 2} ry={height / 2} fill={`url(#gs${id})`} />
-    </Svg>
   );
 }
 

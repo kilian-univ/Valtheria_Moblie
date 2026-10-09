@@ -1,28 +1,47 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { pushRecent, RECENTS_MAX } from '@/src/utils/dictionary';
+import { pushRecent, RECENTS_MAX, toggleFavorite } from '@/src/utils/dictionary';
 
-// Mots récemment consultés, par utilisateur (deux comptes sur le même
-// téléphone ne se mélangent pas). Tout échec de stockage est ignoré : la
-// section « Récemment consultés » reste alors masquée.
+// Mémoire locale du Dictionnaire, par utilisateur (deux comptes sur le même
+// téléphone ne se mélangent pas) : mots récemment consultés et « Mes mots ».
+// Tout échec de stockage est ignoré : la section concernée reste masquée.
 
 const recentsKey = (userId: number) => `valtheria:dictionnaire:recents:${userId}`;
+const favoritesKey = (userId: number) => `valtheria:dictionnaire:mesMots:${userId}`;
 
-export async function getRecentTerms(userId: number): Promise<string[]> {
+async function readTerms(key: string): Promise<string[]> {
   try {
-    const raw = await AsyncStorage.getItem(recentsKey(userId));
+    const raw = await AsyncStorage.getItem(key);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === 'string').slice(0, RECENTS_MAX) : [];
+    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === 'string') : [];
   } catch {
     return [];
   }
 }
 
-export async function addRecentTerm(userId: number, term: string): Promise<void> {
+async function writeTerms(key: string, terms: string[]): Promise<void> {
   try {
-    const current = await getRecentTerms(userId);
-    await AsyncStorage.setItem(recentsKey(userId), JSON.stringify(pushRecent(current, term)));
+    await AsyncStorage.setItem(key, JSON.stringify(terms));
   } catch {
     // stockage indisponible : sans conséquence
   }
+}
+
+export async function getRecentTerms(userId: number): Promise<string[]> {
+  return (await readTerms(recentsKey(userId))).slice(0, RECENTS_MAX);
+}
+
+export async function addRecentTerm(userId: number, term: string): Promise<void> {
+  await writeTerms(recentsKey(userId), pushRecent(await getRecentTerms(userId), term));
+}
+
+export async function getFavoriteTerms(userId: number): Promise<string[]> {
+  return readTerms(favoritesKey(userId));
+}
+
+// Ajoute le mot à « Mes mots », ou l'en retire ; renvoie la nouvelle liste
+export async function toggleFavoriteTerm(userId: number, term: string): Promise<string[]> {
+  const next = toggleFavorite(await getFavoriteTerms(userId), term);
+  await writeTerms(favoritesKey(userId), next);
+  return next;
 }

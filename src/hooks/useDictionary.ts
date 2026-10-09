@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import { useApi } from '@/src/context/ApiContext';
 import { isNetworkError, LoadError } from '@/src/hooks/useLearningData';
-import { addRecentTerm, getRecentTerms } from '@/src/state/dictionaryRecents';
-import { DictionaryEntry, isUnauthorized, normalizeEntries } from '@/src/utils/dictionary';
+import { addRecentTerm, getFavoriteTerms, getRecentTerms, toggleFavoriteTerm } from '@/src/state/dictionaryMemory';
+import { DictionaryEntry, isFavorite, isUnauthorized, normalizeEntries, toggleFavorite } from '@/src/utils/dictionary';
 
 // Mots chargés, partagés entre l'accueil et les fiches (une seule requête)
 type State = { entries: DictionaryEntry[]; loaded: boolean };
@@ -96,4 +96,36 @@ export function useDictionaryRecents(userId: number | null | undefined) {
   );
 
   return { recents, addRecent };
+}
+
+// « Mes mots » de l'utilisateur, relus à chaque affichage. L'étoile change
+// tout de suite à l'écran, puis la liste est enregistrée.
+export function useDictionaryFavorites(userId: number | null | undefined) {
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userId === null || userId === undefined) return;
+      let active = true;
+      getFavoriteTerms(userId).then((terms) => {
+        if (active) setFavorites(terms);
+      });
+      return () => {
+        active = false;
+      };
+    }, [userId])
+  );
+
+  const toggle = useCallback(
+    (term: string) => {
+      if (userId === null || userId === undefined) return;
+      setFavorites((current) => toggleFavorite(current, term));
+      toggleFavoriteTerm(userId, term).then(setFavorites);
+    },
+    [userId]
+  );
+
+  const has = useCallback((term: string) => isFavorite(favorites, term), [favorites]);
+
+  return { favorites, isFavorite: has, toggle };
 }

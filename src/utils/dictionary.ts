@@ -2,6 +2,8 @@
 // suggestions, même famille, récents. Fonctions pures, sans React : testables
 // avec Node. La clé d'un mot est son terme (le serveur n'envoie pas d'id).
 
+import type { DecorName } from './modulePath';
+
 type AnyRecord = Record<string, any>;
 
 export type DictionaryLesson = { id: number; title: string };
@@ -246,9 +248,182 @@ export function pushRecent(recents: string[], term: string, max = RECENTS_MAX): 
   return [term, ...recents.filter((t) => normalizeText(t) !== key)].slice(0, max);
 }
 
-// Récents encore présents dans le dictionnaire, avec leur fiche
-export function recentEntries(entries: DictionaryEntry[], recents: string[]): DictionaryEntry[] {
-  return recents.map((t) => findEntry(entries, t)).filter((e): e is DictionaryEntry => e !== null);
+// Mots (récents, mes mots) encore présents dans le dictionnaire, avec leur
+// fiche, dans l'ordre donné
+export function entriesForTerms(entries: DictionaryEntry[], terms: string[]): DictionaryEntry[] {
+  return terms.map((t) => findEntry(entries, t)).filter((e): e is DictionaryEntry => e !== null);
+}
+
+// ---------------------------------------------------------------------------
+// Mes mots
+// ---------------------------------------------------------------------------
+
+export function isFavorite(favorites: string[], term: string): boolean {
+  const key = normalizeText(term);
+  return favorites.some((t) => normalizeText(t) === key);
+}
+
+// Ajoute le mot en tête, ou le retire s'il y est déjà (accents et casse
+// ignorés) ; jamais de doublon
+export function toggleFavorite(favorites: string[], term: string): string[] {
+  const key = normalizeText(term);
+  const others = favorites.filter((t) => normalizeText(t) !== key);
+  return others.length < favorites.length ? others : [term, ...others];
+}
+
+// ---------------------------------------------------------------------------
+// Mot précédent et mot suivant
+// ---------------------------------------------------------------------------
+
+// Voisins dans l'ordre A-Z, dans la catégorie filtrée s'il y en a une (si le
+// mot n'y est pas, dans tout le dictionnaire). null aux bornes.
+export function neighbors(
+  entries: DictionaryEntry[],
+  entry: DictionaryEntry,
+  category: string | null = null
+): { previous: DictionaryEntry | null; next: DictionaryEntry | null } {
+  const key = normalizeText(entry.term);
+  const inCategory = category ? entries.filter((e) => e.category === category) : [];
+  const pool = inCategory.some((e) => normalizeText(e.term) === key) ? inCategory : entries;
+  const sorted = [...pool].sort(compareTerms);
+  const at = sorted.findIndex((e) => normalizeText(e.term) === key);
+  if (at < 0) return { previous: null, next: null };
+  return { previous: sorted[at - 1] ?? null, next: sorted[at + 1] ?? null };
+}
+
+// ---------------------------------------------------------------------------
+// Illustration de la fiche
+// ---------------------------------------------------------------------------
+
+// Seule table catégorie → décor peint (assets/images/decor) ; accents et
+// casse ignorés
+const CATEGORY_DECORS: Record<string, DecorName> = {
+  bourse: 'graphique',
+  epargne: 'tirelire',
+  credit: 'cle',
+  budget: 'enveloppe',
+  impots: 'carnet',
+  banque: 'banque',
+  investir: 'plante',
+};
+export const DEFAULT_DECOR: DecorName = 'pile-pieces';
+
+export function decorForCategory(category: string): DecorName {
+  const key = normalizeText(category);
+  return Object.hasOwn(CATEGORY_DECORS, key) ? CATEGORY_DECORS[key] : DEFAULT_DECOR;
+}
+
+// ---------------------------------------------------------------------------
+// Teste-toi
+// ---------------------------------------------------------------------------
+
+export type QuizAnswer = { label: string; correct: boolean };
+
+export type Quiz = {
+  // 'term' : « Quel mot correspond à cette définition ? » ;
+  // 'definition' : « Que veut dire <mot> ? »
+  kind: 'term' | 'definition';
+  question: string;
+  // Définition affichée sous la question (kind 'term')
+  quote: string | null;
+  answers: QuizAnswer[];
+  correctLabel: string;
+};
+
+export const QUIZ_ANSWERS = 3;
+const SHORT_DEFINITION = 110;
+
+// Définition courte : première phrase, coupée à 110 caractères
+export function shortDefinition(definition: string): string {
+  const first = definition.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? definition;
+  if (first.length <= SHORT_DEFINITION) return first;
+  const cut = first.slice(0, SHORT_DEFINITION - 1);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), SHORT_DEFINITION / 2)).trim()}…`;
+}
+
+// Tirage pseudo-aléatoire stable (mulberry32)
+function rng(seed: number): () => number {
+  let a = seed >>> 0 || 1;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashText(text: string): number {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = (Math.imul(h, 33) + text.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function shuffled<T>(list: T[], random: () => number): T[] {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+// Mauvaises réponses : d'abord dans la même catégorie, puis dans tout le
+// dictionnaire s'il n'y en a pas assez ; jamais un mot exclu, jamais deux
+// fois la même réponse
+export function pickDistractors(
+  entries: DictionaryEntry[],
+  category: string,
+  exclude: string[],
+  count: number,
+  random: () => number,
+  label: (e: DictionaryEntry) => string = (e) => e.term
+): DictionaryEntry[] {
+  const excluded = new Set(exclude.map(normalizeText));
+  // Réponses déjà prises (la bonne) : aucune mauvaise ne doit leur ressembler
+  const seen = new Set<string>();
+  for (const t of exclude) {
+    const e = findEntry(entries, t);
+    seen.add(normalizeText(e ? label(e) : t));
+  }
+  const usable = entries.filter((e) => !excluded.has(normalizeText(e.term)));
+  const same = shuffled(usable.filter((e) => e.category === category), random);
+  const rest = shuffled(usable.filter((e) => e.category !== category), random);
+  const out: DictionaryEntry[] = [];
+  for (const e of [...same, ...rest]) {
+    if (out.length >= count) break;
+    const key = normalizeText(label(e));
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(e);
+  }
+  return out;
+}
+
+// Question du jour pour un mot : la même à chaque ouverture le même jour ;
+// `round` (« Une autre question ») en tire une autre. null si le
+// dictionnaire a moins de 3 mots.
+export function quizFor(entries: DictionaryEntry[], entry: DictionaryEntry, date: Date, round = 0): Quiz | null {
+  if (entries.length < QUIZ_ANSWERS) return null;
+  const random = rng(hashText(normalizeText(entry.term)) ^ Math.imul(dayNumber(date), 0x9e3779b1) ^ Math.imul(round + 1, 0x85ebca6b));
+  const others = entries.filter((e) => e.category === entry.category && normalizeText(e.term) !== normalizeText(entry.term));
+  const kind: Quiz['kind'] = others.length > 0 && random() < 0.5 ? 'term' : 'definition';
+
+  if (kind === 'term') {
+    // Définition d'un AUTRE mot de la même catégorie ; on cherche ce mot
+    const target = others[Math.floor(random() * others.length)];
+    const wrong = pickDistractors(entries, entry.category, [target.term], QUIZ_ANSWERS - 1, random);
+    if (wrong.length < QUIZ_ANSWERS - 1) return null;
+    const answers = shuffled([{ label: target.term, correct: true }, ...wrong.map((e) => ({ label: e.term, correct: false }))], random);
+    return { kind, question: 'Quel mot correspond à cette définition ?', quote: target.definition, answers, correctLabel: target.term };
+  }
+
+  const short = (e: DictionaryEntry) => shortDefinition(e.definition);
+  const wrong = pickDistractors(entries, entry.category, [entry.term], QUIZ_ANSWERS - 1, random, short);
+  if (wrong.length < QUIZ_ANSWERS - 1) return null;
+  const correct = short(entry);
+  const answers = shuffled([{ label: correct, correct: true }, ...wrong.map((e) => ({ label: short(e), correct: false }))], random);
+  return { kind, question: `Que veut dire ${entry.term} ?`, quote: null, answers, correctLabel: correct };
 }
 
 // ---------------------------------------------------------------------------

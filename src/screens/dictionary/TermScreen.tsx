@@ -12,20 +12,23 @@ import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import ValBubble from '@/src/components/common/ValBubble';
 import { Reserved, TermSkeleton } from '@/src/components/dictionary/DictionaryStates';
+import NeighborButtons from '@/src/components/dictionary/NeighborButtons';
+import TermIllustration from '@/src/components/dictionary/TermIllustration';
+import TermQuiz from '@/src/components/dictionary/TermQuiz';
 import TermRow from '@/src/components/dictionary/TermRow';
 import { fonts, palette, size, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { Module, useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { useDictionary, useDictionaryRecents } from '@/src/hooks/useDictionary';
+import { useDictionary, useDictionaryFavorites, useDictionaryRecents } from '@/src/hooks/useDictionary';
 import { OFFLINE_BANNER } from '@/src/hooks/useLearningData';
 import { learningStore } from '@/src/state/learningStore';
-import { DictionaryLesson, findEntry, sameFamily, shareMessage } from '@/src/utils/dictionary';
+import { DictionaryLesson, findEntry, neighbors, sameFamily, shareMessage } from '@/src/utils/dictionary';
 import { dictionaryTermHref, termHref } from '@/src/utils/dictionaryLinks';
-import { tap } from '@/src/utils/haptics';
+import { select, tap } from '@/src/utils/haptics';
 
 const TERM_SIZE = 40;
 const VAL_DIAMETER = 56;
-const SHARE_ICON = 22;
+const ACTION_ICON = 22;
 
 function moduleOfLesson(modules: Module[], lessonId: number): Module | null {
   return modules.find((m) => (m.lessons ?? []).some((l) => l.id === lessonId)) ?? null;
@@ -41,12 +44,16 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { user, getModules } = useApi();
-  const { term } = useLocalSearchParams<{ term: string }>();
+  // category : filtre actif quand la fiche a été ouverte (précédent / suivant)
+  const { term, category } = useLocalSearchParams<{ term: string; category?: string }>();
 
   const data = useDictionary();
   const { addRecent } = useDictionaryRecents(user?.id);
+  const favorites = useDictionaryFavorites(user?.id);
   const entry = findEntry(data.entries, term);
   const family = entry ? sameFamily(data.entries, entry) : [];
+  const around = entry ? neighbors(data.entries, entry, category ?? null) : { previous: null, next: null };
+  const starred = entry ? favorites.isFavorite(entry.term) : false;
 
   // Ouvrir une fiche l'ajoute aux récemment consultés
   const openedTerm = entry?.term ?? null;
@@ -55,7 +62,17 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
   }, [openedTerm, addRecent]);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/dictionary'));
-  const openTerm = (t: string) => router.push(standalone ? termHref(t) : dictionaryTermHref(t));
+  const href = (t: string, c?: string | null) => (standalone ? termHref(t, c) : dictionaryTermHref(t, c));
+  const openTerm = (t: string) => router.push(href(t));
+  // Précédent / suivant : la fiche est remplacée (pas d'empilement infini),
+  // le filtre de catégorie est conservé
+  const replaceTerm = (t: string) => router.replace(href(t, category));
+
+  const toggleStar = () => {
+    if (!entry) return;
+    select();
+    favorites.toggle(entry.term);
+  };
 
   const share = () => {
     if (!entry) return;
@@ -124,9 +141,17 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
 
         <StaggerItem index={0}>
           <AppText variant="sectionLabel">{entry.category}</AppText>
-          <AppText maxFontSizeMultiplier={1.3} accessibilityRole="header" style={[styles.term, { color: colors.text }]}>
-            {entry.term}
-          </AppText>
+          {/* Le mot passe à la ligne avant l'illustration, jamais dessous */}
+          <View style={styles.titleRow}>
+            <AppText
+              maxFontSizeMultiplier={1.3}
+              accessibilityRole="header"
+              style={[styles.term, styles.termText, { color: colors.text }]}
+            >
+              {entry.term}
+            </AppText>
+            <TermIllustration category={entry.category} />
+          </View>
           <AppText maxFontSizeMultiplier={1.6} style={[styles.definition, { color: colors.text }]}>
             {entry.definition}
           </AppText>
@@ -140,8 +165,14 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
           </StaggerItem>
         ) : null}
 
+        <StaggerItem index={2}>
+          <View style={styles.block}>
+            <TermQuiz key={entry.term} entries={data.entries} entry={entry} />
+          </View>
+        </StaggerItem>
+
         {family.length > 0 ? (
-          <StaggerItem index={2}>
+          <StaggerItem index={3}>
             <View style={styles.block}>
               <AppText variant="sectionLabel" style={styles.label}>
                 Dans la même famille
@@ -156,7 +187,7 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
         ) : null}
 
         {entry.lessons ? (
-          <StaggerItem index={3}>
+          <StaggerItem index={4}>
             <View style={[styles.block, styles.listRows]}>
               {entry.lessons.map((lesson, i) => (
                 <ListRow
@@ -172,6 +203,12 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
             </View>
           </StaggerItem>
         ) : null}
+
+        <StaggerItem index={5}>
+          <View style={styles.block}>
+            <NeighborButtons previous={around.previous} next={around.next} onOpen={(e) => replaceTerm(e.term)} />
+          </View>
+        </StaggerItem>
       </>
     );
   }
@@ -181,14 +218,25 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
       <View style={styles.topRow}>
         <BackButton onBack={goBack} />
         {entry && !data.reserved ? (
-          <Pressable
-            onPress={share}
-            accessibilityRole="button"
-            accessibilityLabel="Partager ce mot"
-            style={({ pressed }) => [styles.share, pressed && { backgroundColor: colors.surface2 }]}
-          >
-            <Ionicons name="share-outline" size={SHARE_ICON} color={colors.text} />
-          </Pressable>
+          <View style={styles.actions}>
+            <Pressable
+              onPress={toggleStar}
+              accessibilityRole="button"
+              accessibilityLabel={starred ? 'Retirer de Mes mots' : 'Ajouter à Mes mots'}
+              accessibilityState={{ selected: starred }}
+              style={({ pressed }) => [styles.action, pressed && { backgroundColor: colors.surface2 }]}
+            >
+              <Ionicons name={starred ? 'star' : 'star-outline'} size={ACTION_ICON} color={colors.gold} />
+            </Pressable>
+            <Pressable
+              onPress={share}
+              accessibilityRole="button"
+              accessibilityLabel="Partager ce mot"
+              style={({ pressed }) => [styles.action, styles.lastAction, pressed && { backgroundColor: colors.surface2 }]}
+            >
+              <Ionicons name="share-outline" size={ACTION_ICON} color={colors.text} />
+            </Pressable>
+          </View>
         ) : null}
       </View>
       {body}
@@ -210,14 +258,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: space[4],
   },
-  share: {
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  action: {
     width: size.tapMin,
     height: size.tapMin,
     borderRadius: size.tapMin / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    // Aligne optiquement l'icône sur la marge de 20
+  },
+  // Aligne optiquement la dernière icône sur la marge de 20
+  lastAction: {
     marginRight: -space[3],
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space[3],
+    marginTop: space[2],
+  },
+  termText: {
+    flex: 1,
+    marginTop: 0,
   },
   offline: {
     marginBottom: space[4],

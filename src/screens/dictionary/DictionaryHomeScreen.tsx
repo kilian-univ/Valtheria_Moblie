@@ -24,14 +24,14 @@ import WordOfDayCard from '@/src/components/dictionary/WordOfDayCard';
 import { palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { useDictionary, useDictionaryRecents } from '@/src/hooks/useDictionary';
+import { useDictionary, useDictionaryFavorites, useDictionaryRecents } from '@/src/hooks/useDictionary';
 import { OFFLINE_BANNER } from '@/src/hooks/useLearningData';
 import {
   categoriesByCount,
   DictionaryEntry,
   letterSections,
   normalizeText,
-  recentEntries,
+  entriesForTerms,
   searchEntries,
   suggestions,
   wordOfTheDay,
@@ -65,15 +65,17 @@ export default function DictionaryHomeScreen() {
 
   const data = useDictionary();
   const { recents } = useDictionaryRecents(user?.id);
+  const { favorites } = useDictionaryFavorites(user?.id);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [headerH, setHeaderH] = useState(0);
   const listRef = useRef<SectionList<DictionaryEntry, Section>>(null);
 
+  // Le filtre de catégorie actif suit la fiche (mot précédent / suivant)
   const openTerm = useCallback(
-    (term: string) => router.push(dictionaryTermHref(term)),
-    [router]
+    (term: string) => router.push(dictionaryTermHref(term, category)),
+    [router, category]
   );
 
   // Anciens liens « ?term= » (articles, liens externes) : la fiche s'ouvre
@@ -93,7 +95,8 @@ export default function DictionaryHomeScreen() {
   const available = useMemo(() => new Set(sections.map((s) => s.title)), [sections]);
   const categories = useMemo(() => categoriesByCount(data.entries), [data.entries]);
   const today = useMemo(() => wordOfTheDay(data.entries, new Date()), [data.entries]);
-  const recent = useMemo(() => recentEntries(data.entries, recents), [data.entries, recents]);
+  const recent = useMemo(() => entriesForTerms(data.entries, recents), [data.entries, recents]);
+  const mine = useMemo(() => entriesForTerms(data.entries, favorites), [data.entries, favorites]);
   const close = useMemo(
     () => (searching && results.length === 0 ? suggestions(category ? searchEntries(data.entries, '', category) : data.entries, query) : []),
     [searching, results.length, data.entries, query, category]
@@ -176,8 +179,23 @@ export default function DictionaryHomeScreen() {
           </StaggerItem>
         ) : null}
 
-        {recent.length > 0 ? (
+        {mine.length > 0 ? (
           <StaggerItem index={1}>
+            <View style={styles.block}>
+              <AppText variant="sectionLabel" style={styles.label}>
+                Mes mots
+              </AppText>
+              <View style={styles.wrap}>
+                {mine.map((e) => (
+                  <Chip key={e.term} icon="star" label={e.term} onPress={() => openTerm(e.term)} />
+                ))}
+              </View>
+            </View>
+          </StaggerItem>
+        ) : null}
+
+        {recent.length > 0 ? (
+          <StaggerItem index={2}>
             <View style={styles.block}>
               <AppText variant="sectionLabel" style={styles.label}>
                 Récemment consultés
@@ -192,7 +210,7 @@ export default function DictionaryHomeScreen() {
         ) : null}
 
         {categories.length > 1 ? (
-          <StaggerItem index={2}>
+          <StaggerItem index={3}>
             <View style={styles.block}>
               <AppText variant="sectionLabel" style={styles.label}>
                 Catégories

@@ -8,11 +8,18 @@ import type { Href } from 'expo-router';
 //   dans la pile racine, PAR-DESSUS l'écran d'origine. Une adresse de
 //   l'onglet ramènerait sous les onglets et fermerait cet écran : le retour
 //   ne pourrait plus y revenir.
+//
+// `category` : filtre de catégorie actif à l'ouverture ; les boutons mot
+// précédent et mot suivant de la fiche le respectent.
 
-export function dictionaryTermHref(term: string): Href {
-  return { pathname: '/dictionary/mot', params: { term } };
+function params(term: string, category?: string | null) {
+  return category ? { term, category } : { term };
 }
 
-export function termHref(term: string): Href {
-  return { pathname: '/dictionnaire/mot', params: { term } };
+export function dictionaryTermHref(term: string, category?: string | null): Href {
+  return { pathname: '/dictionary/mot', params: params(term, category) };
+}
+
+export function termHref(term: string, category?: string | null): Href {
+  return { pathname: '/dictionnaire/mot', params: params(term, category) };
 }
