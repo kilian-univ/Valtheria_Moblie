@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 
 import BlockRenderer from '@/src/components/article/BlockRenderer';
 import Header from '@/src/components/topbar/header';
 import { getArticleDetailStyles, palette } from '@/src/constants/style/Style';
 import { Article, useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { ArticleDetailSkeleton } from '@/src/components/common/ScreenSkeletons';
 
 export default function ArticleDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -89,9 +90,7 @@ export default function ArticleDetailScreen() {
     return (
       <View style={styles.container}>
         <Header showBack />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator />
-        </View>
+        <ArticleDetailSkeleton />
       </View>
     );
   }

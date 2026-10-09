@@ -295,22 +295,45 @@ export function neighbors(
 // Illustration de la fiche
 // ---------------------------------------------------------------------------
 
-// Seule table catégorie → décor peint (assets/images/decor) ; accents et
-// casse ignorés
+// Seule table catégorie → décor peint (assets/images/decor), faite sur les
+// catégories réelles du serveur (DictionaryTermSeeder du site, 12 catégories
+// pour 11 décors) ; accents et casse ignorés
 const CATEGORY_DECORS: Record<string, DecorName> = {
-  bourse: 'graphique',
-  epargne: 'tirelire',
-  credit: 'cle',
-  budget: 'enveloppe',
-  impots: 'carnet',
+  bourse: 'graphique', // courbes de cours
+  trading: 'graphique', // courbes, comme la bourse
+  etf: 'coffre-fort', // placement de long terme, à l'abri
+  crypto: 'pile-pieces', // jetons
   banque: 'banque',
-  investir: 'plante',
+  epargne: 'tirelire',
+  budget: 'enveloppe', // méthode des enveloppes
+  fiscalite: 'calculatrice', // calcul de l'impôt
+  entreprise: 'carnet', // comptes, registres
+  immobilier: 'cle',
+  economie: 'plante', // croissance
+  retraite: 'sablier', // le temps long
 };
-export const DEFAULT_DECOR: DecorName = 'pile-pieces';
 
+// Les 11 décors, pour une catégorie absente de la table
+const ALL_DECORS: readonly DecorName[] = [
+  'pile-pieces',
+  'tirelire',
+  'coffre-fort',
+  'plante',
+  'graphique',
+  'calculatrice',
+  'carnet',
+  'sablier',
+  'cle',
+  'enveloppe',
+  'banque',
+];
+
+// Décor d'une catégorie : celui de la table, sinon un décor tiré du nom de la
+// catégorie (toujours le même pour la même catégorie)
 export function decorForCategory(category: string): DecorName {
   const key = normalizeText(category);
-  return Object.hasOwn(CATEGORY_DECORS, key) ? CATEGORY_DECORS[key] : DEFAULT_DECOR;
+  if (Object.hasOwn(CATEGORY_DECORS, key)) return CATEGORY_DECORS[key];
+  return ALL_DECORS[hashText(key) % ALL_DECORS.length];
 }
 
 // ---------------------------------------------------------------------------
@@ -326,7 +349,7 @@ export type Quiz = {
   // Mot sur lequel porte la question : jamais celui de la fiche
   subject: string;
   question: string;
-  // Définition affichée sous la question (kind 'term')
+  // Définition affichée sous la question (kind 'term'), mot masqué
   quote: string | null;
   answers: QuizAnswer[];
   correctLabel: string;
@@ -334,13 +357,115 @@ export type Quiz = {
 
 export const QUIZ_ANSWERS = 3;
 const SHORT_DEFINITION = 110;
+// Écart de longueur toléré avec la bonne réponse
+export const LENGTH_SPREAD = 0.25;
+// Deux définitions qui partagent autant de mots importants disent la même
+// chose : la seconde serait aussi une bonne réponse
+const SAME_MEANING = 0.6;
 
-// Définition courte : première phrase, coupée à 110 caractères
+// Petits mots ignorés pour comparer deux définitions
+const STOPWORDS = new Set(
+  (
+    'le la les l de des du d un une et ou a au aux en pour qui que qu est sont ce cet cette ces se sa son ses ' +
+    'sur par dans avec sans plus moins ne pas il elle on y leur leurs tout tous toute toutes etc ainsi comme'
+  ).split(' ')
+);
+
+// Mots importants d'un texte : sans accents, sans petits mots, pluriel ôté
+export function significantWords(text: string): Set<string> {
+  const words = foldChars(text)
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w))
+    .map((w) => (w.length > 4 ? w.replace(/[sx]$/, '') : w));
+  return new Set(words);
+}
+
+// Nombre de mots importants en commun
+export function sharedWords(a: string, b: string): number {
+  const wa = significantWords(a);
+  let n = 0;
+  for (const w of significantWords(b)) if (wa.has(w)) n++;
+  return n;
+}
+
+// Même sens, ou presque (mots importants communs / plus petit ensemble)
+export function sameMeaning(a: string, b: string): boolean {
+  if (normalizeText(a) === normalizeText(b)) return true;
+  const wa = significantWords(a);
+  const wb = significantWords(b);
+  const smaller = Math.min(wa.size, wb.size);
+  return smaller > 0 && sharedWords(a, b) / smaller >= SAME_MEANING;
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+// Définition nettoyée : sans sigle ni développé en tête (« QE — … »,
+// « BCE : … », « Federal Reserve — … »), première phrase seulement
+export function cleanDefinition(definition: string): string {
+  let text = definition.replace(/\s+/g, ' ').trim();
+  const prefix = text.match(/^([^—–:.]{1,40}?)\s*[—–:]\s+(.+)$/);
+  if (prefix && prefix[1].trim().split(' ').length <= 5) text = capitalize(prefix[2].trim());
+  return text.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? text;
+}
+
+// Renvoi vers un autre mot (« voir Capitalisation. ») : pas une vraie
+// définition, jamais proposé dans un jeu
+function isReference(definition: string): boolean {
+  return /^voir\b/i.test(normalizeText(cleanDefinition(definition)));
+}
+
+// Coupe au mot, avec « … », pour tenir dans `max` caractères
+export function fitLength(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, Math.max(1, max - 1));
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max / 2 ? cut.slice(0, space) : cut).replace(/[\s,;:—–-]+$/, '')}…`;
+}
+
+// Définition courte d'une ligne : nettoyée, 110 caractères au plus
 export function shortDefinition(definition: string): string {
-  const first = definition.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? definition;
-  if (first.length <= SHORT_DEFINITION) return first;
-  const cut = first.slice(0, SHORT_DEFINITION - 1);
-  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), SHORT_DEFINITION / 2)).trim()}…`;
+  return fitLength(cleanDefinition(definition), SHORT_DEFINITION);
+}
+
+// Sigle d'un terme : le terme lui-même s'il est déjà un sigle (« ETF »),
+// sinon les initiales de ses mots importants (« Quantitative Easing » → QE)
+export function acronymOf(term: string): string | null {
+  const t = term.trim();
+  if (/^[A-Z0-9&]{2,6}$/.test(t)) return t;
+  const words = t.split(/[\s'’-]+/).filter((w) => w.length > 2 && !STOPWORDS.has(foldChars(w)));
+  return words.length >= 2 ? words.map((w) => foldChars(w).charAt(0).toUpperCase()).join('') : null;
+}
+
+// Remplace le mot de la question (et son sigle) par « … » : accents et
+// casse ignorés, mot entier, pluriel compris
+export function maskTerm(text: string, term: string): string {
+  const targets = [term, acronymOf(term)].filter((t): t is string => !!t && t.length >= 2).map((t) => foldChars(t));
+  let out = text;
+  for (const target of targets) {
+    let folded = '';
+    const origin: number[] = [];
+    for (let i = 0; i < out.length; i++) {
+      for (const c of foldChars(out[i])) {
+        folded += c;
+        origin.push(i);
+      }
+    }
+    const isLetter = (c: string | undefined) => !!c && /[a-z0-9]/.test(c);
+    const hits: [number, number][] = [];
+    let from = 0;
+    while (true) {
+      const at = folded.indexOf(target, from);
+      if (at < 0) break;
+      let end = at + target.length;
+      if (folded[end] === 's' || folded[end] === 'x') end += isLetter(folded[end + 1]) ? 0 : 1;
+      if (!isLetter(folded[at - 1]) && !isLetter(folded[end])) hits.push([origin[at], origin[end - 1] + 1]);
+      from = at + target.length;
+    }
+    for (const [start, stop] of hits.reverse()) out = `${out.slice(0, start)}…${out.slice(stop)}`;
+  }
+  return out;
 }
 
 // Tirage pseudo-aléatoire stable (mulberry32)
@@ -370,31 +495,52 @@ function shuffled<T>(list: T[], random: () => number): T[] {
   return out;
 }
 
-// Mauvaises réponses : d'abord dans la même catégorie, puis dans tout le
-// dictionnaire s'il n'y en a pas assez ; jamais un mot exclu, jamais deux
-// fois la même réponse
+function lengthGap(a: number, b: number): number {
+  return Math.abs(a - b) / Math.max(b, 1);
+}
+
+// Mauvaises réponses crédibles pour une question sur `subject` :
+// - d'abord la même catégorie, en commençant par les mots dont la
+//   définition partage le plus de mots importants avec la sienne, puis de
+//   longueur proche (définition ou mot selon `kind`) ; le reste du
+//   dictionnaire seulement s'il en manque ;
+// - jamais un mot exclu, un renvoi (« voir … »), une réponse en double, ni
+//   une réponse qui serait aussi correcte (même sens).
 export function pickDistractors(
   entries: DictionaryEntry[],
-  category: string,
+  subject: DictionaryEntry,
   exclude: string[],
   count: number,
   random: () => number,
-  label: (e: DictionaryEntry) => string = (e) => e.term
+  kind: Quiz['kind'] = 'definition'
 ): DictionaryEntry[] {
-  const excluded = new Set(exclude.map(normalizeText));
-  // Réponses déjà prises (la bonne) : aucune mauvaise ne doit leur ressembler
-  const seen = new Set<string>();
-  for (const t of exclude) {
-    const e = findEntry(entries, t);
-    seen.add(normalizeText(e ? label(e) : t));
-  }
-  const usable = entries.filter((e) => !excluded.has(normalizeText(e.term)));
-  const same = shuffled(usable.filter((e) => e.category === category), random);
-  const rest = shuffled(usable.filter((e) => e.category !== category), random);
+  const excluded = new Set([subject.term, ...exclude].map(normalizeText));
+  const subjectDef = cleanDefinition(subject.definition);
+  const size = (e: DictionaryEntry) => (kind === 'term' ? e.term.length : cleanDefinition(e.definition).length);
+  const target = size(subject);
+  const usable = entries.filter(
+    (e) => !excluded.has(normalizeText(e.term)) && !isReference(e.definition) && !sameMeaning(cleanDefinition(e.definition), subjectDef)
+  );
+  // Ordre de préférence : proximité du sens (mots importants en commun),
+  // moins deux points si la longueur s'écarte de plus de 25 % (elle devrait être
+  // coupée, et une réponse coupée se repère), puis longueur la plus proche ;
+  // le tirage départage les égalités (stable pour un même tirage)
+  const rank = (list: DictionaryEntry[]) =>
+    shuffled(list, random)
+      .map((e) => {
+        const gap = lengthGap(size(e), target);
+        return { e, score: sharedWords(cleanDefinition(e.definition), subjectDef) - (gap > LENGTH_SPREAD ? 2 : 0), gap };
+      })
+      .sort((a, b) => b.score - a.score || a.gap - b.gap)
+      .map((x) => x.e);
+  const same = rank(usable.filter((e) => e.category === subject.category));
+  const rest = rank(usable.filter((e) => e.category !== subject.category));
+
   const out: DictionaryEntry[] = [];
+  const seen = new Set<string>([normalizeText(kind === 'term' ? subject.term : subjectDef)]);
   for (const e of [...same, ...rest]) {
     if (out.length >= count) break;
-    const key = normalizeText(label(e));
+    const key = normalizeText(kind === 'term' ? e.term : cleanDefinition(e.definition));
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(e);
@@ -408,7 +554,8 @@ export function pickDistractors(
 // sinon du dictionnaire : la définition du mot de la fiche est déjà affichée
 // juste au-dessus. Le mot de la fiche n'est jamais la bonne réponse, et n'est
 // une mauvaise réponse que si le dictionnaire est trop petit pour l'éviter.
-// null si le dictionnaire a moins de 3 mots.
+// Les définitions proposées ont la même forme (nettoyées, mot masqué,
+// longueurs proches). null si le dictionnaire a moins de 3 mots.
 export function quizFor(unsorted: DictionaryEntry[], entry: DictionaryEntry, date: Date, round = 0): Quiz | null {
   if (unsorted.length < QUIZ_ANSWERS) return null;
   // Tirage indépendant de l'ordre reçu
@@ -416,27 +563,45 @@ export function quizFor(unsorted: DictionaryEntry[], entry: DictionaryEntry, dat
   const random = rng(hashText(normalizeText(entry.term)) ^ Math.imul(dayNumber(date), 0x9e3779b1) ^ Math.imul(round + 1, 0x85ebca6b));
   const self = normalizeText(entry.term);
   const others = entries.filter((e) => normalizeText(e.term) !== self);
-  const sameCategory = others.filter((e) => e.category === entry.category);
-  const pool = sameCategory.length > 0 ? sameCategory : others;
+  const playable = others.filter((e) => !isReference(e.definition));
+  const candidates = playable.length > 0 ? playable : others;
+  const sameCategory = candidates.filter((e) => e.category === entry.category);
+  const pool = sameCategory.length > 0 ? sameCategory : candidates;
   if (pool.length === 0) return null;
 
   const subject = pool[Math.floor(random() * pool.length)];
   const kind: Quiz['kind'] = random() < 0.5 ? 'term' : 'definition';
-  const label = kind === 'term' ? (e: DictionaryEntry) => e.term : (e: DictionaryEntry) => shortDefinition(e.definition);
 
-  // Mauvaises réponses autour du mot de la question, sans le mot de la fiche ;
-  // avec lui seulement s'il en manque
-  let wrong = pickDistractors(entries, subject.category, [subject.term, entry.term], QUIZ_ANSWERS - 1, random, label);
-  if (wrong.length < QUIZ_ANSWERS - 1) {
-    wrong = pickDistractors(entries, subject.category, [subject.term], QUIZ_ANSWERS - 1, random, label);
-  }
+  // Sans le mot de la fiche ; avec lui seulement s'il en manque
+  let wrong = pickDistractors(entries, subject, [entry.term], QUIZ_ANSWERS - 1, random, kind);
+  if (wrong.length < QUIZ_ANSWERS - 1) wrong = pickDistractors(entries, subject, [], QUIZ_ANSWERS - 1, random, kind);
   if (wrong.length < QUIZ_ANSWERS - 1) return null;
 
-  const correct = label(subject);
-  const answers = shuffled([{ label: correct, correct: true }, ...wrong.map((e) => ({ label: label(e), correct: false }))], random);
-  return kind === 'term'
-    ? { kind, subject: subject.term, question: 'Quel mot correspond à cette définition ?', quote: subject.definition, answers, correctLabel: correct }
-    : { kind, subject: subject.term, question: `Que veut dire ${subject.term} ?`, quote: null, answers, correctLabel: correct };
+  if (kind === 'term') {
+    const answers = shuffled(
+      [{ label: subject.term, correct: true }, ...wrong.map((e) => ({ label: e.term, correct: false }))],
+      random
+    );
+    return {
+      kind,
+      subject: subject.term,
+      question: 'Quel mot correspond à cette définition ?',
+      quote: maskTerm(cleanDefinition(subject.definition), subject.term),
+      answers,
+      correctLabel: subject.term,
+    };
+  }
+
+  // Même forme pour les trois : nettoyées, mot de la question masqué,
+  // pas plus de 25 % plus longues que la bonne réponse
+  const correct = fitLength(maskTerm(cleanDefinition(subject.definition), subject.term), SHORT_DEFINITION);
+  const max = Math.round(correct.length * (1 + LENGTH_SPREAD));
+  const label = (e: DictionaryEntry) => fitLength(maskTerm(cleanDefinition(e.definition), subject.term), max);
+  const answers = shuffled(
+    [{ label: correct, correct: true }, ...wrong.map((e) => ({ label: label(e), correct: false }))],
+    random
+  );
+  return { kind, subject: subject.term, question: `Que veut dire ${subject.term} ?`, quote: null, answers, correctLabel: correct };
 }
 
 // ---------------------------------------------------------------------------

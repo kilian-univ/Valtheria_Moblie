@@ -1,7 +1,7 @@
 import { getCashflowStyles, getFormStyles, palette } from '@/src/constants/style/Style';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import AddEntryForm from '@/src/components/outils/cashflow/AddEntryForm';
 import CategoryBreakdown from '@/src/components/outils/cashflow/CategoryBreakdown';
@@ -9,6 +9,7 @@ import EntryRow, { CashflowEntry } from '@/src/components/outils/cashflow/EntryR
 import TypeTabs, { TabKey } from '@/src/components/outils/cashflow/TypeTabs';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { CashflowSkeleton } from '@/src/components/common/ScreenSkeletons';
 
 type CashflowData = {
   period_month: string;
@@ -108,9 +109,7 @@ export default function CashflowScreen() {
       </View>
 
       {isLoading || apiLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.gold} />
-        </View>
+        <CashflowSkeleton />
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {error && <Text style={styles.error}>{error}</Text>}

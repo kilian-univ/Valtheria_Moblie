@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     FlatList,
     Image,
     Pressable,
@@ -15,6 +14,7 @@ import Header from '@/src/components/topbar/header';
 import { getArticlesStyles, palette } from '@/src/constants/style/Style';
 import { Article, useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { ArticleListSkeleton } from '@/src/components/common/ScreenSkeletons';
 
 export default function ArticlesScreen() {
   const { getArticles, toggleFavoriteArticle, isAuthenticated } = useApi();
@@ -73,9 +73,7 @@ export default function ArticlesScreen() {
     return (
       <View style={styles.container}>
         <Header showBack />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator />
-        </View>
+        <ArticleListSkeleton />
       </View>
     );
   }

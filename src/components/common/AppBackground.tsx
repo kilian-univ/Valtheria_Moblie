@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname } from 'expo-router';
 import { ReactNode, useEffect, useMemo } from 'react';
 import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -13,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { TAB_ROUTES } from '@/src/constants/tabs';
-import { palette } from '@/src/constants/style/Style';
+import { palette, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { Corner, cornerForPath } from '@/src/utils/backgroundCorner';
 
@@ -145,6 +146,29 @@ export function StaticBackground({ tab }: { tab: string }) {
   );
 }
 
+// Hauteur du fondu sous la barre d'état
+const SHADE_FADE = 16;
+
+// Bande du haut d'une page qui défile sous la barre d'état : copie exacte du
+// fond (même coin, même grain) sur la zone de sécurité, puis un court fondu.
+// Le contenu qui remonte ne passe jamais sous l'heure ni la batterie.
+export function StatusBarShade({ tab }: { tab: string }) {
+  const insets = useSafeAreaInsets();
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  return (
+    <View pointerEvents="none" style={[styles.shade, { height: insets.top + SHADE_FADE }]}>
+      <View style={[styles.clip, { height: insets.top }]}>
+        <StaticBackground tab={tab} />
+      </View>
+      <LinearGradient
+        colors={[colors.background, withOpacity(colors.background, 0)]}
+        style={{ height: SHADE_FADE }}
+      />
+    </View>
+  );
+}
+
 // Page poussée sur une pile (fiche, module, outils, article, lecteur…) :
 // opaque, avec sa propre copie du fond commun. Pendant l'ouverture, la
 // fermeture ou le geste retour, elle ne laisse jamais voir l'écran du dessous.
@@ -160,6 +184,12 @@ export function OpaqueScreen({ tab, children }: { tab: string; children: ReactNo
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  shade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
   clip: {
     overflow: 'hidden',

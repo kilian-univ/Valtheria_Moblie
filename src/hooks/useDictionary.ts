@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
+import { devSlowLoading } from '@/src/constants/dev';
 import { useApi } from '@/src/context/ApiContext';
 import { isNetworkError, LoadError } from '@/src/hooks/useLearningData';
 import { addRecentTerm, getFavoriteTerms, getRecentTerms, toggleFavoriteTerm } from '@/src/state/dictionaryMemory';
@@ -28,8 +29,11 @@ const store = {
 // créer un, sans message d'erreur
 export type DictionaryError = LoadError | 'reserved';
 
-// Mots du dictionnaire. Chargés au premier affichage de l'onglet ; les mots
-// déjà chargés restent affichés pendant un rechargement et hors ligne.
+// Mots du dictionnaire. Chargés au premier affichage de l'onglet (squelette
+// jusque-là) ; gardés ensuite pour toute la vie de l'app : les mots déjà
+// chargés restent affichés pendant un rechargement et hors ligne. Pour revoir
+// le squelette en développement : DEV_SLOW_LOADING_MS (constants/dev) et un
+// redémarrage de l'app (un rechargement à chaud garde les mots en mémoire).
 export function useDictionary() {
   const { getDictionaryTerms, isAuthenticated, isLoading: authPending } = useApi();
   const { entries, loaded } = useSyncExternalStore(store.subscribe, store.getState);
@@ -37,6 +41,7 @@ export function useDictionary() {
 
   const load = useCallback(async () => {
     try {
+      await devSlowLoading();
       store.setState({ entries: normalizeEntries(await getDictionaryTerms()), loaded: true });
       setError(null);
     } catch (err) {

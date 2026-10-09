@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '@/src/components/apprendre/module/ModuleHeader';
+import { StatusBarShade } from '@/src/components/common/AppBackground';
 import AppText from '@/src/components/common/AppText';
 import ListRow from '@/src/components/common/ListRow';
 import PageState from '@/src/components/common/PageState';
@@ -214,33 +215,37 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[2] }]}>
-      <View style={styles.topRow}>
-        <BackButton onBack={goBack} />
-        {entry && !data.reserved ? (
-          <View style={styles.actions}>
-            <Pressable
-              onPress={toggleStar}
-              accessibilityRole="button"
-              accessibilityLabel={starred ? 'Retirer de Mes mots' : 'Ajouter à Mes mots'}
-              accessibilityState={{ selected: starred }}
-              style={({ pressed }) => [styles.action, pressed && { backgroundColor: colors.surface2 }]}
-            >
-              <Ionicons name={starred ? 'star' : 'star-outline'} size={ACTION_ICON} color={colors.gold} />
-            </Pressable>
-            <Pressable
-              onPress={share}
-              accessibilityRole="button"
-              accessibilityLabel="Partager ce mot"
-              style={({ pressed }) => [styles.action, styles.lastAction, pressed && { backgroundColor: colors.surface2 }]}
-            >
-              <Ionicons name="share-outline" size={ACTION_ICON} color={colors.text} />
-            </Pressable>
-          </View>
-        ) : null}
-      </View>
-      {body}
-    </ScrollView>
+    <View style={styles.screen}>
+      <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[2] }]}>
+        <View style={styles.topRow}>
+          <BackButton onBack={goBack} />
+          {entry && !data.reserved ? (
+            <View style={styles.actions}>
+              <Pressable
+                onPress={toggleStar}
+                accessibilityRole="button"
+                accessibilityLabel={starred ? 'Retirer de Mes mots' : 'Ajouter à Mes mots'}
+                accessibilityState={{ selected: starred }}
+                style={({ pressed }) => [styles.action, pressed && { backgroundColor: colors.surface2 }]}
+              >
+                <Ionicons name={starred ? 'star' : 'star-outline'} size={ACTION_ICON} color={colors.gold} />
+              </Pressable>
+              <Pressable
+                onPress={share}
+                accessibilityRole="button"
+                accessibilityLabel="Partager ce mot"
+                style={({ pressed }) => [styles.action, styles.lastAction, pressed && { backgroundColor: colors.surface2 }]}
+              >
+                <Ionicons name="share-outline" size={ACTION_ICON} color={colors.text} />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+        {body}
+      </ScrollView>
+      {/* Rien ne passe sous la barre d'état en défilant */}
+      <StatusBarShade tab="dictionary" />
+    </View>
   );
 }
 

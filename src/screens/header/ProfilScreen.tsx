@@ -24,6 +24,7 @@ import {
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { clearLastProfile } from '@/src/state/lastProfile';
+import { ProfileSkeleton } from '@/src/components/common/ScreenSkeletons';
 
 export default function ProfileScreen() {
   const { user, isLoading, logout, exportUser, deleteAccount, updateUser } = useApi();
@@ -136,9 +137,10 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </View>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+        <Header showBack />
+        <ProfileSkeleton />
+      </SafeAreaView>
     );
   }
 

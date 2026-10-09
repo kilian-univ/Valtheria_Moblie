@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { getEpargneStyles, palette } from '@/src/constants/style/Style';
+import { getEpargneStyles } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { SavingsSkeleton } from '@/src/components/common/ScreenSkeletons';
 
 type Reconciliation = {
   epargne_mensuelle: number;
@@ -28,7 +29,6 @@ function formatMoney(value: number): string {
 export default function EpargneScreen() {
   const router = useRouter();
   const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
   const styles = getEpargneStyles(colorScheme);
   const { getSavings, deleteSavingsGoal, isLoading: apiLoading, isAuthenticated } = useApi();
 
@@ -85,9 +85,7 @@ export default function EpargneScreen() {
       </View>
 
       {isLoading || apiLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.gold} />
-        </View>
+        <SavingsSkeleton />
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {error && <Text style={styles.error}>{error}</Text>}

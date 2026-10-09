@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import AddPositionForm from '@/src/components/outils/portfolio/AddPositionForm';
 import HistoryChart from '@/src/components/outils/portfolio/HistoryChart';
@@ -9,6 +9,7 @@ import { Position } from '@/src/components/outils/portfolio/types';
 import { getFormStyles, getPortefeuilleStyles, palette } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { PortfolioSkeleton } from '@/src/components/common/ScreenSkeletons';
 
 type Portfolio = {
   id: number;
@@ -104,9 +105,7 @@ export default function PortefeuilleScreen() {
       </View>
 
       {isLoading || apiLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.gold} />
-        </View>
+        <PortfolioSkeleton />
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {error && <Text style={styles.error}>{error}</Text>}
