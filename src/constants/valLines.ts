@@ -17,16 +17,6 @@ export const valLines = {
   ],
 } as const;
 
-// Val à côté de la leçon en cours, sur la page module
-export const pathLines = {
-  general: [
-    'C’est ici que ça se passe. Je t’attends !',
-    'Prêt ? Cette leçon est pour toi.',
-    'On continue ? Je reste à côté.',
-  ],
-  last: 'La dernière ! Après ça, ce module n’aura plus de secret.',
-} as const;
-
 export const welcomeLine = {
   title: 'Bienvenue !',
   text: (moduleTitle: string) => `Je te conseille **${moduleTitle}** pour commencer.`,

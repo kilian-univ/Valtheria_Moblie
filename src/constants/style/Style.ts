@@ -11,6 +11,7 @@ export const fonts = {
   bodyMedium: 'Inter_500Medium',
   bodySemibold: 'Inter_600SemiBold',
   bodyBold: 'Inter_700Bold',
+  bodyExtraBold: 'Inter_800ExtraBold',
 } as const;
 
 // Titres Fraunces : interlettrage resserré proportionnel à la taille
@@ -55,6 +56,11 @@ export const palette = {
     dangerSheet: '#2A1715',              // feuille de réponse fausse
     reliefEdge: 'rgba(255,255,255,0.13)', // tranche d'une option en relief
     progressShine: 'rgba(255,255,255,0.35)', // reflet de la barre de progression
+    pathLockedFace: '#2A2A31',           // rond verrouillé du chemin
+    pathLockedDeep: '#151519',           // sa tranche (et celle du bouton flottant)
+    pathShine: 'rgba(255,255,255,0.25)', // reflet en haut à gauche des ronds
+    pathScrim: 'rgba(0,0,0,0.35)',       // voile sous la carte de leçon
+    cardEdge: 'rgba(0,0,0,0.25)',        // tranche du bouton de la carte de leçon
     shadow: '#000000',
     blobLight: '#FFFFFF',                // taches du fond d'écran
     blobDark: '#000000',
@@ -89,6 +95,11 @@ export const palette = {
     dangerSheet: '#FBECEA',
     reliefEdge: 'rgba(0,0,0,0.13)',
     progressShine: 'rgba(255,255,255,0.5)',
+    pathLockedFace: '#DDDCE2',
+    pathLockedDeep: '#BDBCC4',
+    pathShine: 'rgba(255,255,255,0.35)',
+    pathScrim: 'rgba(0,0,0,0.25)',
+    cardEdge: 'rgba(0,0,0,0.25)',
     // Jetons ajoutés pour suivre la palette sombre (le thème clair n'est pas retravaillé)
     textFaint: 'rgba(13,13,15,0.26)',
     controlBorder: 'rgba(0,0,0,0.13)',
@@ -113,6 +124,25 @@ export const palette = {
     chart5: '#8C8C96',
   },
 };
+
+// Couleurs propres à chaque module (chemin, bannière, carte de leçon).
+// face : aplat ; deep : tranche du relief ; onFace : texte et icônes posés
+// dessus. Quel module prend quelle couleur : moduleColorKey (utils/modulePath).
+// L'or reste réservé à l'XP, aux Vals, aux coffres et aux trophées.
+export const moduleColors = {
+  ardoise: { face: '#7C9CC4', deep: '#4F6B8F', onFace: '#0D0D0F' },
+  sarcelle: { face: '#5E9E9A', deep: '#3F6F6C', onFace: '#0D0D0F' },
+  cuivre: { face: '#C9855A', deep: '#8E5A39', onFace: '#0D0D0F' },
+  ivoire: { face: '#D9D2C3', deep: '#A39C8D', onFace: '#0D0D0F' },
+} as const;
+
+export type ModuleColors = (typeof moduleColors)[keyof typeof moduleColors];
+
+// Une couleur « #RRGGBB » de la palette, avec une opacité (0 à 1)
+export function withOpacity(hex: string, opacity: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${opacity})`;
+}
 
 // ---------------------------------------------------------------------------
 // Jetons de mise en page (grille de 4 px)
