@@ -33,8 +33,8 @@ export const palette = {
   dark: {
     background: '#0D0D0F',
     backgroundNight: '#141A24',          // fond commun : coin bleu nuit
-    backgroundGold: '#1D180F',           // fond commun : coin de la lumière
-    backgroundGlow: 'rgba(201,168,76,0.17)', // cœur de la lueur dorée du fond
+    backgroundGold: '#17140E',           // fond commun : coin de la lumière
+    backgroundGlow: 'rgba(201,168,76,0.08)', // cœur de la lueur dorée du fond
     surface: '#18181C',       // cartes, inputs, panneaux légèrement plus clairs
     surfaceAlt: '#232328',
     text: '#F2EFE8',
