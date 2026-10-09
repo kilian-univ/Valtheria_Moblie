@@ -2,21 +2,18 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/src/constants/style/Style';
+import type { ChoiceScreen as ChoiceModel } from '@/src/lesson/model';
+import { grade } from '@/src/utils/grade';
 import { select } from '@/src/utils/haptics';
-import { isExactSelection } from '@/src/utils/lessonPlayer';
 import ReliefOption, { OptionState } from '../player/ReliefOption';
 import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
 
 // choice — QCM à réponse unique (single) ou multiple (multiple). Noté.
-export default function ChoiceScreen({ screen, answered, onDraftChange }: LessonScreenProps) {
-  const { payload } = screen;
-  const options: any[] = payload.options ?? [];
-  const isMultiple = payload.mode === 'multiple';
+// Réponse envoyée : l'id choisi, ou la liste des ids en mode multiple.
+export default function ChoiceScreen({ screen, answered, onDraftChange }: LessonScreenProps<ChoiceModel>) {
+  const { options, multiple } = screen;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  const correctOptions = options.filter((o) => o.correct);
-  const correctIds: string[] = correctOptions.map((o) => o.id);
 
   // La réponse en cours remonte au lecteur (bouton Valider, feuille)
   useEffect(() => {
@@ -24,29 +21,32 @@ export default function ChoiceScreen({ screen, answered, onDraftChange }: Lesson
       onDraftChange(null);
       return;
     }
+    const raw = multiple ? selectedIds : selectedIds[0];
     onDraftChange({
-      raw: isMultiple ? selectedIds : selectedIds[0],
-      correct: isExactSelection(selectedIds, correctIds),
-      correctText: correctOptions.map((o) => o.text).join(', ') || null,
+      raw,
+      correct: grade(screen.source, raw) === true,
+      correctText:
+        options
+          .filter((o) => o.correct)
+          .map((o) => o.text)
+          .join(', ') || null,
     });
-    // correctIds / correctOptions dérivent du payload, fixe pour cet écran
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIds, isMultiple, onDraftChange]);
+  }, [selectedIds, multiple, options, screen.source, onDraftChange]);
 
   const toggle = (optionId: string) => {
     if (answered) return;
     select();
-    if (isMultiple) {
+    if (multiple) {
       setSelectedIds((prev) => (prev.includes(optionId) ? prev.filter((id) => id !== optionId) : [...prev, optionId]));
     } else {
       setSelectedIds([optionId]);
     }
   };
 
-  const stateOf = (option: any): OptionState => {
-    const isSelected = selectedIds.includes(option.id);
+  const stateOf = (optionId: string, correct: boolean): OptionState => {
+    const isSelected = selectedIds.includes(optionId);
     if (answered) {
-      if (option.correct) return 'correct';
+      if (correct) return 'correct';
       if (isSelected) return 'wrong';
       return 'idle';
     }
@@ -55,21 +55,16 @@ export default function ChoiceScreen({ screen, answered, onDraftChange }: Lesson
 
   return (
     <View style={styles.wrap}>
-      <ScreenIntro
-        screen={screen}
-        question={payload.question}
-        subtitle={payload.subtitle}
-        hint={isMultiple ? 'Plusieurs réponses possibles' : undefined}
-      />
+      <ScreenIntro screen={screen} hint={multiple ? 'Plusieurs réponses possibles' : undefined} />
 
-      <View style={styles.options} accessibilityRole={isMultiple ? undefined : 'radiogroup'}>
+      <View style={styles.options} accessibilityRole={multiple ? undefined : 'radiogroup'}>
         {options.map((option) => (
           <ReliefOption
             key={option.id}
             label={option.text}
-            state={stateOf(option)}
+            state={stateOf(option.id, option.correct)}
             selected={selectedIds.includes(option.id)}
-            multiple={isMultiple}
+            multiple={multiple}
             disabled={answered}
             onPress={() => toggle(option.id)}
           />

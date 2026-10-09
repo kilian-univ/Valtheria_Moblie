@@ -3,27 +3,26 @@ import { StyleSheet, View } from 'react-native';
 import AppText from '@/src/components/common/AppText';
 import ValBubble from '@/src/components/common/ValBubble';
 import { fonts, space, titleLetterSpacing } from '@/src/constants/style/Style';
-import { Screen } from '../types';
+import type { LessonScreen } from '@/src/lesson/model';
 
 export const VAL_DIAMETER = 64;
 const QUESTION_SIZE = 24;
 const QUESTION_LINE_HEIGHT = 31;
 
 type ScreenIntroProps = {
-  screen: Screen;
-  question?: string;
-  subtitle?: string;
+  screen: LessonScreen;
   // Consigne sous la question (« Plusieurs réponses possibles »)
   hint?: string;
 };
 
 // Haut de chaque écran : Val et sa réplique, puis la question.
-export default function ScreenIntro({ screen, question, subtitle, hint }: ScreenIntroProps) {
-  const intro = screen.val?.intro;
+export default function ScreenIntro({ screen, hint }: ScreenIntroProps) {
+  const { question, subtitle } = screen;
+  const intro = screen.val.intro;
 
   return (
     <View style={styles.wrap}>
-      {intro?.line ? <ValBubble mood={intro.mood} text={intro.line} diameter={VAL_DIAMETER} /> : null}
+      {intro ? <ValBubble mood={intro.mood} text={intro.line} diameter={VAL_DIAMETER} /> : null}
 
       {question ? (
         <View style={styles.questionBlock}>

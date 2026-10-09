@@ -3,12 +3,13 @@ import { StyleSheet, View } from 'react-native';
 import AppText from '@/src/components/common/AppText';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import type { UnsupportedScreen } from '@/src/lesson/model';
 import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
 
-// Types d'écran pas encore construits : contenu brut, lisible et non
-// bloquant (le lecteur affiche « Continuer »).
-export default function FallbackScreen({ screen }: LessonScreenProps) {
+// Types d'écran pas encore construits (number, dialogue, allocate,
+// live_month) : contenu brut, lisible et non bloquant (« Continuer »).
+export default function FallbackScreen({ screen }: LessonScreenProps<UnsupportedScreen>) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
 

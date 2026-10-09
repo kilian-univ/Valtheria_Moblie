@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import LessonEndFlow from '@/src/components/apprendre/end/LessonEndFlow';
@@ -10,7 +10,7 @@ import AnswerSheet, { Verdict } from '@/src/components/apprendre/player/AnswerSh
 import LessonTopBar from '@/src/components/apprendre/player/LessonTopBar';
 import QuitSheet from '@/src/components/apprendre/player/QuitSheet';
 import ScreenRenderer from '@/src/components/apprendre/ScreenRenderer';
-import { AnswerDraft, CollectedAnswer, Screen } from '@/src/components/apprendre/types';
+import { AnswerDraft, CollectedAnswer } from '@/src/components/apprendre/types';
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import PageState from '@/src/components/common/PageState';
@@ -21,10 +21,13 @@ import { palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { isNetworkError } from '@/src/hooks/useLearningData';
+import type { LessonScreen } from '@/src/lesson/model';
+import { normalizeLesson } from '@/src/lesson/normalize';
 import { learningStore } from '@/src/state/learningStore';
 import { error as errorHaptic, success as successHaptic } from '@/src/utils/haptics';
 import {
   buildResponses,
+  estimateFor,
   finishedModuleTitle,
   firstTryRun,
   isFirstTryCorrect,
@@ -33,6 +36,11 @@ import {
 } from '@/src/utils/lessonPlayer';
 
 type LoadError = 'network' | 'server';
+
+// Hauteur de la feuille de réponse repliée, moins le bouton du bas qu'elle
+// recouvre (place laissée sous le contenu)
+const COLLAPSED_SHEET_ROOM = 160;
+const COLLAPSE_SCROLL_DELAY = 250;
 
 const LOAD_ERROR_MESSAGE: Record<LoadError, string> = {
   network: 'Impossible de charger la leçon : pas de connexion internet.',
@@ -45,6 +53,11 @@ function submitErrorMessage(err: unknown): string {
     : 'Impossible d’enregistrer ta leçon : le serveur ne répond pas. Tes réponses sont gardées.';
 }
 
+// Type tel que le serveur le nomme (« number », « choice »…)
+function typeOf(screen: LessonScreen): string {
+  return screen.kind === 'unsupported' ? screen.type : screen.kind;
+}
+
 export default function ApprendreDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -53,7 +66,7 @@ export default function ApprendreDetailScreen() {
   const colors = palette[colorScheme];
   const { getLesson, completeLesson, getModules, getProgress } = useApi();
 
-  const [screens, setScreens] = useState<Screen[]>([]);
+  const [screens, setScreens] = useState<LessonScreen[]>([]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<CollectedAnswer[]>([]);
   const [isLoading, setIsLoading] = useState(Boolean(id));
@@ -68,6 +81,8 @@ export default function ApprendreDetailScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Dernier « Continuer » donné : la barre de progression est pleine
+  const [finishing, setFinishing] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<LessonResult | null>(null);
   const [moduleTitle, setModuleTitle] = useState<string | null>(null);
@@ -90,23 +105,22 @@ export default function ApprendreDetailScreen() {
     // devSlowLoading : délai de test en développement seulement (constants/dev.ts)
     devSlowLoading()
       .then(() => getLesson(Number(id)))
-      .then((data: any) => {
-        const resolvedScreens = Array.isArray(data) ? data : (data.screens ?? []);
+      .then((data: unknown) => {
+        // Forme du serveur → format interne : tout se passe dans lesson/normalize.ts
+        const lesson = normalizeLesson(data);
 
         // DIAGNOSTIC : résumé de la leçon + JSON complet des types pas encore construits
         console.log(
-          `LEÇON ${id} — "${data.title}" — types d'écrans :`,
-          resolvedScreens.map((s: any) => s.type).join(', ')
+          `LEÇON ${id} — "${lesson.title}" — types d'écrans :`,
+          lesson.screens.map((s) => (s.kind === 'unsupported' ? s.type : s.kind)).join(', ')
         );
-
-        const HANDLED = ['reveal', 'choice', 'document', 'slider'];
-        resolvedScreens
-          .filter((s: any) => !HANDLED.includes(s.type))
-          .forEach((s: any, i: number) => {
-            console.log(`ÉCRAN NON GÉRÉ [${s.type}] #${i}:`, JSON.stringify(s, null, 2));
+        lesson.screens
+          .filter((s) => s.kind === 'unsupported')
+          .forEach((s) => {
+            console.log(`ÉCRAN NON GÉRÉ #${s.index}:`, JSON.stringify(s.source, null, 2));
           });
 
-        setScreens(resolvedScreens);
+        setScreens(lesson.screens);
       })
       .catch((err: any) => {
         console.log('ERREUR LEÇON:', err?.message);
@@ -128,22 +142,45 @@ export default function ApprendreDetailScreen() {
   const current = screens[index];
   const isLast = index === screens.length - 1;
   const gradable = isGradable(current);
-  const progress = screens.length > 0 ? (index + 1) / screens.length : 0;
+  // Part de 0 et avance d'une case par écran terminé (après « Continuer »)
+  const progress = screens.length > 0 ? (finishing ? screens.length : index) / screens.length : 0;
+  const estimate = estimateFor(screens, answers, index);
   const run = firstTryRun(answers, screens);
 
   // ---------------------------------------------------------------------------
-  // Quitter : croix, retour Android, balayage iOS → feuille de confirmation
+  // Quitter : croix et retour Android → feuille de confirmation. Le balayage
+  // iOS est coupé (gestureEnabled: false, app/_layout.tsx et
+  // app/apprendre/_layout.tsx).
   // ---------------------------------------------------------------------------
-  usePreventRemove(screens.length > 0 && !result && !leaving, ({ data }) => {
+  const guarded = screens.length > 0 && !result && !leaving;
+
+  // Filet de sécurité : toute autre sortie (lien, navigation programmée)
+  usePreventRemove(guarded, ({ data }) => {
     pendingLeave.current = data.action;
     setQuitMounted(true);
     setQuitOpen(true);
   });
 
-  const askQuit = () => {
+  const askQuit = useCallback(() => {
     setQuitMounted(true);
     setQuitOpen(true);
+  }, []);
+
+  const handleClose = () => {
+    if (guarded) askQuit();
+    else router.back();
   };
+
+  // Retour Android : la feuille s'ouvre avant toute navigation (aucune page
+  // ne s'affiche derrière). Les feuilles ouvertes gèrent leur propre retour.
+  useEffect(() => {
+    if (!guarded) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      askQuit();
+      return true;
+    });
+    return () => sub.remove();
+  }, [guarded, askQuit]);
 
   const confirmQuit = () => {
     setQuitOpen(false);
@@ -169,6 +206,7 @@ export default function ApprendreDetailScreen() {
 
   const handleFinish = async () => {
     if (!id || isSubmitting) return;
+    setFinishing(true);
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -212,8 +250,8 @@ export default function ApprendreDetailScreen() {
     if (!current || !draft || answered) return;
     const answer: CollectedAnswer = {
       screenIndex: index,
-      type: current.type,
-      notion: current.notion,
+      type: typeOf(current),
+      notion: current.notion ?? undefined,
       correct: draft.correct,
       raw: draft.raw,
     };
@@ -224,8 +262,8 @@ export default function ApprendreDetailScreen() {
       correct: draft.correct,
       firstTry: isFirstTryCorrect(nextAnswers, screens, index),
       correctText: draft.correctText,
-      explanation: current.explanation,
-      val: draft.correct ? current.val?.correct : current.val?.wrong,
+      explanation: current.explanation ?? undefined,
+      val: (draft.correct ? current.val.correct : current.val.wrong) ?? undefined,
     });
     setSheetOpen(true);
     if (draft.correct) successHaptic();
@@ -245,12 +283,14 @@ export default function ApprendreDetailScreen() {
   // « Continuer » des écrans non notés
   const handleContinue = () => {
     if (!current) return;
-    // Écran non noté : on trace quand même le passage (jamais envoyé, voir buildResponses)
-    if (current.type === 'reveal' && !answers.some((a) => a.screenIndex === index)) {
-      setAnswers((prev) => [
-        ...prev,
-        { screenIndex: index, type: 'reveal', correct: true, raw: { type: 'reveal', seen: true } },
-      ]);
+    // Écran non noté : on trace quand même le passage (jamais envoyé, voir
+    // buildResponses). Le curseur d'estimation garde sa valeur : une
+    // révélation suivante peut la rappeler (from_screen).
+    if (!answers.some((a) => a.screenIndex === index)) {
+      const raw = current.kind === 'reveal' ? { type: 'reveal', seen: true } : draft?.raw;
+      if (raw !== undefined) {
+        setAnswers((prev) => [...prev, { screenIndex: index, type: typeOf(current), correct: true, raw }]);
+      }
     }
     if (isLast) handleFinish();
     else goNext();
@@ -278,7 +318,7 @@ export default function ApprendreDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-      <LessonTopBar progress={progress} run={run} onClose={() => router.back()} />
+      <LessonTopBar progress={progress} run={run} onClose={handleClose} />
 
       {loadError || notFound ? (
         <View style={styles.state}>
@@ -309,7 +349,9 @@ export default function ApprendreDetailScreen() {
           <ScrollView
             ref={scrollRef}
             style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
+            // Après validation, de la place sous le contenu : feuille repliée,
+            // les dernières options restent visibles au-dessus de la bande
+            contentContainerStyle={[styles.scrollContent, answered && styles.scrollContentAnswered]}
             keyboardShouldPersistTaps="handled"
           >
             {/* key : chaque écran est remonté (état neuf, apparition rejouée) */}
@@ -317,10 +359,10 @@ export default function ApprendreDetailScreen() {
               <StaggerItem index={0}>
                 <ScreenRenderer
                   screen={current}
-                  screenIndex={index}
                   answered={answered}
                   onDraftChange={setDraft}
                   scrollToY={scrollToY}
+                  estimate={estimate}
                 />
               </StaggerItem>
             </View>
@@ -358,6 +400,10 @@ export default function ApprendreDetailScreen() {
           onContinue={continueFromSheet}
           onRequestClose={askQuit}
           onClosed={() => setVerdict(null)}
+          onCollapsedChange={(collapsed) => {
+            // Laisse la feuille finir de se replier, puis montre tout l'écran corrigé
+            if (collapsed) setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), COLLAPSE_SCROLL_DELAY);
+          }}
           loading={isSubmitting}
           errorText={submitError}
         />
@@ -389,6 +435,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[5],
     paddingTop: space[4],
     paddingBottom: space[8],
+  },
+  scrollContentAnswered: {
+    paddingBottom: COLLAPSED_SHEET_ROOM,
   },
   state: {
     flex: 1,

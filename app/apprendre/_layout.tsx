@@ -3,7 +3,9 @@ import { Stack } from 'expo-router';
 export default function ApprendreDetailLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="[id]" />
+      {/* Lecteur de leçon : pas de balayage retour, on sort par la croix
+          (feuille « Quitter la leçon ? ») */}
+      <Stack.Screen name="[id]" options={{ gestureEnabled: false }} />
     </Stack>
   );
 }

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ReactNode, useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,7 +9,7 @@ import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import GoldHalo from '@/src/components/common/GoldHalo';
 import Stagger from '@/src/components/common/Stagger';
-import { ValAvatar, valImage } from '@/src/components/common/ValBubble';
+import { ValAvatar, ValPicture } from '@/src/components/common/ValBubble';
 import { durations, springs } from '@/src/constants/motion';
 import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -137,7 +137,7 @@ function DoneStep({ result, onNext }: { result: LessonResult; onNext: () => void
       <View style={styles.haloBox}>
         <GoldHalo />
         <View style={styles.bust} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Image source={valImage('celebrant')} resizeMode="cover" style={styles.bustImage} />
+          <ValPicture mood="celebrant" frame="xl" style={styles.bustImage} />
           <LinearGradient colors={['transparent', colors.background]} style={styles.fade} pointerEvents="none" />
         </View>
       </View>

@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AccessibilityActionEvent, GestureResponderEvent, StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import { fonts, palette, radius, reliefDepth, size, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import type { SliderScreen as SliderModel } from '@/src/lesson/model';
 import { formatNumber } from '@/src/utils/format';
+import { grade } from '@/src/utils/grade';
 import { select } from '@/src/utils/haptics';
 import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
@@ -17,23 +19,21 @@ const THUMB_BORDER = 3;
 // Zone de toucher autour de la piste
 const TOUCH_HEIGHT = THUMB + reliefDepth + space[3];
 
-// slider — estimation libre, jamais noté. L'utilisateur place un curseur,
-// pas de bonne réponse à vérifier ici.
-export default function SliderScreen({ screen }: LessonScreenProps) {
+// slider — un curseur. Non noté : estimation libre (rappelée par une
+// révélation via from_screen) ; noté : juste dans la tolérance (grade.ts).
+// Réponse : la valeur choisie.
+export default function SliderScreen({ screen, answered, onDraftChange }: LessonScreenProps<SliderModel>) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const { payload } = screen;
-  const min = Number(payload.min ?? 0);
-  const max = Number(payload.max ?? 100);
-  const step = Number(payload.step) > 0 ? Number(payload.step) : 1;
-  const unit = payload.unit ? String(payload.unit) : '';
+  const { min, max, step } = screen;
+  const unit = screen.unit ?? '';
 
   const clampToStep = (raw: number) => {
     const stepped = min + Math.round((raw - min) / step) * step;
     return Math.min(max, Math.max(min, stepped));
   };
 
-  const [value, setValue] = useState(() => clampToStep(Number(payload.start ?? min)));
+  const [value, setValue] = useState(() => clampToStep(screen.start));
   const [trackWidth, setTrackWidth] = useState(0);
   const trackRef = useRef<View>(null);
   const trackX = useRef(0);
@@ -42,7 +42,7 @@ export default function SliderScreen({ screen }: LessonScreenProps) {
 
   // Un cran franchi : nouvelle valeur et petite vibration
   const commit = (next: number) => {
-    if (next === valueRef.current) return;
+    if (answered || next === valueRef.current) return;
     valueRef.current = next;
     select();
     setValue(next);
@@ -69,13 +69,23 @@ export default function SliderScreen({ screen }: LessonScreenProps) {
     if (e.nativeEvent.actionName === 'decrement') commit(clampToStep(valueRef.current - step));
   };
 
+  // La valeur choisie remonte au lecteur : envoyée si l'écran est noté,
+  // gardée pour une révélation sinon
+  useEffect(() => {
+    onDraftChange({
+      raw: value,
+      correct: screen.scored ? grade(screen.source, value) === true : true,
+      correctText: screen.answer !== null ? `${formatNumber(screen.answer)}${unit ? ` ${unit}` : ''}` : null,
+    });
+  }, [value, screen.scored, screen.source, screen.answer, unit, onDraftChange]);
+
   const ratio = max > min ? (value - min) / (max - min) : 0;
   const fillWidth = ratio * trackWidth;
   const withUnit = (n: number) => `${formatNumber(n)}${unit ? ` ${unit}` : ''}`;
 
   return (
     <View style={styles.wrap}>
-      <ScreenIntro screen={screen} question={payload.question} subtitle={payload.subtitle} />
+      <ScreenIntro screen={screen} />
 
       <View style={styles.valueBlock} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
         <AppText tone="gold" maxFontSizeMultiplier={1.2} style={styles.value}>
@@ -95,7 +105,8 @@ export default function SliderScreen({ screen }: LessonScreenProps) {
           onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
           accessible
           accessibilityRole="adjustable"
-          accessibilityLabel={payload.question ?? 'Curseur'}
+          accessibilityLabel={screen.question ?? 'Curseur'}
+          accessibilityState={{ disabled: answered }}
           accessibilityValue={{ min, max, now: value, text: withUnit(value) }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={onAccessibilityAction}

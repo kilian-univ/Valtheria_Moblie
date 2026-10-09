@@ -5,20 +5,21 @@ import RevealScreen from './screens/RevealScreen';
 import SliderScreen from './screens/SliderScreen';
 import { LessonScreenProps } from './types';
 
-// Dispatch par type d'écran. Types encore non implémentés (uncover, hunch,
-// myth, versus, spot, swipe, match, fill, decide, compare) tombent sur
-// FallbackScreen — lisible, non bloquant, en attendant un exemple JSON réel.
+// Un composant par type d'écran, sur le format interne (lesson/model.ts).
+// number, dialogue, allocate, live_month et les types inconnus arrivent en
+// « unsupported » (lesson/normalize.ts) et tombent sur FallbackScreen.
 export default function ScreenRenderer(props: LessonScreenProps) {
-  switch (props.screen.type) {
-    case 'reveal':
-      return <RevealScreen {...props} />;
+  const { screen } = props;
+  switch (screen.kind) {
     case 'choice':
-      return <ChoiceScreen {...props} />;
+      return <ChoiceScreen {...props} screen={screen} />;
     case 'document':
-      return <DocumentScreen {...props} />;
+      return <DocumentScreen {...props} screen={screen} />;
+    case 'reveal':
+      return <RevealScreen {...props} screen={screen} />;
     case 'slider':
-      return <SliderScreen {...props} />;
-    default:
-      return <FallbackScreen {...props} />;
+      return <SliderScreen {...props} screen={screen} />;
+    case 'unsupported':
+      return <FallbackScreen {...props} screen={screen} />;
   }
 }

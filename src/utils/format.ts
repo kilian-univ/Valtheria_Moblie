@@ -86,13 +86,16 @@ export function formatInteger(value: number): string {
   return `${sign}${digits(value, 0, 0)}`;
 }
 
-// Nombre quelconque, jusqu'à 2 décimales (révélations, curseurs)
-// formatNumber(1250)  → "1 250"
-// formatNumber(2.5)   → "2,5"
+// Nombre quelconque : jusqu'à 2 décimales, ou exactement `decimals`
+// formatNumber(1250)     → "1 250"
+// formatNumber(2.5)      → "2,5"
 // formatNumber(-3.14159) → "−3,14"
-export function formatNumber(value: number): string {
-  const sign = value < 0 && !isZeroAt(value, 2) ? MINUS : '';
-  return `${sign}${digits(value, 0, 2)}`;
+// formatNumber(4, 1)     → "4,0"
+export function formatNumber(value: number, decimals?: number): string {
+  const min = decimals ?? 0;
+  const max = decimals ?? 2;
+  const sign = value < 0 && !isZeroAt(value, max) ? MINUS : '';
+  return `${sign}${digits(value, min, max)}`;
 }
 
 // formatXp(20) → "+ 20 XP"

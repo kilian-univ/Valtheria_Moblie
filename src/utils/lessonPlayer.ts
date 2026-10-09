@@ -2,17 +2,16 @@
 // Node. Le format envoyé à /complete est construit ici (buildResponses) et ne
 // doit pas changer.
 
-import type { CollectedAnswer, Screen } from '@/src/components/apprendre/types';
+import type { CollectedAnswer } from '@/src/components/apprendre/types';
 import type { Module } from '@/src/context/ApiContext';
+import type { LessonScreen } from '@/src/lesson/model';
+import { parseNumber } from './grade';
+
+type Screen = LessonScreen;
 
 // ---------------------------------------------------------------------------
 // Réponses
 // ---------------------------------------------------------------------------
-
-// Toutes les bonnes réponses, et elles seules
-export function isExactSelection(selected: string[], correctIds: string[]): boolean {
-  return selected.length === correctIds.length && correctIds.every((id) => selected.includes(id));
-}
 
 // Format attendu par /complete : { "<index d'écran>": [tentative1, ...] }.
 // Seuls les écrans notés sont envoyés (reveal & co. n'ont pas de verdict).
@@ -31,8 +30,30 @@ export function buildResponses(answers: CollectedAnswer[], screens: Screen[]): R
 // autres types notés, pas encore construits, se passent avec « Continuer ».
 export function isGradable(screen: Screen | undefined): boolean {
   if (!screen?.scored) return false;
-  if (screen.type === 'choice') return true;
-  return screen.type === 'document' && screen.payload?.mode === 'select';
+  return screen.kind === 'choice' || screen.kind === 'document' || screen.kind === 'slider';
+}
+
+// Estimation donnée sur l'écran désigné par from_screen (slider ou number
+// précédent), pour la rappeler sur une révélation. null si aucune.
+export function estimateFor(screens: Screen[], answers: CollectedAnswer[], index: number): number | null {
+  const screen = screens[index];
+  if (!screen || screen.kind !== 'reveal' || screen.fromScreen === null) return null;
+  const from = screen.fromScreen;
+  if (from < 0 || from >= index) return null;
+  const target = screens[from];
+  const type = target.kind === 'unsupported' ? target.type : target.kind;
+  if (type !== 'slider' && type !== 'number') return null;
+  const first = answers.find((a) => a.screenIndex === from);
+  return first ? parseNumber(first.raw) : null;
+}
+
+// Phrase sous le vrai chiffre, selon l'écart avec l'estimation
+export function estimateSentence(guess: number, actual: number): string {
+  if (guess === actual) return 'Pile dans le mille.';
+  const gap = Math.abs(guess - actual) / Math.max(Math.abs(actual), 1e-9);
+  if (gap <= 0.1) return 'Tout près.';
+  if (guess < actual) return gap <= 0.5 ? 'Un peu plus que tu pensais.' : 'Bien plus que tu pensais.';
+  return gap <= 0.5 ? 'Un peu moins que tu pensais.' : 'Bien moins que tu pensais.';
 }
 
 // Première tentative de chaque écran noté, dans l'ordre où elles ont été données

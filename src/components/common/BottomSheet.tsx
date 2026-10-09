@@ -3,6 +3,8 @@ import { ReactNode, useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
+  LinearTransition,
+  ReduceMotion,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -22,6 +24,24 @@ const CLOSE_SIZE = 22;
 // Glisser au-delà du quart de la feuille, ou d'un geste vif, la ferme
 const DISMISS_RATIO = 0.25;
 const DISMISS_VELOCITY = 800;
+// Feuille repliable : distance ou vitesse qui fait changer de position, et
+// longueur maximale du tirage vers le haut (la feuille reste posée en bas)
+const COLLAPSE_DISTANCE = 40;
+const COLLAPSE_VELOCITY = 600;
+const MAX_PULL_UP = 24;
+
+// Changement de hauteur entre les deux positions : ressort « screen ».
+// Animations réduites : passage direct (ReduceMotion.System).
+const collapseTransition = LinearTransition.springify()
+  .damping(springs.screen.damping)
+  .stiffness(springs.screen.stiffness)
+  .mass(springs.screen.mass)
+  .reduceMotion(ReduceMotion.System);
+
+export type SheetCollapse = {
+  collapsed: boolean;
+  onChange: (collapsed: boolean) => void;
+};
 
 type BottomSheetProps = {
   open: boolean;
@@ -38,6 +58,10 @@ type BottomSheetProps = {
   dismissible?: boolean;
   // Couleur de la feuille (jeton de la palette), surface par défaut
   backgroundColor?: string;
+  // Feuille non fermable à deux positions (dépliée / repliée) : poignée,
+  // glissé vers le bas pour replier, vers le haut pour déplier. Le parent
+  // choisit le contenu de chaque position.
+  collapse?: SheetCollapse;
 };
 
 // Feuille qui monte du bas sur un voile, ressort « screen ». Le parent la
@@ -51,6 +75,7 @@ export default function BottomSheet({
   scrim = true,
   dismissible = true,
   backgroundColor,
+  collapse,
 }: BottomSheetProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -86,12 +111,28 @@ export default function BottomSheet({
     }
   }, [open, reduced, onClosed, scrimOpacity, sheetOpacity, translateY, sheetHeight]);
 
+  const collapsible = !dismissible && collapse !== undefined;
+  const collapsed = collapse?.collapsed ?? false;
+  const onCollapseChange = collapse?.onChange;
+
+  const setCollapsed = (next: boolean) => {
+    if (next !== collapsed) onCollapseChange?.(next);
+  };
+
   const pan = Gesture.Pan()
-    .enabled(dismissible)
+    .enabled(dismissible || collapsible)
     .onUpdate((e) => {
-      translateY.set(Math.max(0, e.translationY));
+      translateY.set(collapsible ? Math.max(-MAX_PULL_UP, e.translationY) : Math.max(0, e.translationY));
     })
     .onEnd((e) => {
+      if (collapsible) {
+        const down = e.translationY > COLLAPSE_DISTANCE || e.velocityY > COLLAPSE_VELOCITY;
+        const up = e.translationY < -COLLAPSE_DISTANCE || e.velocityY < -COLLAPSE_VELOCITY;
+        if (down) scheduleOnRN(setCollapsed, true);
+        else if (up) scheduleOnRN(setCollapsed, false);
+        translateY.set(reduced ? 0 : withSpring(0, springs.screen));
+        return;
+      }
       if (e.translationY > sheetHeight.get() * DISMISS_RATIO || e.velocityY > DISMISS_VELOCITY) {
         scheduleOnRN(onRequestClose);
       } else {
@@ -129,6 +170,7 @@ export default function BottomSheet({
         <GestureDetector gesture={pan}>
           <Animated.View
             accessibilityViewIsModal
+            layout={collapsible ? collapseTransition : undefined}
             onLayout={(e) => sheetHeight.set(e.nativeEvent.layout.height)}
             style={[
               styles.sheet,
@@ -136,7 +178,7 @@ export default function BottomSheet({
                 backgroundColor: backgroundColor ?? colors.surface,
                 paddingBottom: insets.bottom + space[5],
               },
-              !dismissible && styles.fixedSheet,
+              !dismissible && !collapsible && styles.fixedSheet,
               sheetStyle,
             ]}
           >
@@ -153,6 +195,18 @@ export default function BottomSheet({
                   <Ionicons name="close" size={CLOSE_SIZE} color={colors.subtitle} />
                 </Pressable>
               </>
+            ) : null}
+
+            {collapsible ? (
+              <Pressable
+                onPress={() => setCollapsed(!collapsed)}
+                accessibilityRole="button"
+                accessibilityLabel={collapsed ? 'Déplier la correction' : 'Replier la correction'}
+                hitSlop={space[3]}
+                style={styles.handleZone}
+              >
+                <View style={[styles.handle, styles.handleInZone, { backgroundColor: colors.controlBorder }]} />
+              </Pressable>
             ) : null}
 
             {children}
@@ -178,6 +232,16 @@ const styles = StyleSheet.create({
   // Sans poignée : la place qu'elle occupait devient une marge
   fixedSheet: {
     paddingTop: space[5],
+  },
+  // Poignée d'une feuille repliable : elle se touche aussi
+  handleZone: {
+    alignSelf: 'center',
+    paddingVertical: space[2],
+    paddingHorizontal: space[6],
+    marginBottom: space[1],
+  },
+  handleInZone: {
+    marginTop: 0,
   },
   handle: {
     alignSelf: 'center',

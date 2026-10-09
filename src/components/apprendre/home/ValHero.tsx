@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { valAccessibilityLabel, valImage, ValMood, ValSpeechBubble } from '@/src/components/common/ValBubble';
+import { valAccessibilityLabel, ValMood, ValPicture, ValSpeechBubble } from '@/src/components/common/ValBubble';
 import { palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 
@@ -28,7 +28,7 @@ export default function ValHero({ mood, text, title }: ValHeroProps) {
     <View style={styles.wrap} accessible accessibilityLabel={valAccessibilityLabel(text, title)}>
       <View style={styles.row}>
         <View style={styles.bust} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Image source={valImage(mood)} resizeMode="cover" style={styles.image} />
+          <ValPicture mood={mood} frame="xl" style={styles.image} />
           <LinearGradient
             colors={['transparent', colors.background]}
             style={styles.fade}

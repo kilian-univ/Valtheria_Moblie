@@ -51,6 +51,8 @@ function RootLayoutContent() {
                 }}
               >
                 <Stack.Screen name="(tabs)" />
+                {/* Pile du lecteur de leçon : le balayage retour iOS la fermerait */}
+                <Stack.Screen name="apprendre" options={{ gestureEnabled: false }} />
               </Stack>
             )}
 

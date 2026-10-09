@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, ImageSourcePropType, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import {
+  Image,
+  ImageSourcePropType,
+  ImageStyle,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle,
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -24,20 +34,111 @@ export type ValMood =
   | 'celebrant'
   | 'rassurant';
 
-const VAL_IMAGES: Record<ValMood, ImageSourcePropType> = {
-  neutre: require('@/assets/images/md/val-neutre.webp'),
-  complice: require('@/assets/images/md/val-complice.webp'),
-  preoccupe: require('@/assets/images/md/val-preoccupe.webp'),
-  determine: require('@/assets/images/md/val-determine.webp'),
-  alerte: require('@/assets/images/md/val-alerte.webp'),
-  fier: require('@/assets/images/md/val-fier.webp'),
-  celebrant: require('@/assets/images/md/val-celebrant.webp'),
-  rassurant: require('@/assets/images/md/val-rassurant.webp'),
+// Les dossiers du site sont des RECADRAGES du même dessin, pas des
+// résolutions : md (276 px) cadre la tête et le haut du gilet, xl (690 px)
+// montre le buste avec plus d'air. Règle : la source fait au moins 3 fois la
+// taille affichée.
+// - md : cercles jusqu'à 92 px (les cercles de 64 et 90 px) ;
+// - xl : Val en grand (accueil, fin de leçon), jusqu'à 230 px.
+export type ValFrame = 'md' | 'xl';
+
+const VAL_IMAGES: Record<ValFrame, Record<ValMood, ImageSourcePropType>> = {
+  md: {
+    neutre: require('@/assets/images/val/md/val-neutre.webp'),
+    complice: require('@/assets/images/val/md/val-complice.webp'),
+    preoccupe: require('@/assets/images/val/md/val-preoccupe.webp'),
+    determine: require('@/assets/images/val/md/val-determine.webp'),
+    alerte: require('@/assets/images/val/md/val-alerte.webp'),
+    fier: require('@/assets/images/val/md/val-fier.webp'),
+    celebrant: require('@/assets/images/val/md/val-celebrant.webp'),
+    rassurant: require('@/assets/images/val/md/val-rassurant.webp'),
+  },
+  xl: {
+    neutre: require('@/assets/images/val/xl/val-neutre.webp'),
+    complice: require('@/assets/images/val/xl/val-complice.webp'),
+    preoccupe: require('@/assets/images/val/xl/val-preoccupe.webp'),
+    determine: require('@/assets/images/val/xl/val-determine.webp'),
+    alerte: require('@/assets/images/val/xl/val-alerte.webp'),
+    fier: require('@/assets/images/val/xl/val-fier.webp'),
+    celebrant: require('@/assets/images/val/xl/val-celebrant.webp'),
+    rassurant: require('@/assets/images/val/xl/val-rassurant.webp'),
+  },
 };
 
-// Les images sont des bustes carrés : un léger zoom ancré en haut garde le
-// chapeau et le visage dans le cercle et sort le nœud papillon du cadre.
-const VAL_ZOOM = 1.15;
+// Seules ces humeurs ont un dessin yeux fermés (comme BLINK_MOODS du site)
+const VAL_CLOSED: Record<ValFrame, Partial<Record<ValMood, ImageSourcePropType>>> = {
+  md: {
+    neutre: require('@/assets/images/val/md/val-neutre-yeux-fermes.webp'),
+    rassurant: require('@/assets/images/val/md/val-rassurant-yeux-fermes.webp'),
+  },
+  xl: {
+    neutre: require('@/assets/images/val/xl/val-neutre-yeux-fermes.webp'),
+    rassurant: require('@/assets/images/val/xl/val-rassurant-yeux-fermes.webp'),
+  },
+};
+
+// Clignement : toutes les 3 à 7 s, jamais régulier, parfois double (comme le site)
+const BLINK_CLOSED_MS = 160;
+const BLINK_GAP_MS = 120;
+const BLINK_MIN_DELAY = 3000;
+const BLINK_RANDOM_DELAY = 4000;
+const BLINK_DOUBLE_CHANCE = 0.28;
+
+function useBlink(enabled: boolean): boolean {
+  const [closed, setClosed] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const later = (ms: number, run: () => void) => timers.push(setTimeout(run, ms));
+    const blinkOnce = (then: () => void) => {
+      setClosed(true);
+      later(BLINK_CLOSED_MS, () => {
+        setClosed(false);
+        then();
+      });
+    };
+    const schedule = () => {
+      const delay = BLINK_MIN_DELAY + Math.floor(Math.random() * BLINK_RANDOM_DELAY);
+      const double = Math.random() < BLINK_DOUBLE_CHANCE;
+      later(delay, () =>
+        blinkOnce(() => (double ? later(BLINK_GAP_MS, () => blinkOnce(schedule)) : schedule()))
+      );
+    };
+    schedule();
+    return () => timers.forEach(clearTimeout);
+  }, [enabled]);
+
+  return enabled && closed;
+}
+
+// Image de Val, qui cligne des yeux quand son humeur le permet (pas avec les
+// animations réduites). L'image yeux fermés est posée par-dessus, toujours
+// chargée : aucun trou pendant le clignement.
+export function ValPicture({
+  mood,
+  frame,
+  style,
+}: {
+  mood: ValMood;
+  frame: ValFrame;
+  style: StyleProp<ImageStyle>;
+}) {
+  const reduced = useReducedMotion();
+  const safeMood: ValMood = VAL_IMAGES[frame][mood] ? mood : 'neutre';
+  const closedSource = VAL_CLOSED[frame][safeMood];
+  const closed = useBlink(!!closedSource && !reduced);
+
+  return (
+    <>
+      <Image source={VAL_IMAGES[frame][safeMood]} resizeMode="cover" style={style} />
+      {closedSource ? (
+        <Image source={closedSource} resizeMode="cover" style={[style, !closed && styles.hiddenImage]} />
+      ) : null}
+    </>
+  );
+}
+
 const BUBBLE_TOP_OFFSET = 10; // la bulle démarre sous le haut du chapeau
 const BUBBLE_TIP_RADIUS = 4; // coin pointu, tourné vers Val
 const APPEAR_DELAY = 150;
@@ -82,23 +183,9 @@ export function ValAvatar({ mood, diameter = size.valSm }: { mood: ValMood; diam
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Image
-        source={VAL_IMAGES[mood] ?? VAL_IMAGES.neutre}
-        resizeMode="cover"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: -((VAL_ZOOM - 1) * diameter) / 2,
-          width: diameter * VAL_ZOOM,
-          height: diameter * VAL_ZOOM,
-        }}
-      />
+      <ValPicture mood={mood} frame="md" style={[styles.fill, { width: diameter, height: diameter }]} />
     </View>
   );
-}
-
-export function valImage(mood: ValMood): ImageSourcePropType {
-  return VAL_IMAGES[mood] ?? VAL_IMAGES.neutre;
 }
 
 export default function ValBubble({ mood, text, title, diameter }: ValBubbleProps) {
@@ -235,6 +322,14 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontFamily: fonts.bodySemibold,
+  },
+  fill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  hiddenImage: {
+    opacity: 0,
   },
   // Mot pas encore écrit : garde sa place sans être visible
   hidden: {
