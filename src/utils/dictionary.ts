@@ -356,7 +356,6 @@ export type Quiz = {
 };
 
 export const QUIZ_ANSWERS = 3;
-const SHORT_DEFINITION = 110;
 // Écart de longueur toléré avec la bonne réponse
 export const LENGTH_SPREAD = 0.25;
 // Deux définitions qui partagent autant de mots importants disent la même
@@ -414,19 +413,6 @@ export function cleanDefinition(definition: string): string {
 // définition, jamais proposé dans un jeu
 function isReference(definition: string): boolean {
   return /^voir\b/i.test(normalizeText(cleanDefinition(definition)));
-}
-
-// Coupe au mot, avec « … », pour tenir dans `max` caractères
-export function fitLength(text: string, max: number): string {
-  if (text.length <= max) return text;
-  const cut = text.slice(0, Math.max(1, max - 1));
-  const space = cut.lastIndexOf(' ');
-  return `${(space > max / 2 ? cut.slice(0, space) : cut).replace(/[\s,;:—–-]+$/, '')}…`;
-}
-
-// Définition courte d'une ligne : nettoyée, 110 caractères au plus
-export function shortDefinition(definition: string): string {
-  return fitLength(cleanDefinition(definition), SHORT_DEFINITION);
 }
 
 // Sigle d'un terme : le terme lui-même s'il est déjà un sigle (« ETF »),
@@ -522,9 +508,10 @@ export function pickDistractors(
     (e) => !excluded.has(normalizeText(e.term)) && !isReference(e.definition) && !sameMeaning(cleanDefinition(e.definition), subjectDef)
   );
   // Ordre de préférence : proximité du sens (mots importants en commun),
-  // moins deux points si la longueur s'écarte de plus de 25 % (elle devrait être
-  // coupée, et une réponse coupée se repère), puis longueur la plus proche ;
-  // le tirage départage les égalités (stable pour un même tirage)
+  // moins deux points si la longueur s'écarte de plus de 25 % de la bonne
+  // réponse (aucune réponse n'est jamais coupée : seul le classement garde
+  // des longueurs proches), puis longueur la plus proche ; le tirage
+  // départage les égalités (stable pour un même tirage)
   const rank = (list: DictionaryEntry[]) =>
     shuffled(list, random)
       .map((e) => {
@@ -554,8 +541,8 @@ export function pickDistractors(
 // sinon du dictionnaire : la définition du mot de la fiche est déjà affichée
 // juste au-dessus. Le mot de la fiche n'est jamais la bonne réponse, et n'est
 // une mauvaise réponse que si le dictionnaire est trop petit pour l'éviter.
-// Les définitions proposées ont la même forme (nettoyées, mot masqué,
-// longueurs proches). null si le dictionnaire a moins de 3 mots.
+// Les définitions proposées ont la même forme (première phrase entière,
+// nettoyée, mot masqué) et, autant que possible, des longueurs proches. null si le dictionnaire a moins de 3 mots.
 export function quizFor(unsorted: DictionaryEntry[], entry: DictionaryEntry, date: Date, round = 0): Quiz | null {
   if (unsorted.length < QUIZ_ANSWERS) return null;
   // Tirage indépendant de l'ordre reçu
@@ -592,11 +579,11 @@ export function quizFor(unsorted: DictionaryEntry[], entry: DictionaryEntry, dat
     };
   }
 
-  // Même forme pour les trois : nettoyées, mot de la question masqué,
-  // pas plus de 25 % plus longues que la bonne réponse
-  const correct = fitLength(maskTerm(cleanDefinition(subject.definition), subject.term), SHORT_DEFINITION);
-  const max = Math.round(correct.length * (1 + LENGTH_SPREAD));
-  const label = (e: DictionaryEntry) => fitLength(maskTerm(cleanDefinition(e.definition), subject.term), max);
+  // Même forme pour les trois : première phrase entière, nettoyée, mot de la
+  // question masqué. Jamais coupée (une coupure serait un indice) : elle
+  // passe sur plusieurs lignes si besoin.
+  const label = (e: DictionaryEntry) => maskTerm(cleanDefinition(e.definition), subject.term);
+  const correct = label(subject);
   const answers = shuffled(
     [{ label: correct, correct: true }, ...wrong.map((e) => ({ label: label(e), correct: false }))],
     random

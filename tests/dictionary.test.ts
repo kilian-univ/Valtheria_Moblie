@@ -8,7 +8,6 @@ import {
   acronymOf,
   cleanDefinition,
   decorForCategory,
-  fitLength,
   maskTerm,
   sameMeaning,
   categoriesByCount,
@@ -19,7 +18,6 @@ import {
   neighbors,
   pickDistractors,
   quizFor,
-  shortDefinition,
   toggleFavorite,
   letterSections,
   normalizeEntries,
@@ -275,7 +273,7 @@ test('la question ne porte jamais sur le mot de la fiche, qui n’est jamais la 
       if (q.kind === 'term') {
         assert.notEqual(normalizeText(q.correctLabel), normalizeText(entry.term));
       } else {
-        assert.notEqual(q.correctLabel, shortDefinition(entry.definition));
+        assert.notEqual(q.correctLabel, maskTerm(cleanDefinition(entry.definition), q.subject));
         assert.ok(!q.question.includes(entry.term), q.question);
       }
       assert.ok(subject);
@@ -320,7 +318,7 @@ test('« Que veut dire… ? » : sur le mot de la question, définition nettoyé
     seen++;
     const subject = findEntry(ENTRIES, q.subject)!;
     assert.equal(q.question, `Que veut dire ${subject.term} ?`);
-    assert.equal(q.correctLabel, fitLength(maskTerm(cleanDefinition(subject.definition), subject.term), 110));
+    assert.equal(q.correctLabel, maskTerm(cleanDefinition(subject.definition), subject.term));
     assert.equal(q.quote, null);
   }
   assert.ok(seen > 0);
@@ -411,19 +409,56 @@ test('« Quel mot… ? » : mots proposés de la même catégorie et de longueur
   assert.deepEqual(wrong.map((e) => e.term).sort(), ['CAC', 'PER']);
 });
 
-test('définitions proposées : même forme, longueurs proches (25 % au plus de plus que la bonne réponse)', () => {
+test('définitions proposées : première phrase entière, jamais coupée, même forme', () => {
   for (const entry of MARKET) {
     for (let r = 0; r < 15; r++) {
       const q = quizFor(MARKET, entry, DAY, r);
       if (!q || q.kind !== 'definition') continue;
-      const max = Math.round(q.correctLabel.length * 1.25);
+      const labels = MARKET.map((e) => maskTerm(cleanDefinition(e.definition), q.subject));
       for (const a of q.answers) {
-        assert.ok(a.label.length <= max, `${a.label} (${a.label.length} > ${max})`);
+        // Chaque réponse est exactement la première phrase nettoyée d’un mot : aucune coupure
+        assert.ok(labels.includes(a.label), `réponse coupée ou modifiée : ${a.label}`);
+        assert.ok(!/…$/.test(a.label), `réponse terminée par « … » : ${a.label}`);
         assert.ok(!/—|–| : /.test(a.label.slice(0, 30)), `sigle non retiré : ${a.label}`);
         assert.ok(!/^voir\b/i.test(a.label), a.label);
       }
     }
   }
+});
+
+test('aucune réponse coupée, même pour une très longue définition', () => {
+  const long = 'Mesure qui ' + 'protège '.repeat(40).trim() + ' le capital.';
+  const words = normalizeEntries([
+    { term: 'Long', definition: long, category: 'X' },
+    { term: 'Court', definition: 'Petit texte simple.', category: 'X' },
+    { term: 'Moyen', definition: 'Texte de longueur moyenne ici.', category: 'X' },
+    { term: 'Autre', definition: 'Encore une phrase différente.', category: 'X' },
+  ]);
+  for (const entry of words) {
+    for (let r = 0; r < 10; r++) {
+      const q = quizFor(words, entry, DAY, r)!;
+      if (q.kind !== 'definition') continue;
+      assert.ok(q.answers.every((a) => !a.label.endsWith('…')));
+      if (q.answers.some((a) => a.label.startsWith('Mesure qui'))) {
+        assert.ok(q.answers.some((a) => a.label === long), 'la longue définition est proposée entière');
+      }
+    }
+  }
+});
+
+test('classement : à proximité de sens égale, la longueur la plus proche de la bonne réponse d’abord', () => {
+  const words = normalizeEntries([
+    { term: 'Sujet', definition: 'Taux appliqué au prêt bancaire.', category: 'Crédit' },
+    { term: 'Proche', definition: 'Frais liés au dossier de prêt.', category: 'Crédit' },
+    { term: 'Pareil', definition: 'Durée totale du remboursement.', category: 'Crédit' },
+    {
+      term: 'Bavard',
+      definition: 'Assurance qui couvre le remboursement en cas de décès, d’invalidité ou de perte d’emploi de l’emprunteur.',
+      category: 'Crédit',
+    },
+  ]);
+  const wrong = pickDistractors(words, findEntry(words, 'Sujet')!, [], 2, () => 0.5);
+  assert.deepEqual(wrong.map((e) => e.term).sort(), ['Pareil', 'Proche']);
 });
 
 test('nettoyage : sigle ou développé en tête retiré, première phrase', () => {
@@ -441,12 +476,6 @@ test('nettoyage : sigle ou développé en tête retiré, première phrase', () =
   );
 });
 
-test('coupe au mot avec « … »', () => {
-  assert.equal(fitLength('Part du bénéfice versée aux actionnaires.', 20), 'Part du bénéfice…');
-  assert.equal(fitLength('Court.', 20), 'Court.');
-  assert.ok(fitLength('mot '.repeat(60).trim(), 110).length <= 110);
-});
-
 test('masquage : le mot de la question et son sigle deviennent « … », accents, casse et pluriel compris', () => {
   assert.equal(maskTerm('Les actions versent un dividende.', 'Action'), 'Les … versent un dividende.');
   assert.equal(maskTerm('Le QE de la BCE.', 'Quantitative Easing'), 'Le … de la BCE.');
@@ -456,12 +485,6 @@ test('masquage : le mot de la question et son sigle deviennent « … », accent
   assert.equal(maskTerm('Une transaction.', 'Action'), 'Une transaction.');
   assert.equal(acronymOf('Banque centrale européenne'), 'BCE');
   assert.equal(acronymOf('Inflation'), null);
-});
-
-test('définition courte : nettoyée, 110 caractères au plus', () => {
-  assert.equal(shortDefinition('QE — hausse des prix. Elle réduit le pouvoir d’achat.'), 'Hausse des prix.');
-  const long = shortDefinition('mot '.repeat(60).trim());
-  assert.ok(long.length <= 110 && long.endsWith('…'));
 });
 
 test('moins de 3 mots : pas de question', () => {
