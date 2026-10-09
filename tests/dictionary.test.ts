@@ -6,6 +6,12 @@ import { test } from 'node:test';
 
 import {
   acronymOf,
+  expansionOf,
+  isAcronym,
+  maskSubject,
+  removeExpansion,
+  revealsSubject,
+  tooMasked,
   cleanDefinition,
   decorForCategory,
   maskTerm,
@@ -33,6 +39,7 @@ import {
   wordOfTheDay,
   type DictionaryEntry,
   type Quiz,
+  type QuizRejection,
 } from '../src/utils/dictionary';
 
 const RAW = [
@@ -554,4 +561,148 @@ test('catégorie inconnue : décor stable tiré du nom, pas toujours la pile de 
   assert.equal(decorForCategory('Assurance'), decorForCategory('assurance'));
   const names = ['Assurance', 'Crédit', 'Impôts', 'Patrimoine', 'Succession', 'Consommation', 'Matières premières', 'Change'];
   assert.ok(new Set(names.map(decorForCategory)).size > 2);
+});
+
+// ---------------------------------------------------------------------------
+// Sigles, développés, racines, garde-fou
+// ---------------------------------------------------------------------------
+const TAX = normalizeEntries([
+  { term: 'IS', definition: 'Impôt sur les Sociétés. Taxe sur les bénéfices des entreprises.', category: 'Fiscalité' },
+  { term: 'TVA', definition: 'Taxe sur la Valeur Ajoutée — impôt indirect payé par le consommateur final.', category: 'Fiscalité' },
+  { term: 'IFI', definition: 'Impôt sur la Fortune Immobilière. Remplace l’ISF depuis 2018.', category: 'Fiscalité' },
+  { term: 'PFU', definition: 'Taxe forfaitaire de 30 % sur les revenus du capital (prélèvement forfaitaire unique).', category: 'Fiscalité' },
+  { term: 'PIB', definition: 'Produit Intérieur Brut.', category: 'Économie' },
+  { term: 'Smic', definition: 'Salaire minimum interprofessionnel de croissance, revalorisé chaque année.', category: 'Fiscalité' },
+  { term: 'Impôt sur le revenu', definition: 'Impôt payé chaque année sur les revenus du foyer, selon un barème progressif.', category: 'Fiscalité' },
+  { term: 'Niche fiscale', definition: 'Dispositif qui réduit l’imposition en échange d’un investissement ciblé.', category: 'Fiscalité' },
+  { term: 'Barème', definition: 'Grille de taux appliqués par tranches de revenu imposable.', category: 'Fiscalité' },
+  { term: 'Abattement', definition: 'Somme retirée d’un montant avant le calcul d’une taxe.', category: 'Fiscalité' },
+  { term: 'Déficit foncier', definition: 'Charges d’un bien loué supérieures aux loyers, déductibles du revenu global.', category: 'Fiscalité' },
+]);
+
+test('sigles : écrits en majuscules (2 à 6, chiffres et points permis) ou définition commençant par le développé', () => {
+  const is = (term: string, definition = 'Définition quelconque.') => isAcronym({ term, definition });
+  assert.equal(is('IS'), true);
+  assert.equal(is('TVA'), true);
+  assert.equal(is('CAC 40'), true);
+  assert.equal(is('S.A.'), true);
+  assert.equal(is('OPCVM'), true);
+  assert.equal(is('Smic', 'Salaire minimum interprofessionnel de croissance, revalorisé chaque année.'), true);
+  assert.equal(is('Action'), false);
+  assert.equal(is('Livret A'), false);
+  assert.equal(is('S&P 500'), false);
+  assert.equal(is('BITCOINS'), false, 'plus de 6 caractères');
+  assert.equal(is('Krach', 'Chute brutale des cours.'), false);
+});
+
+test('développé reconnu à ses initiales, petits mots ignorés', () => {
+  assert.equal(expansionOf(findEntry(TAX, 'IS')!), 'Impôt sur les Sociétés');
+  assert.equal(expansionOf(findEntry(TAX, 'TVA')!), 'Taxe sur la Valeur Ajoutée');
+  assert.equal(expansionOf(findEntry(TAX, 'PFU')!), 'prélèvement forfaitaire unique');
+  assert.equal(expansionOf({ term: 'PEA', definition: 'Plan d’épargne en actions : enveloppe fiscale.' }), 'Plan d’épargne en actions');
+  assert.equal(expansionOf({ term: 'CTO', definition: 'Compte-titres ordinaire — enveloppe sans plafond.' }), 'Compte-titres ordinaire');
+});
+
+test('développé retiré en tête (après « . », « — », « : ») et entre parenthèses', () => {
+  assert.equal(removeExpansion('Impôt sur les sociétés. Taxe sur les bénéfices.', 'IS'), 'Taxe sur les bénéfices.');
+  assert.equal(removeExpansion('Impôt sur les sociétés — taxe sur les bénéfices.', 'IS'), 'Taxe sur les bénéfices.');
+  assert.equal(removeExpansion('Taxe sur les bénéfices (impôt sur les sociétés) des entreprises.', 'IS'), 'Taxe sur les bénéfices des entreprises.');
+  assert.equal(removeExpansion('Taxe sur les bénéfices (IS) des entreprises.', 'IS'), 'Taxe sur les bénéfices des entreprises.');
+  // Une parenthèse qui n’est pas le développé reste
+  assert.equal(removeExpansion('Taxe sur les bénéfices (25 % en France).', 'IS'), 'Taxe sur les bénéfices (25 % en France).');
+  assert.equal(cleanDefinition(findEntry(TAX, 'IS')!.definition, 'IS'), 'Taxe sur les bénéfices des entreprises.');
+  assert.equal(cleanDefinition(findEntry(TAX, 'TVA')!.definition, 'TVA'), 'Impôt indirect payé par le consommateur final.');
+  // Définition qui n’était que le développé : plus rien à proposer
+  assert.equal(cleanDefinition('Produit Intérieur Brut.', 'PIB'), '');
+});
+
+test('masquage des racines : mêmes 5 premières lettres, sans accent ni casse', () => {
+  const impot = findEntry(TAX, 'Impôt sur le revenu')!;
+  // impôt / imposition / imposable : même racine (« impo », impôt n’ayant que
+  // 5 lettres) ; deux mots masqués côte à côte ne font qu’un « … »
+  assert.equal(maskSubject('L’imposition des revenus imposables touche le foyer.', impot), 'L’… des … touche le foyer.');
+  assert.equal(maskSubject('Les impôts du ménage.', impot), 'Les … du ménage.');
+  // Racine de 5 lettres pour un mot plus long : « revenu » (reven) masque
+  // « revenus » mais pas « rente »
+  assert.equal(maskSubject('La rente et les revenus.', impot), 'La rente et les ….');
+  // Le développé d’un sigle est masqué aussi, et le sigle seulement en majuscules
+  const is = findEntry(TAX, 'IS')!;
+  assert.equal(maskSubject('L’impôt sur les sociétés (IS) touche les PME.', is), 'L’… (…) touche les PME.');
+  assert.equal(maskSubject('Ce qui is écrit en minuscules reste.', is), 'Ce qui is écrit en minuscules reste.');
+});
+
+test('sigle : jamais « Que veut dire <sigle> ? », toujours « Quel sigle… ? » avec trois sigles', () => {
+  let sigleQuestions = 0;
+  for (const entry of TAX) {
+    for (let r = 0; r < 25; r++) {
+      const q = quizFor(TAX, entry, DAY, r);
+      if (!q) continue;
+      const subject = findEntry(TAX, q.subject)!;
+      if (!isAcronym(subject)) continue;
+      sigleQuestions++;
+      assert.equal(q.kind, 'term', `${q.question}`);
+      assert.equal(q.question, 'Quel sigle correspond à cette définition ?');
+      assert.ok(q.answers.every((a) => isAcronym(findEntry(TAX, a.label)!)), q.answers.map((a) => a.label).join(', '));
+      // La définition affichée n’a plus son développé
+      assert.ok(!revealsSubject(q.quote!, subject), q.quote!);
+      assert.ok(!/impôt sur les sociétés|taxe sur la valeur/i.test(q.quote!), q.quote!);
+    }
+  }
+  assert.ok(sigleQuestions > 0);
+});
+
+test('PIB (définition = développé seul) n’est jamais le sujet d’une question', () => {
+  for (const entry of TAX) for (let r = 0; r < 25; r++) assert.notEqual(quizFor(TAX, entry, DAY, r)?.subject, 'PIB');
+});
+
+test('sigle en mauvaise réponse d’une question sur un mot normal : son développé est retiré', () => {
+  let seen = 0;
+  for (const entry of TAX) {
+    for (let r = 0; r < 25; r++) {
+      const q = quizFor(TAX, entry, DAY, r);
+      if (!q || q.kind !== 'definition') continue;
+      for (const a of q.answers) {
+        assert.ok(!/impôt sur les sociétés|taxe sur la valeur ajoutée|impôt sur la fortune/i.test(a.label), a.label);
+        if (/bénéfices des entreprises|consommateur final|ISF/.test(a.label)) seen++;
+      }
+    }
+  }
+  assert.ok(seen > 0, 'des définitions de sigles apparaissent bien comme réponses');
+});
+
+test('garde-fou : aucune réponse ni définition affichée ne trahit le mot de la question', () => {
+  for (const dict of [TAX, ENTRIES, MARKET]) {
+    for (const entry of dict) {
+      for (let r = 0; r < 15; r++) {
+        const q = quizFor(dict, entry, DAY, r);
+        if (!q) continue;
+        const subject = findEntry(dict, q.subject)!;
+        const shown = q.kind === 'term' ? [q.quote!] : q.answers.map((a) => a.label);
+        for (const text of shown) {
+          assert.ok(!revealsSubject(text, subject), `${q.question} → ${text}`);
+          assert.ok(!tooMasked(text), `${q.question} → ${text}`);
+        }
+      }
+    }
+  }
+});
+
+test('garde-fou : un tirage trahi ou presque tout masqué est écarté, on tire à nouveau', () => {
+  const words = normalizeEntries([
+    { term: 'Taxe', definition: 'Prélèvement obligatoire perçu par l’État.', category: 'Impôts' },
+    { term: 'Imposition', definition: 'Impôt imposable sur les impositions.', category: 'Impôts' },
+    { term: 'Revenu', definition: 'Somme perçue chaque mois par un salarié.', category: 'Impôts' },
+    { term: 'Bénéfice', definition: 'Gain restant après déduction des charges.', category: 'Impôts' },
+    { term: 'Capital', definition: 'Argent placé ou investi dans une entreprise.', category: 'Impôts' },
+  ]);
+  const rejected: QuizRejection[] = [];
+  const taxe = findEntry(words, 'Taxe')!;
+  for (let r = 0; r < 30; r++) {
+    const q = quizFor(words, taxe, DAY, r, (reason) => rejected.push(reason));
+    // « Imposition » n’est jamais posée : sa définition, une fois masquée, n’a plus rien à lire
+    assert.notEqual(q?.subject, 'Imposition');
+  }
+  assert.ok(rejected.includes('indice'));
+  assert.equal(tooMasked('… … sur les ….'), true);
+  assert.equal(tooMasked('Somme perçue chaque mois.'), false);
 });
