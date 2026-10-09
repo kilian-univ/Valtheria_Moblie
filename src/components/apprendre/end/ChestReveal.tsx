@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
+import { ImageSourcePropType, StyleSheet, View } from 'react-native';
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -12,6 +12,7 @@ import Animated, {
 
 import AppText, { TextTone } from '@/src/components/common/AppText';
 import GoldHalo from '@/src/components/common/GoldHalo';
+import ValsCoin from '@/src/components/common/ValsCoin';
 import { durations, springs } from '@/src/constants/motion';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -27,8 +28,19 @@ export const CHEST_IMAGES: Record<ChestRarity, ImageSourcePropType> = {
   legendaire: require('@/assets/images/chests/chest-legendaire.webp'),
 };
 
+// Coffres ouverts : même cadrage que les fermés, corps recalé dessus
+// (ils se superposent exactement pendant le fondu enchaîné)
+export const CHEST_OPEN_IMAGES: Record<ChestRarity, ImageSourcePropType> = {
+  commun: require('@/assets/images/chests/chest-commun-ouvert.webp'),
+  rare: require('@/assets/images/chests/chest-rare-ouvert.webp'),
+  epique: require('@/assets/images/chests/chest-epique-ouvert.webp'),
+  legendaire: require('@/assets/images/chests/chest-legendaire-ouvert.webp'),
+};
+
 const NBSP = ' '; // espace insécable
 export const CHEST_SIZE = 200;
+// Pièce à côté du montant (« + X Vals »)
+export const COIN_LG = 52;
 // Carré du halo : au plus 1,5 fois le coffre
 const HALO = 280;
 const STEP_MS = 450;
@@ -39,6 +51,8 @@ const FLASH_FROM_SCALE = 0.5;
 const FLASH_TO_SCALE = 1.5;
 const FLASH_PEAK = 0.45;
 const FLASH_MS = 420;
+// Fondu enchaîné fermé → ouvert, au même instant que l'éclat et la vibration
+const OPEN_FADE_MS = 150;
 // Éclats dorés du légendaire
 const SPARKS = 10;
 const SPARK_SIZE = 6;
@@ -77,6 +91,7 @@ export default function ChestReveal({ rarity, amount }: ChestRevealProps) {
   const flashScale = useSharedValue(FLASH_FROM_SCALE);
   const reveal = useSharedValue(reduced ? 1 : 0);
   const sparks = useSharedValue(0);
+  const openFade = useSharedValue(reduced ? 1 : 0);
 
   // Paliers puis ouverture
   useEffect(() => {
@@ -103,6 +118,7 @@ export default function ChestReveal({ rarity, amount }: ChestRevealProps) {
       setTimeout(() => {
         setOpened(true);
         celebrate();
+        openFade.set(withTiming(1, { duration: OPEN_FADE_MS }));
         pop.set(withSequence(withTiming(OPEN_POP, { duration: durations.pressIn }), withSpring(1, springs.celebrate)));
         flashScale.set(withTiming(FLASH_TO_SCALE, { duration: FLASH_MS }));
         flashOpacity.set(
@@ -116,7 +132,7 @@ export default function ChestReveal({ rarity, amount }: ChestRevealProps) {
       }, steps.length * STEP_MS)
     );
     return () => timers.forEach(clearTimeout);
-  }, [reduced, steps, rotate, pop, flashOpacity, flashScale, reveal, sparks]);
+  }, [reduced, steps, rotate, pop, flashOpacity, flashScale, reveal, sparks, openFade]);
 
   // Le montant défile une fois le coffre ouvert
   const shownAmount = Math.round(useCountUp(opened ? amount : 0));
@@ -129,6 +145,8 @@ export default function ChestReveal({ rarity, amount }: ChestRevealProps) {
     transform: [{ scale: flashScale.get() }],
   }));
   const revealStyle = useAnimatedStyle(() => ({ opacity: reveal.get() }));
+  const closedStyle = useAnimatedStyle(() => ({ opacity: 1 - openFade.get() }));
+  const openStyle = useAnimatedStyle(() => ({ opacity: openFade.get() }));
 
   const current = steps[stage];
   const legendary = rarity === 'legendaire';
@@ -156,7 +174,13 @@ export default function ChestReveal({ rarity, amount }: ChestRevealProps) {
         ) : null}
 
         <Animated.View style={chestStyle}>
-          <Image source={CHEST_IMAGES[current]} resizeMode="contain" style={styles.chest} />
+          <Animated.Image source={CHEST_IMAGES[current]} resizeMode="contain" style={[styles.chest, closedStyle]} />
+          {/* Toujours monté (image prête) ; visible à l'ouverture */}
+          <Animated.Image
+            source={CHEST_OPEN_IMAGES[rarity]}
+            resizeMode="contain"
+            style={[styles.chest, styles.overlay, openStyle]}
+          />
         </Animated.View>
       </View>
 
@@ -164,9 +188,12 @@ export default function ChestReveal({ rarity, amount }: ChestRevealProps) {
         <AppText variant="sectionLabel" tone={LABEL_TONE[rarity]} style={styles.center}>
           {chestLabel(rarity)}
         </AppText>
-        <AppText variant="hero" tone="gold" style={styles.center}>
-          {`+${NBSP}${formatInteger(shownAmount)}${NBSP}Vals`}
-        </AppText>
+        <View style={styles.amountRow}>
+          <ValsCoin size={COIN_LG} />
+          <AppText variant="hero" tone="gold" style={styles.center}>
+            {`+${NBSP}${formatInteger(shownAmount)}${NBSP}Vals`}
+          </AppText>
+        </View>
       </Animated.View>
     </View>
   );
@@ -204,6 +231,11 @@ const styles = StyleSheet.create({
     width: CHEST_SIZE,
     height: CHEST_SIZE,
   },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
   flash: {
     position: 'absolute',
     width: CHEST_SIZE,
@@ -227,5 +259,12 @@ const styles = StyleSheet.create({
   },
   center: {
     textAlign: 'center',
+  },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space[2],
+    flexWrap: 'wrap',
   },
 });

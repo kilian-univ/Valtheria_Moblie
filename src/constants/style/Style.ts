@@ -531,8 +531,6 @@ export function getProfileStyles(colorScheme: ColorScheme) {
       marginTop: 6,
     },
     coinIcon: {
-      width: 18,
-      height: 18,
       marginBottom: 2,
     },
   });

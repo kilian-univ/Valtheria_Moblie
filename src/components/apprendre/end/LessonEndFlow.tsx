@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import Stagger from '@/src/components/common/Stagger';
-import ChestReveal, { CHEST_IMAGES } from './ChestReveal';
+import ValsCoin from '@/src/components/common/ValsCoin';
+import ChestReveal, { CHEST_IMAGES, COIN_LG } from './ChestReveal';
 import ValBubble from '@/src/components/common/ValBubble';
 import ValFullBody, { ValFitContext } from '@/src/components/common/ValFullBody';
 import { durations, springs } from '@/src/constants/motion';
@@ -42,6 +43,8 @@ const FIRE_SIZE = 120;
 const FIRE_LINE_HEIGHT = 140;
 const FIRE_FROM_SCALE = 0.3;
 const SURPRISE_CHEST = 160;
+// Pièce à côté du chiffre « Vals »
+const COIN_STAT = 22;
 const VAL_SURPRISE = 64;
 // Val en pied (saut, fier) : réduit sur petit écran, 160 au minimum
 const VAL_FULL_HEIGHT = 260;
@@ -181,18 +184,21 @@ function DoneStep({ result, onNext }: { result: LessonResult; onNext: () => void
           </>
         ) : null}
         <View style={[styles.statRule, { backgroundColor: colors.border }]} />
-        <Stat value={`+${NBSP}${formatInteger(Math.round(valsShown))}`} label="Vals" />
+        <Stat value={`+${NBSP}${formatInteger(Math.round(valsShown))}`} label="Vals" coin />
       </View>
     </StepFrame>
   );
 }
 
-function Stat({ value, label, gold }: { value: string; label: string; gold?: boolean }) {
+function Stat({ value, label, gold, coin }: { value: string; label: string; gold?: boolean; coin?: boolean }) {
   return (
     <View style={styles.stat}>
-      <AppText variant="title2" tone={gold ? 'gold' : 'text'} style={styles.tabular}>
-        {value}
-      </AppText>
+      <View style={styles.statValueRow}>
+        {coin ? <ValsCoin size={COIN_STAT} /> : null}
+        <AppText variant="title2" tone={gold ? 'gold' : 'text'} style={styles.tabular}>
+          {value}
+        </AppText>
+      </View>
       <AppText variant="caption" tone="subtitle">
         {label}
       </AppText>
@@ -264,9 +270,12 @@ function SurpriseStep({ result, onNext }: { result: LessonResult; onNext: () => 
           <Image source={CHEST_IMAGES.legendaire} resizeMode="contain" style={styles.surpriseChest} />
         </View>
         <Title>Coffre surprise !</Title>
-        <AppText variant="hero" tone="gold" style={styles.centerText}>
-          {`+${NBSP}${formatInteger(shown)}${NBSP}Vals`}
-        </AppText>
+        <View style={styles.amountRow}>
+          <ValsCoin size={COIN_LG} />
+          <AppText variant="hero" tone="gold" style={styles.centerText}>
+            {`+${NBSP}${formatInteger(shown)}${NBSP}Vals`}
+          </AppText>
+        </View>
       </View>
       <ValBubble mood="complice" text="Celui-là, tu ne l’attendais pas." diameter={VAL_SURPRISE} />
     </StepFrame>
@@ -343,6 +352,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: space[1],
+  },
+  statValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[1],
+  },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space[2],
+    flexWrap: 'wrap',
   },
   statRule: {
     width: 1,

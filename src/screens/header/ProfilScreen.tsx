@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ScreenBackground from '@/src/components/common/ScreenBackground';
-import SpinningCoin from '@/src/components/common/SpinningCoin';
+import ValsCoin from '@/src/components/common/ValsCoin';
 import Header from '@/src/components/topbar/header';
 import {
   getBasiquesStyles,
@@ -175,7 +175,7 @@ export default function ProfileScreen() {
             </View>
             <View style={profile_styles.statItem}>
               <Text style={profile_styles.statValue}>{user?.vals ?? 0}</Text>
-              <SpinningCoin style={profile_styles.coinIcon} />
+              <ValsCoin size={18} style={profile_styles.coinIcon} />
               <Text style={profile_styles.statLabel}>Vals</Text>
             </View>
             <View style={profile_styles.statItem}>

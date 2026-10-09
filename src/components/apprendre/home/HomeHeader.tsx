@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import Skeleton from '@/src/components/common/Skeleton';
+import ValsCoin from '@/src/components/common/ValsCoin';
 import { LOGO, LOGO_RATIO } from '@/src/constants/brand';
 import { fonts, palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -15,7 +16,8 @@ const NAME_SKELETON_WIDTH = 120;
 const NAME_SKELETON_HEIGHT = 28;
 const PILL_HEIGHT = 36;
 const PILL_TEXT = { fontFamily: fonts.bodySemibold, fontSize: 15, lineHeight: 20 } as const;
-const DIAMOND_SIZE = 18;
+const COIN_SIZE = 18;
+const PERSON_ICON_SIZE = 18;
 const INITIAL_SIZE = 16;
 const LEVEL_TEXT = { fontFamily: fonts.bodySemibold, fontSize: 14, lineHeight: 20 } as const;
 // Seul emoji autorisé de l'app (validé) : la flamme de la série
@@ -95,7 +97,7 @@ export default function HomeHeader({
                 accessibilityLabel={`${stats.vals} Vals`}
                 style={[styles.pill, { backgroundColor: colors.surface }]}
               >
-                <Ionicons name="diamond-outline" size={DIAMOND_SIZE} color={colors.gold} />
+                <ValsCoin size={COIN_SIZE} />
                 <Text maxFontSizeMultiplier={1.2} style={[PILL_TEXT, { color: colors.text }]}>
                   {formatInteger(stats.vals)}
                 </Text>
@@ -123,7 +125,7 @@ export default function HomeHeader({
                 {initial}
               </Text>
             ) : (
-              <Ionicons name="person-outline" size={DIAMOND_SIZE} color={colors.gold} />
+              <Ionicons name="person-outline" size={PERSON_ICON_SIZE} color={colors.gold} />
             )}
           </Pressable>
         </View>
