@@ -9,6 +9,7 @@ import { Lesson, Module } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { OFFLINE_REASON } from '@/src/hooks/useLearningData';
 import { HomeSituation } from '@/src/utils/learning';
+import ValGreeting from './ValGreeting';
 import ValHero from './ValHero';
 
 // Écarts propres à cette section (hors grille : demandés par la maquette)
@@ -54,7 +55,7 @@ export default function UpNextSection({
     case 'welcome':
       return (
         <View style={styles.stack}>
-          <ValHero mood="complice" title={welcomeLine.title} text={welcomeLine.text(situation.module.title)} />
+          <ValGreeting title={welcomeLine.title} text={welcomeLine.text(situation.module.title)} />
           <Button label={`Commencer ${situation.module.title}`} onPress={() => onOpenModule(situation.module)} />
         </View>
       );

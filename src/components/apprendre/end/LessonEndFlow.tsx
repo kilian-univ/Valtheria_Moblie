@@ -1,29 +1,20 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
-import GoldHalo from '@/src/components/common/GoldHalo';
 import Stagger from '@/src/components/common/Stagger';
 import ChestReveal, { CHEST_IMAGES } from './ChestReveal';
-import ValBubble, { ValAvatar } from '@/src/components/common/ValBubble';
+import ValBubble from '@/src/components/common/ValBubble';
+import ValFullBody, { ValFitContext } from '@/src/components/common/ValFullBody';
 import { durations, springs } from '@/src/constants/motion';
 import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { formatInteger } from '@/src/utils/format';
+import { nextExcess } from '@/src/utils/fit';
 import { celebrate } from '@/src/utils/haptics';
 import {
   END_BUTTON_LABELS,
@@ -52,19 +43,8 @@ const FIRE_LINE_HEIGHT = 140;
 const FIRE_FROM_SCALE = 0.3;
 const SURPRISE_CHEST = 160;
 const VAL_SURPRISE = 64;
-const VAL_PROUD = 120;
-// Val en pied qui saute de joie (488 × 800, fond transparent), sur sa lueur.
-// Le carré du halo fait au plus 1,5 fois l'image.
-const VAL_JUMP = require('@/assets/images/val/val-pied-saut.webp');
-const JUMP_HEIGHT = 260;
-const JUMP_WIDTH = Math.round((JUMP_HEIGHT * 488) / 800);
-const HALO = 300;
-// Arrivée (ressort celebrate) puis petit rebond en boucle
-const JUMP_RISE = 24;
-const JUMP_FROM_SCALE = 0.9;
-const BOUNCE_HEIGHT = 8;
-const BOUNCE_PERIOD = 1400;
-const BOUNCE_START = 600; // une fois l'arrivée posée
+// Val en pied (saut, fier) : réduit sur petit écran, 160 au minimum
+const VAL_FULL_HEIGHT = 260;
 // Les chiffres défilent l'un après l'autre, une fois l'écran apparu
 const COUNT_START = durations.enterOpacity;
 
@@ -111,11 +91,31 @@ function EndLayout({ children }: { children: ReactNode }) {
   );
 }
 
-// Haut centré + bouton en bas
+// Haut centré + bouton en bas. Si la place manque (petit écran), Val en
+// pied se réduit (jusqu'à 160) ; au-delà, le contenu défile : le texte et le
+// bouton ne sont jamais coupés.
 function StepFrame({ children, button }: { children: ReactNode; button: ReactNode }) {
+  const [available, setAvailable] = useState(0);
+  const [excess, setExcess] = useState(0);
+
   return (
     <>
-      <Stagger style={styles.center}>{children}</Stagger>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        onLayout={(e) => setAvailable(e.nativeEvent.layout.height)}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          onLayout={(e) => {
+            if (available > 0) setExcess((x) => nextExcess(x, e.nativeEvent.layout.height, available));
+          }}
+        >
+          <ValFitContext.Provider value={excess}>
+            <Stagger style={styles.center}>{children}</Stagger>
+          </ValFitContext.Provider>
+        </View>
+      </ScrollView>
       <View style={styles.footer}>{button}</View>
     </>
   );
@@ -153,10 +153,7 @@ function DoneStep({ result, onNext }: { result: LessonResult; onNext: () => void
 
   return (
     <StepFrame button={<Button label={label} onPress={onNext} />}>
-      <View style={styles.haloBox}>
-        <GoldHalo />
-        <JumpingVal />
-      </View>
+      <ValFullBody pose="saut" height={VAL_FULL_HEIGHT} bounce halo />
 
       <View style={styles.texts}>
         <Title>Leçon terminée !</Title>
@@ -187,37 +184,6 @@ function DoneStep({ result, onNext }: { result: LessonResult; onNext: () => void
         <Stat value={`+${NBSP}${formatInteger(Math.round(valsShown))}`} label="Vals" />
       </View>
     </StepFrame>
-  );
-}
-
-// Val saute de joie : arrive avec le ressort celebrate (montée de 24, échelle
-// 0,9 → 1), puis rebondit doucement tant que l'écran est affiché.
-// Animations réduites : affichée directement, sans rebond.
-function JumpingVal() {
-  const reduced = useReducedMotion();
-  const rise = useSharedValue(reduced ? 0 : JUMP_RISE);
-  const scale = useSharedValue(reduced ? 1 : JUMP_FROM_SCALE);
-  const bounce = useSharedValue(0);
-
-  useEffect(() => {
-    if (reduced) return;
-    rise.set(withSpring(0, springs.celebrate));
-    scale.set(withSpring(1, springs.celebrate));
-    const half = { duration: BOUNCE_PERIOD / 2, easing: Easing.inOut(Easing.sin) };
-    bounce.set(
-      withDelay(BOUNCE_START, withRepeat(withSequence(withTiming(-BOUNCE_HEIGHT, half), withTiming(0, half)), -1))
-    );
-  }, [reduced, rise, scale, bounce]);
-
-  const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: rise.get() + bounce.get() }, { scale: scale.get() }],
-  }));
-
-  return (
-    <Animated.View style={style} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {/* contain : l'image entière, jamais recadrée */}
-      <Image source={VAL_JUMP} resizeMode="contain" style={styles.jump} />
-    </Animated.View>
   );
 }
 
@@ -313,9 +279,7 @@ function SurpriseStep({ result, onNext }: { result: LessonResult; onNext: () => 
 function ModuleStep({ title, onNext }: { title: string | null; onNext: () => void }) {
   return (
     <StepFrame button={<Button label="Voir la suite" onPress={onNext} />}>
-      <View style={styles.centered}>
-        <ValAvatar mood="fier" diameter={VAL_PROUD} />
-      </View>
+      <ValFullBody pose="fier" height={VAL_FULL_HEIGHT} />
       <View style={styles.texts}>
         <Title>Module terminé !</Title>
         {title ? (
@@ -332,11 +296,17 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  center: {
+  scroll: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: space[4],
+  },
+  center: {
     // Chaque élément se centre lui-même : la rangée de chiffres prend toute la largeur
     alignItems: 'stretch',
-    justifyContent: 'center',
     gap: space[6],
     paddingHorizontal: space[5],
   },
@@ -361,20 +331,9 @@ const styles = StyleSheet.create({
   centered: {
     alignItems: 'center',
   },
-  haloBox: {
-    alignSelf: 'center',
-    width: HALO,
-    height: HALO,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   surpriseChest: {
     width: SURPRISE_CHEST,
     height: SURPRISE_CHEST,
-  },
-  jump: {
-    width: JUMP_WIDTH,
-    height: JUMP_HEIGHT,
   },
   stats: {
     flexDirection: 'row',

@@ -1,9 +1,9 @@
 import { StyleSheet, View } from 'react-native';
 
 import Button from '@/src/components/common/Button';
-import ValBubble from '@/src/components/common/ValBubble';
 import { space } from '@/src/constants/style/Style';
 import { guestLine } from '@/src/constants/valLines';
+import ValGreeting from './ValGreeting';
 
 type GuestStateProps = {
   onRegister: () => void;
@@ -14,7 +14,7 @@ type GuestStateProps = {
 export default function GuestState({ onRegister, onLogin }: GuestStateProps) {
   return (
     <View style={styles.stack}>
-      <ValBubble mood="complice" title={guestLine.title} text={guestLine.text} />
+      <ValGreeting title={guestLine.title} text={guestLine.text} />
       <View style={styles.actions}>
         <Button label="Créer mon compte" onPress={onRegister} />
         <Button variant="text" label="J'ai déjà un compte" onPress={onLogin} />
