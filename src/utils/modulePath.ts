@@ -62,10 +62,8 @@ export const HALO_SIZE = 112; // au plus 1,5 fois le rond (règle des halos)
 export const BUBBLE_W = 132;
 export const BUBBLE_H = 40;
 export const BUBBLE_GAP = 28; // bas de la bulle → haut du rond (l'anneau déborde de 17)
-// Place au-dessus du premier rond : la bulle et son rebond, et une rangée
-// de décors
-export const DECOR_TOP_ROOM = 40;
-export const PATH_TOP = BUBBLE_H + BUBBLE_GAP + 12 + DECOR_TOP_ROOM;
+// Place au-dessus du premier rond, pour la bulle et son rebond
+export const PATH_TOP = BUBBLE_H + BUBBLE_GAP + 12;
 export const VAL_W = 128;
 
 export function pathOffset(index: number): number {
@@ -252,24 +250,22 @@ export const DECOR_NAMES = [
 ] as const;
 export type DecorName = (typeof DECOR_NAMES)[number];
 
-export const DECOR_MIN = 64;
-export const DECOR_MAX = 88;
-export const DECOR_ROTATION = 6;
+export const DECOR_MIN = 56;
+export const DECOR_MAX = 72;
+export const DECOR_ROTATION = 4;
 // Marge minimale au bord de l'écran
 export const DECOR_EDGE = 8;
-const DECOR_INWARD_JITTER = 12;
-// Écart vertical minimal entre deux décors (même côté ou non)
-const DECOR_GAP_Y = Math.round(STEP_Y * 0.9);
+// Écart minimal entre deux décors, en lignes
+const DECOR_ROW_GAP = 2;
 // Effet de profondeur (92 % de la vitesse) : déplacement vertical maximal
 // par rapport au chemin, réservé autour de chaque décor
 export const PARALLAX_FACTOR = 0.08;
 export const PARALLAX_MAX = 20;
 // Ombre au sol sous le décor
 export const DECOR_SHADOW_H = 10;
-// Au moins 3 décors, puis environ un tous les deux ronds
-export const DECOR_MIN_COUNT = 3;
 
-export type DecorSpot = { name: DecorName; rect: Rect; rotation: number; row: number };
+export type DecorSide = -1 | 1; // -1 : à gauche du chemin ; 1 : à droite
+export type DecorSpot = { name: DecorName; rect: Rect; rotation: number; row: number; side: DecorSide };
 
 // Tirage pseudo-aléatoire stable (mulberry32) : même module, mêmes décors
 export function seededRandom(seed: number): () => number {
@@ -283,70 +279,88 @@ export function seededRandom(seed: number): () => number {
   };
 }
 
+// Environ 1 décor pour 3 ronds (trophée compris), au moins 1
 export function decorTarget(stepCount: number): number {
-  return Math.max(DECOR_MIN_COUNT, Math.ceil((stepCount + 1) / 2));
+  return Math.max(1, Math.round((stepCount + 1) / 3));
 }
 
-// Décors au bord du chemin, collés au bord de l'écran (8 px au moins), des
-// deux côtés : au-dessus du premier rond, à chaque ligne et demi-ligne, et
-// autour du trophée. Jamais sur un rond, l'anneau, le halo, la bulle, Val ou
-// un autre décor (marge de l'effet de profondeur comprise), jamais coupé par
-// le bord. Côté opposé au rond essayé d'abord ; taille réduite si la place
-// manque. Objets tirés selon l'id du module, jamais deux fois le même de suite.
+type Candidate = { row: number; side: DecorSide; rect: Rect; zone: Rect; bend: boolean };
+
+// Décors au bord du chemin :
+// - de préférence dans le creux d'un virage, du côté opposé au rond de sa
+//   ligne, à mi-chemin entre ce rond et le bord de l'écran ;
+// - sinon sur une autre ligne, toujours à l'opposé du rond (rond centré : un
+//   côté ou l'autre) ;
+// - jamais au-dessus du premier rond, jamais deux de suite du même côté,
+//   jamais du côté de Val sur les mêmes lignes, jamais sur un rond, l'anneau,
+//   le halo, la bulle ou un autre décor (marge de l'effet de profondeur
+//   comprise) ; s'il n'y a pas de place, un décor de moins.
+// Objets, tailles et rotations tirés selon l'id du module ; jamais deux fois
+// le même objet de suite.
 export function decorSpots(moduleId: number, views: LessonView[], width: number, vals: ValSpot[]): DecorSpot[] {
   const rand = seededRandom(moduleId * 7919 + 17);
   const trophyRow = views.length;
-  const taken: Rect[] = [...pathObstacles(views, width), ...vals.map((v) => v.rect)];
-  const spots: DecorSpot[] = [];
+  const obstacles = pathObstacles(views, width);
   const target = decorTarget(views.length);
-  let previous: DecorName | null = null;
-  let lastY = -Infinity;
 
-  // Lignes candidates (en rang : 0,5 = entre deux ronds), du haut vers le bas
-  const rows: number[] = [-0.75];
-  for (let r = 0; r <= trophyRow; r++) rows.push(r, r + 0.5);
-  rows.push(trophyRow + 0.9);
-
-  for (const row of rows) {
-    if (spots.length >= target) break;
-    const cy0 = rowCenterY(0) + row * STEP_Y;
-    if (cy0 - lastY < DECOR_GAP_Y) continue;
-
-    // Tirages faits pour chaque ligne, même sans décor posé : ordre stable
-    const preferred = DECOR_MAX - Math.round(rand() * (DECOR_MAX - DECOR_MIN));
-    const rotation = Math.round((rand() * 2 - 1) * DECOR_ROTATION * 10) / 10;
-    const inward = rand() * DECOR_INWARD_JITTER;
+  // Candidats, ligne par ligne (tirages faits pour chaque ligne : ordre stable)
+  const candidates: Candidate[] = [];
+  for (let row = 1; row <= trophyRow; row++) {
+    const size = Math.round(DECOR_MIN + rand() * (DECOR_MAX - DECOR_MIN));
     const coin = rand();
-    let pick = Math.floor(rand() * DECOR_NAMES.length);
-    if (DECOR_NAMES[pick] === previous) pick = (pick + 1) % DECOR_NAMES.length;
-
-    // Côté : à l'opposé du rond le plus proche ; rond centré → au hasard
-    const offset = pathOffset(Math.round(row));
-    const first = offset !== 0 ? -Math.sign(offset) : coin < 0.5 ? -1 : 1;
-    const sizes = [preferred, ...[72, DECOR_MIN].filter((s) => s < preferred)];
-
-    let placed: DecorSpot | null = null;
-    for (const side of [first, -first]) {
-      for (const size of sizes) {
-        const x = side < 0 ? DECOR_EDGE + inward : width - DECOR_EDGE - inward - size;
-        const rect = { x, y: cy0 - size / 2, w: size, h: size + DECOR_SHADOW_H / 2 };
-        const zone = inflate(rect, 2, PARALLAX_MAX);
-        const inside = rect.x >= DECOR_EDGE && rect.x + rect.w <= width - DECOR_EDGE && zone.y >= 0;
-        if (inside && !taken.some((t) => intersects(zone, t))) {
-          placed = { name: DECOR_NAMES[pick], rect, rotation, row };
-          taken.push(zone);
-          break;
-        }
+    const offset = pathOffset(row);
+    const shape = row === trophyRow ? 'trophy' : viewShape(views[row]);
+    const node = nodeRect(row, width, shape);
+    const sides: DecorSide[] = offset !== 0 ? [offset > 0 ? -1 : 1] : coin < 0.5 ? [-1, 1] : [1, -1];
+    for (const side of sides) {
+      // À mi-chemin entre le bord du rond et le bord de l'écran
+      const gapStart = side < 0 ? 0 : node.x + node.w;
+      const gapEnd = side < 0 ? node.x : width;
+      const cx = (gapStart + gapEnd) / 2;
+      const cy = rowCenterY(row);
+      const rect = { x: cx - size / 2, y: cy - size / 2, w: size, h: size + DECOR_SHADOW_H / 2 };
+      const zone = inflate(rect, 2, PARALLAX_MAX);
+      const inside = rect.x >= DECOR_EDGE && rect.x + rect.w <= width - DECOR_EDGE;
+      // Jamais du côté de Val sur les mêmes lignes
+      const valSide = vals.some(
+        (v) => Math.sign(v.rect.x + v.rect.w / 2 - width / 2) === side && zone.y < v.rect.y + v.rect.h && v.rect.y < zone.y + zone.h
+      );
+      const free = !obstacles.some((o) => intersects(zone, o)) && !vals.some((v) => intersects(zone, v.rect));
+      if (inside && !valSide && free) {
+        candidates.push({ row, side, rect, zone, bend: Math.abs(offset) === BEND_OFFSET });
       }
-      if (placed) break;
-    }
-    if (placed) {
-      spots.push(placed);
-      previous = placed.name;
-      lastY = cy0;
     }
   }
-  return spots;
+
+  // Choix : les virages d'abord, puis les autres lignes. Un candidat n'est
+  // gardé que si, rangé dans l'ordre du chemin, il reste à 2 lignes de ses
+  // voisins et d'un autre côté qu'eux.
+  const chosen: Candidate[] = [];
+  const fits = (c: Candidate) => {
+    const sorted = [...chosen, c].sort((a, b) => a.row - b.row);
+    const i = sorted.indexOf(c);
+    const before = sorted[i - 1];
+    const after = sorted[i + 1];
+    const ok = (n?: Candidate) => !n || (Math.abs(n.row - c.row) >= DECOR_ROW_GAP && n.side !== c.side);
+    return ok(before) && ok(after) && !chosen.some((n) => intersects(n.zone, c.zone));
+  };
+  for (const pass of [true, false]) {
+    for (const c of candidates) {
+      if (chosen.length >= target) break;
+      if (c.bend === pass && fits(c)) chosen.push(c);
+    }
+  }
+  chosen.sort((a, b) => a.row - b.row);
+
+  // Objets et rotations, dans l'ordre du chemin
+  let previous: DecorName | null = null;
+  return chosen.map((c) => {
+    let pick = Math.floor(rand() * DECOR_NAMES.length);
+    if (DECOR_NAMES[pick] === previous) pick = (pick + 1) % DECOR_NAMES.length;
+    previous = DECOR_NAMES[pick];
+    const rotation = Math.round((rand() * 2 - 1) * DECOR_ROTATION * 10) / 10;
+    return { name: DECOR_NAMES[pick], rect: c.rect, rotation, row: c.row, side: c.side };
+  });
 }
 
 // Hauteur du chemin, décors sous le trophée compris

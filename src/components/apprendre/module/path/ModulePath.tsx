@@ -56,8 +56,6 @@ const CURRENT_HALO_OPACITY = 0.25;
 // Ombres au sol de Val et des décors
 const VAL_SHADOW_OPACITY = 0.55;
 const DECOR_SHADOW_OPACITY = 0.4;
-// Décors au second plan
-const DECOR_BRIGHTNESS = 0.8;
 // Déverrouillage : le rond réussi se remplit, puis le suivant s'ouvre
 const UNLOCK_DELAY = 650;
 const BOTTOM_ROOM = 32;
@@ -327,7 +325,7 @@ function GroundShadow({
   );
 }
 
-// Un décor : au second plan (luminosité 80 %), légère rotation, ombre au sol,
+// Un décor : au second plan (image assombrie), légère rotation, ombre au sol,
 // et il défile à 92 % de la vitesse du chemin (pas avec les animations réduites)
 function Decor({
   decor,
@@ -360,17 +358,13 @@ function Decor({
         left={rect.w * 0.15}
         top={rect.w - DECOR_SHADOW_H / 2 - 4}
       />
-      {/* Luminosité et rotation sur la vue : le style d'une image n'accepte pas filter */}
-      <View
-        style={{
-          width: rect.w,
-          height: rect.w,
-          transform: [{ rotate: `${decor.rotation}deg` }],
-          filter: [{ brightness: DECOR_BRIGHTNESS }],
-        }}
-      >
-        <Image source={DECOR_IMAGES[decor.name]} resizeMode="contain" style={{ width: rect.w, height: rect.w }} />
-      </View>
+      {/* Images déjà assombries (80 %) à la conversion : aucun filtre ici, un
+          filtre peut rendre un calque opaque sur iOS */}
+      <Image
+        source={DECOR_IMAGES[decor.name]}
+        resizeMode="contain"
+        style={{ width: rect.w, height: rect.w, transform: [{ rotate: `${decor.rotation}deg` }] }}
+      />
     </Animated.View>
   );
 }
