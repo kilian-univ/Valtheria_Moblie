@@ -20,6 +20,7 @@ import { useDictionary, useDictionaryRecents } from '@/src/hooks/useDictionary';
 import { OFFLINE_BANNER } from '@/src/hooks/useLearningData';
 import { learningStore } from '@/src/state/learningStore';
 import { DictionaryLesson, findEntry, sameFamily, shareMessage } from '@/src/utils/dictionary';
+import { dictionaryTermHref, termHref } from '@/src/utils/dictionaryLinks';
 import { tap } from '@/src/utils/haptics';
 
 const TERM_SIZE = 40;
@@ -30,8 +31,11 @@ function moduleOfLesson(modules: Module[], lessonId: number): Module | null {
   return modules.find((m) => (m.lessons ?? []).some((l) => l.id === lessonId)) ?? null;
 }
 
-// Fiche d'un mot (pile de l'onglet Dictionnaire, barre d'onglets visible)
-export default function TermScreen() {
+// Fiche d'un mot. Dans la pile de l'onglet Dictionnaire (barre d'onglets
+// visible), ou `standalone` : pile racine, par-dessus l'écran qui l'a ouverte
+// (article…), où ramène le retour. Les mots de la même famille s'ouvrent dans
+// la même pile que la fiche.
+export default function TermScreen({ standalone = false }: { standalone?: boolean }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useTheme();
@@ -51,7 +55,7 @@ export default function TermScreen() {
   }, [openedTerm, addRecent]);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/dictionary'));
-  const openTerm = (t: string) => router.push({ pathname: '/dictionary/mot', params: { term: t } });
+  const openTerm = (t: string) => router.push(standalone ? termHref(t) : dictionaryTermHref(t));
 
   const share = () => {
     if (!entry) return;
@@ -109,8 +113,8 @@ export default function TermScreen() {
         variant="error"
         title="Mot introuvable"
         message="Ce mot n'est pas (ou plus) dans le dictionnaire."
-        retryLabel="Retour au dictionnaire"
-        onRetry={() => router.replace('/dictionary')}
+        retryLabel={standalone ? 'Retour' : 'Retour au dictionnaire'}
+        onRetry={standalone ? goBack : () => router.replace('/dictionary')}
       />
     );
   } else {

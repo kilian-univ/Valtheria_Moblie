@@ -37,6 +37,7 @@ import {
   wordOfTheDay,
   wordsLabel,
 } from '@/src/utils/dictionary';
+import { dictionaryTermHref } from '@/src/utils/dictionaryLinks';
 import { formatInteger } from '@/src/utils/format';
 import { select } from '@/src/utils/haptics';
 
@@ -71,7 +72,7 @@ export default function DictionaryHomeScreen() {
   const listRef = useRef<SectionList<DictionaryEntry, Section>>(null);
 
   const openTerm = useCallback(
-    (term: string) => router.push({ pathname: '/dictionary/mot', params: { term } }),
+    (term: string) => router.push(dictionaryTermHref(term)),
     [router]
   );
 

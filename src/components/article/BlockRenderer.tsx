@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 
 import { ColorScheme, fonts, getBlockStyles, palette } from '../../constants/style/Style';
+import { termHref } from '../../utils/dictionaryLinks';
 
 // -----------------------------------------------------------------------
 // Construit une regex qui matche n'importe lequel des termes du dictionnaire,
@@ -54,10 +55,8 @@ function linkifyDictionaryTerms(
         key={`${keyPrefix}-term-${key++}`}
         style={styles.termLink}
         onPress={() =>
-          router.push({
-            pathname: '/dictionary/mot',
-            params: { term: matchedText },
-          })
+          // Par-dessus l'article : le retour y ramène (voir dictionaryLinks)
+          router.push(termHref(matchedText))
 }
 >
         {matchedText}
