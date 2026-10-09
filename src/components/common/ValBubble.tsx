@@ -84,7 +84,7 @@ const BLINK_MIN_DELAY = 3000;
 const BLINK_RANDOM_DELAY = 4000;
 const BLINK_DOUBLE_CHANCE = 0.28;
 
-function useBlink(enabled: boolean): boolean {
+export function useBlink(enabled: boolean): boolean {
   const [closed, setClosed] = useState(false);
 
   useEffect(() => {
@@ -110,6 +110,13 @@ function useBlink(enabled: boolean): boolean {
   }, [enabled]);
 
   return enabled && closed;
+}
+
+// Sources d'une humeur dans un cadrage : yeux ouverts, et yeux fermés si
+// l'humeur en a (humeur inconnue → neutre)
+export function valSources(mood: ValMood, frame: ValFrame): { open: ImageSourcePropType; closed?: ImageSourcePropType } {
+  const safeMood: ValMood = VAL_IMAGES[frame][mood] ? mood : 'neutre';
+  return { open: VAL_IMAGES[frame][safeMood], closed: VAL_CLOSED[frame][safeMood] };
 }
 
 // Image de Val, qui cligne des yeux quand son humeur le permet (pas avec les

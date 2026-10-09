@@ -32,6 +32,9 @@ export const palette = {
   // Thème sombre — reprend le fond confirmé du site (#0D0D0F)
   dark: {
     background: '#0D0D0F',
+    backgroundNight: '#141A24',          // fond commun : coin bleu nuit
+    backgroundGold: '#1D180F',           // fond commun : coin de la lumière
+    backgroundGlow: 'rgba(201,168,76,0.17)', // cœur de la lueur dorée du fond
     surface: '#18181C',       // cartes, inputs, panneaux légèrement plus clairs
     surfaceAlt: '#232328',
     text: '#F2EFE8',
@@ -84,6 +87,10 @@ export const palette = {
   // Thème clair — même identité, inversée pour la lisibilité de jour
   light: {
     background: '#FAFAFA',
+    // Thème clair : fond commun uni (aucun changement)
+    backgroundNight: '#FAFAFA',
+    backgroundGold: '#FAFAFA',
+    backgroundGlow: 'rgba(232,178,61,0)',
     surface: '#FFFFFF',
     surfaceAlt: '#F0EFF4',
     text: '#0D0D0F',
@@ -137,14 +144,14 @@ export const palette = {
 
 // Couleurs propres à chaque module (chemin, bannière, carte de leçon).
 // face : aplat ; deep : tranche du relief ; onFace : texte et icônes posés
-// dessus ; night : teinte de fond de la page (8 % de face dans background).
+// dessus.
 // Les leçons terminées sont en or (récompense), pas dans la couleur du module. Quel module prend quelle couleur : moduleColorKey (utils/modulePath).
 // L'or reste réservé à l'XP, aux Vals, aux coffres et aux trophées.
 export const moduleColors = {
-  ardoise: { face: '#7C9CC4', deep: '#4F6B8F', onFace: '#0D0D0F', night: '#16181D' },
-  sarcelle: { face: '#5E9E9A', deep: '#3F6F6C', onFace: '#0D0D0F', night: '#13191A' },
-  cuivre: { face: '#C9855A', deep: '#8E5A39', onFace: '#0D0D0F', night: '#1C1715' },
-  ivoire: { face: '#D9D2C3', deep: '#A39C8D', onFace: '#0D0D0F', night: '#1D1D1D' },
+  ardoise: { face: '#7C9CC4', deep: '#4F6B8F', onFace: '#0D0D0F' },
+  sarcelle: { face: '#5E9E9A', deep: '#3F6F6C', onFace: '#0D0D0F' },
+  cuivre: { face: '#C9855A', deep: '#8E5A39', onFace: '#0D0D0F' },
+  ivoire: { face: '#D9D2C3', deep: '#A39C8D', onFace: '#0D0D0F' },
 } as const;
 
 export type ModuleColors = (typeof moduleColors)[keyof typeof moduleColors];
@@ -257,7 +264,6 @@ export function getBasiquesStyles(colorScheme: ColorScheme) {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: colors.background,
     },
     title: {
       fontSize: 28,
@@ -288,30 +294,6 @@ export function getBasiquesStyles(colorScheme: ColorScheme) {
   });
 }
 
-export function getBackgroundStyles(colorScheme: ColorScheme) {
-  const colors = palette[colorScheme];
-  const isDark = colorScheme === 'dark';
-
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-      overflow: 'hidden',
-    },
-    blobLight: {
-      position: 'absolute',
-      borderRadius: 999,
-      backgroundColor: colors.blobLight,
-      opacity: isDark ? 0.025 : 0.02,
-    },
-    blobDark: {
-      position: 'absolute',
-      borderRadius: 999,
-      backgroundColor: colors.blobDark,
-      opacity: isDark ? 0.18 : 0.03,
-    },
-  });
-}
 
 export function getBoutonStyles(colorScheme: ColorScheme) {
   const colors = palette[colorScheme];
@@ -372,7 +354,6 @@ export function getHeaderStyles(colorScheme: ColorScheme) {
       justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingVertical: 8,
-      backgroundColor: colors.background,
     },
     side: {
       minWidth: 32,
@@ -419,7 +400,6 @@ export function getProfileStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     scroll: {
       flexGrow: 1,
-      backgroundColor: colors.background,
       padding: 20,
       gap: 16,
     },
@@ -583,7 +563,6 @@ export function getDictionaryStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
     },
     listContent: {
       paddingHorizontal: 20,
@@ -830,7 +809,6 @@ export function getArticlesStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
     },
     listContent: {
       padding: 20,
@@ -912,7 +890,6 @@ export function getArticleDetailStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
     },
     scroll: {
       paddingBottom: 40,
@@ -1132,7 +1109,6 @@ export function getPortefeuilleStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: colors.background,
     },
     centered: {
       flex: 1,
@@ -1418,7 +1394,6 @@ export function getEpargneStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: colors.background,
     },
     centered: {
       flex: 1,
@@ -1614,7 +1589,6 @@ export function getCashflowStyles(colorScheme: ColorScheme) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: colors.background,
     },
     centered: {
       flex: 1,

@@ -11,7 +11,8 @@ export const CustomLightTheme = {
   colors: {
     ...DefaultTheme.colors,
     primary: palette.light.gold,
-    background: palette.light.background,
+    // Transparent : le fond commun (AppBackground) est dessiné à la racine
+    background: 'transparent',
     card: palette.light.surface,
     text: palette.light.text,
     border: palette.light.border,
@@ -23,7 +24,7 @@ export const CustomDarkTheme = {
   colors: {
     ...DarkTheme.colors,
     primary: palette.dark.gold,
-    background: palette.dark.background,
+    background: 'transparent',
     card: palette.dark.surface,
     text: palette.dark.text,
     border: palette.dark.border,

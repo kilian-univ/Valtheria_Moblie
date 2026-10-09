@@ -1,12 +1,9 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
-import { palette, space } from '@/src/constants/style/Style';
-import { useTheme } from '@/src/context/ThemeContext';
+import { space } from '@/src/constants/style/Style';
 
-const FADE_HEIGHT = 28;
 
 type NextLessonBarProps = {
   label: string;
@@ -19,8 +16,9 @@ type NextLessonBarProps = {
   onHeight: (height: number) => void;
 };
 
-// Bouton fixé en bas de la page module, au-dessus de la barre d'onglets.
-// Un fondu vers le fond le précède : le chemin passe dessous.
+// Bouton en bas de la page module, au-dessus de la barre d'onglets. Il est
+// dans le flux, sous le contenu qui défile : rien ne passe dessous, pas
+// besoin d'aplat (le fond commun se voit derrière).
 export default function NextLessonBar({
   label,
   onPress,
@@ -30,21 +28,13 @@ export default function NextLessonBar({
   error,
   onHeight,
 }: NextLessonBarProps) {
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
-
   return (
     <View
-      style={styles.bar}
+      style={styles.panelWrap}
       pointerEvents="box-none"
       onLayout={(e) => onHeight(e.nativeEvent.layout.height)}
     >
-      <LinearGradient
-        pointerEvents="none"
-        colors={['transparent', colors.background]}
-        style={styles.fade}
-      />
-      <View style={[styles.panel, { backgroundColor: colors.background }]}>
+      <View style={styles.panel}>
         {error ? (
           <AppText variant="callout" tone="error" style={styles.error} accessibilityLiveRegion="polite">
             {error}
@@ -63,19 +53,12 @@ export default function NextLessonBar({
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  fade: {
-    height: FADE_HEIGHT,
-  },
   panel: {
+    paddingTop: space[3],
     paddingHorizontal: space[5],
     paddingBottom: space[4],
   },
+  panelWrap: {},
   error: {
     textAlign: 'center',
     marginBottom: space[2],

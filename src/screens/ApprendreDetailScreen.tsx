@@ -18,9 +18,8 @@ import PageState from '@/src/components/common/PageState';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import { devSlowLoading } from '@/src/constants/dev';
-import { palette, space } from '@/src/constants/style/Style';
+import { space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
-import { useTheme } from '@/src/context/ThemeContext';
 import { isNetworkError } from '@/src/hooks/useLearningData';
 import type { LessonScreen } from '@/src/lesson/model';
 import { normalizeLesson } from '@/src/lesson/normalize';
@@ -63,8 +62,6 @@ export default function ApprendreDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const navigation = useNavigation();
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
   const { getLesson, completeLesson, getModules, getProgress } = useApi();
 
   const [screens, setScreens] = useState<LessonScreen[]>([]);
@@ -323,7 +320,7 @@ export default function ApprendreDetailScreen() {
   const notFound = !isLoading && !loadError && !current;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <LessonTopBar progress={progress} run={run} onClose={handleClose} />
 
       {loadError || notFound ? (

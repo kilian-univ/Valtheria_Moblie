@@ -209,7 +209,7 @@ export default function ApprendreHomeScreen() {
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <View style={styles.screen}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + space[2] }]}
         refreshControl={

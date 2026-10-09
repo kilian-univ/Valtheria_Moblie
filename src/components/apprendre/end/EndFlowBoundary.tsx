@@ -5,8 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import { ValAvatar } from '@/src/components/common/ValBubble';
-import { palette, space } from '@/src/constants/style/Style';
-import { useTheme } from '@/src/context/ThemeContext';
+import { space } from '@/src/constants/style/Style';
 
 type Props = {
   children: ReactNode;
@@ -40,10 +39,8 @@ export default class EndFlowBoundary extends Component<Props, State> {
 const VAL_SIZE = 90;
 
 function EndFallback({ onDone }: { onDone: () => void }) {
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.center}>
         <ValAvatar mood="celebrant" diameter={VAL_SIZE} />
         <AppText variant="title1" accessibilityRole="header" style={styles.text}>

@@ -1,19 +1,18 @@
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getBasiquesStyles, getBoutonStyles, palette } from '../constants/style/Style';
+import { getBasiquesStyles, getBoutonStyles } from '../constants/style/Style';
 import { useTheme } from '../context/ThemeContext';
 
 import Header from '../components/topbar/header';
 
 export default function IndexScreen() {
   const { colorScheme, toggleTheme } = useTheme();
-  const colors = palette[colorScheme];
   const basiques_styles = getBasiquesStyles(colorScheme);
   const bouton_styles = getBoutonStyles(colorScheme);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom']}>
+    <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
     <Header/>
     <View style={basiques_styles.container}>
       <Text style={basiques_styles.title}>Richesse</Text>

@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 
+import AppBackground from '@/src/components/common/AppBackground';
 import { SkeletonProvider } from '@/src/components/common/Skeleton';
 import StartupGate from '@/src/components/splash/StartupGate';
 import { palette } from '@/src/constants/style/Style';
@@ -44,12 +45,15 @@ function RootLayoutContent() {
         {/* Une seule animation de reflet, partagée par tous les squelettes */}
         <SkeletonProvider>
           <View style={{ flex: 1, backgroundColor: colors.background }}>
+            {/* Fond commun, une seule fois, derrière toute la navigation */}
+            <AppBackground />
             {fontsReady && (
               <Stack
                 screenOptions={{
                   headerShown: false,
                   animation: 'fade',
-                  contentStyle: { backgroundColor: colors.background },
+                  // Écrans transparents : le fond commun se voit derrière
+                  contentStyle: { backgroundColor: 'transparent' },
                 }}
               >
                 <Stack.Screen name="(tabs)" />

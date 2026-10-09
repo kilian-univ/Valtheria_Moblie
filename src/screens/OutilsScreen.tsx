@@ -43,7 +43,7 @@ export default function OutilsScreen() {
   const router = useRouter();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1 }}>
       <Header showBack={false} />
 
       <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>

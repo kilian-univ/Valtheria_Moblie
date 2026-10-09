@@ -85,10 +85,8 @@ export default function LessonEndFlow({ result, streakBefore, moduleTitle, onDon
 }
 
 function EndLayout({ children }: { children: ReactNode }) {
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       {children}
     </SafeAreaView>
   );

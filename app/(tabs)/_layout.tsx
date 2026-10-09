@@ -4,6 +4,7 @@ import { ComponentProps } from 'react';
 import { ColorValue } from 'react-native';
 
 import { palette, textVariants } from '@/src/constants/style/Style';
+import { TAB_ROUTES } from '@/src/constants/tabs';
 import { useTheme } from '@/src/context/ThemeContext';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -34,12 +35,12 @@ export default function TabLayout() {
           borderTopColor: colors.border,
           borderTopWidth: 1,
         },
-        sceneStyle: { backgroundColor: colors.background },
+        // Transparent : le fond commun (AppBackground) se voit derrière
+        sceneStyle: { backgroundColor: 'transparent' },
       }}>
-      <Tabs.Screen name="apprendre" options={{ title: 'Apprendre', tabBarIcon: tabIcon('school-outline') }} />
-      <Tabs.Screen name="dictionary" options={{ title: 'Dictionnaire', tabBarIcon: tabIcon('book-outline') }} />
-      <Tabs.Screen name="article" options={{ title: 'Articles', tabBarIcon: tabIcon('newspaper-outline') }} />
-      <Tabs.Screen name="outils" options={{ title: 'Outils', tabBarIcon: tabIcon('stats-chart-outline') }} />
+      {TAB_ROUTES.map((tab) => (
+        <Tabs.Screen key={tab.name} name={tab.name} options={{ title: tab.title, tabBarIcon: tabIcon(tab.icon) }} />
+      ))}
     </Tabs>
   );
 }

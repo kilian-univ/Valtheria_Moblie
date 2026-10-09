@@ -1,7 +1,6 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,7 +22,7 @@ import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import { durations } from '@/src/constants/motion';
 import AppText from '@/src/components/common/AppText';
-import { fonts, moduleColors, palette, space, withOpacity } from '@/src/constants/style/Style';
+import { fonts, moduleColors, palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { loadErrorMessage, OFFLINE_BANNER, OFFLINE_REASON, useLearningData } from '@/src/hooks/useLearningData';
@@ -126,10 +125,9 @@ export default function ModuleScreen() {
 
   const updateSide = useCallback(() => {
     if (pathTop === null || !focusRect || viewport.current === 0) return;
-    const visibleTop = scrollY.current + headerH;
-    const side = visibility(pathTop + focusRect.y, focusRect.h, visibleTop, viewport.current - headerH);
+    const side = visibility(pathTop + focusRect.y, focusRect.h, scrollY.current, viewport.current);
     setFocusSide((s) => (s === side ? s : side));
-  }, [pathTop, focusRect, headerH]);
+  }, [pathTop, focusRect]);
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollY.current = e.nativeEvent.contentOffset.y;
@@ -140,10 +138,10 @@ export default function ModuleScreen() {
   const scrollToFocus = useCallback(
     (animated: boolean) => {
       if (pathTop === null || !focusRect) return;
-      const target = pathTop + focusRect.y - (headerH + (viewport.current - headerH) / 3);
+      const target = pathTop + focusRect.y - viewport.current / 3;
       scrollRef.current?.scrollTo({ y: Math.max(0, target), animated });
     },
-    [pathTop, focusRect, headerH]
+    [pathTop, focusRect]
   );
 
   // Arrivée : une seule fois, après la cascade des ronds
@@ -168,14 +166,15 @@ export default function ModuleScreen() {
     if (pathTop === null) return;
     const nodeTop = pathTop + rect.y;
     const maxScroll = Math.max(0, contentHeight.current - viewport.current);
-    const anchor = headerH + (viewport.current - headerH) * CARD_ANCHOR;
+    const anchor = viewport.current * CARD_ANCHOR;
     const target = Math.min(maxScroll, Math.max(0, nodeTop - anchor));
     scrollRef.current?.scrollTo({ y: target, animated: false });
     scrollY.current = target;
     scrollSV.set(target);
     setCard({
       view,
-      top: nodeTop - target + rect.h + CARD_GAP,
+      // La carte est posée dans l'écran : sous l'en-tête
+      top: headerH + nodeTop - target + rect.h + CARD_GAP,
       pointX: space[5] + rect.x + rect.w / 2,
     });
   };
@@ -302,12 +301,6 @@ export default function ModuleScreen() {
       const followingDone = followingViews.filter((v) => v.status === 'completed').length;
       after = (
         <View style={styles.after}>
-          {/* Le bas du fond vire vers la teinte nuit du module suivant */}
-          <LinearGradient
-            colors={[withOpacity(followingTint.night, 0), followingTint.night]}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-          />
           <View style={styles.separator} accessibilityRole="header">
             <View style={[styles.separatorRule, { backgroundColor: colors.border }]} />
             <AppText tone="subtitle" style={styles.separatorText}>
@@ -347,17 +340,12 @@ export default function ModuleScreen() {
   const doneCount = views.filter((v) => v.status === 'completed').length;
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      {/* Fond : teinte nuit du module en haut, vers le fond de l'app à 60 % */}
-      <LinearGradient
-        colors={[tint.night, colors.background]}
-        locations={[0, 0.6]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-
+    <View style={styles.screen}>
+      {/* Le contenu défile sous l'en-tête, sans passer derrière lui : aucune
+          bande de couleur, le fond commun se voit partout */}
       <ScrollView
         ref={scrollRef}
+        style={{ marginTop: headerH }}
         onScroll={onScroll}
         scrollEventThrottle={16}
         onLayout={(e) => {
@@ -368,7 +356,7 @@ export default function ModuleScreen() {
         onContentSizeChange={(_w, h) => {
           contentHeight.current = h;
         }}
-        contentContainerStyle={{ paddingTop: headerH, paddingBottom: (bar ? barHeight : 0) + space[8] }}
+        contentContainerStyle={{ paddingBottom: space[8] }}
       >
         {/* Bandeau hors ligne */}
         <View style={styles.padded}>{extras}</View>
@@ -387,10 +375,9 @@ export default function ModuleScreen() {
         {after}
       </ScrollView>
 
-      {/* En-tête fixe au défilement : retour, pastilles, bannière. Fond de la
-          teinte nuit, qui se fond vers le bas pour que le chemin passe dessous */}
+      {/* En-tête fixe : retour, pastilles, bannière, sur le fond commun */}
       <View style={styles.header} onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
-        <View style={{ backgroundColor: tint.night, paddingTop: insets.top }}>
+        <View style={{ paddingTop: insets.top }}>
           <View style={styles.topRow}>
             <BackButton onBack={goBack} />
             <View style={styles.pills}>
@@ -412,12 +399,8 @@ export default function ModuleScreen() {
               />
             ) : null}
           </View>
+          <View style={styles.headerGap} />
         </View>
-        <LinearGradient
-          colors={[tint.night, withOpacity(tint.night, 0)]}
-          style={styles.headerFade}
-          pointerEvents="none"
-        />
       </View>
 
       {bar}
@@ -481,8 +464,8 @@ export default function ModuleScreen() {
   );
 }
 
-// Fondu sous l'en-tête fixe
-const HEADER_FADE = 24;
+// Marge sous la bannière, avant le contenu qui défile
+const HEADER_GAP = 12;
 const SEPARATOR_TEXT = 13;
 
 const styles = StyleSheet.create({
@@ -495,8 +478,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
-  headerFade: {
-    height: HEADER_FADE,
+  headerGap: {
+    height: HEADER_GAP,
   },
   topRow: {
     flexDirection: 'row',

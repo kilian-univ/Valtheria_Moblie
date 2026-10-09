@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import ScreenBackground from '@/src/components/common/ScreenBackground';
 import ValsCoin from '@/src/components/common/ValsCoin';
 import Header from '@/src/components/topbar/header';
 import {
@@ -137,9 +136,9 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <ScreenBackground>
+      <View style={{ flex: 1, justifyContent: 'center' }}>
         <ActivityIndicator />
-      </ScreenBackground>
+      </View>
     );
   }
 
@@ -147,7 +146,6 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-      <ScreenBackground>
       <Header showBack />
 
       <ScrollView contentContainerStyle={profile_styles.scroll}>
@@ -354,7 +352,6 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView>
-      </ScreenBackground>
     </SafeAreaView>
   );
 }
