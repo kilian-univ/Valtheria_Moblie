@@ -261,33 +261,81 @@ test('« Une autre question » : un autre tirage, toujours valide', () => {
   assert.deepEqual(new Set(rounds.map((q) => q.kind)), new Set(['term', 'definition']));
 });
 
-test('« Quel mot… ? » : définition d’un AUTRE mot de la même catégorie', () => {
+test('la question ne porte jamais sur le mot de la fiche, qui n’est jamais la bonne réponse', () => {
+  for (const entry of ENTRIES) {
+    for (let r = 0; r < 30; r++) {
+      const q = checkQuiz(quizFor(ENTRIES, entry, DAY, r));
+      assert.notEqual(normalizeText(q.subject), normalizeText(entry.term), `${entry.term}, tirage ${r}`);
+      const subject = findEntry(ENTRIES, q.subject)!;
+      if (q.kind === 'term') {
+        assert.notEqual(normalizeText(q.correctLabel), normalizeText(entry.term));
+      } else {
+        assert.notEqual(q.correctLabel, shortDefinition(entry.definition));
+        assert.ok(!q.question.includes(entry.term), q.question);
+      }
+      assert.ok(subject);
+    }
+  }
+});
+
+test('mot de la question : de la même catégorie quand elle en a d’autres', () => {
   const action = findEntry(ENTRIES, 'Action')!;
+  for (let r = 0; r < 20; r++) assert.equal(findEntry(ENTRIES, quizFor(ENTRIES, action, DAY, r)!.subject)!.category, 'Bourse');
+});
+
+test('mot seul dans sa catégorie : la question porte sur un mot du dictionnaire', () => {
+  const inflation = findEntry(ENTRIES, 'Inflation')!; // seul mot d’Économie
+  for (let r = 0; r < 10; r++) {
+    const q = checkQuiz(quizFor(ENTRIES, inflation, DAY, r));
+    assert.notEqual(q.subject, 'Inflation');
+  }
+});
+
+test('« Quel mot… ? » : définition du mot de la question, ce mot est la bonne réponse', () => {
+  const action = findEntry(ENTRIES, 'Action')!;
+  let seen = 0;
   for (let r = 0; r < 20; r++) {
     const q = quizFor(ENTRIES, action, DAY, r)!;
     if (q.kind !== 'term') continue;
-    const target = findEntry(ENTRIES, q.correctLabel)!;
-    assert.notEqual(target.term, 'Action');
-    assert.equal(target.category, 'Bourse');
-    assert.equal(q.quote, target.definition);
+    seen++;
+    const subject = findEntry(ENTRIES, q.subject)!;
     assert.equal(q.question, 'Quel mot correspond à cette définition ?');
+    assert.equal(q.quote, subject.definition);
+    assert.equal(q.correctLabel, subject.term);
   }
+  assert.ok(seen > 0);
 });
 
-test('« Que veut dire… ? » : la bonne définition, courte', () => {
+test('« Que veut dire… ? » : sur le mot de la question, sa définition courte', () => {
   const action = findEntry(ENTRIES, 'Action')!;
+  let seen = 0;
   for (let r = 0; r < 20; r++) {
     const q = quizFor(ENTRIES, action, DAY, r)!;
     if (q.kind !== 'definition') continue;
-    assert.equal(q.question, 'Que veut dire Action ?');
-    assert.equal(q.correctLabel, shortDefinition(action.definition));
+    seen++;
+    const subject = findEntry(ENTRIES, q.subject)!;
+    assert.equal(q.question, `Que veut dire ${subject.term} ?`);
+    assert.equal(q.correctLabel, shortDefinition(subject.definition));
     assert.equal(q.quote, null);
+  }
+  assert.ok(seen > 0);
+});
+
+test('mot de la fiche évité parmi les mauvaises réponses quand le dictionnaire le permet', () => {
+  for (const entry of ENTRIES) {
+    for (let r = 0; r < 10; r++) {
+      const q = quizFor(ENTRIES, entry, DAY, r)!;
+      const own = q.kind === 'term' ? entry.term : shortDefinition(entry.definition);
+      assert.ok(!q.answers.some((a) => normalizeText(a.label) === normalizeText(own)), `${entry.term}, tirage ${r}`);
+    }
   }
 });
 
-test('mot seul dans sa catégorie : « Que veut dire… ? », mauvaises réponses prises ailleurs', () => {
-  const inflation = findEntry(ENTRIES, 'Inflation')!; // seul mot d’Économie
-  for (let r = 0; r < 10; r++) assert.equal(checkQuiz(quizFor(ENTRIES, inflation, DAY, r)).kind, 'definition');
+test('dictionnaire de 3 mots : question possible, le mot de la fiche sert alors de mauvaise réponse', () => {
+  const three = ENTRIES.slice(0, 3);
+  const q = checkQuiz(quizFor(three, three[0], DAY));
+  assert.notEqual(q.subject, three[0].term);
+  assert.ok(!q.answers.find((a) => a.correct)!.label.includes(three[0].term));
 });
 
 test('mauvaises réponses : même catégorie d’abord, puis tout le dictionnaire', () => {

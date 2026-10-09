@@ -11,12 +11,15 @@ import { error, success } from '@/src/utils/haptics';
 type TermQuizProps = {
   entries: DictionaryEntry[];
   entry: DictionaryEntry;
+  // Ouvre la fiche du mot de la question, à la place de la fiche courante
+  onOpenTerm: (term: string) => void;
 };
 
-// « Teste-toi » : une question tirée pour ce mot (la même toute la journée),
-// réponses en relief comme dans le lecteur de leçon. Un toucher valide ;
-// rien n'est envoyé au serveur. Le parent remonte le bloc à chaque mot (key).
-export default function TermQuiz({ entries, entry }: TermQuizProps) {
+// « Teste-toi » : une question tirée pour cette fiche (la même toute la
+// journée), qui porte sur un AUTRE mot ; réponses en relief comme dans le
+// lecteur de leçon. Un toucher valide ; rien n'est envoyé au serveur. Le
+// parent remonte le bloc à chaque mot (key).
+export default function TermQuiz({ entries, entry, onOpenTerm }: TermQuizProps) {
   const [today] = useState(() => new Date());
   const [round, setRound] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
@@ -86,6 +89,12 @@ export default function TermQuiz({ entries, entry }: TermQuizProps) {
           <AppText variant="bodyMedium" tone={won ? 'success' : 'text'} accessibilityLiveRegion="polite">
             {feedback}
           </AppText>
+          <Button
+            variant="text"
+            label={`Voir la fiche de ${quiz.subject}`}
+            onPress={() => onOpenTerm(quiz.subject)}
+            accessibilityHint="Remplace cette fiche"
+          />
           <Button variant="text" label="Une autre question" onPress={another} />
         </View>
       ) : null}

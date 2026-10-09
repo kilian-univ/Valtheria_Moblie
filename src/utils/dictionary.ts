@@ -323,6 +323,8 @@ export type Quiz = {
   // 'term' : « Quel mot correspond à cette définition ? » ;
   // 'definition' : « Que veut dire <mot> ? »
   kind: 'term' | 'definition';
+  // Mot sur lequel porte la question : jamais celui de la fiche
+  subject: string;
   question: string;
   // Définition affichée sous la question (kind 'term')
   quote: string | null;
@@ -400,30 +402,41 @@ export function pickDistractors(
   return out;
 }
 
-// Question du jour pour un mot : la même à chaque ouverture le même jour ;
-// `round` (« Une autre question ») en tire une autre. null si le
-// dictionnaire a moins de 3 mots.
-export function quizFor(entries: DictionaryEntry[], entry: DictionaryEntry, date: Date, round = 0): Quiz | null {
-  if (entries.length < QUIZ_ANSWERS) return null;
+// Question du jour pour la fiche d'un mot : la même à chaque ouverture le même
+// jour ; `round` (« Une autre question ») en tire une autre. Elle porte
+// TOUJOURS sur un autre mot (`subject`), de la même catégorie si possible,
+// sinon du dictionnaire : la définition du mot de la fiche est déjà affichée
+// juste au-dessus. Le mot de la fiche n'est jamais la bonne réponse, et n'est
+// une mauvaise réponse que si le dictionnaire est trop petit pour l'éviter.
+// null si le dictionnaire a moins de 3 mots.
+export function quizFor(unsorted: DictionaryEntry[], entry: DictionaryEntry, date: Date, round = 0): Quiz | null {
+  if (unsorted.length < QUIZ_ANSWERS) return null;
+  // Tirage indépendant de l'ordre reçu
+  const entries = [...unsorted].sort(compareTerms);
   const random = rng(hashText(normalizeText(entry.term)) ^ Math.imul(dayNumber(date), 0x9e3779b1) ^ Math.imul(round + 1, 0x85ebca6b));
-  const others = entries.filter((e) => e.category === entry.category && normalizeText(e.term) !== normalizeText(entry.term));
-  const kind: Quiz['kind'] = others.length > 0 && random() < 0.5 ? 'term' : 'definition';
+  const self = normalizeText(entry.term);
+  const others = entries.filter((e) => normalizeText(e.term) !== self);
+  const sameCategory = others.filter((e) => e.category === entry.category);
+  const pool = sameCategory.length > 0 ? sameCategory : others;
+  if (pool.length === 0) return null;
 
-  if (kind === 'term') {
-    // Définition d'un AUTRE mot de la même catégorie ; on cherche ce mot
-    const target = others[Math.floor(random() * others.length)];
-    const wrong = pickDistractors(entries, entry.category, [target.term], QUIZ_ANSWERS - 1, random);
-    if (wrong.length < QUIZ_ANSWERS - 1) return null;
-    const answers = shuffled([{ label: target.term, correct: true }, ...wrong.map((e) => ({ label: e.term, correct: false }))], random);
-    return { kind, question: 'Quel mot correspond à cette définition ?', quote: target.definition, answers, correctLabel: target.term };
+  const subject = pool[Math.floor(random() * pool.length)];
+  const kind: Quiz['kind'] = random() < 0.5 ? 'term' : 'definition';
+  const label = kind === 'term' ? (e: DictionaryEntry) => e.term : (e: DictionaryEntry) => shortDefinition(e.definition);
+
+  // Mauvaises réponses autour du mot de la question, sans le mot de la fiche ;
+  // avec lui seulement s'il en manque
+  let wrong = pickDistractors(entries, subject.category, [subject.term, entry.term], QUIZ_ANSWERS - 1, random, label);
+  if (wrong.length < QUIZ_ANSWERS - 1) {
+    wrong = pickDistractors(entries, subject.category, [subject.term], QUIZ_ANSWERS - 1, random, label);
   }
-
-  const short = (e: DictionaryEntry) => shortDefinition(e.definition);
-  const wrong = pickDistractors(entries, entry.category, [entry.term], QUIZ_ANSWERS - 1, random, short);
   if (wrong.length < QUIZ_ANSWERS - 1) return null;
-  const correct = short(entry);
-  const answers = shuffled([{ label: correct, correct: true }, ...wrong.map((e) => ({ label: short(e), correct: false }))], random);
-  return { kind, question: `Que veut dire ${entry.term} ?`, quote: null, answers, correctLabel: correct };
+
+  const correct = label(subject);
+  const answers = shuffled([{ label: correct, correct: true }, ...wrong.map((e) => ({ label: label(e), correct: false }))], random);
+  return kind === 'term'
+    ? { kind, subject: subject.term, question: 'Quel mot correspond à cette définition ?', quote: subject.definition, answers, correctLabel: correct }
+    : { kind, subject: subject.term, question: `Que veut dire ${subject.term} ?`, quote: null, answers, correctLabel: correct };
 }
 
 // ---------------------------------------------------------------------------

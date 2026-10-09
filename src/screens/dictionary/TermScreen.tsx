@@ -167,7 +167,7 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
 
         <StaggerItem index={2}>
           <View style={styles.block}>
-            <TermQuiz key={entry.term} entries={data.entries} entry={entry} />
+            <TermQuiz key={entry.term} entries={data.entries} entry={entry} onOpenTerm={replaceTerm} />
           </View>
         </StaggerItem>
 
