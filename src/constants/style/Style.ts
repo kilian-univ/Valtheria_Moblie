@@ -32,8 +32,8 @@ export const palette = {
   // Thème sombre — reprend le fond confirmé du site (#0D0D0F)
   dark: {
     background: '#0D0D0F',
-    backgroundNight: '#141A24',          // fond commun : coin bleu nuit
-    backgroundGold: '#19170F',           // fond commun : coin de l'or sombre (aussi discret que la nuit)
+    backgroundNight: '#10141B',          // fond commun : coin bleu nuit
+    backgroundGold: '#13120D',           // fond commun : coin de l'or sombre (aussi discret que la nuit)
     surface: '#18181C',       // cartes, inputs, panneaux légèrement plus clairs
     surfaceAlt: '#232328',
     text: '#F2EFE8',

@@ -51,8 +51,9 @@ function RootLayoutContent() {
               <Stack
                 screenOptions={{
                   headerShown: false,
-                  animation: 'fade',
-                  // Écrans transparents : le fond commun se voit derrière
+                  // Transitions natives. Écrans transparents : le fond commun se
+                  // voit derrière les onglets ; les pages poussées par-dessus
+                  // sont opaques (OpaqueScreen).
                   contentStyle: { backgroundColor: 'transparent' },
                 }}
               >

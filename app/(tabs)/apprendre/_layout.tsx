@@ -5,9 +5,10 @@ import { Stack } from 'expo-router';
 // vit dans la pile racine et passe, lui, par-dessus les onglets.
 export default function ApprendreTabLayout() {
   return (
-    // Fondu : les écrans sont transparents (fond commun), un glissement
-    // laisserait voir l'écran du dessous à travers celui qui arrive
-    <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }}>
+    // Transitions natives (glissement et geste retour sur iOS). L'accueil,
+    // transparent, laisse voir le fond commun animé ; les pages poussées sont
+    // opaques (OpaqueScreen) et ne laissent jamais voir celle du dessous.
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="univers/[universeId]" />
       <Stack.Screen name="module/[moduleId]" />

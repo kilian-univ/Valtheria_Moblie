@@ -1,7 +1,11 @@
-import RegisterScreen from "@/src/screens/header/RegisterScreen";
+import { OpaqueScreen } from '@/src/components/common/AppBackground';
+import RegisterScreen from '@/src/screens/header/RegisterScreen';
 
-export default function Register(){
-    return (
-        <RegisterScreen/>
-    );
+// Page poussée sur une pile : opaque, avec sa copie du fond commun
+export default function Register() {
+  return (
+    <OpaqueScreen tab="client">
+      <RegisterScreen />
+    </OpaqueScreen>
+  );
 }
