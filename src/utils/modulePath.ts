@@ -12,11 +12,12 @@ import { lessonsWord, type LessonView } from './learning';
 export type ModuleColorKey = 'ardoise' | 'sarcelle' | 'cuivre' | 'ivoire';
 export const MODULE_COLOR_ORDER: readonly ModuleColorKey[] = ['ardoise', 'sarcelle', 'cuivre', 'ivoire'];
 
-// Couleur d'un univers : sa position, modulo 4. Stable tant que l'univers ne
-// change pas de position, quel que soit le nombre d'univers chargés.
+// Couleur d'un univers : (position - 1) modulo 4, pour que l'univers en
+// position 1 prenne la première couleur (ardoise). Stable tant que l'univers
+// ne change pas de position, quel que soit le nombre d'univers chargés.
 export function universeColorKey(universe: Universe): ModuleColorKey {
   const n = MODULE_COLOR_ORDER.length;
-  return MODULE_COLOR_ORDER[((universe.position % n) + n) % n];
+  return MODULE_COLOR_ORDER[(((universe.position - 1) % n) + n) % n];
 }
 
 // Univers d'un module parmi ceux de GET /universes : d'après module.universe,

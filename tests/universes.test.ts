@@ -145,25 +145,32 @@ test('aucun univers → liste vide (l’accueil garde les modules)', () => {
 // ---------------------------------------------------------------------------
 // Couleur
 // ---------------------------------------------------------------------------
-test('couleur d’un univers : position modulo 4, stable', () => {
+test('couleur d’un univers : (position - 1) modulo 4, stable', () => {
   const [a, b] = normalizeUniverses(RAW);
-  assert.equal(universeColorKey(a), MODULE_COLOR_ORDER[1]);
-  assert.equal(universeColorKey(b), MODULE_COLOR_ORDER[2]);
-  assert.equal(universeColorKey({ ...a, position: 5 }), universeColorKey(a));
+  assert.equal(universeColorKey(a), 'ardoise'); // position 1 : première couleur
+  assert.equal(universeColorKey(b), 'sarcelle'); // position 2
+  assert.equal(universeColorKey({ ...a, position: 4 }), 'ivoire');
+  assert.equal(universeColorKey({ ...a, position: 5 }), 'ardoise'); // on reboucle
+  assert.equal(universeColorKey({ ...a, position: 0 }), 'ivoire'); // jamais d'index négatif
+  assert.deepEqual(
+    [1, 2, 3, 4].map((position) => universeColorKey({ ...a, position })),
+    [...MODULE_COLOR_ORDER]
+  );
 });
 
 test('module d’un univers : couleur de l’univers, quel que soit son rang', () => {
   const universes = normalizeUniverses(RAW);
   const ref = { id: 1, slug: 'avant-d-investir', name: "Avant d'investir" };
   const modules = [mod(9), mod(1, { universe: ref }), mod(2, { universe: ref })];
-  assert.equal(moduleColorKey(modules, 1, universes), 'sarcelle');
-  assert.equal(moduleColorKey(modules, 2, universes), 'sarcelle');
+  // Le module 1 est 2e de la liste (règle actuelle : sarcelle) : l'univers l'emporte
+  assert.equal(moduleColorKey(modules, 1, universes), 'ardoise');
+  assert.equal(moduleColorKey(modules, 2, universes), 'ardoise');
   // Même résultat si l'ordre des modules change
-  assert.equal(moduleColorKey([...modules].reverse(), 1, universes), 'sarcelle');
+  assert.equal(moduleColorKey([...modules].reverse(), 1, universes), 'ardoise');
 });
 
 test('module rangé seulement par module_ids : couleur de l’univers', () => {
-  assert.equal(moduleColorKey([mod(5), mod(3)], 3, normalizeUniverses(RAW)), 'cuivre');
+  assert.equal(moduleColorKey([mod(5), mod(3)], 3, normalizeUniverses(RAW)), 'sarcelle');
 });
 
 test('sans univers : règle actuelle (rang modulo 4)', () => {
