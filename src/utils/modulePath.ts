@@ -62,8 +62,10 @@ export const HALO_SIZE = 112; // au plus 1,5 fois le rond (règle des halos)
 export const BUBBLE_W = 132;
 export const BUBBLE_H = 40;
 export const BUBBLE_GAP = 28; // bas de la bulle → haut du rond (l'anneau déborde de 17)
-// Place au-dessus du premier rond, pour la bulle et son rebond
-export const PATH_TOP = BUBBLE_H + BUBBLE_GAP + 12;
+// Place au-dessus du premier rond : la bulle et son rebond, et une rangée
+// de décors
+export const DECOR_TOP_ROOM = 40;
+export const PATH_TOP = BUBBLE_H + BUBBLE_GAP + 12 + DECOR_TOP_ROOM;
 export const VAL_W = 128;
 
 export function pathOffset(index: number): number {
@@ -253,15 +255,19 @@ export type DecorName = (typeof DECOR_NAMES)[number];
 export const DECOR_MIN = 64;
 export const DECOR_MAX = 88;
 export const DECOR_ROTATION = 6;
-// Distance horizontale au centre du chemin, du côté opposé aux ronds
-const DECOR_SIDE = 104;
-const DECOR_JITTER = 12;
+// Marge minimale au bord de l'écran
+export const DECOR_EDGE = 8;
+const DECOR_INWARD_JITTER = 12;
+// Écart vertical minimal entre deux décors (même côté ou non)
+const DECOR_GAP_Y = Math.round(STEP_Y * 0.9);
 // Effet de profondeur (92 % de la vitesse) : déplacement vertical maximal
 // par rapport au chemin, réservé autour de chaque décor
 export const PARALLAX_FACTOR = 0.08;
-export const PARALLAX_MAX = 32;
+export const PARALLAX_MAX = 20;
 // Ombre au sol sous le décor
 export const DECOR_SHADOW_H = 10;
+// Au moins 3 décors, puis environ un tous les deux ronds
+export const DECOR_MIN_COUNT = 3;
 
 export type DecorSpot = { name: DecorName; rect: Rect; rotation: number; row: number };
 
@@ -277,42 +283,76 @@ export function seededRandom(seed: number): () => number {
   };
 }
 
-// Environ un décor tous les deux ronds, sur les lignes où le rond est décalé
-// (on sait alors de quel côté est le vide), du côté opposé. Jamais sur un
-// rond, l'anneau, le halo, la bulle, Val ou un autre décor, jamais coupé par
-// le bord. Objets tirés selon l'id du module, jamais deux fois le même de suite.
+export function decorTarget(stepCount: number): number {
+  return Math.max(DECOR_MIN_COUNT, Math.ceil((stepCount + 1) / 2));
+}
+
+// Décors au bord du chemin, collés au bord de l'écran (8 px au moins), des
+// deux côtés : au-dessus du premier rond, à chaque ligne et demi-ligne, et
+// autour du trophée. Jamais sur un rond, l'anneau, le halo, la bulle, Val ou
+// un autre décor (marge de l'effet de profondeur comprise), jamais coupé par
+// le bord. Côté opposé au rond essayé d'abord ; taille réduite si la place
+// manque. Objets tirés selon l'id du module, jamais deux fois le même de suite.
 export function decorSpots(moduleId: number, views: LessonView[], width: number, vals: ValSpot[]): DecorSpot[] {
   const rand = seededRandom(moduleId * 7919 + 17);
-  const rowCount = views.length + 1; // jusqu'au trophée
+  const trophyRow = views.length;
   const taken: Rect[] = [...pathObstacles(views, width), ...vals.map((v) => v.rect)];
   const spots: DecorSpot[] = [];
+  const target = decorTarget(views.length);
   let previous: DecorName | null = null;
+  let lastY = -Infinity;
 
-  for (let row = 1; row < rowCount; row += 2) {
-    const offset = pathOffset(row);
-    if (offset === 0) continue;
-    // Tirages faits même si le décor n'est pas posé : l'ordre reste stable
+  // Lignes candidates (en rang : 0,5 = entre deux ronds), du haut vers le bas
+  const rows: number[] = [-0.75];
+  for (let r = 0; r <= trophyRow; r++) rows.push(r, r + 0.5);
+  rows.push(trophyRow + 0.9);
+
+  for (const row of rows) {
+    if (spots.length >= target) break;
+    const cy0 = rowCenterY(0) + row * STEP_Y;
+    if (cy0 - lastY < DECOR_GAP_Y) continue;
+
+    // Tirages faits pour chaque ligne, même sans décor posé : ordre stable
+    const preferred = DECOR_MAX - Math.round(rand() * (DECOR_MAX - DECOR_MIN));
+    const rotation = Math.round((rand() * 2 - 1) * DECOR_ROTATION * 10) / 10;
+    const inward = rand() * DECOR_INWARD_JITTER;
+    const coin = rand();
     let pick = Math.floor(rand() * DECOR_NAMES.length);
     if (DECOR_NAMES[pick] === previous) pick = (pick + 1) % DECOR_NAMES.length;
-    const name = DECOR_NAMES[pick];
-    const size = Math.round(DECOR_MIN + rand() * (DECOR_MAX - DECOR_MIN));
-    const rotation = Math.round((rand() * 2 - 1) * DECOR_ROTATION * 10) / 10;
-    const jitterX = (rand() * 2 - 1) * DECOR_JITTER;
-    const jitterY = (rand() * 2 - 1) * DECOR_JITTER;
 
-    const cx = width / 2 - Math.sign(offset) * DECOR_SIDE + jitterX;
-    const cy = rowCenterY(row) + jitterY;
-    const rect = { x: cx - size / 2, y: cy - size / 2, w: size, h: size + DECOR_SHADOW_H / 2 };
-    // Le décor peut glisser de PARALLAX_MAX vers le haut ou le bas
-    const zone = inflate(rect, 4, PARALLAX_MAX);
-    const inside = rect.x >= 0 && rect.x + rect.w <= width && rect.y - PARALLAX_MAX >= 0;
-    if (inside && !taken.some((t) => intersects(zone, t))) {
-      spots.push({ name, rect, rotation, row });
-      taken.push(zone);
-      previous = name;
+    // Côté : à l'opposé du rond le plus proche ; rond centré → au hasard
+    const offset = pathOffset(Math.round(row));
+    const first = offset !== 0 ? -Math.sign(offset) : coin < 0.5 ? -1 : 1;
+    const sizes = [preferred, ...[72, DECOR_MIN].filter((s) => s < preferred)];
+
+    let placed: DecorSpot | null = null;
+    for (const side of [first, -first]) {
+      for (const size of sizes) {
+        const x = side < 0 ? DECOR_EDGE + inward : width - DECOR_EDGE - inward - size;
+        const rect = { x, y: cy0 - size / 2, w: size, h: size + DECOR_SHADOW_H / 2 };
+        const zone = inflate(rect, 2, PARALLAX_MAX);
+        const inside = rect.x >= DECOR_EDGE && rect.x + rect.w <= width - DECOR_EDGE && zone.y >= 0;
+        if (inside && !taken.some((t) => intersects(zone, t))) {
+          placed = { name: DECOR_NAMES[pick], rect, rotation, row };
+          taken.push(zone);
+          break;
+        }
+      }
+      if (placed) break;
+    }
+    if (placed) {
+      spots.push(placed);
+      previous = placed.name;
+      lastY = cy0;
     }
   }
   return spots;
+}
+
+// Hauteur du chemin, décors sous le trophée compris
+export function pathContentHeight(stepCount: number, decors: DecorSpot[]): number {
+  const bottom = decors.reduce((m, d) => Math.max(m, d.rect.y + d.rect.h + PARALLAX_MAX), 0);
+  return Math.max(pathHeight(stepCount), bottom);
 }
 
 // Décalage d'effet de profondeur : nul quand le décor est au milieu de

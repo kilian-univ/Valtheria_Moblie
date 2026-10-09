@@ -27,7 +27,7 @@ import {
   nodeRect,
   PARALLAX_MAX,
   PARALLAX_FACTOR,
-  pathHeight,
+  pathContentHeight,
   Rect,
   ringRect,
   StepIcon,
@@ -160,7 +160,7 @@ export default function ModulePath({
   const currentShape = current >= 0 ? viewShape(views[current]) : 'lesson';
 
   return (
-    <View style={{ width, height: pathHeight(trophyIndex) + BOTTOM_ROOM }}>
+    <View style={{ width, height: pathContentHeight(trophyIndex, decors) + BOTTOM_ROOM }}>
       {/* Décors au second plan : ni touchables, ni lus */}
       <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
         {decors.map((decor) => (
