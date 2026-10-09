@@ -55,7 +55,7 @@ function linkifyDictionaryTerms(
         style={styles.termLink}
         onPress={() =>
           router.push({
-            pathname: '/(tabs)/dictionary',
+            pathname: '/dictionary/mot',
             params: { term: matchedText },
           })
 }

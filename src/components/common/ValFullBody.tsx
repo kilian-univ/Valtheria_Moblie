@@ -16,7 +16,7 @@ import { springs } from '@/src/constants/motion';
 import { fitHeight, windowFitHeight } from '@/src/utils/fit';
 import GoldHalo from './GoldHalo';
 
-export type ValPose = 'saut' | 'fier' | 'salut';
+export type ValPose = 'saut' | 'fier' | 'salut' | 'pense';
 
 // Val en pied, fond transparent, 800 px de haut (liseré vert du détourage
 // neutralisé à l'import). ratio = largeur / hauteur.
@@ -24,6 +24,7 @@ const POSES: Record<ValPose, { source: ImageSourcePropType; ratio: number }> = {
   saut: { source: require('@/assets/images/val/val-pied-saut.webp'), ratio: 603 / 800 },
   fier: { source: require('@/assets/images/val/val-pied-fier.webp'), ratio: 534 / 800 },
   salut: { source: require('@/assets/images/val/val-pied-salut.webp'), ratio: 534 / 800 },
+  pense: { source: require('@/assets/images/val/val-pied-pense.webp'), ratio: 533 / 800 },
 };
 
 export const VAL_FULL_BODY_MIN = 160;
