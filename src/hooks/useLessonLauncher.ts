@@ -5,8 +5,9 @@ import { Lesson, useApi } from '@/src/context/ApiContext';
 import { isNetworkError } from '@/src/hooks/useLearningData';
 import { error as errorHaptic } from '@/src/utils/haptics';
 
-// Lance une leçon : la démarre côté serveur si elle n'est pas terminée, puis
-// ouvre le lecteur (app/apprendre/[id], inchangé).
+// Lance une leçon : la démarre côté serveur à CHAQUE lancement, rejeu
+// compris (chaque /start ouvre une partie que /complete consomme, sinon
+// 403 not_started — API.md du site), puis ouvre le lecteur.
 export function useLessonLauncher() {
   const { startLesson } = useApi();
   const router = useRouter();
@@ -18,7 +19,7 @@ export function useLessonLauncher() {
     setStartingId(lesson.id);
     setLaunchError(null);
     try {
-      if (!lesson.completed) await startLesson(lesson.id);
+      await startLesson(lesson.id);
       router.push({ pathname: '/apprendre/[id]', params: { id: lesson.id } });
       return true;
     } catch (err) {

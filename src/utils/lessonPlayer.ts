@@ -102,6 +102,7 @@ export type LessonResult = {
   scored_total?: number;
   user?: { xp?: number; streak?: number };
   chest?: { rarity?: string; amount?: number } | null;
+  surprise_chest?: { amount?: number } | null;
   module_just_completed?: boolean;
   module?: { title?: string } | null;
   [key: string]: any;
@@ -117,13 +118,15 @@ export function streakGain(before: number | null, after: number | undefined): St
   return after > before ? { from: before, to: after } : null;
 }
 
-export type EndStep = 'done' | 'streak' | 'chest' | 'module';
+export type EndStep = 'done' | 'streak' | 'chest' | 'surprise' | 'module';
 
 // Écrans de fin, dans l'ordre, sans ceux qui ne s'appliquent pas
 export function endSteps(result: LessonResult, streakBefore: number | null): EndStep[] {
   const steps: EndStep[] = ['done'];
   if (streakGain(streakBefore, result.user?.streak)) steps.push('streak');
-  if (result.chest) steps.push('chest');
+  // Un coffre vide (rejeu sans progrès : amount 0) ne s'ouvre pas
+  if (positiveAmount(result.chest?.amount) > 0) steps.push('chest');
+  if (positiveAmount(result.surprise_chest?.amount) > 0) steps.push('surprise');
   if (result.module_just_completed) steps.push('module');
   return steps;
 }
@@ -153,26 +156,40 @@ export function streakDaysLabel(days: number): string {
   return days >= 2 ? 'jours de série !' : 'jour de série !';
 }
 
-// Valeurs de rareté connues → libellé. Toute autre valeur est affichée telle
-// quelle, première lettre en majuscule.
-const RARITY_LABELS: Record<string, string> = {
-  common: 'Coffre commun',
+function positiveAmount(raw: unknown): number {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0;
+}
+
+// Raretés des coffres renvoyées par /complete (ValthService::chestReward du
+// site), de la plus courante à la plus rare
+export const CHEST_RARITIES = ['commun', 'rare', 'epique', 'legendaire'] as const;
+export type ChestRarity = (typeof CHEST_RARITIES)[number];
+
+// Rareté inconnue ou absente : épique, comme sur le site
+export function chestRarity(raw: unknown): ChestRarity {
+  return typeof raw === 'string' && (CHEST_RARITIES as readonly string[]).includes(raw)
+    ? (raw as ChestRarity)
+    : 'epique';
+}
+
+// Suspense : le coffre passe par chaque rareté, de commun à la sienne
+export function chestEvolution(rarity: ChestRarity): ChestRarity[] {
+  return CHEST_RARITIES.slice(0, CHEST_RARITIES.indexOf(rarity) + 1);
+}
+
+const CHEST_LABELS: Record<ChestRarity, string> = {
   commun: 'Coffre commun',
   rare: 'Coffre rare',
-  epic: 'Coffre épique',
   epique: 'Coffre épique',
-  legendary: 'Coffre légendaire',
   legendaire: 'Coffre légendaire',
 };
 
 export function chestLabel(rarity: unknown): string {
-  if (typeof rarity !== 'string' || !rarity.trim()) return 'Coffre';
-  const key = rarity
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
-  return RARITY_LABELS[key] ?? `Coffre ${rarity.trim()}`;
+  return CHEST_LABELS[chestRarity(rarity)];
+}
+
+export function chestAmount(chest: { amount?: number } | null | undefined): number {
+  return positiveAmount(chest?.amount);
 }
 
 // Titre du module terminé : celui de la réponse s'il y est, sinon celui du

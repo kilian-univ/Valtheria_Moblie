@@ -1,15 +1,24 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ReactNode, useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import GoldHalo from '@/src/components/common/GoldHalo';
 import Stagger from '@/src/components/common/Stagger';
-import { ValAvatar, ValPicture } from '@/src/components/common/ValBubble';
+import ChestReveal, { CHEST_IMAGES } from './ChestReveal';
+import ValBubble, { ValAvatar } from '@/src/components/common/ValBubble';
 import { durations, springs } from '@/src/constants/motion';
 import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -22,7 +31,8 @@ import {
   endSteps,
   EndStep,
   LessonResult,
-  chestLabel,
+  chestAmount,
+  chestRarity,
   pickLabel,
   streakDaysLabel,
   streakGain,
@@ -40,13 +50,21 @@ const STREAK_NUMBER_LINE_HEIGHT = 96;
 const FIRE_SIZE = 120;
 const FIRE_LINE_HEIGHT = 140;
 const FIRE_FROM_SCALE = 0.3;
-const GIFT_SIZE = 96;
+const SURPRISE_CHEST = 160;
+const VAL_SURPRISE = 64;
 const VAL_PROUD = 120;
-// Val en buste sur sa lueur : le carré du halo fait au plus 1,5 fois le buste
-const BUST_WIDTH = 170;
-const BUST_HEIGHT = 190;
-const HALO = 260;
-const FADE_HEIGHT = 56;
+// Val en pied qui saute de joie (488 × 800, fond transparent), sur sa lueur.
+// Le carré du halo fait au plus 1,5 fois l'image.
+const VAL_JUMP = require('@/assets/images/val/val-pied-saut.webp');
+const JUMP_HEIGHT = 260;
+const JUMP_WIDTH = Math.round((JUMP_HEIGHT * 488) / 800);
+const HALO = 300;
+// Arrivée (ressort celebrate) puis petit rebond en boucle
+const JUMP_RISE = 24;
+const JUMP_FROM_SCALE = 0.9;
+const BOUNCE_HEIGHT = 8;
+const BOUNCE_PERIOD = 1400;
+const BOUNCE_START = 600; // une fois l'arrivée posée
 // Les chiffres défilent l'un après l'autre, une fois l'écran apparu
 const COUNT_START = durations.enterOpacity;
 
@@ -77,6 +95,7 @@ export default function LessonEndFlow({ result, streakBefore, moduleTitle, onDon
       {step === 'done' ? <DoneStep result={result} onNext={next} /> : null}
       {step === 'streak' && gain ? <StreakStep from={gain.from} to={gain.to} onNext={next} /> : null}
       {step === 'chest' ? <ChestStep result={result} onNext={next} /> : null}
+      {step === 'surprise' ? <SurpriseStep result={result} onNext={next} /> : null}
       {step === 'module' ? <ModuleStep title={moduleTitle} onNext={next} /> : null}
     </EndLayout>
   );
@@ -136,10 +155,7 @@ function DoneStep({ result, onNext }: { result: LessonResult; onNext: () => void
     <StepFrame button={<Button label={label} onPress={onNext} />}>
       <View style={styles.haloBox}>
         <GoldHalo />
-        <View style={styles.bust} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <ValPicture mood="celebrant" frame="xl" style={styles.bustImage} />
-          <LinearGradient colors={['transparent', colors.background]} style={styles.fade} pointerEvents="none" />
-        </View>
+        <JumpingVal />
       </View>
 
       <View style={styles.texts}>
@@ -171,6 +187,37 @@ function DoneStep({ result, onNext }: { result: LessonResult; onNext: () => void
         <Stat value={`+${NBSP}${formatInteger(Math.round(valsShown))}`} label="Vals" />
       </View>
     </StepFrame>
+  );
+}
+
+// Val saute de joie : arrive avec le ressort celebrate (montée de 24, échelle
+// 0,9 → 1), puis rebondit doucement tant que l'écran est affiché.
+// Animations réduites : affichée directement, sans rebond.
+function JumpingVal() {
+  const reduced = useReducedMotion();
+  const rise = useSharedValue(reduced ? 0 : JUMP_RISE);
+  const scale = useSharedValue(reduced ? 1 : JUMP_FROM_SCALE);
+  const bounce = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduced) return;
+    rise.set(withSpring(0, springs.celebrate));
+    scale.set(withSpring(1, springs.celebrate));
+    const half = { duration: BOUNCE_PERIOD / 2, easing: Easing.inOut(Easing.sin) };
+    bounce.set(
+      withDelay(BOUNCE_START, withRepeat(withSequence(withTiming(-BOUNCE_HEIGHT, half), withTiming(0, half)), -1))
+    );
+  }, [reduced, rise, scale, bounce]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: rise.get() + bounce.get() }, { scale: scale.get() }],
+  }));
+
+  return (
+    <Animated.View style={style} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {/* contain : l'image entière, jamais recadrée */}
+      <Image source={VAL_JUMP} resizeMode="contain" style={styles.jump} />
+    </Animated.View>
   );
 }
 
@@ -230,22 +277,32 @@ function StreakStep({ from, to, onNext }: { from: number; to: number; onNext: ()
 // c. Coffre
 // ---------------------------------------------------------------------------
 function ChestStep({ result, onNext }: { result: LessonResult; onNext: () => void }) {
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
-  const amount = result.chest?.amount ?? 0;
+  return (
+    <StepFrame button={<Button label="Super" onPress={onNext} />}>
+      <ChestReveal rarity={chestRarity(result.chest?.rarity)} amount={chestAmount(result.chest)} />
+    </StepFrame>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// c bis. Coffre surprise (bonus occasionnel du serveur)
+// ---------------------------------------------------------------------------
+function SurpriseStep({ result, onNext }: { result: LessonResult; onNext: () => void }) {
+  const amount = chestAmount(result.surprise_chest);
   const shown = Math.round(useCountUp(amount, { delay: COUNT_START }));
 
   return (
-    <StepFrame button={<Button label="Super" onPress={onNext} />}>
-      <View style={styles.centered} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Ionicons name="gift-outline" size={GIFT_SIZE} color={colors.gold} />
-      </View>
-      <View style={styles.texts} accessible accessibilityLabel={`${chestLabel(result.chest?.rarity)} : ${amount} Vals`}>
-        <Title>{chestLabel(result.chest?.rarity)}</Title>
+    <StepFrame button={<Button label="Génial" onPress={onNext} />}>
+      <View style={styles.texts} accessible accessibilityLabel={`Coffre surprise : ${amount} Vals`}>
+        <View style={styles.centered} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Image source={CHEST_IMAGES.legendaire} resizeMode="contain" style={styles.surpriseChest} />
+        </View>
+        <Title>Coffre surprise !</Title>
         <AppText variant="hero" tone="gold" style={styles.centerText}>
           {`+${NBSP}${formatInteger(shown)}${NBSP}Vals`}
         </AppText>
       </View>
+      <ValBubble mood="complice" text="Celui-là, tu ne l’attendais pas." diameter={VAL_SURPRISE} />
     </StepFrame>
   );
 }
@@ -311,24 +368,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bust: {
-    width: BUST_WIDTH,
-    height: BUST_HEIGHT,
-    overflow: 'hidden',
+  surpriseChest: {
+    width: SURPRISE_CHEST,
+    height: SURPRISE_CHEST,
   },
-  bustImage: {
-    position: 'absolute',
-    top: 0,
-    left: (BUST_WIDTH - BUST_HEIGHT) / 2,
-    width: BUST_HEIGHT,
-    height: BUST_HEIGHT,
-  },
-  fade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: FADE_HEIGHT,
+  jump: {
+    width: JUMP_WIDTH,
+    height: JUMP_HEIGHT,
   },
   stats: {
     flexDirection: 'row',
