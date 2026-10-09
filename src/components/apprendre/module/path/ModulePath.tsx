@@ -1,42 +1,83 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ComponentProps, useEffect, useId, useState } from 'react';
+import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
+import Animated, { SharedValue, useAnimatedStyle, useReducedMotion } from 'react-native-reanimated';
+import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 
+import GoldHalo from '@/src/components/common/GoldHalo';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import ValFullBody from '@/src/components/common/ValFullBody';
-import { ModuleColors, palette } from '@/src/constants/style/Style';
+import { ModuleColors, palette, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { celebrate, success, warning } from '@/src/utils/haptics';
 import { LessonView } from '@/src/utils/learning';
 import {
   bubbleRect,
+  CASE_RADIUS,
   completedRatio,
   currentIndex,
+  DECOR_SHADOW_H,
+  DecorName,
+  DecorSpot,
+  decorSpots,
+  HALO_SIZE,
   moduleDone,
   NODE_EDGE,
-  NODE_FACE_H,
-  NODE_W,
+  NODE_SIZES,
   nodeRect,
+  PARALLAX_MAX,
+  PARALLAX_FACTOR,
   pathHeight,
   Rect,
   ringRect,
-  TROPHY_FACE_H,
-  TROPHY_W,
+  StepIcon,
+  stepIcon,
   Unlock,
+  VAL_SHADOW_H,
+  VAL_SHADOW_RATIO,
   VAL_W,
   valSpots,
+  viewShape,
 } from '@/src/utils/modulePath';
 import PathNode, { NodeColors } from './PathNode';
 import PathRing from './PathRing';
 import StartBubble from './StartBubble';
 import TrophyGlow from './TrophyGlow';
 
-const STAR_SIZE = 34;
+type IconName = ComponentProps<typeof Ionicons>['name'];
+
+const ICONS: Record<StepIcon, IconName> = { star: 'star', book: 'book', barbell: 'barbell', flash: 'flash' };
+const ICON_SIZE = 32;
 const TROPHY_ICON_SIZE = 40;
+// Étoile des ronds verrouillés : ivoire à 22 %
+const LOCKED_ICON_OPACITY = 0.22;
+// Halo de la couleur du module derrière le rond en cours
+const CURRENT_HALO_OPACITY = 0.25;
+// Ombres au sol de Val et des décors
+const VAL_SHADOW_OPACITY = 0.55;
+const DECOR_SHADOW_OPACITY = 0.4;
+// Décors au second plan
+const DECOR_BRIGHTNESS = 0.8;
 // Déverrouillage : le rond réussi se remplit, puis le suivant s'ouvre
 const UNLOCK_DELAY = 650;
-const BOTTOM_ROOM = 48;
+const BOTTOM_ROOM = 32;
+
+const DECOR_IMAGES: Record<DecorName, ImageSourcePropType> = {
+  'pile-pieces': require('@/assets/images/decor/deco-pile-pieces.webp'),
+  tirelire: require('@/assets/images/decor/deco-tirelire.webp'),
+  'coffre-fort': require('@/assets/images/decor/deco-coffre-fort.webp'),
+  plante: require('@/assets/images/decor/deco-plante.webp'),
+  graphique: require('@/assets/images/decor/deco-graphique.webp'),
+  calculatrice: require('@/assets/images/decor/deco-calculatrice.webp'),
+  carnet: require('@/assets/images/decor/deco-carnet.webp'),
+  sablier: require('@/assets/images/decor/deco-sablier.webp'),
+  cle: require('@/assets/images/decor/deco-cle.webp'),
+  enveloppe: require('@/assets/images/decor/deco-enveloppe.webp'),
+  banque: require('@/assets/images/decor/deco-banque.webp'),
+};
 
 type ModulePathProps = {
+  moduleId: number;
   views: LessonView[];
   colors: ModuleColors;
   // Largeur disponible (mesurée par l'écran)
@@ -46,13 +87,31 @@ type ModulePathProps = {
   onOpen: (view: LessonView, rect: Rect) => void;
   // Position (dans le chemin) du rond à montrer : leçon en cours, sinon trophée
   onFocusRect: (rect: Rect) => void;
+  // Effet de profondeur des décors : défilement, hauteur visible, haut du
+  // chemin dans le contenu
+  scrollY: SharedValue<number>;
+  viewport: number;
+  pathTop: number;
 };
 
-// Chemin du module : un rond par leçon en vague, le trophée au bout, Val
-// dans un virage sur deux. Positions calculées dans utils/modulePath.
-export default function ModulePath({ views, colors, width, unlock, onOpen, onFocusRect }: ModulePathProps) {
+// Chemin du module : un rond par étape en vague, le trophée au bout, Val dans
+// un virage sur deux, des décors au bord. Positions calculées dans
+// utils/modulePath.
+export default function ModulePath({
+  moduleId,
+  views,
+  colors,
+  width,
+  unlock,
+  onOpen,
+  onFocusRect,
+  scrollY,
+  viewport,
+  pathTop,
+}: ModulePathProps) {
   const { colorScheme } = useTheme();
   const theme = palette[colorScheme];
+  const reduced = useReducedMotion();
   const [shakes, setShakes] = useState<Record<number, number>>({});
 
   const current = currentIndex(views);
@@ -60,12 +119,18 @@ export default function ModulePath({ views, colors, width, unlock, onOpen, onFoc
   const ratio = completedRatio(views);
   const trophyIndex = views.length;
 
-  const lit: NodeColors = { face: colors.face, deep: colors.deep, icon: colors.onFace };
-  const off: NodeColors = { face: theme.pathLockedFace, deep: theme.pathLockedDeep, icon: theme.textFaint };
-  const gold: NodeColors = { face: theme.gold, deep: theme.goldDeep, icon: theme.onGold };
+  // Terminé : l'or (couleur des récompenses) ; en cours : couleur du module
+  const goldColors: NodeColors = { face: theme.gold, deep: theme.goldDeep, icon: theme.ivory };
+  const moduleNode: NodeColors = { face: colors.face, deep: colors.deep, icon: theme.ivory };
+  const off: NodeColors = {
+    face: theme.pathLockedFace,
+    deep: theme.pathLockedDeep,
+    icon: withOpacity(theme.ivory, LOCKED_ICON_OPACITY),
+  };
 
   const focusIndex = current >= 0 ? current : trophyIndex;
-  const focusRect = width > 0 ? nodeRect(focusIndex, width, focusIndex === trophyIndex) : null;
+  const focusShape = current >= 0 ? viewShape(views[current]) : 'trophy';
+  const focusRect = width > 0 ? nodeRect(focusIndex, width, focusShape) : null;
   const focusKey = focusRect ? `${focusRect.x}|${focusRect.y}` : '';
   useEffect(() => {
     if (focusRect) onFocusRect(focusRect);
@@ -89,15 +154,42 @@ export default function ModulePath({ views, colors, width, unlock, onOpen, onFoc
   };
 
   const unlockingCurrent = unlock?.unlockedId != null && views[current]?.lesson.id === unlock.unlockedId;
-  const spots = valSpots(views, width);
-  const trophyRect = nodeRect(trophyIndex, width, true);
+  const vals = valSpots(views, width);
+  const decors = decorSpots(moduleId, views, width, vals);
+  const trophyRect = nodeRect(trophyIndex, width, 'trophy');
+  const currentShape = current >= 0 ? viewShape(views[current]) : 'lesson';
 
   return (
-    <View style={{ width, height: pathHeight(trophyIndex + 1) + BOTTOM_ROOM }}>
-      {/* Val, sous les ronds */}
-      {spots.map((spot) => (
-        <View key={`val-${spot.bend}`} style={[styles.abs, { left: spot.rect.x, top: spot.rect.y }]}>
+    <View style={{ width, height: pathHeight(trophyIndex) + BOTTOM_ROOM }}>
+      {/* Décors au second plan : ni touchables, ni lus */}
+      <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
+        {decors.map((decor) => (
+          <Decor
+            key={`${decor.row}-${decor.name}`}
+            decor={decor}
+            scrollY={scrollY}
+            viewport={viewport}
+            pathTop={pathTop}
+            parallax={!reduced}
+          />
+        ))}
+      </View>
+
+      {/* Val, sous les ronds, avec son ombre au sol */}
+      {vals.map((spot) => (
+        <View
+          key={`val-${spot.bend}`}
+          pointerEvents="none"
+          style={[styles.abs, { left: spot.rect.x, top: spot.rect.y }]}
+        >
           <StaggerItem index={Math.min(spot.bend, 7)}>
+            <GroundShadow
+              width={VAL_W * VAL_SHADOW_RATIO}
+              height={VAL_SHADOW_H}
+              opacity={VAL_SHADOW_OPACITY}
+              left={(VAL_W * (1 - VAL_SHADOW_RATIO)) / 2}
+              top={spot.rect.h - VAL_SHADOW_H}
+            />
             <ValFullBody pose={spot.pose} height={spot.rect.h} width={VAL_W} breathe />
           </StaggerItem>
         </View>
@@ -105,30 +197,35 @@ export default function ModulePath({ views, colors, width, unlock, onOpen, onFoc
 
       {/* Anneau autour du rond en cours */}
       {current >= 0 ? (
-        <View style={[styles.abs, rectPos(ringRect(current, width))]}>
+        <View style={[styles.abs, rectPos(ringRect(current, width, currentShape))]}>
           <PathRing progress={ratio} color={colors.face} appearDelay={unlockingCurrent ? UNLOCK_DELAY : undefined} />
         </View>
       ) : null}
 
       {views.map((view, i) => {
-        const rect = nodeRect(i, width);
+        const shape = viewShape(view);
+        const size = NODE_SIZES[shape];
+        const rect = nodeRect(i, width, shape);
         const isLit = view.status !== 'locked';
+        const isCurrent = view.status === 'current';
         const justDone = unlock?.completedId === view.lesson.id;
         const justUnlocked = unlock?.unlockedId === view.lesson.id;
+        const icon = ICONS[stepIcon(view.lesson, view.number, view.status === 'completed')];
         const label =
           view.status === 'locked'
-            ? `Leçon ${view.number}, ${view.lesson.title}, verrouillée`
-            : `Leçon ${view.number}, ${view.lesson.title}, ${view.status === 'completed' ? 'terminée' : 'en cours'}`;
+            ? `Étape ${view.number}, ${view.lesson.title}, verrouillée`
+            : `Étape ${view.number}, ${view.lesson.title}, ${view.status === 'completed' ? 'terminée' : 'en cours'}`;
         return (
           <View key={view.lesson.id} style={[styles.abs, { left: rect.x, top: rect.y }]}>
             <StaggerItem index={i}>
               <PathNode
-                width={NODE_W}
-                faceHeight={NODE_FACE_H}
+                width={size.w}
+                faceHeight={size.face}
                 edge={NODE_EDGE}
-                iconName="star"
-                iconSize={STAR_SIZE}
-                on={lit}
+                cornerRadius={shape === 'case' ? CASE_RADIUS : undefined}
+                iconName={icon}
+                iconSize={ICON_SIZE}
+                on={view.status === 'completed' ? goldColors : moduleNode}
                 off={off}
                 lit={isLit}
                 litDelay={justUnlocked ? UNLOCK_DELAY : undefined}
@@ -136,7 +233,12 @@ export default function ModulePath({ views, colors, width, unlock, onOpen, onFoc
                 shakeSignal={(shakes[view.lesson.id] ?? 0) + (justUnlocked ? 1 : 0)}
                 onPress={() => (isLit ? onOpen(view, rect) : shake(view.lesson.id))}
                 accessibilityLabel={label}
-                accessibilityHint={isLit ? 'Ouvre la carte de la leçon' : 'Termine la leçon précédente pour la débloquer'}
+                accessibilityHint={isLit ? 'Ouvre la carte de la leçon' : 'Termine l’étape précédente pour la débloquer'}
+                behind={
+                  isCurrent ? (
+                    <CurrentHalo width={size.w} faceHeight={size.face} color={withOpacity(colors.face, CURRENT_HALO_OPACITY)} />
+                  ) : null
+                }
               />
             </StaggerItem>
           </View>
@@ -147,19 +249,19 @@ export default function ModulePath({ views, colors, width, unlock, onOpen, onFoc
       <View style={[styles.abs, { left: trophyRect.x, top: trophyRect.y }]}>
         <StaggerItem index={Math.min(trophyIndex, 7)}>
           <PathNode
-            width={TROPHY_W}
-            faceHeight={TROPHY_FACE_H}
+            width={NODE_SIZES.trophy.w}
+            faceHeight={NODE_SIZES.trophy.face}
             edge={NODE_EDGE}
             iconName="trophy"
             iconSize={TROPHY_ICON_SIZE}
-            on={gold}
+            on={goldColors}
             off={off}
             lit={done}
             litDelay={unlock?.trophy ? UNLOCK_DELAY : undefined}
             shakeSignal={shakes[-1] ?? 0}
             onPress={() => (done ? undefined : shake(-1))}
             accessibilityLabel={done ? 'Trophée du module, gagné' : 'Trophée du module, à gagner'}
-            accessibilityHint={done ? undefined : 'Termine toutes les leçons pour le gagner'}
+            accessibilityHint={done ? undefined : 'Termine toutes les étapes pour le gagner'}
             behind={done ? <TrophyGlow appearDelay={unlock?.trophy ? UNLOCK_DELAY : undefined} /> : null}
           />
         </StaggerItem>
@@ -167,15 +269,109 @@ export default function ModulePath({ views, colors, width, unlock, onOpen, onFoc
 
       {/* Bulle au-dessus du rond en cours, par-dessus tout */}
       {current >= 0 ? (
-        <View style={[styles.abs, rectPos(bubbleRect(current, width))]}>
+        <View style={[styles.abs, rectPos(bubbleRect(current, width, currentShape))]}>
           <StartBubble
             textColor={colors.deep}
-            onPress={() => onOpen(views[current], nodeRect(current, width))}
+            onPress={() => onOpen(views[current], nodeRect(current, width, currentShape))}
             appearDelay={unlockingCurrent ? UNLOCK_DELAY : undefined}
           />
         </View>
       ) : null}
     </View>
+  );
+}
+
+// Halo de la couleur du module derrière le rond en cours (carré de 112 au
+// plus 1,5 fois le rond, centré sur la face, jamais rogné)
+function CurrentHalo({ width, faceHeight, color }: { width: number; faceHeight: number; color: string }) {
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.abs,
+        { width: HALO_SIZE, height: HALO_SIZE, left: (width - HALO_SIZE) / 2, top: (faceHeight - HALO_SIZE) / 2 },
+      ]}
+    >
+      <GoldHalo color={color} />
+    </View>
+  );
+}
+
+// Ombre au sol : ellipse noire floutée (dégradé radial)
+function GroundShadow({
+  width,
+  height,
+  opacity,
+  left,
+  top,
+}: {
+  width: number;
+  height: number;
+  opacity: number;
+  left: number;
+  top: number;
+}) {
+  const { colorScheme } = useTheme();
+  const theme = palette[colorScheme];
+  const id = useId().replace(/[^a-zA-Z0-9]/g, '');
+  return (
+    <Svg pointerEvents="none" width={width} height={height} style={[styles.abs, { left, top }]}>
+      <Defs>
+        <RadialGradient id={`gs${id}`} cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={theme.groundShadow} stopOpacity={opacity} />
+          <Stop offset="1" stopColor={theme.groundShadow} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Ellipse cx={width / 2} cy={height / 2} rx={width / 2} ry={height / 2} fill={`url(#gs${id})`} />
+    </Svg>
+  );
+}
+
+// Un décor : au second plan (luminosité 80 %), légère rotation, ombre au sol,
+// et il défile à 92 % de la vitesse du chemin (pas avec les animations réduites)
+function Decor({
+  decor,
+  scrollY,
+  viewport,
+  pathTop,
+  parallax,
+}: {
+  decor: DecorSpot;
+  scrollY: SharedValue<number>;
+  viewport: number;
+  pathTop: number;
+  parallax: boolean;
+}) {
+  const { rect } = decor;
+  const centerY = pathTop + rect.y + rect.w / 2;
+
+  const style = useAnimatedStyle(() => {
+    if (!parallax || viewport <= 0) return { transform: [{ translateY: 0 }] };
+    const shift = (scrollY.get() + viewport / 2 - centerY) * PARALLAX_FACTOR;
+    return { transform: [{ translateY: Math.max(-PARALLAX_MAX, Math.min(PARALLAX_MAX, shift)) }] };
+  });
+
+  return (
+    <Animated.View style={[styles.abs, { left: rect.x, top: rect.y, width: rect.w, height: rect.h }, style]}>
+      <GroundShadow
+        width={rect.w * 0.7}
+        height={DECOR_SHADOW_H}
+        opacity={DECOR_SHADOW_OPACITY}
+        left={rect.w * 0.15}
+        top={rect.w - DECOR_SHADOW_H / 2 - 4}
+      />
+      {/* Luminosité et rotation sur la vue : le style d'une image n'accepte pas filter */}
+      <View
+        style={{
+          width: rect.w,
+          height: rect.w,
+          transform: [{ rotate: `${decor.rotation}deg` }],
+          filter: [{ brightness: DECOR_BRIGHTNESS }],
+        }}
+      >
+        <Image source={DECOR_IMAGES[decor.name]} resizeMode="contain" style={{ width: rect.w, height: rect.w }} />
+      </View>
+    </Animated.View>
   );
 }
 

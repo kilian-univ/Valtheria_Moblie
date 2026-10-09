@@ -56,9 +56,14 @@ export const palette = {
     dangerSheet: '#2A1715',              // feuille de réponse fausse
     reliefEdge: 'rgba(255,255,255,0.13)', // tranche d'une option en relief
     progressShine: 'rgba(255,255,255,0.35)', // reflet de la barre de progression
-    pathLockedFace: '#2A2A31',           // rond verrouillé du chemin
-    pathLockedDeep: '#151519',           // sa tranche (et celle du bouton flottant)
+    pathLockedFace: '#2B2F38',           // rond verrouillé du chemin
+    pathLockedDeep: '#171A20',           // sa tranche (et celle du bouton flottant)
     pathShine: 'rgba(255,255,255,0.25)', // reflet en haut à gauche des ronds
+    ivory: '#F7F4EE',                    // étoile et icônes des ronds, bulle « COMMENCER »
+    nodeHighlight: '#FFFFFF',            // reflet radial (dégradé de 35 % à 0)
+    nodeShade: '#000000',                // ombre radiale en bas à droite (18 %)
+    nodeInnerLight: 'rgba(255,255,255,0.25)', // fine lumière intérieure en haut
+    groundShadow: '#000000',             // ombres au sol (ronds, Val, décors)
     pathScrim: 'rgba(0,0,0,0.35)',       // voile sous la carte de leçon
     cardEdge: 'rgba(0,0,0,0.25)',        // tranche du bouton de la carte de leçon
     shadow: '#000000',
@@ -98,6 +103,11 @@ export const palette = {
     pathLockedFace: '#DDDCE2',
     pathLockedDeep: '#BDBCC4',
     pathShine: 'rgba(255,255,255,0.35)',
+    ivory: '#F7F4EE',
+    nodeHighlight: '#FFFFFF',
+    nodeShade: '#000000',
+    nodeInnerLight: 'rgba(255,255,255,0.25)',
+    groundShadow: '#000000',
     pathScrim: 'rgba(0,0,0,0.25)',
     cardEdge: 'rgba(0,0,0,0.25)',
     // Jetons ajoutés pour suivre la palette sombre (le thème clair n'est pas retravaillé)
@@ -127,13 +137,14 @@ export const palette = {
 
 // Couleurs propres à chaque module (chemin, bannière, carte de leçon).
 // face : aplat ; deep : tranche du relief ; onFace : texte et icônes posés
-// dessus. Quel module prend quelle couleur : moduleColorKey (utils/modulePath).
+// dessus ; night : teinte de fond de la page (8 % de face dans background).
+// Les leçons terminées sont en or (récompense), pas dans la couleur du module. Quel module prend quelle couleur : moduleColorKey (utils/modulePath).
 // L'or reste réservé à l'XP, aux Vals, aux coffres et aux trophées.
 export const moduleColors = {
-  ardoise: { face: '#7C9CC4', deep: '#4F6B8F', onFace: '#0D0D0F' },
-  sarcelle: { face: '#5E9E9A', deep: '#3F6F6C', onFace: '#0D0D0F' },
-  cuivre: { face: '#C9855A', deep: '#8E5A39', onFace: '#0D0D0F' },
-  ivoire: { face: '#D9D2C3', deep: '#A39C8D', onFace: '#0D0D0F' },
+  ardoise: { face: '#7C9CC4', deep: '#4F6B8F', onFace: '#0D0D0F', night: '#16181D' },
+  sarcelle: { face: '#5E9E9A', deep: '#3F6F6C', onFace: '#0D0D0F', night: '#13191A' },
+  cuivre: { face: '#C9855A', deep: '#8E5A39', onFace: '#0D0D0F', night: '#1C1715' },
+  ivoire: { face: '#D9D2C3', deep: '#A39C8D', onFace: '#0D0D0F', night: '#1D1D1D' },
 } as const;
 
 export type ModuleColors = (typeof moduleColors)[keyof typeof moduleColors];

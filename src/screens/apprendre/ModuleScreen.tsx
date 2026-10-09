@@ -1,7 +1,8 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GuestState from '@/src/components/apprendre/home/GuestState';
@@ -20,25 +21,26 @@ import ModulePath from '@/src/components/apprendre/module/path/ModulePath';
 import PageState from '@/src/components/common/PageState';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { StaggerItem } from '@/src/components/common/Stagger';
-import ValBubble from '@/src/components/common/ValBubble';
 import { durations } from '@/src/constants/motion';
-import { moduleColors, palette, space } from '@/src/constants/style/Style';
-import { moduleDoneLine } from '@/src/constants/valLines';
+import AppText from '@/src/components/common/AppText';
+import { fonts, moduleColors, palette, space, withOpacity } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { loadErrorMessage, OFFLINE_BANNER, OFFLINE_REASON, useLearningData } from '@/src/hooks/useLearningData';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { forgetLaunch, peekLaunch, rememberLaunch } from '@/src/state/pathSnapshot';
-import { currentLesson, findModule, lessonViews, LessonView, moduleState, nextModuleAfter } from '@/src/utils/learning';
+import { currentLesson, findModule, lessonViews, LessonView } from '@/src/utils/learning';
 import {
+  bannerLabel,
+  followingModule,
   moduleColorKey,
   moduleNumber,
   Rect,
   Unlock,
   unlockTransition,
-  visibility,
   Visibility,
+  visibility,
 } from '@/src/utils/modulePath';
 
 // Au-delà, les titres débordent : on passe en liste verticale
@@ -108,11 +110,15 @@ export default function ModuleScreen() {
   // Mesures du défilement
   // ---------------------------------------------------------------------------
   const scrollRef = useRef<ScrollView>(null);
-  const [scrollTop, setScrollTop] = useState(0); // haut du ScrollView dans l'écran
+  // L'en-tête est fixe, posé sur le haut du ScrollView : la zone utile
+  // commence sous lui
   const viewport = useRef(0);
+  const [viewportH, setViewportH] = useState(0);
   const contentHeight = useRef(0);
-  const bannerHeight = useRef(0);
+  const [headerH, setHeaderH] = useState(0);
   const scrollY = useRef(0);
+  // Même défilement, côté animations (effet de profondeur des décors)
+  const scrollSV = useSharedValue(0);
   const [pathTop, setPathTop] = useState<number | null>(null);
   const [pathWidth, setPathWidth] = useState(0);
   const [focusRect, setFocusRect] = useState<Rect | null>(null);
@@ -120,23 +126,24 @@ export default function ModuleScreen() {
 
   const updateSide = useCallback(() => {
     if (pathTop === null || !focusRect || viewport.current === 0) return;
-    const visibleTop = scrollY.current + bannerHeight.current;
-    const side = visibility(pathTop + focusRect.y, focusRect.h, visibleTop, viewport.current - bannerHeight.current);
+    const visibleTop = scrollY.current + headerH;
+    const side = visibility(pathTop + focusRect.y, focusRect.h, visibleTop, viewport.current - headerH);
     setFocusSide((s) => (s === side ? s : side));
-  }, [pathTop, focusRect]);
+  }, [pathTop, focusRect, headerH]);
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollY.current = e.nativeEvent.contentOffset.y;
+    scrollSV.set(scrollY.current);
     updateSide();
   };
 
   const scrollToFocus = useCallback(
     (animated: boolean) => {
       if (pathTop === null || !focusRect) return;
-      const target = pathTop + focusRect.y - viewport.current / 3;
+      const target = pathTop + focusRect.y - (headerH + (viewport.current - headerH) / 3);
       scrollRef.current?.scrollTo({ y: Math.max(0, target), animated });
     },
-    [pathTop, focusRect]
+    [pathTop, focusRect, headerH]
   );
 
   // Arrivée : une seule fois, après la cascade des ronds
@@ -161,12 +168,14 @@ export default function ModuleScreen() {
     if (pathTop === null) return;
     const nodeTop = pathTop + rect.y;
     const maxScroll = Math.max(0, contentHeight.current - viewport.current);
-    const target = Math.min(maxScroll, Math.max(0, nodeTop - viewport.current * CARD_ANCHOR));
+    const anchor = headerH + (viewport.current - headerH) * CARD_ANCHOR;
+    const target = Math.min(maxScroll, Math.max(0, nodeTop - anchor));
     scrollRef.current?.scrollTo({ y: target, animated: false });
     scrollY.current = target;
+    scrollSV.set(target);
     setCard({
       view,
-      top: scrollTop + nodeTop - target + rect.h + CARD_GAP,
+      top: nodeTop - target + rect.h + CARD_GAP,
       pointX: space[5] + rect.x + rect.w / 2,
     });
   };
@@ -215,8 +224,6 @@ export default function ModuleScreen() {
   const openModule = (moduleIdToOpen: number) =>
     router.push({ pathname: '/apprendre/module/[moduleId]', params: { moduleId: moduleIdToOpen } });
 
-  const done = module ? moduleState(module) === 'done' : false;
-  const next = module && done ? nextModuleAfter(data.modules, module.id) : null;
   const nextLesson = module ? currentLesson(module) : null;
   const currentView = views.find((v) => v.status === 'current') ?? null;
 
@@ -230,8 +237,12 @@ export default function ModuleScreen() {
   // ---------------------------------------------------------------------------
   // Contenu
   // ---------------------------------------------------------------------------
+  const following = module ? followingModule(data.modules, module.id) : null;
+  const followingTint = following ? moduleColors[moduleColorKey(data.modules, following.id)] : null;
+
   let extras: ReactNode = null;
   let body: ReactNode = null;
+  let after: ReactNode = null;
   let bar: ReactNode = null;
 
   if (!data.isAuthenticated && !data.authPending) {
@@ -262,20 +273,7 @@ export default function ModuleScreen() {
       />
     );
   } else {
-    extras = (
-      <>
-        {data.offline ? <PageState variant="offline" text={OFFLINE_BANNER} style={styles.offline} /> : null}
-        {done ? (
-          <View style={styles.celebration}>
-            <ValBubble
-              mood="celebrant"
-              title={moduleDoneLine.title}
-              text={moduleDoneLine.text(module.title, next?.title ?? null)}
-            />
-          </View>
-        ) : null}
-      </>
-    );
+    extras = data.offline ? <PageState variant="offline" text={OFFLINE_BANNER} style={styles.offline} /> : null;
 
     body = listMode ? (
       <StaggerItem index={0}>
@@ -285,14 +283,49 @@ export default function ModuleScreen() {
       </StaggerItem>
     ) : (
       <ModulePath
+        moduleId={module.id}
         views={views}
         colors={tint}
         width={pathWidth}
         unlock={unlock}
         onOpen={openCard}
         onFocusRect={setFocusRect}
+        scrollY={scrollSV}
+        viewport={viewportH}
+        pathTop={pathTop ?? 0}
       />
     );
+
+    // Après le trophée : le module suivant, dans sa propre couleur
+    if (following && followingTint) {
+      const followingViews = lessonViews(following);
+      const followingDone = followingViews.filter((v) => v.status === 'completed').length;
+      after = (
+        <View style={styles.after}>
+          {/* Le bas du fond vire vers la teinte nuit du module suivant */}
+          <LinearGradient
+            colors={[withOpacity(followingTint.night, 0), followingTint.night]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+          <View style={styles.separator} accessibilityRole="header">
+            <View style={[styles.separatorRule, { backgroundColor: colors.border }]} />
+            <AppText tone="subtitle" style={styles.separatorText}>
+              Module suivant
+            </AppText>
+            <View style={[styles.separatorRule, { backgroundColor: colors.border }]} />
+          </View>
+          <ModuleBanner
+            label={bannerLabel(moduleNumber(data.modules, following.id), followingDone, followingViews.length)}
+            title={following.title}
+            progress={followingViews.length ? followingDone / followingViews.length : 0}
+            colors={followingTint}
+            onPress={() => openModule(following.id)}
+            accessibilityHint="Ouvre ce module"
+          />
+        </View>
+      );
+    }
 
     if (listMode && nextLesson && currentView) {
       bar = (
@@ -306,59 +339,41 @@ export default function ModuleScreen() {
           onHeight={setBarHeight}
         />
       );
-    } else if (next) {
-      bar = <NextLessonBar label={`Module suivant : ${next.title}`} onPress={() => openModule(next.id)} onHeight={setBarHeight} />;
     }
   }
 
   const showStats = data.isAuthenticated;
   const showJump = !listMode && !card && module && currentView && focusSide !== 'visible';
+  const doneCount = views.filter((v) => v.status === 'completed').length;
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      {/* Fond : teinte nuit du module en haut, vers le fond de l'app à 60 % */}
+      <LinearGradient
+        colors={[tint.night, colors.background]}
+        locations={[0, 0.6]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+
       <ScrollView
         ref={scrollRef}
-        stickyHeaderIndices={[1]}
         onScroll={onScroll}
         scrollEventThrottle={16}
         onLayout={(e) => {
           viewport.current = e.nativeEvent.layout.height;
-          setScrollTop(e.nativeEvent.layout.y);
+          setViewportH(e.nativeEvent.layout.height);
           updateSide();
         }}
         onContentSizeChange={(_w, h) => {
           contentHeight.current = h;
         }}
-        contentContainerStyle={{ paddingBottom: (bar ? barHeight : 0) + space[8] }}
+        contentContainerStyle={{ paddingTop: headerH, paddingBottom: (bar ? barHeight : 0) + space[8] }}
       >
-        {/* 0. Retour et pastilles : toujours réels, chargement compris */}
-        <View style={styles.topRow}>
-          <BackButton onBack={goBack} />
-          <View style={styles.pills}>
-            {showStats && !data.isLoading ? (
-              <StatPills streak={data.streak} vals={data.vals} onStreak={openStreak} />
-            ) : showStats ? (
-              <StatPillsSkeleton />
-            ) : null}
-          </View>
-        </View>
-
-        {/* 1. Bannière, fixée en haut au défilement */}
-        <View
-          style={[styles.bannerSlot, { backgroundColor: colors.background }]}
-          onLayout={(e) => {
-            bannerHeight.current = e.nativeEvent.layout.height;
-          }}
-        >
-          {module ? (
-            <ModuleBanner label={number ? `MODULE ${number}` : null} title={module.title} colors={tint} onGuide={openGuide} />
-          ) : null}
-        </View>
-
-        {/* 2. Bandeau hors ligne, module terminé */}
+        {/* Bandeau hors ligne */}
         <View style={styles.padded}>{extras}</View>
 
-        {/* 3. Chemin (ou liste, ou état de la page) */}
+        {/* Chemin (ou liste, ou état de la page) */}
         <View
           style={styles.padded}
           onLayout={(e) => {
@@ -368,7 +383,42 @@ export default function ModuleScreen() {
         >
           {body}
         </View>
+
+        {after}
       </ScrollView>
+
+      {/* En-tête fixe au défilement : retour, pastilles, bannière. Fond de la
+          teinte nuit, qui se fond vers le bas pour que le chemin passe dessous */}
+      <View style={styles.header} onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
+        <View style={{ backgroundColor: tint.night, paddingTop: insets.top }}>
+          <View style={styles.topRow}>
+            <BackButton onBack={goBack} />
+            <View style={styles.pills}>
+              {showStats && !data.isLoading ? (
+                <StatPills streak={data.streak} vals={data.vals} onStreak={openStreak} />
+              ) : showStats ? (
+                <StatPillsSkeleton />
+              ) : null}
+            </View>
+          </View>
+          <View style={styles.bannerSlot}>
+            {module ? (
+              <ModuleBanner
+                label={bannerLabel(number, doneCount, views.length)}
+                title={module.title}
+                progress={views.length ? doneCount / views.length : 0}
+                colors={tint}
+                onGuide={openGuide}
+              />
+            ) : null}
+          </View>
+        </View>
+        <LinearGradient
+          colors={[tint.night, withOpacity(tint.night, 0)]}
+          style={styles.headerFade}
+          pointerEvents="none"
+        />
+      </View>
 
       {bar}
 
@@ -431,9 +481,22 @@ export default function ModuleScreen() {
   );
 }
 
+// Fondu sous l'en-tête fixe
+const HEADER_FADE = 24;
+const SEPARATOR_TEXT = 13;
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  headerFade: {
+    height: HEADER_FADE,
   },
   topRow: {
     flexDirection: 'row',
@@ -450,7 +513,6 @@ const styles = StyleSheet.create({
   bannerSlot: {
     paddingHorizontal: space[5],
     paddingTop: space[3],
-    paddingBottom: space[3],
   },
   padded: {
     paddingHorizontal: space[5],
@@ -459,14 +521,31 @@ const styles = StyleSheet.create({
     marginTop: space[2],
     marginHorizontal: -space[5],
   },
-  celebration: {
-    marginTop: space[4],
-  },
   list: {
     marginTop: space[4],
   },
   guest: {
     marginTop: space[6],
+  },
+  after: {
+    paddingHorizontal: space[5],
+    paddingTop: space[4],
+    paddingBottom: space[10],
+    gap: space[4],
+  },
+  separator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3],
+  },
+  separatorRule: {
+    flex: 1,
+    height: 1,
+  },
+  separatorText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: SEPARATOR_TEXT,
+    lineHeight: 18,
   },
   jump: {
     position: 'absolute',

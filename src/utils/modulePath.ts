@@ -1,8 +1,9 @@
-// Chemin de la page module (façon Duolingo). Fonctions pures, sans React :
-// testables avec Node. Toute la géométrie du chemin vit ici.
+// Chemin de la page module (façon Duolingo, version 4). Fonctions pures, sans
+// React : testables avec Node. Toute la géométrie du chemin vit ici.
 
-import type { Module } from '@/src/context/ApiContext';
-import type { LessonView } from './learning';
+import type { Lesson, Module } from '@/src/context/ApiContext';
+import { stepKind, type StepKind } from '../lesson/normalize';
+import { lessonsWord, type LessonView } from './learning';
 
 // ---------------------------------------------------------------------------
 // Couleur d'un module
@@ -24,25 +25,43 @@ export function moduleNumber(modules: Module[], moduleId: number): number | null
   return index < 0 ? null : index + 1;
 }
 
+// Module suivant dans l'ordre du serveur (null pour le dernier)
+export function followingModule(modules: Module[], moduleId: number): Module | null {
+  const index = modules.findIndex((m) => m.id === moduleId);
+  return index < 0 || index >= modules.length - 1 ? null : modules[index + 1];
+}
+
+// « MODULE 3, 2 LEÇONS SUR 5 » (sans rang connu : « 2 LEÇONS SUR 5 »)
+export function bannerLabel(number: number | null, done: number, total: number): string {
+  const progress = `${done} ${lessonsWord(done)} sur ${total}`.toUpperCase();
+  return number === null ? progress : `MODULE ${number}, ${progress}`;
+}
+
 // ---------------------------------------------------------------------------
 // Géométrie
 // ---------------------------------------------------------------------------
-export const PATH_OFFSETS = [0, 62, 92, 62, 0, -62, -92, -62] as const;
-export const STEP_Y = 108;
-export const NODE_W = 82;
-export const NODE_FACE_H = 74;
-export const NODE_EDGE = 8;
-export const NODE_H = NODE_FACE_H + NODE_EDGE;
-export const TROPHY_W = 96;
-export const TROPHY_FACE_H = 86;
-export const TROPHY_H = TROPHY_FACE_H + NODE_EDGE;
-// Anneau autour du rond en cours
+export const PATH_OFFSETS = [0, 58, 84, 58, 0, -58, -84, -58] as const;
+export const BEND_OFFSET = 84;
+export const STEP_Y = 104;
+export const NODE_EDGE = 10;
+// Leçon, révision, défi : ovale ; cas pratique : carré arrondi ; trophée
+export const NODE_SIZES = {
+  lesson: { w: 76, face: 70 },
+  case: { w: 88, face: 78 },
+  trophy: { w: 96, face: 86 },
+} as const;
+export type NodeShape = keyof typeof NODE_SIZES;
+export const CASE_RADIUS = 18;
+// Hauteur de référence d'une ligne : celle d'un rond de leçon
+export const NODE_H = NODE_SIZES.lesson.face + NODE_EDGE;
+// Anneau autour du rond en cours, halo de la couleur du module derrière
 export const RING_STROKE = 8;
-export const RING_DIAMETER = 112;
+export const RING_DIAMETER = 104;
+export const HALO_SIZE = 112; // au plus 1,5 fois le rond (règle des halos)
 // Bulle « COMMENCER » au-dessus du rond en cours
 export const BUBBLE_W = 132;
 export const BUBBLE_H = 40;
-export const BUBBLE_GAP = 26; // bas de la bulle → haut du rond (l'anneau déborde de 15)
+export const BUBBLE_GAP = 28; // bas de la bulle → haut du rond (l'anneau déborde de 17)
 // Place au-dessus du premier rond, pour la bulle et son rebond
 export const PATH_TOP = BUBBLE_H + BUBBLE_GAP + 12;
 export const VAL_W = 128;
@@ -53,44 +72,82 @@ export function pathOffset(index: number): number {
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
-// Rond n° index (le trophée est le dernier, index = nombre de leçons)
-export function nodeRect(index: number, width: number, trophy = false): Rect {
-  const w = trophy ? TROPHY_W : NODE_W;
-  const h = trophy ? TROPHY_H : NODE_H;
+export function nodeShape(kind: StepKind): NodeShape {
+  return kind === 'case' ? 'case' : 'lesson';
+}
+
+// Centre vertical de la ligne n° index
+export function rowCenterY(index: number): number {
+  return PATH_TOP + index * STEP_Y + NODE_H / 2;
+}
+
+// Rond n° index (le trophée est le dernier, index = nombre d'étapes)
+export function nodeRect(index: number, width: number, shape: NodeShape = 'lesson'): Rect {
+  const { w, face } = NODE_SIZES[shape];
+  const h = face + NODE_EDGE;
   const cx = width / 2 + pathOffset(index);
-  // Les ronds sont alignés sur leur centre vertical, trophée compris
-  const cy = PATH_TOP + index * STEP_Y + NODE_H / 2;
+  const cy = rowCenterY(index);
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
-export function pathHeight(nodeCount: number): number {
-  if (nodeCount <= 0) return 0;
-  const last = nodeRect(nodeCount - 1, 0, true);
-  return last.y + last.h;
+export function pathHeight(stepCount: number): number {
+  const trophy = nodeRect(stepCount, 0, 'trophy');
+  return trophy.y + trophy.h;
 }
 
 export function intersects(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 }
 
-// Ce qui entoure un rond : l'anneau (rond en cours) et la bulle au-dessus
-export function ringRect(index: number, width: number): Rect {
-  const n = nodeRect(index, width);
-  const cx = n.x + n.w / 2;
-  const cy = n.y + NODE_FACE_H / 2;
+function inflate(r: Rect, dx: number, dy: number): Rect {
+  return { x: r.x - dx, y: r.y - dy, w: r.w + 2 * dx, h: r.h + 2 * dy };
+}
+
+// Centre de la face d'un rond (sans la tranche)
+function faceCenter(index: number, width: number, shape: NodeShape): { cx: number; cy: number } {
+  const n = nodeRect(index, width, shape);
+  return { cx: n.x + n.w / 2, cy: n.y + NODE_SIZES[shape].face / 2 };
+}
+
+export function ringRect(index: number, width: number, shape: NodeShape = 'lesson'): Rect {
+  const { cx, cy } = faceCenter(index, width, shape);
   return { x: cx - RING_DIAMETER / 2, y: cy - RING_DIAMETER / 2, w: RING_DIAMETER, h: RING_DIAMETER };
 }
 
-export function bubbleRect(index: number, width: number): Rect {
-  const n = nodeRect(index, width);
+export function haloRect(index: number, width: number, shape: NodeShape = 'lesson'): Rect {
+  const { cx, cy } = faceCenter(index, width, shape);
+  return { x: cx - HALO_SIZE / 2, y: cy - HALO_SIZE / 2, w: HALO_SIZE, h: HALO_SIZE };
+}
+
+export function bubbleRect(index: number, width: number, shape: NodeShape = 'lesson'): Rect {
+  const n = nodeRect(index, width, shape);
   const cx = n.x + n.w / 2;
   return { x: cx - BUBBLE_W / 2, y: n.y - BUBBLE_GAP - BUBBLE_H, w: BUBBLE_W, h: BUBBLE_H };
 }
 
 // ---------------------------------------------------------------------------
-// États
+// Étapes et états
 // ---------------------------------------------------------------------------
-export type NodeState = 'completed' | 'current' | 'locked';
+export type StepIcon = 'star' | 'book' | 'barbell' | 'flash';
+
+// Icône d'une étape : leçon → étoile (la première, une fois terminée : un
+// livre), révision → haltère, défi → éclair, cas pratique → livre
+export function stepIcon(lesson: Lesson, number: number, completed: boolean): StepIcon {
+  switch (stepKind(lesson)) {
+    case 'review':
+      return 'barbell';
+    case 'challenge':
+      return 'flash';
+    case 'case':
+      return 'book';
+    default:
+      return number === 1 && completed ? 'book' : 'star';
+  }
+}
+
+export function viewShape(view: LessonView): NodeShape {
+  return nodeShape(stepKind(view.lesson));
+}
 
 export function currentIndex(views: LessonView[]): number {
   return views.findIndex((v) => v.status === 'current');
@@ -105,12 +162,28 @@ export function moduleDone(views: LessonView[]): boolean {
   return views.length > 0 && views.every((v) => v.status === 'completed');
 }
 
+// Tout ce qui occupe le chemin : ronds, trophée, et autour du rond en cours
+// l'anneau, le halo et la bulle
+export function pathObstacles(views: LessonView[], width: number): Rect[] {
+  const rects: Rect[] = views.map((v, i) => nodeRect(i, width, viewShape(v)));
+  rects.push(nodeRect(views.length, width, 'trophy'));
+  const current = currentIndex(views);
+  if (current >= 0) {
+    const shape = viewShape(views[current]);
+    rects.push(ringRect(current, width, shape), haloRect(current, width, shape), bubbleRect(current, width, shape));
+  }
+  return rects;
+}
+
 // ---------------------------------------------------------------------------
 // Val sur le chemin
 // ---------------------------------------------------------------------------
 export type PathPose = 'saut' | 'fier' | 'salut';
 // largeur / hauteur des images en pied
 const POSE_RATIO: Record<PathPose, number> = { saut: 603 / 800, fier: 534 / 800, salut: 534 / 800 };
+// Ombre au sol sous Val : 64 % de sa largeur
+export const VAL_SHADOW_RATIO = 0.64;
+export const VAL_SHADOW_H = 14;
 
 export function valHeight(pose: PathPose): number {
   return Math.round(VAL_W / POSE_RATIO[pose]);
@@ -118,18 +191,19 @@ export function valHeight(pose: PathPose): number {
 
 export type ValSpot = { bend: number; pose: PathPose; rect: Rect };
 
-// Virages = ronds les plus écartés (décalage ±92). Un virage sur deux reçoit
+// Virages = ronds les plus écartés (décalage ±84). Un virage sur deux reçoit
 // Val, dans le creux, du côté opposé aux ronds. Pose selon l'avancement :
 // - module terminé : fier ;
 // - aucune leçon faite : salut ;
 // - sinon : saut au premier virage après la leçon en cours, fier avant
 //   (chemin parcouru), salut après (chemin à venir).
-// Un Val qui chevaucherait un rond, l'anneau ou la bulle n'est pas posé.
+// Un Val qui chevaucherait un rond, l'anneau, le halo ou la bulle n'est pas
+// posé. Le rectangle compte l'ombre au sol.
 export function valSpots(views: LessonView[], width: number): ValSpot[] {
   const nodeCount = views.length + 1; // + trophée
   const bends: number[] = [];
   for (let i = 0; i < nodeCount; i++) {
-    if (Math.abs(pathOffset(i)) === 92) bends.push(i);
+    if (Math.abs(pathOffset(i)) === BEND_OFFSET) bends.push(i);
   }
   const chosen = bends.filter((_, k) => k % 2 === 0);
 
@@ -137,10 +211,7 @@ export function valSpots(views: LessonView[], width: number): ValSpot[] {
   const noneDone = views.every((v) => v.status !== 'completed');
   const current = currentIndex(views);
   const sautBend = chosen.find((b) => b > current);
-
-  const obstacles: Rect[] = [];
-  for (let i = 0; i < nodeCount; i++) obstacles.push(nodeRect(i, width, i === views.length));
-  if (current >= 0) obstacles.push(ringRect(current, width), bubbleRect(current, width));
+  const obstacles = pathObstacles(views, width);
 
   const spots: ValSpot[] = [];
   for (const bend of chosen) {
@@ -150,15 +221,105 @@ export function valSpots(views: LessonView[], width: number): ValSpot[] {
     else if (bend === sautBend) pose = 'saut';
     else pose = bend < current ? 'fier' : 'salut';
 
-    const h = valHeight(pose);
+    const h = valHeight(pose) + VAL_SHADOW_H / 2;
     // Miroir du virage par rapport au centre
     const cx = width / 2 - pathOffset(bend);
-    const cy = nodeRect(bend, width).y + NODE_H / 2;
+    const cy = rowCenterY(bend);
     const rect = { x: cx - VAL_W / 2, y: cy - h / 2, w: VAL_W, h };
     const inside = rect.x >= 0 && rect.x + rect.w <= width && rect.y >= 0;
     if (inside && !obstacles.some((o) => intersects(rect, o))) spots.push({ bend, pose, rect });
   }
   return spots;
+}
+
+// ---------------------------------------------------------------------------
+// Décors au bord du chemin
+// ---------------------------------------------------------------------------
+export const DECOR_NAMES = [
+  'pile-pieces',
+  'tirelire',
+  'coffre-fort',
+  'plante',
+  'graphique',
+  'calculatrice',
+  'carnet',
+  'sablier',
+  'cle',
+  'enveloppe',
+  'banque',
+] as const;
+export type DecorName = (typeof DECOR_NAMES)[number];
+
+export const DECOR_MIN = 64;
+export const DECOR_MAX = 88;
+export const DECOR_ROTATION = 6;
+// Distance horizontale au centre du chemin, du côté opposé aux ronds
+const DECOR_SIDE = 104;
+const DECOR_JITTER = 12;
+// Effet de profondeur (92 % de la vitesse) : déplacement vertical maximal
+// par rapport au chemin, réservé autour de chaque décor
+export const PARALLAX_FACTOR = 0.08;
+export const PARALLAX_MAX = 32;
+// Ombre au sol sous le décor
+export const DECOR_SHADOW_H = 10;
+
+export type DecorSpot = { name: DecorName; rect: Rect; rotation: number; row: number };
+
+// Tirage pseudo-aléatoire stable (mulberry32) : même module, mêmes décors
+export function seededRandom(seed: number): () => number {
+  let a = seed >>> 0 || 1;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Environ un décor tous les deux ronds, sur les lignes où le rond est décalé
+// (on sait alors de quel côté est le vide), du côté opposé. Jamais sur un
+// rond, l'anneau, le halo, la bulle, Val ou un autre décor, jamais coupé par
+// le bord. Objets tirés selon l'id du module, jamais deux fois le même de suite.
+export function decorSpots(moduleId: number, views: LessonView[], width: number, vals: ValSpot[]): DecorSpot[] {
+  const rand = seededRandom(moduleId * 7919 + 17);
+  const rowCount = views.length + 1; // jusqu'au trophée
+  const taken: Rect[] = [...pathObstacles(views, width), ...vals.map((v) => v.rect)];
+  const spots: DecorSpot[] = [];
+  let previous: DecorName | null = null;
+
+  for (let row = 1; row < rowCount; row += 2) {
+    const offset = pathOffset(row);
+    if (offset === 0) continue;
+    // Tirages faits même si le décor n'est pas posé : l'ordre reste stable
+    let pick = Math.floor(rand() * DECOR_NAMES.length);
+    if (DECOR_NAMES[pick] === previous) pick = (pick + 1) % DECOR_NAMES.length;
+    const name = DECOR_NAMES[pick];
+    const size = Math.round(DECOR_MIN + rand() * (DECOR_MAX - DECOR_MIN));
+    const rotation = Math.round((rand() * 2 - 1) * DECOR_ROTATION * 10) / 10;
+    const jitterX = (rand() * 2 - 1) * DECOR_JITTER;
+    const jitterY = (rand() * 2 - 1) * DECOR_JITTER;
+
+    const cx = width / 2 - Math.sign(offset) * DECOR_SIDE + jitterX;
+    const cy = rowCenterY(row) + jitterY;
+    const rect = { x: cx - size / 2, y: cy - size / 2, w: size, h: size + DECOR_SHADOW_H / 2 };
+    // Le décor peut glisser de PARALLAX_MAX vers le haut ou le bas
+    const zone = inflate(rect, 4, PARALLAX_MAX);
+    const inside = rect.x >= 0 && rect.x + rect.w <= width && rect.y - PARALLAX_MAX >= 0;
+    if (inside && !taken.some((t) => intersects(zone, t))) {
+      spots.push({ name, rect, rotation, row });
+      taken.push(zone);
+      previous = name;
+    }
+  }
+  return spots;
+}
+
+// Décalage d'effet de profondeur : nul quand le décor est au milieu de
+// l'écran, borné à ±PARALLAX_MAX
+export function parallaxShift(decorCenterY: number, scrollY: number, viewport: number): number {
+  const shift = (scrollY + viewport / 2 - decorCenterY) * PARALLAX_FACTOR;
+  return Math.max(-PARALLAX_MAX, Math.min(PARALLAX_MAX, shift));
 }
 
 // ---------------------------------------------------------------------------

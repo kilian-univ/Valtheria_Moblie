@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ComponentProps, ReactNode, useEffect } from 'react';
+import { ComponentProps, ReactNode, useEffect, useId } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   interpolateColor,
@@ -11,9 +11,10 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, { Defs, Ellipse, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { durations, springs } from '@/src/constants/motion';
-import { palette } from '@/src/constants/style/Style';
+import { palette, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -21,17 +22,29 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 export type NodeColors = { face: string; deep: string; icon: string };
 
 const SINK_DURATION = 80; // comme le bouton principal
-const SHINE_W = 24;
-const SHINE_H = 10;
 const SHAKE_X = 5;
 const SHAKE_MS = 50;
 const POP_FROM = 0.8;
 const GROW_TO = 1.15;
+// Volume
+const HIGHLIGHT_OPACITY = 0.35;
+const HIGHLIGHT_REACH = 0.42; // le reflet s'éteint à 42 % du rond
+const SHADE_OPACITY = 0.18;
+const INNER_LIGHT = 2;
+// Ombre portée au sol, sous la tranche
+const GROUND_OPACITY = 0.45;
+const GROUND_W_RATIO = 0.86;
+const GROUND_H = 14;
+// Petite ombre portée de l'icône ivoire
+const ICON_SHADOW_OPACITY = 0.35;
+const ICON_SHADOW_RADIUS = 2;
 
 type PathNodeProps = {
   width: number;
   faceHeight: number;
   edge: number;
+  // Rayon : absent = ovale ; un nombre = carré arrondi (cas pratique)
+  cornerRadius?: number;
   iconName: IconName;
   iconSize: number;
   // Couleurs allumées (terminé, en cours, trophée doré) et éteintes (verrouillé)
@@ -48,16 +61,19 @@ type PathNodeProps = {
   onPress: () => void;
   accessibilityLabel: string;
   accessibilityHint?: string;
-  // Derrière le rond (lueur du trophée)
+  // Derrière le rond (lueur du trophée, halo de la leçon en cours)
   behind?: ReactNode;
 };
 
-// Rond du chemin en relief : face ovale sur sa tranche, reflet clair en haut
-// à gauche. À l'appui, la face descend sur sa tranche, qui disparaît.
+// Rond du chemin en relief : face sur sa tranche, avec du volume (reflet
+// radial en haut à gauche, ombre radiale en bas à droite, fine lumière en
+// haut) et une ombre portée au sol. À l'appui, la face descend sur sa
+// tranche, qui disparaît.
 export default function PathNode({
   width,
   faceHeight,
   edge,
+  cornerRadius,
   iconName,
   iconSize,
   on,
@@ -74,6 +90,7 @@ export default function PathNode({
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
+  const id = useId().replace(/[^a-zA-Z0-9]/g, '');
 
   const press = useSharedValue(0);
   const shake = useSharedValue(0);
@@ -95,10 +112,7 @@ export default function PathNode({
     tint.set(0);
     tint.set(withDelay(litDelay, withTiming(1, { duration: durations.enterOpacity })));
     scale.set(
-      withDelay(
-        litDelay,
-        withSequence(withTiming(GROW_TO, { duration: durations.fade }), withSpring(1, springs.celebrate))
-      )
+      withDelay(litDelay, withSequence(withTiming(GROW_TO, { duration: durations.fade }), withSpring(1, springs.celebrate)))
     );
   }, [lit, litDelay, reduced, tint, scale]);
 
@@ -136,9 +150,35 @@ export default function PathNode({
   const pressIn = () => press.set(reduced ? 1 : withTiming(1, { duration: SINK_DURATION }));
   const pressOut = () => press.set(reduced ? 0 : withSpring(0, springs.press));
 
+  const shape = { borderRadius: cornerRadius ?? ('50%' as const) };
+  const groundW = width * GROUND_W_RATIO;
+  const iconShadow = {
+    textShadowColor: withOpacity(colors.groundShadow, ICON_SHADOW_OPACITY),
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: ICON_SHADOW_RADIUS,
+  };
+
   return (
     <Animated.View style={[{ width, height: faceHeight + edge }, wrapStyle]}>
       {behind}
+
+      {/* Ombre portée au sol : ellipse floutée (dégradé radial), un peu plus
+          étroite que le rond, sous la tranche */}
+      <Svg
+        pointerEvents="none"
+        width={groundW}
+        height={GROUND_H}
+        style={[styles.ground, { left: (width - groundW) / 2, top: faceHeight + edge - GROUND_H / 2 }]}
+      >
+        <Defs>
+          <RadialGradient id={`g${id}`} cx="50%" cy="50%" r="50%">
+            <Stop offset="0" stopColor={colors.groundShadow} stopOpacity={GROUND_OPACITY} />
+            <Stop offset="1" stopColor={colors.groundShadow} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Ellipse cx={groundW / 2} cy={GROUND_H / 2} rx={groundW / 2} ry={GROUND_H / 2} fill={`url(#g${id})`} />
+      </Svg>
+
       <Pressable
         onPress={onPress}
         onPressIn={pressIn}
@@ -148,15 +188,37 @@ export default function PathNode({
         accessibilityHint={accessibilityHint}
         style={StyleSheet.absoluteFill}
       >
-        <Animated.View style={[styles.oval, { top: edge, width, height: faceHeight }, edgeStyle]} />
-        <Animated.View style={[styles.oval, styles.face, { width, height: faceHeight }, faceStyle]}>
-          <View style={[styles.shine, { backgroundColor: colors.pathShine }]} />
+        <Animated.View style={[styles.layer, shape, { top: edge, width, height: faceHeight }, edgeStyle]} />
+        <Animated.View
+          style={[
+            styles.layer,
+            styles.face,
+            shape,
+            { width, height: faceHeight, borderTopColor: colors.nodeInnerLight },
+            faceStyle,
+          ]}
+        >
+          {/* Volume : reflet radial clair en haut à gauche, ombre en bas à droite */}
+          <Svg width={width} height={faceHeight} style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Defs>
+              <RadialGradient id={`h${id}`} cx="30%" cy="26%" r={`${HIGHLIGHT_REACH * 100}%`}>
+                <Stop offset="0" stopColor={colors.nodeHighlight} stopOpacity={HIGHLIGHT_OPACITY} />
+                <Stop offset="1" stopColor={colors.nodeHighlight} stopOpacity={0} />
+              </RadialGradient>
+              <RadialGradient id={`s${id}`} cx="78%" cy="82%" r="60%">
+                <Stop offset="0" stopColor={colors.nodeShade} stopOpacity={SHADE_OPACITY} />
+                <Stop offset="1" stopColor={colors.nodeShade} stopOpacity={0} />
+              </RadialGradient>
+            </Defs>
+            <Rect x="0" y="0" width={width} height={faceHeight} fill={`url(#s${id})`} />
+            <Rect x="0" y="0" width={width} height={faceHeight} fill={`url(#h${id})`} />
+          </Svg>
           <View style={styles.icon}>
             <Animated.View style={[StyleSheet.absoluteFill, styles.center, offIconStyle]}>
               <Ionicons name={iconName} size={iconSize} color={off.icon} />
             </Animated.View>
             <Animated.View style={[StyleSheet.absoluteFill, styles.center, onIconStyle]}>
-              <Ionicons name={iconName} size={iconSize} color={on.icon} />
+              <Ionicons name={iconName} size={iconSize} color={on.icon} style={iconShadow} />
             </Animated.View>
           </View>
         </Animated.View>
@@ -166,25 +228,19 @@ export default function PathNode({
 }
 
 const styles = StyleSheet.create({
-  oval: {
+  ground: {
+    position: 'absolute',
+  },
+  layer: {
     position: 'absolute',
     left: 0,
-    borderRadius: '50%',
   },
   face: {
     top: 0,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  shine: {
-    position: 'absolute',
-    top: '14%',
-    left: '18%',
-    width: SHINE_W,
-    height: SHINE_H,
-    borderRadius: SHINE_H / 2,
-    transform: [{ rotate: '-20deg' }],
+    borderTopWidth: INNER_LIGHT,
   },
   icon: {
     width: '100%',

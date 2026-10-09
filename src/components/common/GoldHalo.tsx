@@ -14,9 +14,11 @@ const FADE_END = 0.9;
 // - le parent est carré et mesure au plus 1,5 fois l'élément entouré ;
 // - aucun ancêtre en overflow hidden : le halo ne doit jamais être rogné ;
 // - intensité au centre = goldHalo (0,15 au plus), jamais en pleine largeur.
-export default function GoldHalo() {
+// color : halo d'une autre couleur (couleur du module à 25 % sur le chemin).
+export default function GoldHalo({ color }: { color?: string } = {}) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
+  const center = color ?? colors.goldHalo;
   const id = `halo${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
 
   return (
@@ -29,9 +31,9 @@ export default function GoldHalo() {
       <Svg width="100%" height="100%">
         <Defs>
           <RadialGradient id={id} cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-            <Stop offset="0" stopColor={colors.goldHalo} stopOpacity={1} />
-            <Stop offset={FADE_END} stopColor={colors.goldHalo} stopOpacity={0} />
-            <Stop offset="1" stopColor={colors.goldHalo} stopOpacity={0} />
+            <Stop offset="0" stopColor={center} stopOpacity={1} />
+            <Stop offset={FADE_END} stopColor={center} stopOpacity={0} />
+            <Stop offset="1" stopColor={center} stopOpacity={0} />
           </RadialGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />

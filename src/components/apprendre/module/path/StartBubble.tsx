@@ -13,7 +13,7 @@ import Animated, {
 
 import AppText from '@/src/components/common/AppText';
 import { durations } from '@/src/constants/motion';
-import { fonts, palette, radius, space } from '@/src/constants/style/Style';
+import { fonts, palette, radius, space, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { BUBBLE_H, BUBBLE_W } from '@/src/utils/modulePath';
 
@@ -22,6 +22,9 @@ const BOUNCE_PERIOD = 1200;
 const TIP = 12;
 const FONT_SIZE = 15;
 const LETTER_SPACING = 0.6;
+// Ombre nette de 4 px sous la bulle
+const SHADOW_Y = 4;
+const SHADOW_OPACITY = 0.35;
 
 type StartBubbleProps = {
   // Couleur du texte : tranche du module
@@ -59,13 +62,19 @@ export default function StartBubble({ textColor, onPress, appearDelay }: StartBu
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel="Commencer la leçon en cours"
-        style={[styles.bubble, { backgroundColor: colors.text }]}
+        style={[
+          styles.bubble,
+          {
+            backgroundColor: colors.ivory,
+            boxShadow: [{ offsetX: 0, offsetY: SHADOW_Y, blurRadius: 0, color: withOpacity(colors.groundShadow, SHADOW_OPACITY) }],
+          },
+        ]}
       >
         <AppText maxFontSizeMultiplier={1.2} style={[styles.label, { color: textColor }]}>
           COMMENCER
         </AppText>
       </Pressable>
-      <View style={[styles.tip, { backgroundColor: colors.text }]} />
+      <View style={[styles.tip, { backgroundColor: colors.ivory }]} />
     </Animated.View>
   );
 }

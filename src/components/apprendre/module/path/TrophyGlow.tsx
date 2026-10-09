@@ -13,7 +13,10 @@ import Animated, {
 
 import GoldHalo from '@/src/components/common/GoldHalo';
 import { durations } from '@/src/constants/motion';
-import { TROPHY_H, TROPHY_W } from '@/src/utils/modulePath';
+import { NODE_EDGE, NODE_SIZES } from '@/src/utils/modulePath';
+
+const TROPHY_W = NODE_SIZES.trophy.w;
+const TROPHY_H = NODE_SIZES.trophy.face + NODE_EDGE;
 
 // Carré de la lueur : au plus 1,5 fois le trophée
 export const GLOW_SIZE = Math.round(TROPHY_W * 1.45);

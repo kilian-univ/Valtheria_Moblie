@@ -206,3 +206,15 @@ export function normalizeLesson(data: unknown): LessonModel {
     screens: rawScreens.map((s, i) => normalizeScreen(s, i)),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Type d'étape du chemin (GET /modules → lessons[].kind). Préparé pour le
+// serveur, qui ne l'envoie pas encore : absent ou inconnu → 'lesson'.
+// ---------------------------------------------------------------------------
+export type StepKind = 'lesson' | 'review' | 'challenge' | 'case';
+const STEP_KINDS: readonly StepKind[] = ['lesson', 'review', 'challenge', 'case'];
+
+export function stepKind(lesson: unknown): StepKind {
+  const kind = isRecord(lesson) ? lesson.kind : undefined;
+  return typeof kind === 'string' && (STEP_KINDS as readonly string[]).includes(kind) ? (kind as StepKind) : 'lesson';
+}

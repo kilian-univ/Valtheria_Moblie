@@ -3,7 +3,9 @@ import { StyleSheet, View } from 'react-native';
 import Skeleton from '@/src/components/common/Skeleton';
 import { palette, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { NODE_H, NODE_W, PATH_TOP, pathOffset, STEP_Y } from '@/src/utils/modulePath';
+import { NODE_H, NODE_SIZES, PATH_TOP, pathOffset, STEP_Y } from '@/src/utils/modulePath';
+
+const NODE_W = NODE_SIZES.lesson.w;
 
 // Mêmes dimensions que la bannière et le chemin réels (ModuleBanner, ModulePath)
 const BANNER_HEIGHT = 80;
