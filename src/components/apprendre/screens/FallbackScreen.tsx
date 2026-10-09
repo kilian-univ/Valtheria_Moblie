@@ -1,27 +1,42 @@
-import { ScrollView, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { fonts } from '@/src/constants/style/Style';
-import ContinueButton from '../ContinueButton';
-import ValBubble from '../ValBubble';
+import AppText from '@/src/components/common/AppText';
+import { palette, radius, space } from '@/src/constants/style/Style';
+import { useTheme } from '@/src/context/ThemeContext';
+import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
 
-export default function FallbackScreen({ screen, colors, onNext, isLast, onFinish, isSubmitting }: LessonScreenProps) {
+// Types d'écran pas encore construits : contenu brut, lisible et non
+// bloquant (le lecteur affiche « Continuer »).
+export default function FallbackScreen({ screen }: LessonScreenProps) {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-      <ValBubble val={screen.val?.intro} colors={colors} />
-      <View style={{ marginHorizontal: 20, padding: 14, borderRadius: 12, backgroundColor: colors.surface }}>
-        <Text style={{ color: colors.subtitle, fontSize: 12, fontFamily: fonts.body, marginBottom: 8 }}>
-          Type d'écran pas encore géré : "{screen.type}"
-        </Text>
-        <Text style={{ color: colors.text, fontSize: 12, fontFamily: fonts.body, fontVariant: ['tabular-nums'] }}>
+    <View style={styles.wrap}>
+      <ScreenIntro screen={screen} />
+      <View style={[styles.box, { backgroundColor: colors.surface }]}>
+        <AppText variant="caption" tone="subtitle">
+          Type d’écran pas encore géré : « {screen.type} »
+        </AppText>
+        <AppText variant="caption" style={styles.code}>
           {JSON.stringify(screen.payload, null, 2)}
-        </Text>
+        </AppText>
       </View>
-      {isLast ? (
-        <ContinueButton colors={colors} onPress={onFinish} label="Terminer la leçon" loading={isSubmitting} />
-      ) : (
-        <ContinueButton colors={colors} onPress={onNext} />
-      )}
-    </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: {
+    gap: space[6],
+  },
+  box: {
+    padding: space[4],
+    borderRadius: radius.md,
+    gap: space[2],
+  },
+  code: {
+    fontVariant: ['tabular-nums'],
+  },
+});

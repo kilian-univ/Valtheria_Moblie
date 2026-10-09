@@ -1,109 +1,126 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { fonts, titleLetterSpacing } from '@/src/constants/style/Style';
-import ContinueButton from '../ContinueButton';
-import ValBubble from '../ValBubble';
+import AppText from '@/src/components/common/AppText';
+import { durations } from '@/src/constants/motion';
+import { fonts, opacityDim, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useCountUp } from '@/src/hooks/useCountUp';
+import { formatNumber } from '@/src/utils/format';
+import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
 
-// reveal — un grand chiffre qui s'incrémente, avec sa décomposition en dessous.
+const VALUE_SIZE = 64;
+const VALUE_LINE_HEIGHT = 72;
+// Le chiffre défile une fois l'écran apparu
+const COUNT_DELAY = durations.enterOpacity;
+
+// reveal — un grand chiffre qui défile, avec sa décomposition en dessous.
 // Jamais noté : pas de bonne/mauvaise réponse, juste une révélation.
-export default function RevealScreen({ screen, screenIndex, colors, onNext, isLast, onFinish, isSubmitting, onRecordAnswer }: LessonScreenProps) {
+export default function RevealScreen({ screen }: LessonScreenProps) {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
   const { payload } = screen;
-  const [revealed, setRevealed] = useState(false);
-  const countAnim = useRef(new Animated.Value(0)).current;
-  const [displayValue, setDisplayValue] = useState(0);
-  
-  useEffect(() => {
-    setRevealed(false);
-    displayValue !== 0 && setDisplayValue(0);
-    countAnim.setValue(0);
-  }, [screenIndex]);
+  const target = Number(payload.value);
+  const hasValue = Number.isFinite(target);
+  const lines: any[] = payload.lines ?? [];
 
-  useEffect(() => {
-    const id = countAnim.addListener(({ value }) => setDisplayValue(Math.round(value)));
-    return () => countAnim.removeListener(id);
-  }, []);
-
-  const handleReveal = () => {
-    if (revealed) return;
-    setRevealed(true);
-    Animated.timing(countAnim, {
-      toValue: payload.value,
-      duration: 900,
-      useNativeDriver: false,
-    }).start();
-    // Écran non noté : on trace quand même le passage, sans notion de "correct".
-    onRecordAnswer({ screenIndex, type: 'reveal', correct: true, raw: { type: 'reveal', seen: true } });
-  };
+  const current = useCountUp(hasValue ? target : 0, { delay: COUNT_DELAY });
+  // Pendant le défilement : entiers ; à la fin : la valeur exacte
+  const shown = current === target ? target : Math.round(current);
+  const unit = payload.unit ? String(payload.unit) : '';
 
   return (
-        <ScrollView style={{ flex: 1, paddingBottom: 24 }}>
-        <ValBubble val={screen.val.intro} colors={colors} />
+    <View style={styles.wrap}>
+      <ScreenIntro screen={screen} question={payload.question} subtitle={payload.subtitle} />
 
-        {payload.question && (
-            <Text style={{ color: colors.text, fontSize: 16, fontFamily: fonts.body, marginHorizontal: 20, marginBottom: 20, lineHeight: 22 }}>
-            {payload.question}
-            </Text>
-        )}
+      <View
+        style={styles.figure}
+        accessible
+        accessibilityLabel={[payload.label, hasValue ? formatNumber(target) : null, unit].filter(Boolean).join(' ')}
+      >
+        {payload.label ? (
+          <AppText variant="sectionLabel" style={styles.center}>
+            {payload.label}
+          </AppText>
+        ) : null}
+        {hasValue ? (
+          <AppText tone="gold" maxFontSizeMultiplier={1.2} style={styles.value}>
+            {formatNumber(shown)}
+          </AppText>
+        ) : null}
+        {unit ? (
+          <AppText variant="callout" tone="subtitle" style={styles.center}>
+            {unit}
+          </AppText>
+        ) : null}
+      </View>
 
-        <View
-            style={{
-            marginHorizontal: 20,
-            padding: 20,
-            borderRadius: 16,
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-            marginBottom: 20,
-            }}
-        >
-            {payload.label && (
-            <Text style={{ color: colors.subtitle, fontSize: 13, fontFamily: fonts.body, marginBottom: 10, textAlign: 'center' }}>
-                {payload.label}
-            </Text>
-            )}
-
-            <Text style={{ color: colors.gold, fontSize: 38, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(38), fontVariant: ['tabular-nums'], textAlign: 'center', marginBottom: 16 }}>
-            {revealed ? `${displayValue.toLocaleString('fr-FR')} ${payload.unit ?? ''}` : '?'}
-            </Text>
-
-            {payload.lines?.map((line: any, i: number) => (
+      {lines.length > 0 ? (
+        <View>
+          {lines.map((line, i) => (
             <View
-                key={i}
-                style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                paddingVertical: 8,
-                borderTopWidth: i > 0 ? 1 : 0,
-                borderTopColor: colors.border,
-                opacity: line.dim ? 0.6 : 1,
-                }}
+              key={i}
+              style={[
+                styles.line,
+                i > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+                line.dim && styles.dim,
+              ]}
             >
-                <Text style={{ color: colors.text, fontSize: 13, fontFamily: fonts.body, flex: 1 }}>{line.label}</Text>
-                <Text style={{ color: line.key ? colors.gold : colors.text, fontSize: 13, fontFamily: line.key ? fonts.bodySemibold : fonts.body, fontVariant: ['tabular-nums'] }}>
-                {Number(line.value).toLocaleString('fr-FR')} {payload.unit ?? ''}
-                </Text>
+              <AppText variant="callout" tone={line.key ? 'gold' : 'text'} style={styles.lineLabel}>
+                {line.label}
+              </AppText>
+              <AppText
+                variant="callout"
+                tone={line.key ? 'gold' : 'text'}
+                style={[styles.lineValue, line.key && styles.keyValue]}
+              >
+                {Number.isFinite(Number(line.value)) ? formatNumber(Number(line.value)) : line.value}
+                {unit ? ` ${unit}` : ''}
+              </AppText>
             </View>
-            ))}
+          ))}
         </View>
-
-        {!revealed ? (
-            <ContinueButton colors={colors} onPress={handleReveal} label="Révéler" />
-        ) : (
-            <>
-            {screen.explanation && (
-                <View style={{ marginHorizontal: 20, marginBottom: 8, padding: 14, borderRadius: 12, backgroundColor: colors.surface }}>
-                <Text style={{ color: colors.subtitle, fontSize: 14, fontFamily: fonts.body, lineHeight: 20 }}>{screen.explanation}</Text>
-                </View>
-            )}
-            {isLast ? (
-                <ContinueButton colors={colors} onPress={onFinish} label="Terminer la leçon" loading={isSubmitting} />
-            ) : (
-                <ContinueButton colors={colors} onPress={onNext} />
-            )}
-            </>
-        )}
-        </ScrollView>
+      ) : null}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: {
+    gap: space[6],
+  },
+  figure: {
+    alignItems: 'center',
+    gap: space[1],
+  },
+  center: {
+    textAlign: 'center',
+  },
+  value: {
+    fontFamily: fonts.title,
+    fontSize: VALUE_SIZE,
+    lineHeight: VALUE_LINE_HEIGHT,
+    letterSpacing: titleLetterSpacing(VALUE_SIZE),
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+  },
+  line: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: space[3],
+    paddingVertical: space[3],
+  },
+  dim: {
+    opacity: opacityDim,
+  },
+  lineLabel: {
+    flex: 1,
+  },
+  lineValue: {
+    fontVariant: ['tabular-nums'],
+  },
+  keyValue: {
+    fontFamily: fonts.bodySemibold,
+  },
+});

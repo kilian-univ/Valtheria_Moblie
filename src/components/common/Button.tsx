@@ -13,7 +13,17 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { tap } from '@/src/utils/haptics';
 import AppText, { TextTone } from './AppText';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'text';
+// primary, success, danger : en relief (face + tranche)
+// textDanger : bouton texte rouge (action destructrice discrète)
+export type ButtonVariant = 'primary' | 'success' | 'danger' | 'secondary' | 'text' | 'textDanger';
+
+type ReliefColors = { face: 'gold' | 'success' | 'error'; edge: 'goldDeep' | 'successDeep' | 'dangerDeep' };
+
+const RELIEF: Partial<Record<ButtonVariant, ReliefColors>> = {
+  primary: { face: 'gold', edge: 'goldDeep' },
+  success: { face: 'success', edge: 'successDeep' },
+  danger: { face: 'error', edge: 'dangerDeep' },
+};
 
 type ButtonProps = {
   label: string;
@@ -26,17 +36,22 @@ type ButtonProps = {
   // Pleine largeur par défaut, sauf pour la variante text
   fullWidth?: boolean;
   accessibilityHint?: string;
+  // Pas de vibration d'appui : l'action déclenche déjà la sienne
+  silent?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
 const LABEL_TONE: Record<ButtonVariant, TextTone> = {
   primary: 'onGold',
+  success: 'background',
+  danger: 'background',
   secondary: 'text',
   text: 'gold',
+  textDanger: 'error',
 };
 
-const PRESSED_SCALE = 0.97; // secondary et text
-const SINK_DURATION = 80; // primary : la face s'enfonce dans sa tranche
+const PRESSED_SCALE = 0.97; // secondary et boutons texte
+const SINK_DURATION = 80; // relief : la face s'enfonce dans sa tranche
 
 export default function Button({
   label,
@@ -45,29 +60,32 @@ export default function Button({
   disabled = false,
   disabledReason,
   loading = false,
-  fullWidth = variant !== 'text',
+  fullWidth = variant !== 'text' && variant !== 'textDanger',
   accessibilityHint,
+  silent = false,
   style,
 }: ButtonProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
-  const isPrimary = variant === 'primary';
+  const relief = RELIEF[variant];
+  const isRelief = relief !== undefined;
+  const isText = variant === 'text' || variant === 'textDanger';
 
-  // primary : enfoncement (0 → reliefDepth) ; autres : échelle (1 → 0,97)
+  // relief : enfoncement (0 → reliefDepth) ; autres : échelle (1 → 0,97)
   const press = useSharedValue(0);
 
   const inactive = disabled || loading;
 
   const faceStyle = useAnimatedStyle(() =>
-    isPrimary
+    isRelief
       ? { transform: [{ translateY: press.get() * reliefDepth }] }
       : { transform: [{ scale: 1 - press.get() * (1 - PRESSED_SCALE) }] }
   );
 
   const handlePressIn = () => {
     // Animations réduites : l'état pressé reste visible, sans mouvement progressif
-    press.set(reduced ? 1 : withTiming(1, { duration: isPrimary ? SINK_DURATION : durations.pressIn }));
+    press.set(reduced ? 1 : withTiming(1, { duration: isRelief ? SINK_DURATION : durations.pressIn }));
   };
 
   const handlePressOut = () => {
@@ -76,11 +94,11 @@ export default function Button({
 
   // Vibration au relâchement : seulement si l'action part vraiment
   const handlePress = () => {
-    if (isPrimary) tap();
+    if (isRelief && !silent) tap();
     onPress();
   };
 
-  const spinnerColor = isPrimary ? colors.onGold : variant === 'text' ? colors.gold : colors.text;
+  const spinnerColor = colors[LABEL_TONE[variant]];
 
   const content = (
     <>
@@ -103,13 +121,13 @@ export default function Button({
         accessibilityHint={disabled && disabledReason ? disabledReason : accessibilityHint}
         accessibilityState={{ disabled: inactive, busy: loading }}
         // En chargement le bouton reste plein : seul l'état désactivé estompe
-        style={[isPrimary && styles.reliefWrap, disabled && !loading && styles.disabled]}
+        style={[isRelief && styles.reliefWrap, disabled && !loading && styles.disabled]}
       >
-        {isPrimary ? (
+        {relief ? (
           <>
             {/* Tranche : visible sous la face, recouverte quand la face s'enfonce */}
-            <View style={[styles.edge, { backgroundColor: colors.goldDeep }]} />
-            <Animated.View style={[styles.base, styles.primaryFace, { backgroundColor: colors.gold }, faceStyle]}>
+            <View style={[styles.edge, { backgroundColor: colors[relief.edge] }]} />
+            <Animated.View style={[styles.base, styles.primaryFace, { backgroundColor: colors[relief.face] }, faceStyle]}>
               {content}
             </Animated.View>
           </>
@@ -117,9 +135,7 @@ export default function Button({
           <Animated.View
             style={[
               styles.base,
-              variant === 'secondary'
-                ? [styles.secondaryFace, { borderColor: colors.controlBorder }]
-                : styles.textFace,
+              isText ? styles.textFace : [styles.secondaryFace, { borderColor: colors.controlBorder }],
               faceStyle,
             ]}
           >

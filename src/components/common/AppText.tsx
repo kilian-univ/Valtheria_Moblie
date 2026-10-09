@@ -3,7 +3,8 @@ import { Text, TextProps } from 'react-native';
 import { palette, TextVariantName, textVariants } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 
-export type TextTone = 'text' | 'subtitle' | 'gold' | 'onGold' | 'success' | 'error';
+// background : texte posé sur un aplat vert ou rouge (couleur du fond)
+export type TextTone = 'text' | 'subtitle' | 'gold' | 'onGold' | 'success' | 'error' | 'background';
 
 type AppTextProps = TextProps & {
   variant?: TextVariantName;

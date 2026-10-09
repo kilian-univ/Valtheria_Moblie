@@ -1,29 +1,41 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { fonts } from '@/src/constants/style/Style';
-import ContinueButton from '../ContinueButton';
-import ValBubble from '../ValBubble';
+import { space } from '@/src/constants/style/Style';
+import { select } from '@/src/utils/haptics';
+import { isExactSelection } from '@/src/utils/lessonPlayer';
+import ReliefOption, { OptionState } from '../player/ReliefOption';
+import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
 
 // choice — QCM à réponse unique (single) ou multiple (multiple). Noté.
-export default function ChoiceScreen({ screen, screenIndex, colors, onNext, onRecordAnswer, isLast, onFinish, isSubmitting }: LessonScreenProps) {
+export default function ChoiceScreen({ screen, answered, onDraftChange }: LessonScreenProps) {
   const { payload } = screen;
+  const options: any[] = payload.options ?? [];
   const isMultiple = payload.mode === 'multiple';
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [answered, setAnswered] = useState(false);
 
-    useEffect(() => {
-        setSelectedIds([]);
-        setAnswered(false);
-    }, [screenIndex]);
+  const correctOptions = options.filter((o) => o.correct);
+  const correctIds: string[] = correctOptions.map((o) => o.id);
 
-  const correctIds: string[] = payload.options.filter((o: any) => o.correct).map((o: any) => o.id);
-  const isFullyCorrect =
-    selectedIds.length === correctIds.length && correctIds.every((id) => selectedIds.includes(id));
+  // La réponse en cours remonte au lecteur (bouton Valider, feuille)
+  useEffect(() => {
+    if (selectedIds.length === 0) {
+      onDraftChange(null);
+      return;
+    }
+    onDraftChange({
+      raw: isMultiple ? selectedIds : selectedIds[0],
+      correct: isExactSelection(selectedIds, correctIds),
+      correctText: correctOptions.map((o) => o.text).join(', ') || null,
+    });
+    // correctIds / correctOptions dérivent du payload, fixe pour cet écran
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds, isMultiple, onDraftChange]);
 
   const toggle = (optionId: string) => {
     if (answered) return;
+    select();
     if (isMultiple) {
       setSelectedIds((prev) => (prev.includes(optionId) ? prev.filter((id) => id !== optionId) : [...prev, optionId]));
     } else {
@@ -31,106 +43,47 @@ export default function ChoiceScreen({ screen, screenIndex, colors, onNext, onRe
     }
   };
 
-  const handleValidate = () => {
-    if (selectedIds.length === 0 || answered) return;
-    setAnswered(true);
-    onRecordAnswer({
-      screenIndex,
-      type: 'choice',
-      notion: screen.notion,
-      correct: isFullyCorrect,
-      raw: isMultiple ? selectedIds : selectedIds[0],
-    });
+  const stateOf = (option: any): OptionState => {
+    const isSelected = selectedIds.includes(option.id);
+    if (answered) {
+      if (option.correct) return 'correct';
+      if (isSelected) return 'wrong';
+      return 'idle';
+    }
+    return isSelected ? 'selected' : 'idle';
   };
 
-  const feedbackVal = answered ? (isFullyCorrect ? screen.val.correct : screen.val.wrong) : screen.val.intro;
-
   return (
-    <ScrollView style={{ flex: 1, paddingBottom: 24 }}>
-      <ValBubble val={feedbackVal} colors={colors} />
+    <View style={styles.wrap}>
+      <ScreenIntro
+        screen={screen}
+        question={payload.question}
+        subtitle={payload.subtitle}
+        hint={isMultiple ? 'Plusieurs réponses possibles' : undefined}
+      />
 
-      {payload.subtitle && (
-        <Text style={{ color: colors.subtitle, fontSize: 13, fontFamily: fonts.body, marginHorizontal: 20, marginBottom: 8, lineHeight: 18 }}>
-          {payload.subtitle}
-        </Text>
-      )}
-
-      <Text style={{ color: colors.text, fontSize: 17, fontFamily: fonts.bodySemibold, marginHorizontal: 20, marginBottom: 16 }}>
-        {payload.question}
-      </Text>
-
-      <View style={{ paddingHorizontal: 20 }}>
-        {payload.options.map((option: any) => {
-          const isSelected = selectedIds.includes(option.id);
-
-          let backgroundColor = colors.surface;
-          let borderColor = colors.controlBorder;
-
-          if (answered) {
-            if (option.correct) {
-              backgroundColor = colors.success + '22';
-              borderColor = colors.success;
-            } else if (isSelected && !option.correct) {
-              backgroundColor = colors.error + '22';
-              borderColor = colors.error;
-            }
-          } else if (isSelected) {
-            backgroundColor = colors.goldSoft;
-            borderColor = colors.gold;
-          }
-
-          return (
-            <Pressable
-              key={option.id}
-              onPress={() => toggle(option.id)}
-              disabled={answered}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 10,
-                borderWidth: 1.5,
-                borderColor,
-                backgroundColor,
-                borderRadius: 12,
-                paddingVertical: 14,
-                paddingHorizontal: 16,
-                marginBottom: 10,
-              }}
-            >
-              {isMultiple && (
-                <View
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 4,
-                    borderWidth: 1.5,
-                    borderColor: isSelected ? colors.gold : colors.subtitle,
-                    backgroundColor: isSelected ? colors.gold : 'transparent',
-                  }}
-                />
-              )}
-              <Text style={{ color: colors.text, fontSize: 15, fontFamily: fonts.bodySemibold, flex: 1 }}>{option.text}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={styles.options} accessibilityRole={isMultiple ? undefined : 'radiogroup'}>
+        {options.map((option) => (
+          <ReliefOption
+            key={option.id}
+            label={option.text}
+            state={stateOf(option)}
+            selected={selectedIds.includes(option.id)}
+            multiple={isMultiple}
+            disabled={answered}
+            onPress={() => toggle(option.id)}
+          />
+        ))}
       </View>
-
-      {!answered ? (
-        <ContinueButton colors={colors} onPress={handleValidate} label="Valider" disabled={selectedIds.length === 0} />
-      ) : (
-        <>
-          {screen.explanation && (
-            <View style={{ marginHorizontal: 20, marginTop: 4, marginBottom: 8, padding: 14, borderRadius: 12, backgroundColor: colors.surface }}>
-              <Text style={{ color: colors.subtitle, fontSize: 14, fontFamily: fonts.body, lineHeight: 20 }}>{screen.explanation}</Text>
-            </View>
-          )}
-          {isLast ? (
-            <ContinueButton colors={colors} onPress={onFinish} label="Terminer la leçon" loading={isSubmitting} />
-          ) : (
-            <ContinueButton colors={colors} onPress={onNext} />
-          )}
-        </>
-      )}
-    </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: {
+    gap: space[6],
+  },
+  options: {
+    gap: space[3],
+  },
+});

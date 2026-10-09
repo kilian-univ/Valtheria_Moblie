@@ -30,12 +30,28 @@ type BottomSheetProps = {
   // Fin de l'animation de fermeture : le parent peut démonter la feuille
   onClosed: () => void;
   children: ReactNode;
+  // false : pas de voile (le contenu derrière reste visible, mais ne se
+  // touche pas)
+  scrim?: boolean;
+  // false : ni poignée, ni croix, ni glissé, ni toucher hors de la feuille.
+  // Le retour Android appelle quand même onRequestClose.
+  dismissible?: boolean;
+  // Couleur de la feuille (jeton de la palette), surface par défaut
+  backgroundColor?: string;
 };
 
 // Feuille qui monte du bas sur un voile, ressort « screen ». Le parent la
 // monte avec open = true, passe open à false pour la fermer, puis la démonte
 // dans onClosed. Animations réduites : simple fondu, sans glissement.
-export default function BottomSheet({ open, onRequestClose, onClosed, children }: BottomSheetProps) {
+export default function BottomSheet({
+  open,
+  onRequestClose,
+  onClosed,
+  children,
+  scrim = true,
+  dismissible = true,
+  backgroundColor,
+}: BottomSheetProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const insets = useSafeAreaInsets();
@@ -71,6 +87,7 @@ export default function BottomSheet({ open, onRequestClose, onClosed, children }
   }, [open, reduced, onClosed, scrimOpacity, sheetOpacity, translateY, sheetHeight]);
 
   const pan = Gesture.Pan()
+    .enabled(dismissible)
     .onUpdate((e) => {
       translateY.set(Math.max(0, e.translationY));
     })
@@ -98,10 +115,12 @@ export default function BottomSheet({ open, onRequestClose, onClosed, children }
       onRequestClose={onRequestClose}
     >
       <GestureHandlerRootView style={styles.root}>
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }, scrimStyle]}>
+        <Animated.View
+          style={[StyleSheet.absoluteFill, scrim && { backgroundColor: colors.scrim }, scrimStyle]}
+        >
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={onRequestClose}
+            onPress={dismissible ? onRequestClose : undefined}
             accessible={false}
             importantForAccessibility="no"
           />
@@ -113,20 +132,28 @@ export default function BottomSheet({ open, onRequestClose, onClosed, children }
             onLayout={(e) => sheetHeight.set(e.nativeEvent.layout.height)}
             style={[
               styles.sheet,
-              { backgroundColor: colors.surface, paddingBottom: insets.bottom + space[5] },
+              {
+                backgroundColor: backgroundColor ?? colors.surface,
+                paddingBottom: insets.bottom + space[5],
+              },
+              !dismissible && styles.fixedSheet,
               sheetStyle,
             ]}
           >
-            <View style={[styles.handle, { backgroundColor: colors.controlBorder }]} />
+            {dismissible ? (
+              <>
+                <View style={[styles.handle, { backgroundColor: colors.controlBorder }]} />
 
-            <Pressable
-              onPress={onRequestClose}
-              accessibilityRole="button"
-              accessibilityLabel="Fermer"
-              style={({ pressed }) => [styles.close, pressed && { backgroundColor: colors.surface2 }]}
-            >
-              <Ionicons name="close" size={CLOSE_SIZE} color={colors.subtitle} />
-            </Pressable>
+                <Pressable
+                  onPress={onRequestClose}
+                  accessibilityRole="button"
+                  accessibilityLabel="Fermer"
+                  style={({ pressed }) => [styles.close, pressed && { backgroundColor: colors.surface2 }]}
+                >
+                  <Ionicons name="close" size={CLOSE_SIZE} color={colors.subtitle} />
+                </Pressable>
+              </>
+            ) : null}
 
             {children}
           </Animated.View>
@@ -147,6 +174,10 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     paddingHorizontal: space[5],
     // Pas d'overflow hidden : un halo posé dans la feuille ne doit pas être rogné
+  },
+  // Sans poignée : la place qu'elle occupait devient une marge
+  fixedSheet: {
+    paddingTop: space[5],
   },
   handle: {
     alignSelf: 'center',

@@ -10,6 +10,7 @@ export const fonts = {
   body: 'Inter_400Regular',
   bodyMedium: 'Inter_500Medium',
   bodySemibold: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
 } as const;
 
 // Titres Fraunces : interlettrage resserré proportionnel à la taille
@@ -46,6 +47,14 @@ export const palette = {
     onGold: '#0D0D0F',                   // texte posé sur l'or
     success: '#3FA876',
     error: '#E0715F',
+    successDeep: '#2B7A55',              // tranche du relief sous le vert (bouton, option juste)
+    dangerDeep: '#A9503F',               // tranche du relief sous le rouge
+    successSoft: 'rgba(63,168,118,0.13)', // fond teinté d'une option juste
+    dangerSoft: 'rgba(224,113,95,0.13)',  // fond teinté d'une option fausse
+    successSheet: '#12261C',             // feuille de réponse juste
+    dangerSheet: '#2A1715',              // feuille de réponse fausse
+    reliefEdge: 'rgba(255,255,255,0.13)', // tranche d'une option en relief
+    progressShine: 'rgba(255,255,255,0.35)', // reflet de la barre de progression
     shadow: '#000000',
     blobLight: '#FFFFFF',                // taches du fond d'écran
     blobDark: '#000000',
@@ -72,6 +81,14 @@ export const palette = {
     gold: '#E8B23D',
     success: '#16A34A',
     error: '#DC4C3E',
+    successDeep: '#0F7A35',
+    dangerDeep: '#A8362B',
+    successSoft: 'rgba(22,163,74,0.12)',
+    dangerSoft: 'rgba(220,76,62,0.12)',
+    successSheet: '#EAF6EE',
+    dangerSheet: '#FBECEA',
+    reliefEdge: 'rgba(0,0,0,0.13)',
+    progressShine: 'rgba(255,255,255,0.5)',
     // Jetons ajoutés pour suivre la palette sombre (le thème clair n'est pas retravaillé)
     textFaint: 'rgba(13,13,15,0.26)',
     controlBorder: 'rgba(0,0,0,0.13)',
@@ -102,7 +119,8 @@ export const palette = {
 // ---------------------------------------------------------------------------
 export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40 } as const;
 
-export const radius = { sm: 6, md: 12, lg: 20, pill: 999 } as const;
+// option : réponses de QCM en relief
+export const radius = { sm: 6, md: 12, option: 14, lg: 20, pill: 999 } as const;
 
 export const size = {
   tapMin: 44,
@@ -114,6 +132,8 @@ export const size = {
 } as const;
 
 export const opacityDisabled = 0.42;
+// Élément secondaire estompé (ligne « dim » d'une révélation)
+export const opacityDim = 0.52;
 
 // Épaisseur de la tranche sous les éléments en relief (bouton principal,
 // rond de la leçon en cours) ; la face s'y enfonce à l'appui.
@@ -2019,358 +2039,3 @@ export function getFormStyles(colorScheme: ColorScheme) {
     },
   });
 }
-
-export function getLessonEndStyles(colorScheme: ColorScheme) {
-  const colors = palette[colorScheme];
-
-  return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20, alignItems: 'center' },
-    valImage: {
-      width: 110,
-      height: 110,
-      borderRadius: 55,
-      borderWidth: 2,
-      borderColor: colors.gold,
-      marginTop: 24,
-      marginBottom: 16,
-    },
-    title: { color: colors.text, fontSize: 24, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(24), marginBottom: 6 },
-    subtitle: { color: colors.subtitle, fontSize: 14, fontFamily: fonts.body, textAlign: 'center', marginBottom: 24 },
-    statsRow: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginBottom: 16 },
-    statTile: {
-      flex: 1,
-      padding: 14,
-      borderRadius: 14,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: 'center',
-    },
-    statValue: { color: colors.text, fontSize: 20, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(20), fontVariant: ['tabular-nums'] },
-    statValueGold: { color: colors.gold, fontSize: 20, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(20), fontVariant: ['tabular-nums'] },
-    statLabel: { color: colors.subtitle, fontSize: 11, fontFamily: fonts.body, marginTop: 4 },
-    banner: {
-      alignSelf: 'stretch',
-      padding: 14,
-      borderRadius: 14,
-      backgroundColor: colors.goldSoft,
-      borderWidth: 1,
-      borderColor: colors.gold,
-      marginBottom: 16,
-    },
-    bannerText: { color: colors.gold, fontSize: 14, fontFamily: fonts.bodySemibold, textAlign: 'center' },
-    card: {
-      alignSelf: 'stretch',
-      padding: 16,
-      borderRadius: 14,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginBottom: 16,
-    },
-    cardTitle: { color: colors.text, fontSize: 14, fontFamily: fonts.bodySemibold, marginBottom: 10 },
-    notionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 10,
-      paddingVertical: 6,
-    },
-    notionName: { color: colors.text, fontSize: 13, fontFamily: fonts.body, flex: 1 },
-    badgeDone: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: colors.success + '22' },
-    badgeSeen: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: colors.surfaceAlt },
-    badgeDoneText: { color: colors.success, fontSize: 11, fontFamily: fonts.bodySemibold },
-    badgeSeenText: { color: colors.subtitle, fontSize: 11, fontFamily: fonts.bodySemibold },
-  });
-}
-
-export function getLessonPlayerStyles(colorScheme: ColorScheme) {
-  const colors = palette[colorScheme];
-
-  return StyleSheet.create({
-    centeredPadded: {
-      flex: 1,
-      backgroundColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 20,
-    },
-    errorText: {
-      color: colors.error,
-      fontFamily: fonts.body,
-      textAlign: 'center',
-      marginBottom: 16,
-    },
-    backLink: {
-      color: colors.gold,
-      fontFamily: fonts.bodySemibold,
-    },
-    safeArea: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    topBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space[2],
-      paddingLeft: space[2],
-      paddingRight: space[4],
-      paddingVertical: space[1],
-    },
-    // Croix du lecteur : zone de toucher de 44 × 44
-    closeButton: {
-      width: size.tapMin,
-      height: size.tapMin,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    progressTrack: {
-      flex: 1,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors.surface,
-      overflow: 'hidden',
-    },
-    progressFill: {
-      height: '100%',
-      borderRadius: 4,
-      backgroundColor: colors.gold,
-    },
-  });
-}
-
-export function getDocumentStyles(colorScheme: ColorScheme) {
-  const colors = palette[colorScheme];
-
-  return StyleSheet.create({
-    scrollContent: {
-      paddingBottom: 24,
-    },
-    question: {
-      color: colors.text,
-      fontSize: 17,
-      fontFamily: fonts.bodySemibold,
-      marginHorizontal: 20,
-      marginBottom: 16,
-    },
-    card: {
-      marginHorizontal: 20,
-      padding: 14,
-      borderRadius: 16,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginBottom: 8,
-    },
-    etablissement: {
-      color: colors.text,
-      fontSize: 14,
-      fontFamily: fonts.bodySemibold,
-      letterSpacing: 0.5,
-    },
-    metaText: {
-      color: colors.subtitle,
-      fontSize: 11,
-      fontFamily: fonts.body,
-      marginTop: 2,
-    },
-    colHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 8,
-      paddingTop: 14,
-      paddingBottom: 6,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      marginBottom: 6,
-    },
-    colHeaderText: {
-      color: colors.subtitle,
-      fontSize: 10.5,
-      fontFamily: fonts.bodySemibold,
-      textTransform: 'uppercase',
-      letterSpacing: 0.4,
-    },
-    colDate: { width: 44 },
-    colLabel: { flex: 1 },
-    colAmount: { width: 84, textAlign: 'right' },
-    // Lignes : même bordure partout, seule la couleur change
-    line: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 8,
-      borderRadius: 10,
-      borderWidth: 1.5,
-      borderColor: 'transparent',
-    },
-    lineSelected: {
-      backgroundColor: colors.goldSoft,
-      borderColor: colors.gold,
-    },
-    lineCorrect: {
-      backgroundColor: colors.success + '22',
-      borderColor: colors.success,
-    },
-    lineWrong: {
-      backgroundColor: colors.error + '22',
-      borderColor: colors.error,
-    },
-    lineMissed: {
-      borderColor: colors.success,
-      borderStyle: 'dashed',
-    },
-    lineWrap: {
-      marginBottom: 4,
-    },
-    dateText: {
-      color: colors.subtitle,
-      fontSize: 12,
-      fontFamily: fonts.body,
-      fontVariant: ['tabular-nums'],
-      width: 44,
-    },
-    labelWrap: {
-      flex: 1,
-      paddingRight: 8,
-    },
-    labelText: {
-      color: colors.text,
-      fontSize: 12.5,
-      fontFamily: fonts.bodySemibold,
-    },
-    subLabelText: {
-      color: colors.subtitle,
-      fontSize: 10.5,
-      fontFamily: fonts.body,
-      marginTop: 1,
-    },
-    amountNegative: {
-      color: colors.text,
-      fontSize: 13,
-      fontFamily: fonts.bodySemibold,
-      fontVariant: ['tabular-nums'],
-      width: 84,
-      textAlign: 'right',
-    },
-    amountPositive: {
-      color: colors.success,
-      fontSize: 13,
-      fontFamily: fonts.bodySemibold,
-      fontVariant: ['tabular-nums'],
-      width: 84,
-      textAlign: 'right',
-    },
-    revelationBox: {
-      marginTop: 4,
-      marginBottom: 6,
-      padding: 10,
-      borderRadius: 10,
-      backgroundColor: colors.gold + '1F',
-      borderWidth: 1,
-      borderColor: colors.gold + '55',
-    },
-    revelationText: {
-      color: colors.text,
-      fontSize: 12.5,
-      fontFamily: fonts.body,
-      lineHeight: 18,
-    },
-    footerRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingTop: 12,
-      marginTop: 6,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    footerLabel: {
-      color: colors.subtitle,
-      fontSize: 12,
-      fontFamily: fonts.body,
-    },
-    footerValue: {
-      color: colors.text,
-      fontSize: 12.5,
-      fontFamily: fonts.bodySemibold,
-      fontVariant: ['tabular-nums'],
-    },
-    aVenirText: {
-      color: colors.subtitle,
-      fontSize: 11,
-      fontFamily: fonts.body,
-      marginTop: 6,
-    },
-    explanationBox: {
-      marginHorizontal: 20,
-      marginTop: 8,
-      padding: 14,
-      borderRadius: 12,
-      backgroundColor: colors.surface,
-    },
-    explanationText: {
-      color: colors.subtitle,
-      fontSize: 14,
-      fontFamily: fonts.body,
-      lineHeight: 20,
-    },
-  });
-}
-
-export function getSliderStyles(colorScheme: ColorScheme) {
-  const colors = palette[colorScheme];
-
-  return StyleSheet.create({
-    wrap: { flex: 1, paddingBottom: 24 },
-    question: {
-      color: colors.text,
-      fontSize: 17,
-      fontFamily: fonts.bodySemibold,
-      marginHorizontal: 20,
-      marginBottom: 28,
-      lineHeight: 23,
-    },
-    valueWrap: { alignItems: 'center', marginBottom: 28 },
-    valueText: { color: colors.gold, fontSize: 44, fontFamily: fonts.title, letterSpacing: titleLetterSpacing(44), fontVariant: ['tabular-nums'] },
-    unitText: { color: colors.subtitle, fontSize: 14, fontFamily: fonts.body, marginTop: 2 },
-    trackOuter: {
-      marginHorizontal: 24,
-      height: 40,
-      justifyContent: 'center',
-    },
-    trackBg: {
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors.surfaceAlt,
-      overflow: 'hidden',
-    },
-    trackFill: {
-      height: '100%',
-      borderRadius: 4,
-      backgroundColor: colors.gold,
-    },
-    thumb: {
-      position: 'absolute',
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: colors.gold,
-      borderWidth: 3,
-      borderColor: colors.background,
-      top: 6,
-      marginLeft: -14,
-    },
-    boundsRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginHorizontal: 24,
-      marginTop: 6,
-    },
-    boundText: { color: colors.subtitle, fontSize: 11, fontFamily: fonts.body, fontVariant: ['tabular-nums'] },
-  });
-} 

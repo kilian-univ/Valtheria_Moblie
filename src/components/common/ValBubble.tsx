@@ -66,6 +66,7 @@ type ValBubbleProps = {
   mood: ValMood;
   text: string;
   title?: string;
+  diameter?: number;
 };
 
 export function valAccessibilityLabel(text: string, title?: string): string {
@@ -100,10 +101,10 @@ export function valImage(mood: ValMood): ImageSourcePropType {
   return VAL_IMAGES[mood] ?? VAL_IMAGES.neutre;
 }
 
-export default function ValBubble({ mood, text, title }: ValBubbleProps) {
+export default function ValBubble({ mood, text, title, diameter }: ValBubbleProps) {
   return (
     <View style={styles.row} accessible accessibilityLabel={valAccessibilityLabel(text, title)}>
-      <ValAvatar mood={mood} />
+      <ValAvatar mood={mood} diameter={diameter} />
       {/* key : un nouveau texte remonte la bulle et relance l'écriture */}
       <ValSpeechBubble key={`${title ?? ''}|${text}`} text={text} title={title} style={styles.bubbleWrap} />
     </View>
