@@ -111,7 +111,9 @@ function StepFrame({ children, button }: { children: ReactNode; button: ReactNod
       >
         <View
           onLayout={(e) => {
-            if (available > 0) setExcess((x) => nextExcess(x, e.nativeEvent.layout.height, available));
+            // Hauteur lue tout de suite : l'événement n'est pas gardé pour plus tard
+            const content = e.nativeEvent.layout.height;
+            if (available > 0) setExcess((x) => nextExcess(x, content, available));
           }}
         >
           <ValFitContext.Provider value={excess}>

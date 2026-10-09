@@ -137,7 +137,9 @@ export function totalVals(result: LessonResult): number {
 
 // Phrase sous « Leçon terminée ! »
 export function endSentence(firstTry: number, total: number): string {
-  if (total <= 0) return 'Bien joué, tu as fait le tour.';
+  // Nombre absent ou invalide : comme une leçon sans question notée
+  if (!Number.isFinite(total) || total <= 0) return 'Bien joué, tu as fait le tour.';
+  if (!Number.isFinite(firstTry)) firstTry = 0;
   if (firstTry >= total) return 'Tout bon du premier coup. Chapeau.';
   if (firstTry === 0) return 'Pas facile, celle-là. Tu feras mieux la prochaine fois.';
   return `${firstTry} ${firstTry >= 2 ? 'bonnes réponses' : 'bonne réponse'} du premier coup sur ${total}.`;

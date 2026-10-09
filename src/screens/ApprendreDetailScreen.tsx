@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import EndFlowBoundary from '@/src/components/apprendre/end/EndFlowBoundary';
 import LessonEndFlow from '@/src/components/apprendre/end/LessonEndFlow';
 import LessonSkeleton from '@/src/components/apprendre/LessonSkeleton';
 import AnswerSheet, { Verdict } from '@/src/components/apprendre/player/AnswerSheet';
@@ -226,6 +227,9 @@ export default function ApprendreDetailScreen() {
       //    la leçon terminée et la suivante débloquée seront prêtes au retour.
       Promise.all([getModules(), getProgress()])
         .then(([modulesData, progressData]) => {
+          // Liste vérifiée : la page module et l'accueil, encore montés sous le
+          // lecteur, la relisent tout de suite
+          if (!Array.isArray(modulesData)) return;
           learningStore.setState({
             modules: modulesData,
             streak: progressData?.streak ?? 0,
@@ -305,12 +309,14 @@ export default function ApprendreDetailScreen() {
   // ---------------------------------------------------------------------------
   if (result) {
     return (
-      <LessonEndFlow
-        result={result}
-        streakBefore={streakBefore}
-        moduleTitle={moduleTitle}
-        onDone={() => router.back()}
-      />
+      <EndFlowBoundary onDone={() => router.back()}>
+        <LessonEndFlow
+          result={result}
+          streakBefore={streakBefore}
+          moduleTitle={moduleTitle}
+          onDone={() => router.back()}
+        />
+      </EndFlowBoundary>
     );
   }
 
