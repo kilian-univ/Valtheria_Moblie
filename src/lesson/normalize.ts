@@ -1,7 +1,8 @@
 // Seul endroit qui connaît la forme des écrans renvoyée par GET /lessons/{id}
-// (contrat : storage/app/audit/types-ecrans-reels.md du site, §2 et §7).
-// Transforme cette réponse en format interne (model.ts). Fonctions pures,
-// sans React : testables avec Node.
+// (contrat : storage/app/audit/types-ecrans-reels.md du site, §2 et §7), et
+// celle des univers (GET /modules → universe, GET /universes ; voir API.md du
+// site). Transforme ces réponses en format interne (model.ts). Fonctions
+// pures, sans React : testables avec Node.
 //
 // Champs volontairement ignorés : variant, has_volatile_note,
 // volatile_verified_at, trap, trap_found, review, artifact, reveal.lines[].dim,
@@ -14,6 +15,8 @@ import type {
   LessonModel,
   LessonScreen,
   RevealLine,
+  Universe,
+  UniverseRef,
   ValBlock,
   ValLine,
   ValMood,
@@ -217,4 +220,41 @@ const STEP_KINDS: readonly StepKind[] = ['lesson', 'review', 'challenge', 'case'
 export function stepKind(lesson: unknown): StepKind {
   const kind = isRecord(lesson) ? lesson.kind : undefined;
   return typeof kind === 'string' && (STEP_KINDS as readonly string[]).includes(kind) ? (kind as StepKind) : 'lesson';
+}
+
+// ---------------------------------------------------------------------------
+// Univers. GET /modules → module.universe : { id, slug, name } ou null (absent
+// tant que le serveur ne l'envoie pas). GET /universes → liste (déjà sortie de
+// l'enveloppe { data } par ApiContext).
+// ---------------------------------------------------------------------------
+function id(raw: unknown): number | null {
+  return Number.isInteger(raw) && (raw as number) > 0 ? (raw as number) : null;
+}
+
+// Univers d'un module ; absent, null ou mal formé → null
+export function moduleUniverse(module: unknown): UniverseRef | null {
+  const u = isRecord(module) ? module.universe : undefined;
+  if (!isRecord(u)) return null;
+  const universeId = id(u.id);
+  const name = plainText(u.name);
+  if (universeId === null || !name) return null;
+  return { id: universeId, slug: typeof u.slug === 'string' ? u.slug : '', name };
+}
+
+// Liste des univers, triée par position (puis id). Les entrées mal formées
+// sont écartées ; une réponse qui n'est pas une liste → aucun univers.
+export function normalizeUniverses(data: unknown): Universe[] {
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter(isRecord)
+    .map((u) => ({
+      id: id(u.id),
+      slug: typeof u.slug === 'string' ? u.slug : '',
+      name: plainText(u.name),
+      description: plainText(u.description),
+      position: Number.isInteger(u.position) ? (u.position as number) : 0,
+      moduleIds: (Array.isArray(u.module_ids) ? u.module_ids : []).map(id).filter((m): m is number => m !== null),
+    }))
+    .filter((u): u is Universe => u.id !== null && u.name !== null)
+    .sort((a, b) => a.position - b.position || a.id - b.id);
 }

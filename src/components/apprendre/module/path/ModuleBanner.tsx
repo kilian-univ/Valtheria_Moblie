@@ -22,6 +22,8 @@ const HIGHLIGHT_OPACITY = 0.35;
 const HIGHLIGHT_REACH = 0.42;
 
 type ModuleBannerProps = {
+  // « UNIVERS AVANT D'INVESTIR », quand l'univers du module est connu
+  universe?: string | null;
   // « MODULE 3, 2 LEÇONS SUR 5 »
   label: string | null;
   title: string;
@@ -37,6 +39,7 @@ type ModuleBannerProps = {
 
 // Bannière en relief d'un module : libellé, titre, fine barre de progression
 export default function ModuleBanner({
+  universe,
   label,
   title,
   progress,
@@ -63,6 +66,11 @@ export default function ModuleBanner({
       </Svg>
 
       <View style={styles.titles}>
+        {universe ? (
+          <AppText maxFontSizeMultiplier={1.2} numberOfLines={1} style={[styles.label, { color: withOpacity(colors.onFace, 0.7) }]}>
+            {universe}
+          </AppText>
+        ) : null}
         {label ? (
           <AppText maxFontSizeMultiplier={1.2} style={[styles.label, { color: withOpacity(colors.onFace, 0.7) }]}>
             {label}
@@ -109,7 +117,7 @@ export default function ModuleBanner({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${label ? `${label}, ` : ''}${title}`}
+      accessibilityLabel={[universe, label, title].filter(Boolean).join(', ')}
       accessibilityHint={accessibilityHint}
       style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
     >

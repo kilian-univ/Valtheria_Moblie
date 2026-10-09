@@ -1,4 +1,4 @@
-// Format INTERNE d'une leçon, celui que lisent les composants du lecteur.
+// Format INTERNE d'une leçon (et des univers), celui que lisent les composants.
 // Il ne dépend pas de la forme renvoyée par le serveur : seul normalize.ts
 // connaît cette forme. Un changement de format côté API se corrige là-bas.
 
@@ -105,4 +105,16 @@ export type LessonScreen = ChoiceScreen | DocumentScreen | RevealScreen | Slider
 export type LessonModel = {
   title: string | null;
   screens: LessonScreen[];
+};
+
+// Univers d'un module, tel que GET /modules le résume
+export type UniverseRef = { id: number; slug: string; name: string };
+
+// Univers de GET /universes
+export type Universe = UniverseRef & {
+  description: string | null;
+  // Ordre d'affichage ; fixe aussi la couleur (moduleColorKey)
+  position: number;
+  // Modules publiés de l'univers, dans l'ordre de GET /modules
+  moduleIds: number[];
 };

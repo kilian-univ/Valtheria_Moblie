@@ -3,7 +3,9 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import { devSlowLoading } from '@/src/constants/dev';
 import { Module, Progress, useApi } from '@/src/context/ApiContext';
+import type { Universe } from '@/src/lesson/model';
 import { learningStore } from '@/src/state/learningStore';
+import { fetchUniverses } from '@/src/utils/universes';
 
 export type LoadError = 'network' | 'server';
 
@@ -29,16 +31,24 @@ export const OFFLINE_REASON = 'Connecte-toi à internet pour lancer une leçon.'
 // de l'écran ; les données déjà chargées (learningStore, partagé avec le
 // lecteur de leçon) restent affichées pendant le rechargement et hors ligne.
 export function useLearningData() {
-  const { getModules, getProgress, isAuthenticated, isLoading: authPending } = useApi();
+  const { get, getModules, getProgress, isAuthenticated, isLoading: authPending } = useApi();
   const store = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
   const [error, setError] = useState<LoadError | null>(null);
 
   const load = useCallback(async () => {
     try {
       await devSlowLoading();
-      const [modules, progress]: [Module[], Progress] = await Promise.all([getModules(), getProgress()]);
+      // Univers en même temps que les modules. Leur échec (route pas encore
+      // déployée, erreur) ne bloque rien : on garde les derniers connus, ou
+      // aucun, et l'accueil montre alors la liste des modules.
+      const [modules, progress, universes]: [Module[], Progress, Universe[] | null] = await Promise.all([
+        getModules(),
+        getProgress(),
+        fetchUniverses(get),
+      ]);
       learningStore.setState({
         modules: Array.isArray(modules) ? modules : [],
+        universes: universes ?? learningStore.getState().universes,
         xp: progress?.xp ?? 0,
         streak: progress?.streak ?? 0,
         level: progress?.level ?? 1,
@@ -49,7 +59,7 @@ export function useLearningData() {
     } catch (err) {
       setError(isNetworkError(err) ? 'network' : 'server');
     }
-  }, [getModules, getProgress]);
+  }, [get, getModules, getProgress]);
 
   // Dès que le token est lu sur le téléphone (isAuthenticated) : on n'attend
   // pas la vérification du profil en réseau (/user), qui se fait en parallèle.
@@ -63,12 +73,13 @@ export function useLearningData() {
   // Déconnexion : on oublie les données du compte précédent
   useEffect(() => {
     if (!authPending && !isAuthenticated && learningStore.getState().loaded) {
-      learningStore.setState({ modules: [], xp: 0, streak: 0, level: 1, vals: 0, loaded: false });
+      learningStore.setState({ modules: [], universes: [], xp: 0, streak: 0, level: 1, vals: 0, loaded: false });
     }
   }, [authPending, isAuthenticated]);
 
   return {
     modules: store.modules,
+    universes: store.universes,
     xp: store.xp,
     streak: store.streak,
     level: store.level,

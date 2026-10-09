@@ -16,6 +16,8 @@ type BaseProps = {
   // Élément à gauche (icône, pastille, avatar)
   leading?: ReactNode;
   showChevron?: boolean;
+  // Élément à droite, avant le chevron (anneau de progression…)
+  trailing?: ReactNode;
   // Élément sous le sous-titre (barre de progression…)
   footer?: ReactNode;
   // Dernière ligne du groupe : pas de filet en bas
@@ -50,6 +52,7 @@ export default function ListRow({
   valueTone = 'default',
   leading,
   showChevron = false,
+  trailing,
   footer,
   last = false,
   locked = false,
@@ -99,6 +102,8 @@ export default function ListRow({
           {value}
         </AppText>
       ) : null}
+
+      {trailing}
 
       {showChevron ? <Ionicons name="chevron-forward" size={CHEVRON_SIZE} color={colors.subtitle} /> : null}
     </Pressable>

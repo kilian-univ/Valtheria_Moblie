@@ -8,6 +8,7 @@ import HomeHeader from '@/src/components/apprendre/home/HomeHeader';
 import { ModuleRowsSkeleton, UpNextSkeleton } from '@/src/components/apprendre/home/HomeSkeleton';
 import ModuleRow from '@/src/components/apprendre/home/ModuleRow';
 import StreakSheet from '@/src/components/apprendre/home/StreakSheet';
+import UniverseRow from '@/src/components/apprendre/home/UniverseRow';
 import UpNextSection from '@/src/components/apprendre/home/UpNextSection';
 import AppText from '@/src/components/common/AppText';
 import PageState from '@/src/components/common/PageState';
@@ -21,6 +22,7 @@ import { useKnownPseudo } from '@/src/hooks/useKnownPseudo';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { inProgressModules, pickUpNext, resolveHomeSituation } from '@/src/utils/learning';
+import { modulesOutsideUniverses, visibleUniverses } from '@/src/utils/universes';
 
 export default function ApprendreHomeScreen() {
   const router = useRouter();
@@ -59,6 +61,9 @@ export default function ApprendreHomeScreen() {
 
   const openModule = (module: Module) =>
     router.push({ pathname: '/apprendre/module/[moduleId]', params: { moduleId: module.id } });
+
+  const openUniverse = (universeId: number) =>
+    router.push({ pathname: '/apprendre/univers/[universeId]', params: { universeId } });
 
   const startLesson = (module: Module, lesson: Lesson) => {
     markOpened(module.id);
@@ -140,6 +145,10 @@ export default function ApprendreHomeScreen() {
     const upNextId = situation.kind === 'upNext' ? situation.module.id : null;
     const others = loading ? [] : inProgressModules(data.modules, upNextId);
     const showModules = loading || situation.kind !== 'empty';
+    // Univers ayant au moins un module ; aucun (route absente, échec) : la
+    // liste des modules, comme avant
+    const universes = loading ? [] : visibleUniverses(data.universes, data.modules);
+    const outside = modulesOutsideUniverses(universes, data.modules);
 
     body = (
       <>
@@ -182,7 +191,36 @@ export default function ApprendreHomeScreen() {
           </StaggerItem>
         ) : null}
 
-        {showModules ? (
+        {showModules && universes.length > 0 ? (
+          <StaggerItem index={2}>
+            <Section label="Univers" spacing={space[6]}>
+              <View style={styles.rows}>
+                {universes.map((entry, i) => (
+                  <UniverseRow
+                    key={entry.universe.id}
+                    entry={entry}
+                    last={i === universes.length - 1}
+                    onPress={() => openUniverse(entry.universe.id)}
+                  />
+                ))}
+              </View>
+            </Section>
+            {outside.length > 0 ? (
+              <Section label="Autres modules" spacing={space[6]}>
+                <View style={styles.rows}>
+                  {outside.map((module, i) => (
+                    <ModuleRow
+                      key={module.id}
+                      module={module}
+                      last={i === outside.length - 1}
+                      onPress={() => openModule(module)}
+                    />
+                  ))}
+                </View>
+              </Section>
+            ) : null}
+          </StaggerItem>
+        ) : showModules ? (
           <Section label="Modules" spacing={space[6]}>
             {loading ? (
               <SkeletonGroup>

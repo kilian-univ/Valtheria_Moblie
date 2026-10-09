@@ -2,7 +2,8 @@
 // React : testables avec Node. Toute la géométrie du chemin vit ici.
 
 import type { Lesson, Module } from '@/src/context/ApiContext';
-import { stepKind, type StepKind } from '../lesson/normalize';
+import type { Universe } from '../lesson/model';
+import { moduleUniverse, stepKind, type StepKind } from '../lesson/normalize';
 import { lessonsWord, type LessonView } from './learning';
 
 // ---------------------------------------------------------------------------
@@ -11,11 +12,31 @@ import { lessonsWord, type LessonView } from './learning';
 export type ModuleColorKey = 'ardoise' | 'sarcelle' | 'cuivre' | 'ivoire';
 export const MODULE_COLOR_ORDER: readonly ModuleColorKey[] = ['ardoise', 'sarcelle', 'cuivre', 'ivoire'];
 
-// SEUL endroit qui choisit la couleur d'un module : rang du module dans la
-// liste du serveur, modulo 4. Quand les univers existeront, c'est ici qu'on
-// lira la couleur de l'univers.
-export function moduleColorKey(modules: Module[], moduleId: number): ModuleColorKey {
+// Couleur d'un univers : sa position, modulo 4. Stable tant que l'univers ne
+// change pas de position, quel que soit le nombre d'univers chargés.
+export function universeColorKey(universe: Universe): ModuleColorKey {
+  const n = MODULE_COLOR_ORDER.length;
+  return MODULE_COLOR_ORDER[((universe.position % n) + n) % n];
+}
+
+// Univers d'un module parmi ceux de GET /universes : d'après module.universe,
+// sinon d'après les module_ids des univers
+export function universeOfModule(module: Module, universes: Universe[]): Universe | null {
+  const ref = moduleUniverse(module);
+  return (
+    (ref ? universes.find((u) => u.id === ref.id) : undefined) ??
+    universes.find((u) => u.moduleIds.includes(module.id)) ??
+    null
+  );
+}
+
+// SEUL endroit qui choisit la couleur d'un module : celle de son univers
+// quand il est connu, sinon le rang du module dans la liste du serveur,
+// modulo 4
+export function moduleColorKey(modules: Module[], moduleId: number, universes: Universe[] = []): ModuleColorKey {
   const index = modules.findIndex((m) => m.id === moduleId);
+  const universe = index < 0 ? null : universeOfModule(modules[index], universes);
+  if (universe) return universeColorKey(universe);
   return MODULE_COLOR_ORDER[(index < 0 ? 0 : index) % MODULE_COLOR_ORDER.length];
 }
 

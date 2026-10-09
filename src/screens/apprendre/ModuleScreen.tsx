@@ -28,6 +28,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { loadErrorMessage, OFFLINE_BANNER, OFFLINE_REASON, useLearningData } from '@/src/hooks/useLearningData';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
+import { moduleUniverse } from '@/src/lesson/normalize';
 import { forgetLaunch, peekLaunch, rememberLaunch } from '@/src/state/pathSnapshot';
 import { currentLesson, findModule, lessonViews, LessonView } from '@/src/utils/learning';
 import {
@@ -41,6 +42,7 @@ import {
   Visibility,
   visibility,
 } from '@/src/utils/modulePath';
+import { universeBannerLabel } from '@/src/utils/universes';
 
 // Au-delà, les titres débordent : on passe en liste verticale
 const LIST_MODE_FONT_SCALE = 1.35;
@@ -69,7 +71,7 @@ export default function ModuleScreen() {
   const module = findModule(data.modules, Number.isFinite(id) ? id : null);
   const views = useMemo(() => (module ? lessonViews(module) : []), [module]);
   const listMode = fontScale >= LIST_MODE_FONT_SCALE;
-  const tint = module ? moduleColors[moduleColorKey(data.modules, module.id)] : moduleColors.ardoise;
+  const tint = module ? moduleColors[moduleColorKey(data.modules, module.id, data.universes)] : moduleColors.ardoise;
   const number = module ? moduleNumber(data.modules, module.id) : null;
 
   // Ouvrir un module l'enregistre comme dernier module ouvert
@@ -237,7 +239,7 @@ export default function ModuleScreen() {
   // Contenu
   // ---------------------------------------------------------------------------
   const following = module ? followingModule(data.modules, module.id) : null;
-  const followingTint = following ? moduleColors[moduleColorKey(data.modules, following.id)] : null;
+  const followingTint = following ? moduleColors[moduleColorKey(data.modules, following.id, data.universes)] : null;
 
   let extras: ReactNode = null;
   let body: ReactNode = null;
@@ -391,6 +393,7 @@ export default function ModuleScreen() {
           <View style={styles.bannerSlot}>
             {module ? (
               <ModuleBanner
+                universe={universeBannerLabel(moduleUniverse(module)?.name)}
                 label={bannerLabel(number, doneCount, views.length)}
                 title={module.title}
                 progress={views.length ? doneCount / views.length : 0}
