@@ -18,10 +18,11 @@ import PageState from '@/src/components/common/PageState';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import { devSlowLoading } from '@/src/constants/dev';
-import { space } from '@/src/constants/style/Style';
+import { fonts, palette, radius, space } from '@/src/constants/style/Style';
+import { useTheme } from '@/src/context/ThemeContext';
 import { useApi } from '@/src/context/ApiContext';
 import { isNetworkError } from '@/src/hooks/useLearningData';
-import type { LessonScreen } from '@/src/lesson/model';
+import type { LessonModel, LessonScreen } from '@/src/lesson/model';
 import { normalizeLesson } from '@/src/lesson/normalize';
 import { learningStore } from '@/src/state/learningStore';
 import { error as errorHaptic, success as successHaptic } from '@/src/utils/haptics';
@@ -58,16 +59,28 @@ function typeOf(screen: LessonScreen): string {
   return screen.kind === 'unsupported' ? screen.type : screen.kind;
 }
 
-export default function ApprendreDetailScreen() {
+// Leçon découverte de la première ouverture : leçon fournie (pas de
+// chargement), corrigée sur le téléphone, rien n'est envoyé au serveur ; à la
+// fin, onFinished prend la main (écran de fin du parcours).
+export type DiscoveryMode = {
+  lesson: LessonModel;
+  onFinished: () => void;
+};
+
+export default function ApprendreDetailScreen({ discovery }: { discovery?: DiscoveryMode } = {}) {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const navigation = useNavigation();
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
   const { getLesson, completeLesson, getModules, getProgress } = useApi();
 
-  const [screens, setScreens] = useState<LessonScreen[]>([]);
+  const [screens, setScreens] = useState<LessonScreen[]>(() => discovery?.lesson.screens ?? []);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<CollectedAnswer[]>([]);
-  const [isLoading, setIsLoading] = useState(Boolean(id));
+  const [isLoading, setIsLoading] = useState(!discovery && Boolean(id));
+  // Leçon découverte terminée : la protection de sortie est levée, puis onFinished
+  const [discoveryDone, setDiscoveryDone] = useState(false);
   const [loadError, setLoadError] = useState<LoadError | null>(null);
 
   // Écran en cours : réponse en cours, puis validée
@@ -99,7 +112,7 @@ export default function ApprendreDetailScreen() {
   const screenY = useRef(0);
 
   const fetchLesson = useCallback(() => {
-    if (!id) return;
+    if (!id || discovery) return;
     // devSlowLoading : délai de test en développement seulement (constants/dev.ts)
     devSlowLoading()
       .then(() => getLesson(Number(id)))
@@ -125,7 +138,7 @@ export default function ApprendreDetailScreen() {
         setLoadError(isNetworkError(err) ? 'network' : 'server');
       })
       .finally(() => setIsLoading(false));
-  }, [id, getLesson]);
+  }, [id, getLesson, discovery]);
 
   useEffect(() => {
     fetchLesson();
@@ -150,7 +163,7 @@ export default function ApprendreDetailScreen() {
   // iOS est coupé (gestureEnabled: false, app/_layout.tsx et
   // app/apprendre/_layout.tsx).
   // ---------------------------------------------------------------------------
-  const guarded = screens.length > 0 && !result && !leaving;
+  const guarded = screens.length > 0 && !result && !leaving && !discoveryDone;
 
   // Filet de sécurité : toute autre sortie (lien, navigation programmée)
   usePreventRemove(guarded, ({ data }) => {
@@ -164,9 +177,16 @@ export default function ApprendreDetailScreen() {
     setQuitOpen(true);
   }, []);
 
+  // Sortie : écran précédent ; sans lui (parcours repris directement sur la
+  // leçon découverte), le choix de l'objectif ou l'accueil
+  const leave = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace(discovery ? '/bienvenue/objectif' : '/apprendre');
+  }, [router, discovery]);
+
   const handleClose = () => {
     if (guarded) askQuit();
-    else router.back();
+    else leave();
   };
 
   // Retour Android : la feuille s'ouvre avant toute navigation (aucune page
@@ -189,8 +209,8 @@ export default function ApprendreDetailScreen() {
   useEffect(() => {
     if (!leaving) return;
     if (pendingLeave.current) navigation.dispatch(pendingLeave.current);
-    else router.back();
-  }, [leaving, navigation, router]);
+    else leave();
+  }, [leaving, navigation, leave]);
 
   // ---------------------------------------------------------------------------
   // Enchaînement des écrans
@@ -202,7 +222,18 @@ export default function ApprendreDetailScreen() {
     setAnswered(false);
   };
 
+  // Leçon découverte : rien à envoyer, l'écran de fin du parcours prend la main
+  const onDiscoveryFinished = discovery?.onFinished;
+  useEffect(() => {
+    if (discoveryDone) onDiscoveryFinished?.();
+  }, [discoveryDone, onDiscoveryFinished]);
+
   const handleFinish = async () => {
+    if (discovery) {
+      setFinishing(true);
+      setDiscoveryDone(true);
+      return;
+    }
     if (!id || isSubmitting) return;
     setFinishing(true);
     setIsSubmitting(true);
@@ -358,6 +389,21 @@ export default function ApprendreDetailScreen() {
             keyboardShouldPersistTaps="handled"
           >
             {/* key : chaque écran est remonté (état neuf, apparition rejouée) */}
+            {discovery ? (
+              <View style={styles.discoveryHead}>
+                <View style={[styles.badge, { backgroundColor: colors.goldSoft }]}>
+                  <AppText tone="gold" maxFontSizeMultiplier={1.2} style={styles.badgeText}>
+                    LEÇON DÉCOUVERTE
+                  </AppText>
+                </View>
+                {/* Titre de la leçon, avant le pari */}
+                {index === 0 && discovery.lesson.title ? (
+                  <AppText variant="title2" accessibilityRole="header">
+                    {discovery.lesson.title}
+                  </AppText>
+                ) : null}
+              </View>
+            ) : null}
             <View key={index} onLayout={(e) => (screenY.current = e.nativeEvent.layout.y)}>
               <StaggerItem index={0}>
                 <ScreenRenderer
@@ -441,6 +487,23 @@ const styles = StyleSheet.create({
   },
   scrollContentAnswered: {
     paddingBottom: COLLAPSED_SHEET_ROOM,
+  },
+  discoveryHead: {
+    gap: space[3],
+    marginBottom: space[4],
+    alignItems: 'flex-start',
+  },
+  badge: {
+    height: 26,
+    paddingHorizontal: space[3] - 2,
+    borderRadius: radius.pill,
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1,
+    fontFamily: fonts.bodyBold,
   },
   state: {
     flex: 1,

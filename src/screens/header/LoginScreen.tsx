@@ -1,123 +1,188 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getBasiquesStyles, getBoutonStyles, getInputStyles, palette } from '../../constants/style/Style';
-import { useApi } from "../../context/ApiContext";
-import { useTheme } from '../../context/ThemeContext';
+import { BackButton } from '@/src/components/apprendre/module/ModuleHeader';
+import AppText from '@/src/components/common/AppText';
+import Button from '@/src/components/common/Button';
+import TextField from '@/src/components/common/TextField';
+import ValBubble from '@/src/components/common/ValBubble';
+import SocialButtons from '@/src/components/onboarding/SocialButtons';
+import { opacityDisabled, size, space } from '@/src/constants/style/Style';
+import { useApi } from '@/src/context/ApiContext';
+import { onboardingStore } from '@/src/state/onboarding';
+import { emailValid } from '@/src/utils/onboarding';
 
-import Toast from '@/src/components/Toast';
-import Header from '@/src/components/topbar/header';
+// Mot de passe oublié : POST /auth/forgot-password est prêt côté serveur
+// (pull request « première ouverture ») mais pas encore déployé. Passer à true
+// une fois la route en ligne.
+export const FORGOT_PASSWORD_ENABLED = false;
+const VAL_DIAMETER = 64;
 
-export default function LoginScreen({ navigation }: any) {
-  const api = useApi();
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
-  const basiques_styles = getBasiquesStyles(colorScheme);
-  const bouton_styles = getBoutonStyles(colorScheme);
-  const input_styles = getInputStyles(colorScheme);
+function loginError(message: string | undefined): string {
+  const m = (message ?? '').trim();
+  if (/network|internet|timed? ?out/i.test(m)) return 'Pas de connexion internet. Réessaie dans un instant.';
+  return 'E-mail ou mot de passe incorrect.';
+}
+
+export default function LoginScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { login, post } = useApi();
+  const passwordRef = useRef<TextInput>(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showToast, setShowToast] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const canSubmit = emailValid(email) && password.length > 0 && !submitting;
 
   const handleLogin = async () => {
+    if (!canSubmit) return;
     setError(null);
-
-    if (!email || !password) {
-      setError('Merci de remplir tous les champs.');
-      return;
-    }
-
-    setIsSubmitting(true);
+    setSubmitting(true);
     try {
-      await api.login(email, password);
-      setShowToast(true);
-    } catch (err: any) {
-      setError(err.message || 'Identifiants incorrects.');
-      setIsSubmitting(false);
+      await login(email.trim(), password);
+      // Connecté : le parcours de première ouverture ne revient plus
+      const fromOnboarding = onboardingStore.get().state.status === 'en-cours';
+      onboardingStore.update({ status: 'termine' });
+      if (fromOnboarding || !router.canGoBack()) router.replace('/apprendre');
+      else router.back();
+    } catch (err) {
+      setError(loginError(err instanceof Error ? err.message : undefined));
+      setSubmitting(false);
+    }
+  };
+
+  const forgotPassword = async () => {
+    if (!FORGOT_PASSWORD_ENABLED || !emailValid(email)) return;
+    try {
+      // Réponse identique que l'adresse existe ou non
+      await post('/auth/forgot-password', { email: email.trim() });
+      setResetSent(true);
+    } catch {
+      setError('Impossible d’envoyer le lien pour l’instant. Réessaie dans un instant.');
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Header showBack hideAuthActions />
-      <ScrollView contentContainerStyle={basiques_styles.container}>
-        
-        <Text style={basiques_styles.title}>Richesse</Text>
-        <Text style={basiques_styles.subtitle}>Se connecter</Text>
+    <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={styles.header}>
+        <BackButton onBack={() => (router.canGoBack() ? router.back() : router.replace('/apprendre'))} />
+      </View>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ValBubble mood="complice" diameter={VAL_DIAMETER} text="Content de te revoir. Ta série t’attend." />
+        <AppText variant="title1" accessibilityRole="header" style={styles.title}>
+          Connexion
+        </AppText>
+        <SocialButtons />
+        <TextField
+          label="Adresse e-mail"
+          value={email}
+          onChangeText={(t) => {
+            setEmail(t);
+            setError(null);
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          textContentType="emailAddress"
+          autoComplete="email"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          submitBehavior="submit"
+          placeholder="ton@email.fr"
+        />
+        <TextField
+          ref={passwordRef}
+          label="Mot de passe"
+          value={password}
+          onChangeText={(t) => {
+            setPassword(t);
+            setError(null);
+          }}
+          secret
+          autoCapitalize="none"
+          autoCorrect={false}
+          textContentType="password"
+          autoComplete="current-password"
+          returnKeyType="done"
+          onSubmitEditing={handleLogin}
+          placeholder="Ton mot de passe"
+        />
 
-        <View style={basiques_styles.form}>
-          <TextInput
-            style={input_styles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.subtitle}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-          />
-
-          <TextInput
-            style={input_styles.input}
-            placeholder="Mot de passe"
-            placeholderTextColor={colors.subtitle}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-          />
-
-          {error && <Text style={basiques_styles.error}>{error}</Text>}
-
+        <View style={styles.forgot}>
           <Pressable
-            style={({ pressed }) => [
-              bouton_styles.button,
-              pressed && bouton_styles.buttonPressed,
-            ]}
-            onPress={handleLogin}
-            disabled={isSubmitting}
+            onPress={forgotPassword}
+            disabled={!FORGOT_PASSWORD_ENABLED}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !FORGOT_PASSWORD_ENABLED }}
+            style={[styles.forgotButton, !FORGOT_PASSWORD_ENABLED && styles.disabled]}
           >
-            {isSubmitting ? (
-              <ActivityIndicator color={colors.onGold} />
-            ) : (
-              <Text style={bouton_styles.buttonText}>Se connecter</Text>
-            )}
+            <AppText variant="callout">Mot de passe oublié ?</AppText>
           </Pressable>
-
-          <Pressable onPress={() => router.replace('/client/register')}>
-            <Text style={input_styles.link}>Pas encore de compte ? S'inscrire</Text>
-          </Pressable>
+          {!FORGOT_PASSWORD_ENABLED ? (
+            <AppText variant="caption" tone="subtitle" style={styles.right}>
+              Bientôt disponible dans l’app. En attendant, passe par le site.
+            </AppText>
+          ) : resetSent ? (
+            <AppText variant="caption" tone="success" style={styles.right} accessibilityRole="alert">
+              Si un compte existe avec cette adresse, un lien vient d’être envoyé.
+            </AppText>
+          ) : null}
         </View>
+
+        {error ? (
+          <AppText variant="callout" tone="error" accessibilityRole="alert">
+            {error}
+          </AppText>
+        ) : null}
       </ScrollView>
 
-      <Toast
-        message="Connexion réussie"
-        visible={showToast}
-        onHide={() => {
-          setShowToast(false);
-          router.back();
-        }}
-      />
-      
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
+        <Button label="Se connecter" onPress={handleLogin} disabled={!canSubmit} loading={submitting} />
+        <Button variant="text" label="Pas encore de compte ? Créer un compte" onPress={() => router.replace('/client/register')} />
+      </View>
     </KeyboardAvoidingView>
-    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: space[5],
+  },
+  content: {
+    paddingHorizontal: space[5],
+    paddingTop: space[2],
+    paddingBottom: space[6],
+    gap: space[4],
+  },
+  title: {
+    marginTop: space[1],
+  },
+  forgot: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  forgotButton: {
+    minHeight: size.tapMin,
+    justifyContent: 'center',
+  },
+  disabled: {
+    opacity: opacityDisabled,
+  },
+  right: {
+    textAlign: 'right',
+  },
+  footer: {
+    paddingHorizontal: space[5],
+    paddingTop: space[3],
+    gap: space[1],
+  },
+});

@@ -8,6 +8,7 @@ import { useCountUp } from '@/src/hooks/useCountUp';
 import type { RevealScreen as RevealModel } from '@/src/lesson/model';
 import { formatNumber } from '@/src/utils/format';
 import { estimateSentence } from '@/src/utils/lessonPlayer';
+import EstimateBars from '../player/EstimateBars';
 import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
 
@@ -17,10 +18,13 @@ const GUESS_SIZE = 20;
 const GUESS_LINE_HEIGHT = 26;
 // Le chiffre défile une fois l'écran apparu
 const COUNT_DELAY = durations.enterOpacity;
+// Les barres partent une fois le chiffre posé
+const BARS_AFTER_COUNT = durations.counter;
 
 // reveal — un grand chiffre qui défile, avec sa décomposition en dessous.
 // Jamais noté. Si from_screen désigne une estimation précédente, elle est
-// rappelée au-dessus du vrai chiffre.
+// rappelée au-dessus du vrai chiffre, puis comparée à lui sur deux barres à
+// l'échelle (EstimateBars).
 export default function RevealScreen({ screen, estimate }: LessonScreenProps<RevealModel>) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -78,6 +82,10 @@ export default function RevealScreen({ screen, estimate }: LessonScreenProps<Rev
           </AppText>
         ) : null}
       </View>
+
+      {estimate !== null ? (
+        <EstimateBars estimate={estimate} actual={value} unit={unit} decimals={decimals} delay={COUNT_DELAY + BARS_AFTER_COUNT} />
+      ) : null}
 
       {lines.length > 0 ? (
         <View>

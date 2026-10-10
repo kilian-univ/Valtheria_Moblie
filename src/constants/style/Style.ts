@@ -7,6 +7,7 @@ export type ColorScheme = 'light' | 'dark';
 // ne pas ajouter de fontWeight en plus (iOS retomberait sur la police système).
 export const fonts = {
   title: 'Fraunces_500Medium',
+  titleItalic: 'Fraunces_500Medium_Italic', // « enfin » de l'écran de bienvenue
   body: 'Inter_400Regular',
   bodyMedium: 'Inter_500Medium',
   bodySemibold: 'Inter_600SemiBold',

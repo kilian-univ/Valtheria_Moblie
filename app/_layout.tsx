@@ -1,4 +1,5 @@
 import { Fraunces_500Medium } from '@expo-google-fonts/fraunces/500Medium';
+import { Fraunces_500Medium_Italic } from '@expo-google-fonts/fraunces/500Medium_Italic';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
@@ -14,6 +15,7 @@ import 'react-native-reanimated';
 
 import AppBackground from '@/src/components/common/AppBackground';
 import { SkeletonProvider } from '@/src/components/common/Skeleton';
+import OnboardingGate from '@/src/components/onboarding/OnboardingGate';
 import StartupGate from '@/src/components/splash/StartupGate';
 import { palette } from '@/src/constants/style/Style';
 import { CustomDarkTheme, CustomLightTheme } from '@/src/constants/theme';
@@ -30,6 +32,7 @@ function RootLayoutContent() {
   const colors = palette[colorScheme];
   const [fontsLoaded, fontError] = useFonts({
     Fraunces_500Medium,
+    Fraunces_500Medium_Italic,
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -60,8 +63,12 @@ function RootLayoutContent() {
                 <Stack.Screen name="(tabs)" />
                 {/* Pile du lecteur de leçon : le balayage retour iOS la fermerait */}
                 <Stack.Screen name="apprendre" options={{ gestureEnabled: false }} />
+                {/* Première ouverture : rien derrière à quoi revenir par un balayage */}
+                <Stack.Screen name="bienvenue" options={{ gestureEnabled: false }} />
               </Stack>
             )}
+            {/* Première ouverture sans compte : reprise à l'étape mémorisée */}
+            {fontsReady ? <OnboardingGate /> : null}
 
             <StartupGate fontsReady={fontsReady} />
           </View>

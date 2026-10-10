@@ -2,7 +2,7 @@
 // mais ne connaît ni l'alias « @/ » ni les imports sans extension de l'app.
 // On résout les deux ici. Seuls les modules purs (sans React Native) sont
 // testables ainsi ; leurs imports de types disparaissent à l'exécution.
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -16,8 +16,9 @@ registerHooks({
       : specifier.startsWith('.') && context.parentURL
         ? new URL(specifier, context.parentURL).href
         : null;
-    if (local && !existsSync(fileURLToPath(local))) {
-      const found = EXTENSIONS.map((ext) => local + ext).find((url) => existsSync(fileURLToPath(url)));
+    const isFile = (url) => existsSync(fileURLToPath(url)) && statSync(fileURLToPath(url)).isFile();
+    if (local && !isFile(local)) {
+      const found = EXTENSIONS.map((ext) => local + ext).find(isFile);
       if (found) return nextResolve(found, context);
     }
     return nextResolve(local ?? specifier, context);

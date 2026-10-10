@@ -1,0 +1,133 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import AppText from '@/src/components/common/AppText';
+import Button from '@/src/components/common/Button';
+import { StaggerItem } from '@/src/components/common/Stagger';
+import ValFullBody from '@/src/components/common/ValFullBody';
+import { palette, radius, space } from '@/src/constants/style/Style';
+import { useTheme } from '@/src/context/ThemeContext';
+import { discoveryPlan } from '@/src/lesson/discovery';
+import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
+
+const VAL_HEIGHT = 170;
+const LOCK = 44;
+
+// Fin de la leçon découverte : Val fier, la série qui commence, la prochaine
+// leçon (verrouillée tant qu'il n'y a pas de compte)
+export default function DiscoveryEndScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  const { state } = useOnboarding();
+  const plan = discoveryPlan(state.objective);
+
+  const signUp = () => {
+    onboardingStore.update({ step: 'pseudo' });
+    router.push('/bienvenue/inscription');
+  };
+
+  // « Plus tard » : l'accueil sans compte ; le parcours ne revient plus
+  const later = () => {
+    onboardingStore.update({ status: 'plus-tard' });
+    router.replace('/apprendre');
+  };
+
+  return (
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6] }]} bounces={false}>
+        <ValFullBody pose="fier" height={VAL_HEIGHT} halo />
+        <StaggerItem index={0}>
+          <AppText variant="title1" accessibilityRole="header" style={styles.center}>
+            Première leçon terminée !
+          </AppText>
+        </StaggerItem>
+        <StaggerItem index={1}>
+          <View style={[styles.streak, { backgroundColor: colors.goldSoft }]}>
+            <Ionicons name="flame" size={18} color={colors.gold} />
+            <AppText variant="bodyMedium" tone="gold">
+              Jour 1 : ta série commence
+            </AppText>
+          </View>
+        </StaggerItem>
+        <StaggerItem index={2}>
+          <View
+            style={[styles.next, { backgroundColor: colors.surface, borderColor: colors.controlBorder }]}
+            accessible
+            accessibilityLabel={`Prochaine leçon, verrouillée : ${plan.nextLessonTitle}`}
+          >
+            <View style={[styles.lock, { backgroundColor: colors.pathLockedFace }]}>
+              <Ionicons name="lock-closed-outline" size={20} color={colors.subtitle} />
+            </View>
+            <View style={styles.nextTexts}>
+              <AppText variant="sectionLabel" tone="subtitle">
+                Prochaine leçon
+              </AppText>
+              <AppText variant="bodyMedium">{plan.nextLessonTitle}</AppText>
+            </View>
+          </View>
+        </StaggerItem>
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
+        <Button label="Créer mon compte pour continuer" onPress={signUp} />
+        <AppText variant="caption" tone="subtitle" style={styles.center}>
+          Gratuit. Ta série et ta progression sont gardées.
+        </AppText>
+        <Button variant="text" label="Plus tard" onPress={later} />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: space[5],
+    gap: space[4],
+  },
+  center: {
+    textAlign: 'center',
+  },
+  streak: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    minHeight: 38,
+    paddingHorizontal: space[4] - 2,
+    borderRadius: radius.pill,
+  },
+  next: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[4] - 2,
+    padding: space[4] - 2,
+    borderRadius: radius.md + 4,
+    borderWidth: 1,
+    marginTop: space[2],
+  },
+  lock: {
+    width: LOCK,
+    height: LOCK,
+    borderRadius: LOCK / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextTexts: {
+    flex: 1,
+    gap: 2,
+  },
+  footer: {
+    paddingHorizontal: space[5],
+    paddingTop: space[3],
+    gap: space[2],
+  },
+});

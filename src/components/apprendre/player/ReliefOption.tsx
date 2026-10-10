@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -13,6 +15,7 @@ import { palette, radius, reliefDepth, size, space } from '@/src/constants/style
 import { useTheme } from '@/src/context/ThemeContext';
 
 const BORDER = 2;
+const ICON = 24;
 const SINK_DURATION = 80; // comme le bouton principal
 
 export type OptionState = 'idle' | 'selected' | 'correct' | 'wrong';
@@ -24,12 +27,14 @@ type ReliefOptionProps = {
   selected: boolean;
   disabled?: boolean;
   multiple?: boolean;
+  // Icône Ionicons à gauche du texte (objectifs, créneaux de rappel)
+  icon?: ComponentProps<typeof Ionicons>['name'];
   onPress: () => void;
 };
 
 // Réponse de QCM en relief : face posée sur une tranche, qui s'y enfonce à
 // l'appui. Couleurs selon l'état (choisie, juste, fausse).
-export default function ReliefOption({ label, state, selected, disabled, multiple, onPress }: ReliefOptionProps) {
+export default function ReliefOption({ label, state, selected, disabled, multiple, icon, onPress }: ReliefOptionProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
@@ -70,9 +75,12 @@ export default function ReliefOption({ label, state, selected, disabled, multipl
         style={[styles.face, { backgroundColor: colors.background, borderColor: look.border }, faceStyle]}
       >
         <View style={[styles.tint, { backgroundColor: look.tint }]} />
-        <AppText variant="bodyMedium" style={styles.label}>
-          {label}
-        </AppText>
+        <View style={styles.content}>
+          {icon ? <Ionicons name={icon} size={ICON} color={state === 'idle' ? colors.subtitle : look.border} /> : null}
+          <AppText variant="bodyMedium" style={styles.label}>
+            {label}
+          </AppText>
+        </View>
       </Animated.View>
     </Pressable>
   );
@@ -107,6 +115,11 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3] + 2,
   },
   label: {
     flexShrink: 1,

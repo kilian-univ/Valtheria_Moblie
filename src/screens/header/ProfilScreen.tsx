@@ -25,6 +25,7 @@ import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { clearLastProfile } from '@/src/state/lastProfile';
 import { ProfileSkeleton } from '@/src/components/common/ScreenSkeletons';
+import ReminderSettingRow from '@/src/components/onboarding/ReminderSettingRow';
 
 export default function ProfileScreen() {
   const { user, isLoading, logout, exportUser, deleteAccount, updateUser } = useApi();
@@ -310,6 +311,11 @@ export default function ProfileScreen() {
         <View>
           <Text style={profile_styles.sectionTitle}>Préférences</Text>
           <View style={profile_styles.card}>
+            <ReminderSettingRow
+              rowStyle={profile_styles.row}
+              leftStyle={profile_styles.rowLeft}
+              labelStyle={profile_styles.rowLabel}
+            />
             <Pressable style={[profile_styles.row, profile_styles.rowLast]} onPress={toggleTheme}>
               <View style={profile_styles.rowLeft}>
                 <Ionicons
