@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 
+import { MEDALS, simulatedLessonDays } from '@/src/utils/streakRewards';
 import { INITIAL_ONBOARDING, needsLessonDayMigration, OnboardingState, parseOnboarding } from '@/src/utils/onboarding';
 
 // Avancement de la première ouverture, mémorisé sur le téléphone : si la
@@ -44,6 +45,18 @@ export const onboardingStore = {
   // la bienvenue, la progression (prénom, leçons, série) est gardée
   replay() {
     onboardingStore.update({ status: 'en-cours', step: 'bienvenue' });
+  },
+  // Développement : série simulée de n jours finissant hier (avant-hier avec
+  // missYesterday : hier est sauvé par un gel s'il y en a). Les paliers déjà
+  // dépassés sont tenus pour fêtés : la prochaine leçon fête le suivant.
+  simulateStreak(n: number, missYesterday = false) {
+    const lessonDays = simulatedLessonDays(n, new Date(), missYesterday);
+    onboardingStore.update({
+      lessonDays,
+      bestStreak: n,
+      celebratedMedals: MEDALS.filter((m) => m.days <= n).map((m) => m.days),
+      status: store.state.status === 'en-cours' ? 'plus-tard' : store.state.status,
+    });
   },
   // Développement, « Tout réinitialiser » : efface toute la mémoire du
   // parcours (prénom, objectif, leçons, série, inscription fermée, célébration)

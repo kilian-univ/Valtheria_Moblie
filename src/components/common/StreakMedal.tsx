@@ -1,0 +1,123 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useId } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+
+import { fonts, palette, titleLetterSpacing } from '@/src/constants/style/Style';
+import { useTheme } from '@/src/context/ThemeContext';
+
+// Seul emoji autorisé de l'app (validé) : la flamme de la série
+const FLAME = '\u{1F525}';
+const LOCKED_OPACITY = 0.42;
+// Sous cette taille, le nombre se lirait mal : cadenas seul
+const NUMBER_MIN_SIZE = 40;
+
+type StreakMedalProps = {
+  // Palier (3, 7, 14…)
+  days: number;
+  size: number;
+  earned: boolean;
+};
+
+// Médaille de série dessinée en code : médaillon rond en relief (face or,
+// tranche or foncé, reflet), nombre de jours en Fraunces au centre, petite
+// flamme au-dessus. Pas encore gagnée : grise, atténuée, avec un cadenas.
+// Décorative : le parent porte le libellé lu.
+export default function StreakMedal({ days, size, earned }: StreakMedalProps) {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  const id = `medal${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const depth = Math.max(2, Math.round(size * 0.07));
+  const face = earned ? colors.gold : colors.surface2;
+  const edge = earned ? colors.goldDeep : colors.surfaceEdge;
+  const ink = earned ? colors.onGold : colors.subtitle;
+  const number = Math.round(size * (days >= 100 ? 0.3 : 0.38));
+  const flame = Math.round(size * 0.3);
+  const showNumber = size >= NUMBER_MIN_SIZE || earned;
+
+  return (
+    <View
+      style={{ width: size, height: size + depth, opacity: earned ? 1 : LOCKED_OPACITY }}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      pointerEvents="none"
+    >
+      <View style={[styles.disc, { top: depth, width: size, height: size, borderRadius: size / 2, backgroundColor: edge }]} />
+      <View style={[styles.disc, styles.face, { width: size, height: size, borderRadius: size / 2, backgroundColor: face }]}>
+        {earned ? (
+          <Svg style={StyleSheet.absoluteFill}>
+            <Defs>
+              <RadialGradient id={id} cx="32%" cy="26%" r="55%" fx="32%" fy="26%">
+                <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.45} />
+                <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
+              </RadialGradient>
+            </Defs>
+            <Rect width="100%" height="100%" fill={`url(#${id})`} />
+          </Svg>
+        ) : null}
+        {/* Anneau intérieur : le médaillon */}
+        <View
+          style={[
+            styles.ring,
+            { inset: Math.round(size * 0.09), borderRadius: size / 2, borderColor: earned ? colors.goldDeep : colors.controlBorder },
+          ]}
+        />
+        {showNumber ? (
+          <Text
+            allowFontScaling={false}
+            style={{ fontFamily: fonts.title, fontSize: number, lineHeight: Math.round(number * 1.15), color: ink, letterSpacing: titleLetterSpacing(number) }}
+          >
+            {days}
+          </Text>
+        ) : null}
+      </View>
+      {earned ? (
+        <Text allowFontScaling={false} style={[styles.flame, { fontSize: flame, lineHeight: Math.round(flame * 1.2), top: -Math.round(flame * 0.55) }]}>
+          {FLAME}
+        </Text>
+      ) : (
+        <View
+          style={[
+            styles.lock,
+            {
+              width: Math.round(size * 0.42),
+              height: Math.round(size * 0.42),
+              borderRadius: size,
+              backgroundColor: colors.surface,
+              right: -Math.round(size * 0.06),
+              bottom: 0,
+            },
+          ]}
+        >
+          <Ionicons name="lock-closed" size={Math.round(size * 0.24)} color={colors.subtitle} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  disc: {
+    position: 'absolute',
+    left: 0,
+  },
+  face: {
+    top: 0,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ring: {
+    position: 'absolute',
+    borderWidth: 1.5,
+  },
+  flame: {
+    position: 'absolute',
+    alignSelf: 'center',
+  },
+  lock: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

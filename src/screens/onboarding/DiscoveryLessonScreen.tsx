@@ -34,6 +34,8 @@ export default function DiscoveryLessonScreen() {
     const params = {
       serie: String(done.streakFrom),
       ...(done.celebrateSix ? { six: '1' } : {}),
+      ...(done.medal ? { medaille: String(done.medal.days) } : {}),
+      ...(done.freezeGained ? { gel: '1' } : {}),
     };
     if (fromHome) {
       onboardingStore.update(done.patch);

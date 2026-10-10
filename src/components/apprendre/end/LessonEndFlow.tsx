@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +17,12 @@ import { useCountUp } from '@/src/hooks/useCountUp';
 import { formatInteger } from '@/src/utils/format';
 import { nextExcess } from '@/src/utils/fit';
 import { celebrate } from '@/src/utils/haptics';
+import GoldConfetti from '@/src/components/common/GoldConfetti';
+import MedalCelebration from '@/src/components/common/MedalCelebration';
 import StreakFlame from '@/src/components/common/StreakFlame';
+import { useApi } from '@/src/context/ApiContext';
+import { streakRewardsStore } from '@/src/state/streakRewards';
+import { type Medal, medalToCelebrate } from '@/src/utils/streakRewards';
 import {
   END_BUTTON_LABELS,
   endSentence,
@@ -33,6 +38,9 @@ import {
 } from '@/src/utils/lessonPlayer';
 
 const NBSP = ' '; // espace insécable
+
+// Étapes affichées : celles du serveur, plus la médaille si un palier est franchi
+type FlowStep = EndStep | 'medal';
 
 const TITLE_SIZE = 32;
 const TITLE_LINE_HEIGHT = 38;
@@ -64,21 +72,50 @@ type LessonEndFlowProps = {
 
 // Suite d'écrans de fin, en sautant ceux qui ne s'appliquent pas.
 export default function LessonEndFlow({ result, streakBefore, moduleTitle, onDone }: LessonEndFlowProps) {
-  const [steps] = useState<EndStep[]>(() => endSteps(result, streakBefore));
+  const { user } = useApi();
+  const [baseSteps] = useState<EndStep[]>(() => endSteps(result, streakBefore));
   const [index, setIndex] = useState(0);
+  const indexRef = useRef(0);
+  const gain = streakGain(streakBefore, result.user?.streak);
+
+  // Palier de série franchi par cette leçon et jamais fêté (mémoire par
+  // utilisateur) : l'écran de la médaille s'insère après celui de la série
+  const [medal, setMedal] = useState<Medal | null>(null);
+  const streakIndex = baseSteps.indexOf('streak');
+  useEffect(() => {
+    if (!user || !gain) return;
+    let active = true;
+    streakRewardsStore.load(user.id).then((record) => {
+      const found = medalToCelebrate(gain.from, gain.to, record.celebrated);
+      streakRewardsStore.seeStreak(user.id, gain.to);
+      // Trop tard pour l'insérer (écran de série déjà passé) : fêté la prochaine fois
+      if (!active || !found.medal || indexRef.current > streakIndex) return;
+      streakRewardsStore.markCelebrated(user.id, found.crossed);
+      setMedal(found.medal);
+    });
+    return () => {
+      active = false;
+    };
+    // Une seule fois, à l'arrivée sur la fin de leçon
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const steps: FlowStep[] = medal ? [...baseSteps.slice(0, streakIndex + 1), 'medal', ...baseSteps.slice(streakIndex + 1)] : baseSteps;
 
   const next = () => {
-    if (index < steps.length - 1) setIndex(index + 1);
-    else onDone();
+    if (index < steps.length - 1) {
+      indexRef.current = index + 1;
+      setIndex(index + 1);
+    } else onDone();
   };
 
   const step = steps[index];
-  const gain = streakGain(streakBefore, result.user?.streak);
 
   return (
     <EndLayout key={step}>
       {step === 'done' ? <DoneStep result={result} onNext={next} /> : null}
       {step === 'streak' && gain ? <StreakStep from={gain.from} to={gain.to} onNext={next} /> : null}
+      {step === 'medal' && medal ? <MedalStep medal={medal} onNext={next} /> : null}
       {step === 'chest' ? <ChestStep result={result} onNext={next} /> : null}
       {step === 'surprise' ? <SurpriseStep result={result} onNext={next} /> : null}
       {step === 'module' ? <ModuleStep title={moduleTitle} onNext={next} /> : null}
@@ -242,6 +279,20 @@ function StreakStep({ from, to, onNext }: { from: number; to: number; onNext: ()
         Reviens demain pour passer à {formatInteger(to + 1)}.
       </AppText>
     </StepFrame>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// b bis. Nouvelle médaille de série (une seule fois par palier)
+// ---------------------------------------------------------------------------
+function MedalStep({ medal, onNext }: { medal: Medal; onNext: () => void }) {
+  return (
+    <>
+      <StepFrame button={<Button label="Continuer" onPress={onNext} />}>
+        <MedalCelebration medal={medal} />
+      </StepFrame>
+      <GoldConfetti />
+    </>
   );
 }
 

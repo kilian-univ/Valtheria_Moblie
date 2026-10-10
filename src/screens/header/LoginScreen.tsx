@@ -171,6 +171,19 @@ export default function LoginScreen() {
                 router.replace('/bienvenue');
               }}
             />
+            {/* Séries simulées (sans compte) : terminer une leçon fait passer
+                le palier suivant (3, 7, 30, 100) et lance sa célébration */}
+            {DEV_STREAKS.map((d) => (
+              <Button
+                key={d.label}
+                variant="text"
+                label={d.label}
+                onPress={() => {
+                  onboardingStore.simulateStreak(d.days, d.missYesterday);
+                  router.replace('/apprendre');
+                }}
+              />
+            ))}
           </View>
         ) : null}
       </ScrollView>
@@ -182,6 +195,15 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   );
 }
+
+// Développement : séries simulées pour voir les paliers sans attendre
+const DEV_STREAKS = [
+  { label: 'Série : 2 jours', days: 2, missYesterday: false },
+  { label: 'Série : 6 jours', days: 6, missYesterday: false },
+  { label: 'Série : 29 jours', days: 29, missYesterday: false },
+  { label: 'Série : 99 jours', days: 99, missYesterday: false },
+  { label: 'Série : 29 jours, gel utilisé hier', days: 29, missYesterday: true },
+] as const;
 
 const styles = StyleSheet.create({
   screen: {

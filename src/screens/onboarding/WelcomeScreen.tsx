@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { StatusBarShade } from '@/src/components/common/AppBackground';
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import GroundShadow from '@/src/components/common/GroundShadow';
@@ -90,6 +91,8 @@ export default function WelcomeScreen() {
         <Button label="Essayer une leçon, 1 minute" onPress={start} />
         <Button variant="text" label="J'ai déjà un compte" onPress={() => router.push('/client/login')} />
       </View>
+      {/* Rien ne passe sous la barre d'état en défilant */}
+      <StatusBarShade tab="apprendre" />
     </View>
   );
 }

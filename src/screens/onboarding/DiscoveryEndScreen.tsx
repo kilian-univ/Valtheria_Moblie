@@ -6,7 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
+import { StatusBarShade } from '@/src/components/common/AppBackground';
 import GoldConfetti from '@/src/components/common/GoldConfetti';
+import MedalCelebration from '@/src/components/common/MedalCelebration';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import StreakFlame from '@/src/components/common/StreakFlame';
 import ValFullBody from '@/src/components/common/ValFullBody';
@@ -26,6 +28,7 @@ import {
   topicDots,
 } from '@/src/utils/discoveryHome';
 import { celebrate } from '@/src/utils/haptics';
+import { type Medal, MEDALS } from '@/src/utils/streakRewards';
 import { isSignupClosed } from '@/src/utils/onboarding';
 
 const VAL_HEIGHT = 170;
@@ -41,10 +44,34 @@ const COUNT_DELAY = 450;
 // rappel), ou « Plus tard » vers l'accueil. La leçon qui complète les six
 // passe d'abord par la célébration (une seule fois).
 export default function DiscoveryEndScreen() {
-  const params = useLocalSearchParams<{ six?: string }>();
-  const [celebrating, setCelebrating] = useState(params.six === '1');
-  if (celebrating) return <SixCelebration onDone={() => setCelebrating(false)} />;
+  const params = useLocalSearchParams<{ six?: string; medaille?: string; gel?: string }>();
+  const medal = MEDALS.find((m) => String(m.days) === params.medaille) ?? null;
+  // Célébrations, dans l'ordre : les six sujets, puis le palier de série
+  const [steps, setSteps] = useState<('six' | 'medal')[]>(() =>
+    [params.six === '1' ? ('six' as const) : null, medal ? ('medal' as const) : null].filter((x) => x !== null)
+  );
+  const next = () => setSteps((list) => list.slice(1));
+  if (steps[0] === 'six') return <SixCelebration onDone={next} />;
+  if (steps[0] === 'medal' && medal) return <MedalStep medal={medal} freezeGained={params.gel === '1'} onDone={next} />;
   return <EndContent />;
+}
+
+// Palier de série atteint (une seule fois par palier) : la médaille, Val fier,
+// confettis dorés. Animations réduites : sans confettis.
+function MedalStep({ medal, freezeGained, onDone }: { medal: Medal; freezeGained: boolean; onDone: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={[styles.content, styles.celebration, { paddingTop: insets.top + space[8] }]} bounces={false}>
+        <MedalCelebration medal={medal} freezeGained={freezeGained} />
+      </ScrollView>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
+        <Button label="Continuer" onPress={onDone} />
+      </View>
+      <GoldConfetti />
+      <StatusBarShade tab="apprendre" />
+    </View>
+  );
 }
 
 function EndContent() {
@@ -182,6 +209,8 @@ function EndContent() {
           </>
         )}
       </View>
+      {/* Rien ne passe sous la barre d'état en défilant */}
+      <StatusBarShade tab="apprendre" />
     </View>
   );
 }
@@ -214,6 +243,7 @@ function SixCelebration({ onDone }: { onDone: () => void }) {
         <Button label="Continuer" onPress={onDone} />
       </View>
       <GoldConfetti />
+      <StatusBarShade tab="apprendre" />
     </View>
   );
 }

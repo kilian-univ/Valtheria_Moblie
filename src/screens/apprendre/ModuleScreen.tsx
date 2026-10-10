@@ -24,6 +24,7 @@ import { durations } from '@/src/constants/motion';
 import AppText from '@/src/components/common/AppText';
 import { fonts, moduleColors, palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
+import { useBestStreak } from '@/src/state/streakRewards';
 import { useTheme } from '@/src/context/ThemeContext';
 import { loadErrorMessage, OFFLINE_BANNER, OFFLINE_REASON, useLearningData } from '@/src/hooks/useLearningData';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
@@ -65,6 +66,8 @@ export default function ModuleScreen() {
   const id = Number(moduleId);
 
   const data = useLearningData();
+  // Meilleure série mémorisée (médailles gardées si la série casse)
+  const bestStreak = useBestStreak(data.isAuthenticated ? user?.id : null, data.streak);
   const { markOpened } = useLearningMemory(user?.id);
   const { launch, startingId, launchError } = useLessonLauncher();
 
@@ -455,6 +458,8 @@ export default function ModuleScreen() {
       {streakMounted ? (
         <StreakSheet
           streak={data.streak}
+          best={bestStreak}
+          freezes={null}
           open={streakOpen}
           onRequestClose={closeStreak}
           onClosed={unmountStreak}

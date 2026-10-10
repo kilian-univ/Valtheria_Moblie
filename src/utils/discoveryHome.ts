@@ -6,8 +6,10 @@ import { DISCOVERY, discoveryPlan, OBJECTIVE_OPTIONS, OBJECTIVES, type Objective
 import type { Universe } from '../lesson/model';
 import { localDay } from './day';
 import { withPlayed, type OnboardingState } from './onboarding';
+import { daysLabel, medalToCelebrate, simulateStreak, type Medal } from './streakRewards';
 
-export { localDay };
+export { daysLabel, localDay };
+export { weekDays, type WeekDay } from './streakRewards';
 
 // XP d'une leçon découverte (comme le crédit envoyé à l'inscription)
 export const DISCOVERY_XP = 20;
@@ -171,10 +173,13 @@ export function showAccountCard(card: HomeCard, signupClosed: boolean): boolean 
 // Série et XP, comptés sur le téléphone
 // ---------------------------------------------------------------------------
 
-// Leçon terminée aujourd'hui : le jour est ajouté (une seule fois, 60 jours gardés)
+// Leçon terminée aujourd'hui : le jour est ajouté (une seule fois). 400 jours
+// gardés : de quoi rejouer une série de 100 jours et plus, gels compris.
+export const LESSON_DAYS_KEPT = 400;
+
 export function withLessonDay(days: readonly string[], date: Date = new Date()): string[] {
   const day = localDay(date);
-  return [...new Set([...days, day])].sort().slice(-60);
+  return [...new Set([...days, day])].sort().slice(-LESSON_DAYS_KEPT);
 }
 
 export function doneToday(days: readonly string[], now: Date = new Date()): boolean {
@@ -182,17 +187,10 @@ export function doneToday(days: readonly string[], now: Date = new Date()): bool
 }
 
 // Jours d'affilée jusqu'à aujourd'hui, ou jusqu'à hier si la leçon du jour
-// n'est pas encore faite (la série tient jusqu'à minuit)
+// n'est pas encore faite (la série tient jusqu'à minuit) ; un jour manqué est
+// sauvé par un gel s'il en reste (streakRewards.ts)
 export function discoveryStreak(days: readonly string[], now: Date = new Date()): number {
-  const set = new Set(days);
-  const cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (!set.has(localDay(cursor))) cursor.setDate(cursor.getDate() - 1);
-  let streak = 0;
-  while (set.has(localDay(cursor))) {
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
+  return simulateStreak(days, now).streak;
 }
 
 // XP des leçons découvertes : une fois par leçon
@@ -200,47 +198,6 @@ export function discoveryXp(played: readonly Objective[]): number {
   return played.length * DISCOVERY_XP;
 }
 
-// « 1 jour », « 3 jours »
-export function daysLabel(n: number): string {
-  return `${n} ${n > 1 ? 'jours' : 'jour'}`;
-}
-
-export type WeekDay = {
-  // « L », « M »…
-  letter: string;
-  // Nom lu par le lecteur d'écran
-  name: string;
-  // done : leçon faite ce jour-là ; missed : jour passé sans leçon ; future :
-  // jour à venir ; today : aujourd'hui, pas encore de leçon
-  state: 'done' | 'missed' | 'future' | 'today';
-  isToday: boolean;
-};
-
-const WEEK = [
-  ['L', 'lundi'],
-  ['M', 'mardi'],
-  ['M', 'mercredi'],
-  ['J', 'jeudi'],
-  ['V', 'vendredi'],
-  ['S', 'samedi'],
-  ['D', 'dimanche'],
-] as const;
-
-// Semaine en cours, du lundi au dimanche
-export function weekDays(days: readonly string[], now: Date = new Date()): WeekDay[] {
-  const set = new Set(days);
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-  const today = localDay(now);
-  return WEEK.map(([letter, name], i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    const day = localDay(d);
-    const isToday = day === today;
-    const state = set.has(day) ? 'done' : isToday ? 'today' : day < today ? 'missed' : 'future';
-    return { letter, name, state, isToday };
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Flamme de série
@@ -278,28 +235,44 @@ export function shouldIgnite(lastIgnitedDay: string | null, now: Date = new Date
 // ---------------------------------------------------------------------------
 
 export type LessonDone = {
-  // À mémoriser : leçons jouées, jour de série, célébration (montrée une fois)
-  patch: Pick<OnboardingState, 'played' | 'lessonDays' | 'sixCelebrated'>;
+  // À mémoriser : leçons jouées, jour de série, célébrations (montrées une
+  // fois), meilleure série
+  patch: Pick<OnboardingState, 'played' | 'lessonDays' | 'sixCelebrated' | 'bestStreak' | 'celebratedMedals'>;
   // Série avant et après (fin de leçon : la flamme grandit si elle augmente)
   streakFrom: number;
   streakTo: number;
   // Cette leçon complète les six, et la célébration n'a jamais été montrée
   celebrateSix: boolean;
+  // Palier de série franchi par cette leçon, jamais fêté, sinon null
+  medal: Medal | null;
+  // Cette leçon fait gagner un gel de série
+  freezeGained: boolean;
 };
 
 export function recordLessonDone(
-  state: Pick<OnboardingState, 'played' | 'lessonDays' | 'sixCelebrated'>,
+  state: Pick<OnboardingState, 'played' | 'lessonDays' | 'sixCelebrated' | 'bestStreak' | 'celebratedMedals'>,
   objective: Objective | null,
   now: Date = new Date()
 ): LessonDone {
   const played = objective ? withPlayed(state.played, objective) : state.played;
   const lessonDays = withLessonDay(state.lessonDays, now);
   const celebrateSix = !state.sixCelebrated && !allTopicsDone(state.played) && allTopicsDone(played);
+  const before = simulateStreak(state.lessonDays, now);
+  const after = simulateStreak(lessonDays, now);
+  const { medal, crossed } = medalToCelebrate(before.streak, after.streak, state.celebratedMedals);
   return {
-    patch: { played, lessonDays, sixCelebrated: state.sixCelebrated || celebrateSix },
-    streakFrom: discoveryStreak(state.lessonDays, now),
-    streakTo: discoveryStreak(lessonDays, now),
+    patch: {
+      played,
+      lessonDays,
+      sixCelebrated: state.sixCelebrated || celebrateSix,
+      bestStreak: Math.max(state.bestStreak, after.best),
+      celebratedMedals: [...new Set([...state.celebratedMedals, ...crossed])].sort((a, b) => a - b),
+    },
+    streakFrom: before.streak,
+    streakTo: after.streak,
     celebrateSix,
+    medal,
+    freezeGained: after.freezeGainDays.includes(localDay(now)) && !before.freezeGainDays.includes(localDay(now)),
   };
 }
 

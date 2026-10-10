@@ -1,5 +1,6 @@
 import { getCashflowStyles, getFormStyles, palette } from '@/src/constants/style/Style';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -28,7 +29,12 @@ function formatMonth(period?: string): string {
   return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 }
 
+// Marge haute de l'en-tête (celle de headerRow), sous la zone de sécurité
+const HEADER_PAD = 16;
+
 export default function CashflowScreen() {
+  // En-tête sous la barre d'état : décalé de la zone de sécurité
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -101,7 +107,7 @@ export default function CashflowScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: insets.top + HEADER_PAD }]}>
         <Pressable onPress={() => router.back()} hitSlop={10}>
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>

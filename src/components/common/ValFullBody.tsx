@@ -35,6 +35,10 @@ const BOUNCE_PERIOD = 1400;
 const BOUNCE_START = 600; // une fois l'arrivée posée
 const BREATH_SCALE = 1.02;
 const BREATH_PERIOD = 3000;
+const SHADOW_BLUR = 8;
+const SHADOW_COLOR = '#000000';
+const SHADOW_OFFSET = { x: 6, y: 10 };
+const SHADOW_OPACITY = 0.32;
 // Carré de la lueur : au plus 1,5 fois l'image (règle de GoldHalo)
 const HALO_RATIO = 1.15;
 
@@ -55,6 +59,8 @@ type ValFullBodyProps = {
   width?: number;
   // Respiration lente en boucle (échelle 1 → 1,02, 3 s)
   breathe?: boolean;
+  // Ombre portée douce derrière Val (sur un fond clair ou doré)
+  shadow?: boolean;
 };
 
 // Val en pied, jamais recadré (contain). Arrivée avec le ressort celebrate
@@ -68,6 +74,7 @@ export default function ValFullBody({
   halo = false,
   width,
   breathe = false,
+  shadow = false,
 }: ValFullBodyProps) {
   const reduced = useReducedMotion();
   const excess = useContext(ValFitContext);
@@ -104,9 +111,19 @@ export default function ValFullBody({
     transform: [{ translateY: rise.get() + loop.get() }, { scale: scale.get() * breath.get() }],
   }));
 
+  const size = { width: Math.round(h * ratio), height: h };
   const image = (
     <Animated.View style={style}>
-      <Image source={source} resizeMode="contain" style={{ width: Math.round(h * ratio), height: h }} />
+      {shadow ? (
+        // Silhouette noire floue, décalée vers le bas et la droite
+        <Image
+          source={source}
+          resizeMode="contain"
+          blurRadius={SHADOW_BLUR}
+          style={[size, styles.shadow, { tintColor: SHADOW_COLOR }]}
+        />
+      ) : null}
+      <Image source={source} resizeMode="contain" style={size} />
     </Animated.View>
   );
 
@@ -125,6 +142,12 @@ export default function ValFullBody({
 }
 
 const styles = StyleSheet.create({
+  shadow: {
+    position: 'absolute',
+    left: SHADOW_OFFSET.x,
+    top: SHADOW_OFFSET.y,
+    opacity: SHADOW_OPACITY,
+  },
   wrap: {
     alignSelf: 'center',
     alignItems: 'center',

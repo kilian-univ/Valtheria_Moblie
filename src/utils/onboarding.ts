@@ -4,6 +4,7 @@
 import { toObjective, type Objective } from '../lesson/discovery';
 import { type AuthFailure, readableMessage } from './authErrors';
 import { localDay } from './day';
+import { cleanMedalDays } from './streakRewards';
 
 // Bienvenue → prénom → objectif → leçon découverte → fin → inscription
 // (pseudo, compte, rappel) → accueil d'Apprendre
@@ -29,6 +30,10 @@ export type OnboardingState = {
   lessonDays: string[];
   // Célébration des six leçons découvertes déjà montrée (une seule fois)
   sixCelebrated: boolean;
+  // Meilleure série atteinte (médailles gardées si la série casse)
+  bestStreak: number;
+  // Paliers de série déjà fêtés (3, 7, 14…)
+  celebratedMedals: number[];
   // Dernière réponse « inscription_fermee » du serveur (horodatage), sinon null
   signupClosedAt: number | null;
 };
@@ -43,6 +48,8 @@ export const INITIAL_ONBOARDING: OnboardingState = {
   played: [],
   lessonDays: [],
   sixCelebrated: false,
+  bestStreak: 0,
+  celebratedMedals: [],
   signupClosedAt: null,
 };
 
@@ -81,6 +88,8 @@ export function parseOnboarding(raw: unknown, now: Date = new Date()): Onboardin
         ? [localDay(now)]
         : [],
     sixCelebrated: r.sixCelebrated === true,
+    bestStreak: typeof r.bestStreak === 'number' && Number.isInteger(r.bestStreak) && r.bestStreak > 0 ? r.bestStreak : 0,
+    celebratedMedals: cleanMedalDays(r.celebratedMedals),
     signupClosedAt: closedAt,
   };
 }

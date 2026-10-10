@@ -4,6 +4,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GuestHome from '@/src/components/apprendre/home/GuestHome';
+import { StatusBarShade } from '@/src/components/common/AppBackground';
 import HomeHeader from '@/src/components/apprendre/home/HomeHeader';
 import { ModuleRowsSkeleton, UpNextSkeleton } from '@/src/components/apprendre/home/HomeSkeleton';
 import ModuleRow from '@/src/components/apprendre/home/ModuleRow';
@@ -22,11 +23,11 @@ import { useKnownPseudo } from '@/src/hooks/useKnownPseudo';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { useDailyIgnite } from '@/src/state/flameIgnition';
+import { useBestStreak } from '@/src/state/streakRewards';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { DISCOVERY } from '@/src/lesson/discovery';
 import {
   allTopicsDone,
-  discoveryStreak,
   discoveryXp,
   doneToday,
   guestSubtitle,
@@ -35,6 +36,7 @@ import {
 } from '@/src/utils/discoveryHome';
 import { inProgressModules, pickUpNext, resolveHomeSituation } from '@/src/utils/learning';
 import { isSignupClosed } from '@/src/utils/onboarding';
+import { simulateStreak } from '@/src/utils/streakRewards';
 import { modulesOutsideUniverses, visibleUniverses } from '@/src/utils/universes';
 
 export default function ApprendreHomeScreen() {
@@ -54,6 +56,8 @@ export default function ApprendreHomeScreen() {
   const onboarding = useOnboarding();
   // Flamme de série : allumage à sa première apparition de la journée
   const ignite = useDailyIgnite();
+  // Compte connecté : meilleure série mémorisée (médailles gardées)
+  const bestStreak = useBestStreak(data.isAuthenticated ? user?.id : null, data.streak);
   useEffect(() => {
     onboardingStore.load();
   }, []);
@@ -158,7 +162,8 @@ export default function ApprendreHomeScreen() {
           universeSlug={DISCOVERY[card.objective].universe.slug}
           universes={data.universes}
           played={guest.played}
-          streak={discoveryStreak(guest.lessonDays)}
+          history={simulateStreak(guest.lessonDays)}
+          bestStreak={guest.bestStreak}
           lessonDays={guest.lessonDays}
           xp={discoveryXp(guest.played)}
           ignite={ignite}
@@ -316,6 +321,8 @@ export default function ApprendreHomeScreen() {
       {streakMounted ? (
         <StreakSheet
           streak={data.streak}
+          best={bestStreak}
+          freezes={null}
           open={streakOpen}
           onRequestClose={closeStreak}
           onClosed={unmountStreak}
@@ -324,6 +331,9 @@ export default function ApprendreHomeScreen() {
           continueDisabledReason={OFFLINE_REASON}
         />
       ) : null}
+
+      {/* Rien ne passe sous la barre d'état en défilant */}
+      <StatusBarShade tab="apprendre" />
     </View>
   );
 }

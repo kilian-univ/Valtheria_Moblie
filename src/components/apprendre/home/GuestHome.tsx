@@ -15,10 +15,12 @@ import {
   type HomeCardAction,
   showAccountCard,
 } from '@/src/utils/discoveryHome';
+import { frozenYesterday, type StreakHistory, weekDays } from '@/src/utils/streakRewards';
 import { track } from '@/src/utils/track';
 import { universeTint } from '@/src/utils/universeTint';
 import GuestLessonCard from './GuestLessonCard';
 import GuestStreakCard from './GuestStreakCard';
+import StreakSheet from './StreakSheet';
 import OtherTopicSheet from './OtherTopicSheet';
 
 type GuestHomeProps = {
@@ -26,7 +28,9 @@ type GuestHomeProps = {
   universeSlug: string;
   universes: Universe[];
   played: Objective[];
-  streak: number;
+  // Série rejouée jour par jour (gels compris) et meilleure série mémorisée
+  history: StreakHistory;
+  bestStreak: number;
   lessonDays: readonly string[];
   xp: number;
   // Allumage de la flamme (première apparition du jour)
@@ -46,7 +50,8 @@ export default function GuestHome({
   universeSlug,
   universes,
   played,
-  streak,
+  history,
+  bestStreak,
   lessonDays,
   xp,
   ignite,
@@ -70,6 +75,16 @@ export default function GuestHome({
     setSheetOpen(true);
   };
 
+  // Feuille « Ta série » (médailles, gel)
+  const [streakMounted, setStreakMounted] = useState(false);
+  const [streakOpen, setStreakOpen] = useState(false);
+  const closeStreakSheet = useCallback(() => setStreakOpen(false), []);
+  const unmountStreakSheet = useCallback(() => setStreakMounted(false), []);
+  const openStreakSheet = () => {
+    setStreakMounted(true);
+    setStreakOpen(true);
+  };
+
   const onAction = (action: HomeCardAction) => {
     if (action === 'autre-sujet' || action === 'rejouer') openSheet();
     else if (action === 'creer-compte') onRegister();
@@ -84,6 +99,7 @@ export default function GuestHome({
           tint={universeTint(universeSlug, universes)}
           universeSlug={universeSlug}
           onAction={onAction}
+          onLogin={onLogin}
         />
         {card.secondary ? (
           <Button variant="text" label={card.secondary.label} onPress={openSheet} style={styles.secondary} />
@@ -91,7 +107,15 @@ export default function GuestHome({
       </StaggerItem>
 
       <StaggerItem index={1}>
-        <GuestStreakCard streak={streak} lessonDays={lessonDays} xp={xp} ignite={ignite} />
+        <GuestStreakCard
+          streak={history.streak}
+          week={weekDays(lessonDays)}
+          xp={xp}
+          freezes={history.freezes}
+          savedYesterday={frozenYesterday(history)}
+          ignite={ignite}
+          onPress={openStreakSheet}
+        />
       </StaggerItem>
 
       {showAccountCard(card, signupClosed) ? (
@@ -113,6 +137,17 @@ export default function GuestHome({
             />
           </View>
         </StaggerItem>
+      ) : null}
+
+      {streakMounted ? (
+        <StreakSheet
+          streak={history.streak}
+          best={Math.max(bestStreak, history.best)}
+          freezes={history.freezes}
+          open={streakOpen}
+          onRequestClose={closeStreakSheet}
+          onClosed={unmountStreakSheet}
+        />
       ) : null}
 
       {sheetMounted ? (

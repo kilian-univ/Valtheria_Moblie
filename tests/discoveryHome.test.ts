@@ -312,7 +312,7 @@ test('semaine en cours : lundi à dimanche, jours faits, manqués, aujourd’hui
   );
   assert.deepEqual(
     week.map((d) => d.state),
-    ['done', 'missed', 'missed', 'done', 'done', 'done', 'future']
+    ['done', 'missed', 'missed', 'done', 'done', 'done', 'quiet']
   );
   assert.deepEqual(
     week.map((d) => d.isToday),

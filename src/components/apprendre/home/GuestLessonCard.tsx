@@ -14,6 +14,7 @@ import {
   ModuleColors,
   palette,
   reliefDepth,
+  size,
   softShadow,
   space,
   titleLetterSpacing,
@@ -29,13 +30,21 @@ const DEPTH = 8;
 const MIN_HEIGHT = 250;
 const PAD = 18;
 const TITLE_SIZE = 26;
-// Val sort de la carte par le haut (tête et bras au-dessus du bord), reste
-// coupé en bas et à droite par la carte
-const VAL_OVERFLOW = 70; // hauteur de la zone de Val au-dessus de la carte
-const VAL_POSES: Record<'saut' | 'fier', { width: number; right: number; bottom: number }> = {
-  saut: { width: 260, right: -55, bottom: -45 },
-  fier: { width: 230, right: -40, bottom: -45 },
+// Val sort de la carte par le haut, ancré à son bord supérieur (la hauteur
+// de la carte ne change rien à son débordement) ; il reste coupé en bas et à
+// droite. top : haut de l'image au-dessus de la carte (marges transparentes
+// comprises : le chapeau dépasse d'environ 32 px pour la pose fier).
+const VAL_POSES: Record<'saut' | 'fier', { width: number; right: number; top: number }> = {
+  saut: { width: 260, right: -55, top: 56 },
+  fier: { width: 230, right: -62, top: 50 },
 };
+// Zone de Val au-dessus de la carte : de quoi contenir l'image entière
+const VAL_ZONE = 64;
+// Écart entre le haut de l’image de Val et le sous-titre (la marge transparente
+// de l’image s’y ajoute : la tête ne touche jamais le sous-titre)
+const VAL_CLEARANCE = 4;
+// Espace entre le sous-titre et la carte dans la pile de l'accueil
+const STACK_GAP = space[6];
 // Place gardée à Val à droite des textes : ils ne passent jamais sous lui
 const TEXT_RIGHT = 175;
 // Lueur de la couleur de l'univers derrière la carte, sur le fond
@@ -70,13 +79,15 @@ type GuestLessonCardProps = {
   tint: ModuleColors;
   universeSlug: string;
   onAction: (action: HomeCardAction) => void;
+  // « J'ai déjà un compte », sous « CRÉER MON COMPTE »
+  onLogin: () => void;
 };
 
 // Grande carte de l'accueil sans compte : relief à la couleur de l'univers
 // (tranche de 8, reflet, ombre douce, lueur derrière, décor peint en fond),
 // Val qui en sort par le haut, pastille, titre, phrase, progression des six
 // sujets, bouton ivoire en relief. Six sur six : carte dorée, Val fier.
-export default function GuestLessonCard({ card, tint, universeSlug, onAction }: GuestLessonCardProps) {
+export default function GuestLessonCard({ card, tint, universeSlug, onAction, onLogin }: GuestLessonCardProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const six = card.state === 'six';
@@ -86,8 +97,11 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction }: 
   const val = VAL_POSES[six ? 'fier' : 'saut'];
   const spokenProgress = card.progress ? ` ${card.progress.line}` : '';
 
+  // Place de la tête de Val au-dessus de la carte, sans toucher le sous-titre
+  const marginTop = Math.max(0, val.top + VAL_CLEARANCE - STACK_GAP);
+
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { marginTop }]}>
       {/* Lueur de la couleur de la carte, sur le fond */}
       <View style={styles.glow} pointerEvents="none">
         <GoldHalo color={withOpacity(look.face, GLOW_OPACITY)} />
@@ -105,6 +119,19 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction }: 
           </Defs>
           <Rect width="100%" height="100%" fill="url(#guestCardShine)" />
         </Svg>
+        {six ? (
+          // Assombrissement léger derrière Val : le trophée et les détails
+          // dorés se détachent du fond doré
+          <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Defs>
+              <RadialGradient id="guestCardShade" cx="78%" cy="48%" r="42%" fx="78%" fy="48%">
+                <Stop offset="0" stopColor="#000000" stopOpacity={0.18} />
+                <Stop offset="1" stopColor="#000000" stopOpacity={0} />
+              </RadialGradient>
+            </Defs>
+            <Rect width="100%" height="100%" fill="url(#guestCardShade)" />
+          </Svg>
+        ) : null}
 
         {six ? null : (
           <Image
@@ -157,13 +184,18 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction }: 
           ivory={colors.ivory}
           onPress={() => onAction(card.action)}
         />
+        {card.action === 'creer-compte' ? (
+          <Pressable onPress={onLogin} accessibilityRole="link" accessibilityLabel="J’ai déjà un compte, se connecter" style={styles.login}>
+            <AppText style={[styles.loginText, { color: ink }]}>J’ai déjà un compte</AppText>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Val, par-dessus : la zone dépasse au-dessus de la carte et suit ses
           coins du bas, il n'est coupé qu'en bas et à droite */}
       <View style={styles.valZone} pointerEvents="none">
-        <View style={{ position: 'absolute', right: val.right, bottom: val.bottom }}>
-          <ValFullBody pose={pose} width={val.width} height={0} />
+        <View style={{ position: 'absolute', right: val.right, top: VAL_ZONE - val.top }}>
+          <ValFullBody pose={pose} width={val.width} height={0} shadow={six} />
         </View>
       </View>
     </View>
@@ -220,8 +252,6 @@ function IvoryButton({
 
 const styles = StyleSheet.create({
   wrap: {
-    // Place de la tête de Val au-dessus de la carte
-    marginTop: VAL_OVERFLOW - space[5],
     paddingBottom: DEPTH,
   },
   glow: {
@@ -260,7 +290,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: -VAL_OVERFLOW,
+    top: -VAL_ZONE,
     bottom: DEPTH,
     overflow: 'hidden',
     borderBottomLeftRadius: RADIUS,
@@ -315,6 +345,19 @@ const styles = StyleSheet.create({
     height: DOT,
     borderRadius: DOT / 2,
     borderWidth: 1.5,
+  },
+  login: {
+    alignSelf: 'flex-start',
+    minHeight: size.tapMin,
+    justifyContent: 'center',
+    marginTop: -space[3],
+    marginBottom: -space[2],
+  },
+  loginText: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 14,
+    lineHeight: 20,
+    textDecorationLine: 'underline',
   },
   // Toujours en bas de la carte
   button: {

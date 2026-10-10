@@ -7,6 +7,7 @@ import GuestState from '@/src/components/apprendre/home/GuestState';
 import { ModuleRowsSkeleton } from '@/src/components/apprendre/home/HomeSkeleton';
 import ModuleRow from '@/src/components/apprendre/home/ModuleRow';
 import { BackButton } from '@/src/components/apprendre/module/ModuleHeader';
+import { StatusBarShade } from '@/src/components/common/AppBackground';
 import AppText from '@/src/components/common/AppText';
 import PageState from '@/src/components/common/PageState';
 import ProgressRing from '@/src/components/common/ProgressRing';
@@ -103,12 +104,16 @@ export default function UniverseScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[2] }]}>
-      <View style={styles.topRow}>
-        <BackButton onBack={goBack} />
-      </View>
-      {body}
-    </ScrollView>
+    <View style={styles.screen}>
+      <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[2] }]}>
+        <View style={styles.topRow}>
+          <BackButton onBack={goBack} />
+        </View>
+        {body}
+      </ScrollView>
+      {/* Rien ne passe sous la barre d'état en défilant */}
+      <StatusBarShade tab="apprendre" />
+    </View>
   );
 }
 

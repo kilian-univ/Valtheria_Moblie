@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -26,7 +27,12 @@ function formatMoney(value: number): string {
   return `${value.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
 }
 
+// Marge haute de l'en-tête (celle de headerRow), sous la zone de sécurité
+const HEADER_PAD = 16;
+
 export default function EpargneScreen() {
+  // En-tête sous la barre d'état : décalé de la zone de sécurité
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colorScheme } = useTheme();
   const styles = getEpargneStyles(colorScheme);
@@ -70,7 +76,7 @@ export default function EpargneScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: insets.top + HEADER_PAD }]}>
         <Pressable onPress={() => router.back()} hitSlop={10}>
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>

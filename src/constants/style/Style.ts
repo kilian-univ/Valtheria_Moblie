@@ -48,6 +48,8 @@ export const palette = {
     goldLine: 'rgba(201,168,76,0.25)',   // filet doré discret (bulle de Val)
     goldRing: 'rgba(201,168,76,0.45)',   // anneau autour de la leçon en cours
     goldSoft: 'rgba(201,168,76,0.13)',   // fond de sélection discret
+    frost: 'rgba(143,190,224,0.18)',     // jour sauvé par un gel (bleu glacier discret)
+    frostInk: '#8FBEE0',                 // flocon du gel de série
     onGold: '#0D0D0F',                   // texte posé sur l'or
     success: '#3FA876',
     error: '#E0715F',
@@ -121,6 +123,8 @@ export const palette = {
     textFaint: 'rgba(13,13,15,0.26)',
     controlBorder: 'rgba(0,0,0,0.13)',
     goldSoft: 'rgba(232,178,61,0.13)',
+    frost: 'rgba(74,138,184,0.14)',      // jour sauvé par un gel (bleu glacier discret)
+    frostInk: '#4A8AB8',                 // flocon du gel de série
     goldDeep: '#B08526',
     goldHalo: 'rgba(232,178,61,0.12)',
     goldLine: 'rgba(232,178,61,0.35)',

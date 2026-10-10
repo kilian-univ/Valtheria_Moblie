@@ -46,6 +46,8 @@ test('état du parcours : relu du téléphone, illisible → départ', () => {
     played: [],
     lessonDays: [],
     sixCelebrated: false,
+    bestStreak: 0,
+    celebratedMedals: [],
     signupClosedAt: null,
   });
   // Leçon sans objectif : retour au choix de l'objectif
