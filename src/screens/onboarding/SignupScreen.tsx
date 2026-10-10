@@ -25,7 +25,10 @@ import {
   pseudoError,
   sendDiscoveryCredit,
   signupError,
+  signupErrorFrom,
 } from '@/src/utils/onboarding';
+import { isNetworkMessage, isRegistrationClosed } from '@/src/utils/authErrors';
+import { postAuth } from '@/src/utils/authProbe';
 import { DEFAULT_REMINDER, ReminderTime } from '@/src/utils/reminder';
 import { track } from '@/src/utils/track';
 
@@ -42,7 +45,7 @@ const STEP_NUMBER: Record<Step, number> = { pseudo: 1, compte: 2, rappel: 3 };
 export default function SignupScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { register, post, isAuthenticated } = useApi();
+  const { register, login, post, isAuthenticated } = useApi();
   const { state } = useOnboarding();
   const plan = state.objective ? discoveryPlan(state.objective) : null;
 
@@ -57,6 +60,8 @@ export default function SignupScreen() {
   const [error, setError] = useState<{ text: string; emailTaken: boolean } | null>(null);
   const [time, setTime] = useState<ReminderTime>(DEFAULT_REMINDER);
   const [reminderRefused, setReminderRefused] = useState(false);
+  // Le serveur n'accepte pas encore d'inscription depuis l'app (403)
+  const [closed, setClosed] = useState(false);
   const passwordRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -115,25 +120,58 @@ export default function SignupScreen() {
   // ---------------------------------------------------------------------------
   const canCreate = emailValid(email) && passwordValid(password) && !submitting;
 
+  // Compte créé (le jeton est enregistré par ApiContext)
+  const accountCreated = () => {
+    track('compte_cree', { objectif: state.objective });
+    onboardingStore.update({ status: 'termine', step: 'rappel' });
+    // Leçon découverte créditée dès que le jeton du nouveau compte est en
+    // place (voir l'effet plus haut)
+    if (state.objective) pendingCredit.current = state.objective;
+    setStep('rappel');
+  };
+
   const createAccount = async () => {
     if (!canCreate) return;
     setSubmitting(true);
     setError(null);
+    const body = { name: cleanPseudo, email: email.trim(), password, password_confirmation: password };
     try {
       // name = pseudo, password_confirmation = password (le serveur prend name
       // à défaut de pseudo)
-      await register(cleanPseudo, email.trim(), password, password);
-      track('compte_cree', { objectif: state.objective });
-      onboardingStore.update({ status: 'termine', step: 'rappel' });
-      // Leçon découverte créditée dès que le jeton du nouveau compte est en
-      // place (voir l'effet plus haut)
-      if (state.objective) pendingCredit.current = state.objective;
-      setStep('rappel');
+      await register(body.name, body.email, body.password, body.password_confirmation);
+      accountCreated();
     } catch (err) {
-      setError(signupError(err instanceof Error ? err.message : undefined));
+      const message = err instanceof Error ? err.message : undefined;
+      if (isNetworkMessage(message)) {
+        setError(signupError(message));
+        return;
+      }
+      // register ne garde que le message à la racine : la même demande, relue
+      // en entier, donne le code (inscription fermée) et error.message
+      try {
+        const again = await postAuth('/auth/register', body);
+        if (again.ok) {
+          // Passée cette fois (erreur passagère) : on se connecte avec le compte créé
+          await login(body.email, body.password);
+          accountCreated();
+        } else if (isRegistrationClosed(again.failure)) {
+          // Pseudo et objectif restent mémorisés pour une prochaine tentative
+          setClosed(true);
+        } else {
+          setError(signupErrorFrom(again.failure, message));
+        }
+      } catch {
+        setError(signupErrorFrom(null, message));
+      }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Inscription fermée : « Revenir plus tard » mène à l'accueil sans compte
+  const later = () => {
+    onboardingStore.update({ status: 'plus-tard' });
+    router.replace('/apprendre');
   };
 
   // ---------------------------------------------------------------------------
@@ -157,7 +195,27 @@ export default function SignupScreen() {
   let body: ReactNode;
   let footer: ReactNode;
 
-  if (step === 'pseudo') {
+  if (closed) {
+    // Inscription fermée pour le moment : pas d'erreur rouge, une porte ouverte
+    body = (
+      <>
+        <ValBubble
+          mood="rassurant"
+          diameter={VAL_DIAMETER}
+          text="Ta progression de la leçon découverte est gardée sur ton téléphone. Si tu as déjà un compte, connecte-toi."
+        />
+        <AppText variant="title2" accessibilityRole="header" style={styles.title}>
+          Les inscriptions ouvrent très bientôt
+        </AppText>
+      </>
+    );
+    footer = (
+      <>
+        <Button label="J’ai déjà un compte" onPress={() => router.push('/client/login')} />
+        <Button variant="secondary" label="Revenir plus tard" onPress={later} />
+      </>
+    );
+  } else if (step === 'pseudo') {
     body = (
       <>
         <ValBubble
@@ -289,7 +347,11 @@ export default function SignupScreen() {
   return (
     <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
-        <StepHeader onBack={step === 'rappel' ? undefined : back} step={STEP_NUMBER[step]} total={3} />
+        <StepHeader
+          onBack={step === 'rappel' ? undefined : closed ? () => setClosed(false) : back}
+          step={STEP_NUMBER[step]}
+          total={3}
+        />
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {body}

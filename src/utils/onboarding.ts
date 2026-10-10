@@ -2,6 +2,7 @@
 // Fonctions pures, sans React : testables avec Node.
 
 import { toObjective, type Objective } from '../lesson/discovery';
+import { type AuthFailure, readableMessage } from './authErrors';
 
 // Bienvenue → objectif → leçon découverte → fin → inscription (pseudo,
 // compte, rappel) → accueil d'Apprendre
@@ -101,6 +102,20 @@ export function signupError(message: string | undefined): { text: string; emailT
   // Message du serveur déjà en français et lisible : on le garde
   if (m && !/^(Échec de l'inscription|Erreur API|Données invalides\.?)$/i.test(m)) return { text: m, emailTaken };
   return { text: 'L’inscription n’a pas abouti. Vérifie tes informations et réessaie.', emailTaken };
+}
+
+// Échec d'inscription lu en entier (code et message, voir authErrors.ts) :
+// le message du serveur s'il est lisible, à la racine ou dans error.message,
+// sinon celui d'ApiContext (fallbackMessage), sinon le message générique
+export function signupErrorFrom(
+  failure: AuthFailure | null,
+  fallbackMessage?: string
+): { text: string; emailTaken: boolean } {
+  const raw = failure?.message ?? fallbackMessage;
+  const result = signupError(raw);
+  // Adresse déjà prise (même en anglais) et pseudo pris : reconnus d'abord
+  if (result.emailTaken || result.text !== (raw ?? '').trim()) return result;
+  return readableMessage(raw) ? result : signupError(undefined);
 }
 
 // ---------------------------------------------------------------------------

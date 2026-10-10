@@ -12,6 +12,8 @@ import SocialButtons from '@/src/components/onboarding/SocialButtons';
 import { opacityDisabled, size, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { onboardingStore } from '@/src/state/onboarding';
+import { loginErrorText } from '@/src/utils/authErrors';
+import { postAuth } from '@/src/utils/authProbe';
 import { emailValid } from '@/src/utils/onboarding';
 
 // Mot de passe oublié : POST /auth/forgot-password est prêt côté serveur
@@ -19,12 +21,6 @@ import { emailValid } from '@/src/utils/onboarding';
 // une fois la route en ligne.
 export const FORGOT_PASSWORD_ENABLED = false;
 const VAL_DIAMETER = 64;
-
-function loginError(message: string | undefined): string {
-  const m = (message ?? '').trim();
-  if (/network|internet|timed? ?out/i.test(m)) return 'Pas de connexion internet. Réessaie dans un instant.';
-  return 'E-mail ou mot de passe incorrect.';
-}
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -45,6 +41,14 @@ export default function LoginScreen() {
     setError(null);
     setSubmitting(true);
     try {
+      // Réponse lue en entier d'abord (une seule tentative) : login d'ApiContext
+      // ne garde pas error.message. Acceptée : login enregistre la session.
+      const attempt = await postAuth('/auth/login', { email: email.trim(), password });
+      if (!attempt.ok) {
+        setError(loginErrorText(attempt.failure));
+        setSubmitting(false);
+        return;
+      }
       await login(email.trim(), password);
       // Connecté : le parcours de première ouverture ne revient plus
       const fromOnboarding = onboardingStore.get().state.status === 'en-cours';
@@ -52,7 +56,7 @@ export default function LoginScreen() {
       if (fromOnboarding || !router.canGoBack()) router.replace('/apprendre');
       else router.back();
     } catch (err) {
-      setError(loginError(err instanceof Error ? err.message : undefined));
+      setError(loginErrorText(null, err instanceof Error ? err.message : undefined));
       setSubmitting(false);
     }
   };
