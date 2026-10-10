@@ -3,6 +3,7 @@
 
 import { toObjective, type Objective } from '../lesson/discovery';
 import { type AuthFailure, readableMessage } from './authErrors';
+import { localDay } from './day';
 
 // Bienvenue → prénom → objectif → leçon découverte → fin → inscription
 // (pseudo, compte, rappel) → accueil d'Apprendre
@@ -26,6 +27,8 @@ export type OnboardingState = {
   // Jours (AAAA-MM-JJ, heure du téléphone) où une leçon découverte a été
   // terminée : la série de l'accueil sans compte
   lessonDays: string[];
+  // Célébration des six leçons découvertes déjà montrée (une seule fois)
+  sixCelebrated: boolean;
   // Dernière réponse « inscription_fermee » du serveur (horodatage), sinon null
   signupClosedAt: number | null;
 };
@@ -39,11 +42,22 @@ export const INITIAL_ONBOARDING: OnboardingState = {
   started: [],
   played: [],
   lessonDays: [],
+  sixCelebrated: false,
   signupClosedAt: null,
 };
 
+// Leçons jouées avant l'arrivée de la série (version du 10 octobre 2026,
+// 18 h 27) : terminées, mais sans date. Sans correction, l'accueil affichait
+// « 0 jour » à quelqu'un qui venait d'en finir plusieurs. Elles comptent pour
+// le jour de la première relecture (mémorisé aussitôt, voir state/onboarding).
+export function needsLessonDayMigration(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  const r = raw as Record<string, unknown>;
+  return !Array.isArray(r.lessonDays) && objectiveList(r.played).length > 0;
+}
+
 // État relu du téléphone ; illisible ou incomplet → départ du parcours
-export function parseOnboarding(raw: unknown): OnboardingState {
+export function parseOnboarding(raw: unknown, now: Date = new Date()): OnboardingState {
   if (!raw || typeof raw !== 'object') return INITIAL_ONBOARDING;
   const r = raw as Record<string, unknown>;
   const status: OnboardingStatus = r.status === 'termine' || r.status === 'plus-tard' ? r.status : 'en-cours';
@@ -63,7 +77,10 @@ export function parseOnboarding(raw: unknown): OnboardingState {
     played: objectiveList(r.played),
     lessonDays: Array.isArray(r.lessonDays)
       ? [...new Set(r.lessonDays.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)))].sort()
-      : [],
+      : needsLessonDayMigration(raw)
+        ? [localDay(now)]
+        : [],
+    sixCelebrated: r.sixCelebrated === true,
     signupClosedAt: closedAt,
   };
 }

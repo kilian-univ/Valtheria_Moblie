@@ -11,7 +11,9 @@ import ValBubble from '@/src/components/common/ValBubble';
 import SocialButtons from '@/src/components/onboarding/SocialButtons';
 import { opacityDisabled, size, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
+import { resetFlameIgnition } from '@/src/state/flameIgnition';
 import { onboardingStore } from '@/src/state/onboarding';
+import { resetReminder } from '@/src/state/reminder';
 import { loginErrorText } from '@/src/utils/authErrors';
 import { postAuth } from '@/src/utils/authProbe';
 import { emailValid } from '@/src/utils/onboarding';
@@ -145,17 +147,31 @@ export default function LoginScreen() {
           </AppText>
         ) : null}
 
-        {/* Développement seulement : efface la mémoire du parcours (objectif,
-            leçons jouées, inscription fermée) et relance la bienvenue */}
+        {/* Développement seulement. « Rejouer la première ouverture » :
+            le parcours repart de la bienvenue, progression gardée. « Tout
+            réinitialiser » : toute la progression sans compte est effacée
+            (parcours, prénom, objectif, leçons, XP, série, inscription
+            fermée, célébration, flamme du jour, rappel programmé). */}
         {__DEV__ ? (
-          <Button
-            variant="text"
-            label="Rejouer la première ouverture"
-            onPress={() => {
-              onboardingStore.reset();
-              router.replace('/bienvenue');
-            }}
-          />
+          <View style={styles.devRow}>
+            <Button
+              variant="text"
+              label="Rejouer la première ouverture"
+              onPress={() => {
+                onboardingStore.replay();
+                router.replace('/bienvenue');
+              }}
+            />
+            <Button
+              variant="textDanger"
+              label="Tout réinitialiser"
+              onPress={async () => {
+                onboardingStore.reset();
+                await Promise.all([resetReminder(), resetFlameIgnition()]);
+                router.replace('/bienvenue');
+              }}
+            />
+          </View>
         ) : null}
       </ScrollView>
 
@@ -170,6 +186,12 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  devRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: space[2],
   },
   header: {
     paddingHorizontal: space[5],

@@ -8,6 +8,7 @@ import type { Ionicons } from '@expo/vector-icons';
 import type { Module } from '@/src/context/ApiContext';
 import type { Universe } from '../lesson/model';
 import { normalizeUniverses } from '../lesson/normalize';
+import type { DecorName } from './modulePath';
 import { completedCount, moduleState, totalCount } from './learning';
 
 export type IoniconName = ComponentProps<typeof Ionicons>['name'];
@@ -41,6 +42,31 @@ export const UNIVERSE_ICONS: Record<string, IoniconName> = {
   'analyser-une-entreprise': 'bar-chart-outline',
 };
 export const DEFAULT_UNIVERSE_ICON: IoniconName = 'planet-outline';
+
+// Décor peint de chaque univers (assets/images/decor), dans l'esprit de la
+// table catégorie → décor du dictionnaire (utils/dictionary.ts) : bourse et
+// marchés → graphique, crypto → pièces, logement → clé, impôts → calculatrice…
+export const UNIVERSE_DECORS: Record<string, DecorName> = {
+  'avant-d-investir': 'tirelire', // épargne
+  bourse: 'graphique',
+  crypto: 'pile-pieces',
+  immobilier: 'cle',
+  'investir-autrement': 'coffre-fort', // placements à l'abri
+  'paie-primes-et-aides': 'carnet', // fiche de paie
+  'revenus-annexes': 'pile-pieces',
+  entreprendre: 'carnet', // comptes, registres
+  'garder-la-main': 'enveloppe', // budget
+  'se-loger': 'cle',
+  'savoir-s-endetter': 'banque', // crédit
+  impots: 'calculatrice',
+  macroeconomie: 'plante', // croissance
+  'prix-marches': 'graphique',
+  'analyser-une-entreprise': 'carnet',
+};
+
+export function universeDecor(slug: string): DecorName {
+  return Object.hasOwn(UNIVERSE_DECORS, slug) ? UNIVERSE_DECORS[slug] : 'plante';
+}
 
 export function universeIcon(slug: string): IoniconName {
   return Object.hasOwn(UNIVERSE_ICONS, slug) ? UNIVERSE_ICONS[slug] : DEFAULT_UNIVERSE_ICON;

@@ -21,9 +21,11 @@ import { loadErrorMessage, OFFLINE_BANNER, OFFLINE_REASON, useLearningData } fro
 import { useKnownPseudo } from '@/src/hooks/useKnownPseudo';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
+import { useDailyIgnite } from '@/src/state/flameIgnition';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { DISCOVERY } from '@/src/lesson/discovery';
 import {
+  allTopicsDone,
   discoveryStreak,
   discoveryXp,
   doneToday,
@@ -50,6 +52,8 @@ export default function ApprendreHomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   // Sans compte : objectif choisi, leçons découvertes jouées, inscription fermée
   const onboarding = useOnboarding();
+  // Flamme de série : allumage à sa première apparition de la journée
+  const ignite = useDailyIgnite();
   useEffect(() => {
     onboardingStore.load();
   }, []);
@@ -118,7 +122,10 @@ export default function ApprendreHomeScreen() {
   const header = (
     <HomeHeader
       title={isGuest ? guestTitle(guest.firstName) : undefined}
-      subtitle={isGuest ? guestSubtitle(doneToday(guest.lessonDays)) : undefined}
+      subtitle={
+        isGuest ? guestSubtitle({ allDone: allTopicsDone(guest.played), doneToday: doneToday(guest.lessonDays) }) : undefined
+      }
+      ignite={ignite}
       pseudo={isGuest ? undefined : known.pseudo}
       pseudoPending={known.pending}
       stats={
@@ -152,7 +159,9 @@ export default function ApprendreHomeScreen() {
           universes={data.universes}
           played={guest.played}
           streak={discoveryStreak(guest.lessonDays)}
+          lessonDays={guest.lessonDays}
           xp={discoveryXp(guest.played)}
+          ignite={ignite}
           signupClosed={signupClosed}
           onPlay={(objective) =>
             router.push({ pathname: '/bienvenue/lecon', params: { objectif: objective, depuis: 'accueil' } })

@@ -1,14 +1,13 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
-import GoldHalo from '@/src/components/common/GoldHalo';
+import StreakFlame from '@/src/components/common/StreakFlame';
 import { space } from '@/src/constants/style/Style';
 import { formatInteger } from '@/src/utils/format';
 
 // Seul emoji autorisé de l'app (validé) : la flamme de la série
-const FLAME = '\u{1F525}';
 const FLAME_SIZE = 64;
 // Lueur derrière la flamme : 1,5 fois sa taille, jamais plus
 const GLOW_SIZE = FLAME_SIZE * 1.5;
@@ -45,10 +44,7 @@ export default function StreakSheet({
     <BottomSheet open={open} onRequestClose={onRequestClose} onClosed={onClosed}>
       <View style={styles.content}>
         <View style={styles.flameWrap} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <GoldHalo />
-          <Text style={styles.flame} maxFontSizeMultiplier={1}>
-            {FLAME}
-          </Text>
+          <StreakFlame days={streak} size={FLAME_SIZE / 0.8} />
         </View>
         <AppText variant="hero" accessibilityRole="header" accessibilityLabel={`Série de ${days}`}>
           {days}
@@ -85,10 +81,6 @@ const styles = StyleSheet.create({
     height: GLOW_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  flame: {
-    fontSize: FLAME_SIZE,
-    lineHeight: FLAME_SIZE * 1.15,
   },
   center: {
     textAlign: 'center',

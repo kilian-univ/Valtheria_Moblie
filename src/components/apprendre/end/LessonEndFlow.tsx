@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,6 +17,7 @@ import { useCountUp } from '@/src/hooks/useCountUp';
 import { formatInteger } from '@/src/utils/format';
 import { nextExcess } from '@/src/utils/fit';
 import { celebrate } from '@/src/utils/haptics';
+import StreakFlame from '@/src/components/common/StreakFlame';
 import {
   END_BUTTON_LABELS,
   endSentence,
@@ -40,7 +41,8 @@ const STREAK_TITLE_LINE_HEIGHT = 32;
 const STREAK_NUMBER_SIZE = 88;
 const STREAK_NUMBER_LINE_HEIGHT = 96;
 const FIRE_SIZE = 120;
-const FIRE_LINE_HEIGHT = 140;
+// Carré de la flamme vivante : emoji de 120 au palier le plus haut
+const FIRE_FLAME_BOX = FIRE_SIZE / 0.8;
 const FIRE_FROM_SCALE = 0.3;
 const SURPRISE_CHEST = 160;
 // Pièce à côté du chiffre « Vals »
@@ -223,10 +225,8 @@ function StreakStep({ from, to, onNext }: { from: number; to: number; onNext: ()
   return (
     <StepFrame button={<Button label="On continue" onPress={onNext} />}>
       <Animated.View style={[styles.centered, fireStyle]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        {/* Seul emoji de l'app */}
-        <Text allowFontScaling={false} style={styles.fire}>
-          🔥
-        </Text>
+        {/* Flamme vivante : elle grossit, lance ses étincelles et vibre */}
+        <StreakFlame days={to} size={FIRE_FLAME_BOX} growFrom={from} />
       </Animated.View>
 
       <View style={styles.texts} accessible accessibilityLabel={`${to} ${streakDaysLabel(to)}`}>
@@ -371,11 +371,6 @@ const styles = StyleSheet.create({
   },
   tabular: {
     fontVariant: ['tabular-nums'],
-  },
-  fire: {
-    fontSize: FIRE_SIZE,
-    lineHeight: FIRE_LINE_HEIGHT,
-    textAlign: 'center',
   },
   streakNumber: {
     fontFamily: fonts.title,

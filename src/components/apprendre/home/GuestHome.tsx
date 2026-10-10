@@ -4,24 +4,22 @@ import { StyleSheet, View } from 'react-native';
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import { StaggerItem } from '@/src/components/common/Stagger';
-import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
+import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { Objective } from '@/src/lesson/discovery';
 import type { Universe } from '@/src/lesson/model';
 import {
   accountCard,
-  daysLabel,
   discoveryTiles,
   type HomeCard,
   type HomeCardAction,
+  showAccountCard,
 } from '@/src/utils/discoveryHome';
-import { formatInteger } from '@/src/utils/format';
 import { track } from '@/src/utils/track';
 import { universeTint } from '@/src/utils/universeTint';
 import GuestLessonCard from './GuestLessonCard';
+import GuestStreakCard from './GuestStreakCard';
 import OtherTopicSheet from './OtherTopicSheet';
-
-const STAT_VALUE = 22;
 
 type GuestHomeProps = {
   card: HomeCard;
@@ -29,7 +27,10 @@ type GuestHomeProps = {
   universes: Universe[];
   played: Objective[];
   streak: number;
+  lessonDays: readonly string[];
   xp: number;
+  // Allumage de la flamme (première apparition du jour)
+  ignite: boolean | null;
   signupClosed: boolean;
   onPlay: (objective: Objective) => void;
   onRegister: () => void;
@@ -37,7 +38,8 @@ type GuestHomeProps = {
 };
 
 // Accueil d'Apprendre sans compte : la grande carte de la leçon de l'objectif,
-// la série et les XP comptés sur le téléphone, puis la carte du compte.
+// la carte « Ta série » (flamme, semaine, XP), puis la carte du compte, sauf
+// quand la grande carte propose déjà de créer le compte.
 // « Un autre sujet » ouvre la feuille des six leçons découvertes.
 export default function GuestHome({
   card,
@@ -45,7 +47,9 @@ export default function GuestHome({
   universes,
   played,
   streak,
+  lessonDays,
   xp,
+  ignite,
   signupClosed,
   onPlay,
   onRegister,
@@ -67,7 +71,7 @@ export default function GuestHome({
   };
 
   const onAction = (action: HomeCardAction) => {
-    if (action === 'autre-sujet') openSheet();
+    if (action === 'autre-sujet' || action === 'rejouer') openSheet();
     else if (action === 'creer-compte') onRegister();
     else onPlay(card.objective);
   };
@@ -75,54 +79,41 @@ export default function GuestHome({
   return (
     <View style={styles.stack}>
       <StaggerItem index={0}>
-        <GuestLessonCard card={card} tint={universeTint(universeSlug, universes)} onAction={onAction} />
+        <GuestLessonCard
+          card={card}
+          tint={universeTint(universeSlug, universes)}
+          universeSlug={universeSlug}
+          onAction={onAction}
+        />
         {card.secondary ? (
-          <Button variant="text" label="Un autre sujet" onPress={openSheet} style={styles.secondary} />
+          <Button variant="text" label={card.secondary.label} onPress={openSheet} style={styles.secondary} />
         ) : null}
       </StaggerItem>
 
       <StaggerItem index={1}>
-        <View style={styles.stats}>
-          <View style={[styles.stat, { backgroundColor: colors.surface }]} accessible accessibilityLabel={`Ta série : ${daysLabel(streak)}`}>
-            {/* Émoji : exception autorisée par la DA pour la série */}
-            <AppText style={styles.flame}>🔥</AppText>
-            <AppText maxFontSizeMultiplier={1.4} style={[styles.statValue, { color: colors.text }]}>
-              {daysLabel(streak)}
-            </AppText>
-            <AppText variant="caption" tone="subtitle">
-              ta série
-            </AppText>
-          </View>
-          <View style={[styles.stat, { backgroundColor: colors.surface }]} accessible accessibilityLabel={`${formatInteger(xp)} XP gagnés`}>
-            <AppText style={[styles.xpLabel, { color: colors.gold }]}>XP</AppText>
-            <AppText maxFontSizeMultiplier={1.4} style={[styles.statValue, styles.xpValue, { color: colors.text }]}>
-              {formatInteger(xp)}
-            </AppText>
-            <AppText variant="caption" tone="subtitle">
-              gagnés
-            </AppText>
-          </View>
-        </View>
+        <GuestStreakCard streak={streak} lessonDays={lessonDays} xp={xp} ignite={ignite} />
       </StaggerItem>
 
-      <StaggerItem index={2}>
-        <View style={[styles.account, { backgroundColor: colors.surface }]}>
-          <View style={styles.accountTexts}>
-            <AppText variant="bodyMedium" accessibilityRole="header">
-              {account.title}
-            </AppText>
-            <AppText variant="caption" tone="subtitle">
-              {account.text}
-            </AppText>
+      {showAccountCard(card, signupClosed) ? (
+        <StaggerItem index={2}>
+          <View style={[styles.account, { backgroundColor: colors.surface }]}>
+            <View style={styles.accountTexts}>
+              <AppText variant="bodyMedium" accessibilityRole="header">
+                {account.title}
+              </AppText>
+              <AppText variant="caption" tone="subtitle">
+                {account.text}
+              </AppText>
+            </View>
+            <Button
+              variant={account.action === 'register' ? 'primary' : 'secondary'}
+              fullWidth={false}
+              label={account.actionLabel}
+              onPress={account.action === 'register' ? onRegister : onLogin}
+            />
           </View>
-          <Button
-            variant={account.action === 'register' ? 'primary' : 'secondary'}
-            fullWidth={false}
-            label={account.actionLabel}
-            onPress={account.action === 'register' ? onRegister : onLogin}
-          />
-        </View>
-      </StaggerItem>
+        </StaggerItem>
+      ) : null}
 
       {sheetMounted ? (
         <OtherTopicSheet
@@ -150,37 +141,6 @@ const styles = StyleSheet.create({
   secondary: {
     alignSelf: 'center',
     marginTop: space[2],
-  },
-  stats: {
-    flexDirection: 'row',
-    gap: space[3] - 2,
-  },
-  stat: {
-    flex: 1,
-    padding: space[4] - 2,
-    borderRadius: radius.md + 4,
-    borderCurve: 'continuous',
-  },
-  flame: {
-    fontSize: 22,
-    lineHeight: 28,
-  },
-  statValue: {
-    fontFamily: fonts.title,
-    fontSize: STAT_VALUE,
-    lineHeight: 28,
-    letterSpacing: titleLetterSpacing(STAT_VALUE),
-    marginTop: space[1],
-    fontVariant: ['tabular-nums'],
-  },
-  xpLabel: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    lineHeight: 28,
-    letterSpacing: 1,
-  },
-  xpValue: {
-    marginTop: space[1],
   },
   account: {
     flexDirection: 'row',

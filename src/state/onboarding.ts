@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 
-import { INITIAL_ONBOARDING, OnboardingState, parseOnboarding } from '@/src/utils/onboarding';
+import { INITIAL_ONBOARDING, needsLessonDayMigration, OnboardingState, parseOnboarding } from '@/src/utils/onboarding';
 
 // Avancement de la première ouverture, mémorisé sur le téléphone : si la
 // personne quitte en cours de route, elle reprend où elle en était.
@@ -22,7 +22,11 @@ export const onboardingStore = {
     if (store.loaded) return store.state;
     try {
       const raw = await AsyncStorage.getItem(KEY);
-      store = { state: parseOnboarding(raw ? JSON.parse(raw) : null), loaded: true };
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      store = { state: parseOnboarding(parsed), loaded: true };
+      // Leçons jouées sans date : le jour qui leur est donné est gardé, pour
+      // qu'il ne glisse pas d'une ouverture à l'autre
+      if (needsLessonDayMigration(parsed)) AsyncStorage.setItem(KEY, JSON.stringify(store.state)).catch(() => {});
     } catch {
       store = { state: INITIAL_ONBOARDING, loaded: true };
     }
@@ -36,8 +40,13 @@ export const onboardingStore = {
       // stockage indisponible : la reprise ne marchera pas, sans autre conséquence
     });
   },
-  // Développement : efface toute la mémoire du parcours (« Rejouer la
-  // première ouverture »)
+  // Développement, « Rejouer la première ouverture » : le parcours repart de
+  // la bienvenue, la progression (prénom, leçons, série) est gardée
+  replay() {
+    onboardingStore.update({ status: 'en-cours', step: 'bienvenue' });
+  },
+  // Développement, « Tout réinitialiser » : efface toute la mémoire du
+  // parcours (prénom, objectif, leçons, série, inscription fermée, célébration)
   reset() {
     store = { state: INITIAL_ONBOARDING, loaded: true };
     emit();

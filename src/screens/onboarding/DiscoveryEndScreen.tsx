@@ -6,7 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
+import GoldConfetti from '@/src/components/common/GoldConfetti';
 import { StaggerItem } from '@/src/components/common/Stagger';
+import StreakFlame from '@/src/components/common/StreakFlame';
 import ValFullBody from '@/src/components/common/ValFullBody';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -14,28 +16,55 @@ import { discoveryPlan, nextLessonTitle, toObjective, universeName } from '@/src
 import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { getReminderSettings } from '@/src/state/reminder';
-import { discoveryStreak, endActions, endTitle } from '@/src/utils/discoveryHome';
+import { useCountUp } from '@/src/hooks/useCountUp';
+import {
+  discoveryStreak,
+  endActions,
+  endTitle,
+  remainingLabel,
+  remainingTopics,
+  topicDots,
+} from '@/src/utils/discoveryHome';
+import { celebrate } from '@/src/utils/haptics';
 import { isSignupClosed } from '@/src/utils/onboarding';
 
 const VAL_HEIGHT = 170;
 const LOCK = 44;
+const PILL_FLAME = 24;
+const DOT = 9;
+// Le nombre de jours défile une fois la flamme lancée
+const COUNT_DELAY = 450;
 
 // Fin de la leçon découverte : Val fier (« Bravo, <prénom> ! »), la série,
 // la prochaine leçon (verrouillée tant qu'il n'y a pas de compte). Inscription
 // ouverte : créer le compte ; fermée : « Me rappeler demain » (choix du
-// rappel), ou « Plus tard » vers l'accueil.
+// rappel), ou « Plus tard » vers l'accueil. La leçon qui complète les six
+// passe d'abord par la célébration (une seule fois).
 export default function DiscoveryEndScreen() {
+  const params = useLocalSearchParams<{ six?: string }>();
+  const [celebrating, setCelebrating] = useState(params.six === '1');
+  if (celebrating) return <SixCelebration onDone={() => setCelebrating(false)} />;
+  return <EndContent />;
+}
+
+function EndContent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { state } = useOnboarding();
   // Jouée depuis l'accueil sans compte : la leçon de la tuile, retour à l'accueil
-  const params = useLocalSearchParams<{ objectif?: string; depuis?: string }>();
+  const params = useLocalSearchParams<{ objectif?: string; depuis?: string; serie?: string }>();
   const fromHome = params.depuis === 'accueil';
   const plan = discoveryPlan((fromHome ? toObjective(params.objectif) : null) ?? state.objective);
   const closed = isSignupClosed(state.signupClosedAt);
   const streak = Math.max(1, discoveryStreak(state.lessonDays));
+  // Série d'avant cette leçon : si elle a augmenté, la flamme grandit et le
+  // nombre défile de l'ancien au nouveau total
+  const before = Number(params.serie);
+  const streakFrom = Number.isInteger(before) && before >= 0 && before < streak ? before : streak;
+  const shownStreak = Math.round(useCountUp(streak, { from: streakFrom, delay: COUNT_DELAY }));
+  const remaining = remainingTopics(state.played);
   // Rappel déjà actif : pas de « Me rappeler demain »
   const [reminderOn, setReminderOn] = useState(false);
   useEffect(() => {
@@ -77,17 +106,38 @@ export default function DiscoveryEndScreen() {
           </AppText>
         </StaggerItem>
         <StaggerItem index={1}>
-          <View style={[styles.streak, { backgroundColor: colors.goldSoft }]}>
-            {/* Émoji : exception autorisée par la DA pour la série */}
-            <AppText variant="bodyMedium" accessible={false}>
-              🔥
-            </AppText>
-            <AppText variant="bodyMedium" tone="gold">
-              {streak === 1 ? 'Jour 1 : ta série commence' : `Jour ${streak} : ta série continue`}
+          <View
+            style={[styles.streak, { backgroundColor: colors.goldSoft }]}
+            accessible
+            accessibilityLabel={streak === 1 ? 'Jour 1 : ta série commence' : `Jour ${streak} : ta série continue`}
+          >
+            <StreakFlame days={streak} size={PILL_FLAME} growFrom={streakFrom} />
+            <AppText variant="bodyMedium" tone="gold" style={styles.tabular}>
+              {streak === 1 ? 'Jour 1 : ta série commence' : `Jour ${shownStreak} : ta série continue`}
             </AppText>
           </View>
         </StaggerItem>
-        <StaggerItem index={2}>
+        {remaining > 0 ? (
+          <StaggerItem index={2}>
+            <View style={styles.topics} accessible accessibilityLabel={remainingLabel(remaining)}>
+              <AppText variant="callout" tone="subtitle">
+                {remainingLabel(remaining)}
+              </AppText>
+              <View style={styles.dots}>
+                {topicDots(state.played).map((done, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.dot,
+                      done ? { backgroundColor: colors.gold, borderColor: colors.gold } : { borderColor: colors.controlBorder },
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          </StaggerItem>
+        ) : null}
+        <StaggerItem index={3}>
           <View
             style={[styles.next, { backgroundColor: colors.surface, borderColor: colors.controlBorder }]}
             accessible
@@ -136,9 +186,61 @@ export default function DiscoveryEndScreen() {
   );
 }
 
+// Fin de la sixième leçon découverte, quel que soit l'ordre : Val fier, gerbe
+// de confettis dorés, vibration. Animations réduites : sans confettis.
+function SixCelebration({ onDone }: { onDone: () => void }) {
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    celebrate();
+  }, []);
+
+  return (
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={[styles.content, styles.celebration, { paddingTop: insets.top + space[8] }]} bounces={false}>
+        <ValFullBody pose="fier" height={VAL_HEIGHT + 40} halo />
+        <StaggerItem index={0}>
+          <AppText variant="title1" accessibilityRole="header" style={styles.center}>
+            Les six sujets, découverts !
+          </AppText>
+        </StaggerItem>
+        <StaggerItem index={1}>
+          <AppText variant="body" tone="subtitle" style={styles.center}>
+            Tu en sais déjà plus que beaucoup de monde sur l’argent.
+          </AppText>
+        </StaggerItem>
+      </ScrollView>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
+        <Button label="Continuer" onPress={onDone} />
+      </View>
+      <GoldConfetti />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  celebration: {
+    justifyContent: 'center',
+  },
+  tabular: {
+    fontVariant: ['tabular-nums'],
+  },
+  topics: {
+    alignItems: 'center',
+    gap: space[2],
+  },
+  dots: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  dot: {
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
+    borderWidth: 1.5,
   },
   content: {
     flexGrow: 1,

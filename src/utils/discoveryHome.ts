@@ -1,9 +1,13 @@
 // Accueil d'Apprendre sans compte : grande carte de la leçon de l'objectif,
-// série et XP comptés sur le téléphone, feuille « Un autre sujet », carte du
-// compte. Fonctions pures, sans React : testables avec Node.
+// série et XP comptés sur le téléphone, flamme, feuille « Un autre sujet »,
+// carte du compte, célébration des six leçons. Fonctions pures, sans React : testables avec Node.
 
-import { DISCOVERY, discoveryPlan, OBJECTIVE_OPTIONS, type Objective, universeName } from '../lesson/discovery';
+import { DISCOVERY, discoveryPlan, OBJECTIVE_OPTIONS, OBJECTIVES, type Objective, universeName } from '../lesson/discovery';
 import type { Universe } from '../lesson/model';
+import { localDay } from './day';
+import { withPlayed, type OnboardingState } from './onboarding';
+
+export { localDay };
 
 // XP d'une leçon découverte (comme le crédit envoyé à l'inscription)
 export const DISCOVERY_XP = 20;
@@ -54,8 +58,8 @@ export function discoveryTiles(chosen: Objective | null, played: readonly Object
 // Grande carte de l'accueil
 // ---------------------------------------------------------------------------
 
-export type HomeCardState = 'terminee' | 'commencee' | 'jamais';
-export type HomeCardAction = 'autre-sujet' | 'creer-compte' | 'reprendre' | 'commencer';
+export type HomeCardState = 'terminee' | 'commencee' | 'jamais' | 'six';
+export type HomeCardAction = 'autre-sujet' | 'creer-compte' | 'reprendre' | 'commencer' | 'rejouer';
 
 export type HomeCard = {
   objective: Objective;
@@ -63,23 +67,46 @@ export type HomeCard = {
   badge: string;
   title: string;
   text: string;
+  // Leçon terminée, d'autres restantes : « Encore 3 sujets à découvrir. » et
+  // les six pastilles (or : faite), sinon null
+  progress: { line: string; dots: boolean[] } | null;
   // Bouton ivoire de la carte
   action: HomeCardAction;
   actionLabel: string;
-  // « Un autre sujet » en bouton texte sous la carte, sinon null
-  secondary: 'autre-sujet' | null;
+  // Bouton texte sous la carte (ouvre la feuille des leçons), sinon null
+  secondary: { action: 'autre-sujet'; label: string } | null;
 };
 
+// Leçons découvertes faites, dans l'ordre du document (pastilles)
+export function topicDots(played: readonly Objective[]): boolean[] {
+  return OBJECTIVES.map((o) => played.includes(o));
+}
+
+export function remainingTopics(played: readonly Objective[]): number {
+  return OBJECTIVES.filter((o) => !played.includes(o)).length;
+}
+
+export function allTopicsDone(played: readonly Objective[]): boolean {
+  return remainingTopics(played) === 0;
+}
+
+// « Encore 1 sujet à découvrir. », « Encore 4 sujets à découvrir. »
+export function remainingLabel(n: number): string {
+  return `Encore ${n} ${n > 1 ? 'sujets' : 'sujet'} à découvrir.`;
+}
+
 export function homeCardState(objective: Objective, started: readonly Objective[], played: readonly Objective[]): HomeCardState {
+  if (allTopicsDone(played)) return 'six';
   if (played.includes(objective)) return 'terminee';
   return started.includes(objective) ? 'commencee' : 'jamais';
 }
 
 // Carte de la leçon de l'objectif choisi (sans objectif : « Je découvre »).
-// Leçon terminée : la suite dans l'univers, et un autre sujet ; inscription
-// ouverte, le bouton de la carte crée le compte et « Un autre sujet » passe
-// dessous. Pas terminée : reprendre ou commencer, « Un autre sujet » dessous
-// pour que toutes les leçons restent à portée.
+// - Six leçons faites : carte dorée « Tu as fait le tour ! ».
+// - Leçon terminée : la suite dans l'univers, les sujets restants.
+// - Pas terminée : reprendre ou commencer.
+// Inscription ouverte et leçon terminée (ou six) : le bouton de la carte crée
+// le compte et les leçons passent en bouton texte dessous.
 export function homeCard(input: {
   objective: Objective | null;
   started: readonly Objective[];
@@ -89,18 +116,36 @@ export function homeCard(input: {
 }): HomeCard {
   const objective = input.objective ?? 'decouvrir';
   const state = homeCardState(objective, input.started, input.played);
+  const register = !input.signupClosed;
   const title = lessonTitle(objective);
+  const otherTopic = { action: 'autre-sujet' as const, label: 'Un autre sujet' };
+
+  if (state === 'six') {
+    return {
+      objective,
+      state,
+      badge: '6 SUR 6',
+      title: 'Tu as fait le tour !',
+      text: register
+        ? 'Six sujets, six déclics. Crée ton compte pour débloquer les vrais modules.'
+        : 'Six sujets, six déclics. La suite, ce sont les vrais modules : ils t’attendent dès l’ouverture des inscriptions.',
+      progress: null,
+      action: register ? 'creer-compte' : 'rejouer',
+      actionLabel: register ? 'CRÉER MON COMPTE' : 'REJOUER UNE LEÇON',
+      secondary: register ? { action: 'autre-sujet', label: 'Rejouer une leçon' } : null,
+    };
+  }
   if (state === 'terminee') {
-    const register = !input.signupClosed;
     return {
       objective,
       state,
       badge: 'LEÇON TERMINÉE',
       title,
       text: `La suite t’attend dans l’univers ${universeName(discoveryPlan(objective), input.universes)}.`,
+      progress: { line: remainingLabel(remainingTopics(input.played)), dots: topicDots(input.played) },
       action: register ? 'creer-compte' : 'autre-sujet',
       actionLabel: register ? 'CRÉER MON COMPTE' : 'UN AUTRE SUJET',
-      secondary: register ? 'autre-sujet' : null,
+      secondary: register ? otherTopic : null,
     };
   }
   return {
@@ -109,21 +154,22 @@ export function homeCard(input: {
     badge: 'POUR TOI, 1 MIN',
     title,
     text: lessonHook(objective),
+    progress: null,
     action: state === 'commencee' ? 'reprendre' : 'commencer',
     actionLabel: state === 'commencee' ? 'REPRENDRE' : 'COMMENCER',
-    secondary: 'autre-sujet',
+    secondary: otherTopic,
   };
+}
+
+// Carte du compte en bas de l'accueil : inutile quand la grande carte porte
+// déjà « CRÉER MON COMPTE »
+export function showAccountCard(card: HomeCard, signupClosed: boolean): boolean {
+  return signupClosed || card.action !== 'creer-compte';
 }
 
 // ---------------------------------------------------------------------------
 // Série et XP, comptés sur le téléphone
 // ---------------------------------------------------------------------------
-
-// Jour local « AAAA-MM-JJ »
-export function localDay(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
 
 // Leçon terminée aujourd'hui : le jour est ajouté (une seule fois, 60 jours gardés)
 export function withLessonDay(days: readonly string[], date: Date = new Date()): string[] {
@@ -159,6 +205,104 @@ export function daysLabel(n: number): string {
   return `${n} ${n > 1 ? 'jours' : 'jour'}`;
 }
 
+export type WeekDay = {
+  // « L », « M »…
+  letter: string;
+  // Nom lu par le lecteur d'écran
+  name: string;
+  // done : leçon faite ce jour-là ; missed : jour passé sans leçon ; future :
+  // jour à venir ; today : aujourd'hui, pas encore de leçon
+  state: 'done' | 'missed' | 'future' | 'today';
+  isToday: boolean;
+};
+
+const WEEK = [
+  ['L', 'lundi'],
+  ['M', 'mardi'],
+  ['M', 'mercredi'],
+  ['J', 'jeudi'],
+  ['V', 'vendredi'],
+  ['S', 'samedi'],
+  ['D', 'dimanche'],
+] as const;
+
+// Semaine en cours, du lundi au dimanche
+export function weekDays(days: readonly string[], now: Date = new Date()): WeekDay[] {
+  const set = new Set(days);
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const today = localDay(now);
+  return WEEK.map(([letter, name], i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const day = localDay(d);
+    const isToday = day === today;
+    const state = set.has(day) ? 'done' : isToday ? 'today' : day < today ? 'missed' : 'future';
+    return { letter, name, state, isToday };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Flamme de série
+// ---------------------------------------------------------------------------
+
+export type FlameTier = {
+  // 0 éteinte ; 1 petite (1 à 2 jours) ; 2 lueur (3 à 6) ; 3 étincelles
+  // (7 à 29) ; 4 brasier (30 et plus)
+  level: 0 | 1 | 2 | 3 | 4;
+  // Taille relative à la taille demandée
+  scale: number;
+  // Lueur dorée qui respire derrière
+  glow: boolean;
+  // Halo doré permanent
+  halo: boolean;
+  // Étincelles qui s'échappent : délai moyen entre deux (ms), null : aucune
+  sparkEvery: number | null;
+};
+
+export function flameTier(days: number): FlameTier {
+  if (days <= 0) return { level: 0, scale: 0.88, glow: false, halo: false, sparkEvery: null };
+  if (days <= 2) return { level: 1, scale: 0.88, glow: false, halo: false, sparkEvery: null };
+  if (days <= 6) return { level: 2, scale: 0.94, glow: true, halo: false, sparkEvery: null };
+  if (days <= 29) return { level: 3, scale: 1, glow: true, halo: false, sparkEvery: 3200 };
+  return { level: 4, scale: 1, glow: true, halo: true, sparkEvery: 1300 };
+}
+
+// Allumage de la flamme : à sa première apparition de la journée seulement
+export function shouldIgnite(lastIgnitedDay: string | null, now: Date = new Date()): boolean {
+  return lastIgnitedDay !== localDay(now);
+}
+
+// ---------------------------------------------------------------------------
+// Leçon découverte terminée
+// ---------------------------------------------------------------------------
+
+export type LessonDone = {
+  // À mémoriser : leçons jouées, jour de série, célébration (montrée une fois)
+  patch: Pick<OnboardingState, 'played' | 'lessonDays' | 'sixCelebrated'>;
+  // Série avant et après (fin de leçon : la flamme grandit si elle augmente)
+  streakFrom: number;
+  streakTo: number;
+  // Cette leçon complète les six, et la célébration n'a jamais été montrée
+  celebrateSix: boolean;
+};
+
+export function recordLessonDone(
+  state: Pick<OnboardingState, 'played' | 'lessonDays' | 'sixCelebrated'>,
+  objective: Objective | null,
+  now: Date = new Date()
+): LessonDone {
+  const played = objective ? withPlayed(state.played, objective) : state.played;
+  const lessonDays = withLessonDay(state.lessonDays, now);
+  const celebrateSix = !state.sixCelebrated && !allTopicsDone(state.played) && allTopicsDone(played);
+  return {
+    patch: { played, lessonDays, sixCelebrated: state.sixCelebrated || celebrateSix },
+    streakFrom: discoveryStreak(state.lessonDays, now),
+    streakTo: discoveryStreak(lessonDays, now),
+    celebrateSix,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Textes de l'accueil
 // ---------------------------------------------------------------------------
@@ -172,8 +316,11 @@ export function guestTitle(firstName: string, date: Date = new Date()): string {
   return name ? `${hello}, ${name}` : hello;
 }
 
-export function guestSubtitle(lessonDoneToday: boolean): string {
-  return lessonDoneToday ? 'Reviens demain pour garder ta série.' : 'Une minute pour comprendre l’argent.';
+// Sous-titre de l'accueil : six sujets faits ; une leçon terminée
+// aujourd'hui (celle de la carte ou une autre) ; sinon l'invitation
+export function guestSubtitle(input: { allDone: boolean; doneToday: boolean }): string {
+  if (input.allDone) return 'Tu as découvert les six sujets.';
+  return input.doneToday ? 'Reviens demain pour garder ta série.' : 'Une minute pour comprendre l’argent.';
 }
 
 // Titre de la fin de leçon : le prénom s'il existe

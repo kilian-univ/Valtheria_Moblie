@@ -39,6 +39,8 @@ type HomeHeaderProps = {
   title?: string;
   // Phrase sous le titre (accueil sans compte)
   subtitle?: string;
+  // Allumage de la flamme de série (première apparition du jour)
+  ignite?: boolean | null;
 };
 
 export default function HomeHeader({
@@ -50,6 +52,7 @@ export default function HomeHeader({
   onAccount,
   title,
   subtitle,
+  ignite = false,
 }: HomeHeaderProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -70,7 +73,7 @@ export default function HomeHeader({
 
         <View style={styles.pills}>
           {stats ? (
-            <StatPills streak={stats.streak} vals={stats.vals} onStreak={onStreak} />
+            <StatPills streak={stats.streak} vals={stats.vals} onStreak={onStreak} ignite={ignite} />
           ) : statsLoading ? (
             <StatPillsSkeleton />
           ) : null}

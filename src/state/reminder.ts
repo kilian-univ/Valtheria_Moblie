@@ -120,3 +120,13 @@ export async function refreshReminder(): Promise<void> {
     // échec de programmation : on réessaiera à la prochaine ouverture
   }
 }
+
+// Développement (« Tout réinitialiser ») : rappel coupé et réglage effacé
+export async function resetReminder(): Promise<void> {
+  try {
+    await notifications()?.cancelAllScheduledNotificationsAsync();
+  } catch {
+    // rien de programmé : sans conséquence
+  }
+  await AsyncStorage.removeItem(KEY).catch(() => {});
+}

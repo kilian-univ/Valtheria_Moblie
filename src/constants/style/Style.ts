@@ -163,6 +163,12 @@ export function withOpacity(hex: string, opacity: number): string {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${opacity})`;
 }
 
+// Ombre douce sous une carte en relief qui flotte (accueil sans compte) :
+// noire à 45 %, floue et décalée vers le bas, en plus de la tranche
+export function softShadow(groundShadow: string) {
+  return [{ offsetX: 0, offsetY: 16, blurRadius: 32, color: withOpacity(groundShadow, 0.45) }];
+}
+
 // ---------------------------------------------------------------------------
 // Jetons de mise en page (grille de 4 px)
 // ---------------------------------------------------------------------------

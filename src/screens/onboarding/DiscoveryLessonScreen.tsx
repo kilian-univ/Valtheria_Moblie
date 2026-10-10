@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { discoveryLesson, toObjective } from '@/src/lesson/discovery';
 import ApprendreDetailScreen from '@/src/screens/ApprendreDetailScreen';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
-import { withLessonDay } from '@/src/utils/discoveryHome';
+import { recordLessonDone } from '@/src/utils/discoveryHome';
 import { withPlayed } from '@/src/utils/onboarding';
 import { track } from '@/src/utils/track';
 
@@ -28,16 +28,20 @@ export default function DiscoveryLessonScreen() {
 
   const onFinished = useCallback(() => {
     track('decouverte_terminee', { objectif: objective });
-    const current = onboardingStore.get().state;
-    const played = objective ? withPlayed(current.played, objective) : current.played;
-    const lessonDays = withLessonDay(current.lessonDays);
+    // Leçon et jour de série mémorisés ; la fin de leçon reçoit la série
+    // d'avant (flamme qui grandit) et, la sixième fois, la célébration
+    const done = recordLessonDone(onboardingStore.get().state, objective);
+    const params = {
+      serie: String(done.streakFrom),
+      ...(done.celebrateSix ? { six: '1' } : {}),
+    };
     if (fromHome) {
-      onboardingStore.update({ played, lessonDays });
-      router.replace({ pathname: '/bienvenue/fin', params: { objectif: objective ?? '', depuis: 'accueil' } });
+      onboardingStore.update(done.patch);
+      router.replace({ pathname: '/bienvenue/fin', params: { ...params, objectif: objective ?? '', depuis: 'accueil' } });
       return;
     }
-    onboardingStore.update({ played, lessonDays, step: 'fin' });
-    router.replace('/bienvenue/fin');
+    onboardingStore.update({ ...done.patch, step: 'fin' });
+    router.replace({ pathname: '/bienvenue/fin', params });
   }, [objective, fromHome, router]);
 
   const discovery = useMemo(() => ({ lesson, onFinished }), [lesson, onFinished]);
