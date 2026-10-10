@@ -1,4 +1,4 @@
-import type { LessonScreen } from '@/src/lesson/model';
+import type { LessonScreen, ValLine } from '@/src/lesson/model';
 
 // Tentative recueillie sur un écran, telle qu'elle partira à /complete
 export type CollectedAnswer = {
@@ -16,6 +16,13 @@ export type AnswerDraft = {
   correct: boolean;
   // La bonne réponse en clair, montrée dans la feuille en cas d'erreur
   correctText: string | null;
+  // Réplique de Val propre au cas (répartir) ; sinon val.correct / wrong
+  val?: ValLine | null;
+  // Texte de la feuille à la place de screen.explanation (score « 3 sur 4 »)
+  explanation?: string | null;
+  // Réponse complète sans bouton Valider (dernière carte, dernière paire,
+  // réplique choisie) : le lecteur valide aussitôt
+  autoSubmit?: boolean;
 };
 
 // Le lecteur porte le bouton du bas et la feuille de réponse ; l'écran

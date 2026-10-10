@@ -15,10 +15,17 @@ import StepHeader from '@/src/components/onboarding/StepHeader';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { discoveryPlan } from '@/src/lesson/discovery';
+import { discoveryPlan, type Objective } from '@/src/lesson/discovery';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { enableReminder } from '@/src/state/reminder';
-import { emailValid, passwordValid, PASSWORD_RULES, pseudoError, signupError } from '@/src/utils/onboarding';
+import {
+  emailValid,
+  passwordValid,
+  PASSWORD_RULES,
+  pseudoError,
+  sendDiscoveryCredit,
+  signupError,
+} from '@/src/utils/onboarding';
 import { DEFAULT_REMINDER, ReminderTime } from '@/src/utils/reminder';
 import { track } from '@/src/utils/track';
 
@@ -35,7 +42,7 @@ const STEP_NUMBER: Record<Step, number> = { pseudo: 1, compte: 2, rappel: 3 };
 export default function SignupScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { register, post, patch } = useApi();
+  const { register, post, isAuthenticated } = useApi();
   const { state } = useOnboarding();
   const plan = state.objective ? discoveryPlan(state.objective) : null;
 
@@ -57,6 +64,20 @@ export default function SignupScreen() {
     // Une seule fois, à l'arrivée sur l'inscription
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Leçon découverte : 20 XP et la série du jour, une seule fois. Envoyée
+  // avec le post du rendu où le jeton existe (celui d'avant l'inscription
+  // partirait sans jeton, et un 401 effacerait la session). L'objectif ne part
+  // que si le serveur l'accepte ; en erreur, rien n'est montré.
+  const pendingCredit = useRef<Objective | null>(null);
+  useEffect(() => {
+    const objective = pendingCredit.current;
+    if (!isAuthenticated || !objective) return;
+    pendingCredit.current = null;
+    sendDiscoveryCredit(post, objective);
+    // step : le passage à « rappel » suit toujours l'inscription, il relance
+    // l'effet même si le jeton était déjà là avant
+  }, [isAuthenticated, post, step]);
 
   const goTo = (next: Step) => {
     setStep(next);
@@ -104,13 +125,9 @@ export default function SignupScreen() {
       await register(cleanPseudo, email.trim(), password, password);
       track('compte_cree', { objectif: state.objective });
       onboardingStore.update({ status: 'termine', step: 'rappel' });
-      // Leçon découverte : 20 XP et la série du jour, une seule fois. Route pas
-      // encore déployée ou en erreur : rien n'est montré.
-      if (state.objective) {
-        post('/onboarding/discovery-complete', { objective: state.objective }).catch(() => {
-          patch('/user', { objective: state.objective }).catch(() => {});
-        });
-      }
+      // Leçon découverte créditée dès que le jeton du nouveau compte est en
+      // place (voir l'effet plus haut)
+      if (state.objective) pendingCredit.current = state.objective;
       setStep('rappel');
     } catch (err) {
       setError(signupError(err instanceof Error ? err.message : undefined));

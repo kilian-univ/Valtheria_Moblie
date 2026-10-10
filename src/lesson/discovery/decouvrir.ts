@@ -1,7 +1,8 @@
-// Leçon découverte 6 — objectif « Je découvre, on verra » (leçon de la
-// maquette). Déclic : tu touches 1 660 € net, tu coûtes 3 055 € à ton
-// employeur ; l'écart finance ta protection sociale.
-// Texte : lecons-decouvertes.md (leçon 6).
+// Leçon découverte 6 — objectif « Je découvre, on verra ».
+// Déclic : tu touches 1 660 € net, tu coûtes 3 055 € à ton employeur ;
+// l'écart finance ta protection sociale. Chiffres de la leçon 1 publiée
+// (« Tu coûtes plus cher »).
+// Texte : lecons-decouvertes.md (leçon 6). Au format de GET /lessons/{id}.
 
 import { PARI_INTRO } from './shared';
 
@@ -13,7 +14,7 @@ export const decouvrir = {
       scored: false,
       val: { intro: PARI_INTRO },
       payload: {
-        question: 'Tu touches 1 660 € net par mois. Combien coûtes-tu à ton employeur ?',
+        question: 'Tu touches 1 660 € net par mois. Combien coûtes-tu à ton employeur ?',
         min: 1660,
         max: 4000,
         step: 50,
@@ -42,27 +43,52 @@ export const decouvrir = {
       },
     },
     {
-      type: 'choice',
+      type: 'order',
       scored: true,
       val: {
-        correct: { line: 'Bien vu. Tu en sais déjà plus que la plupart des salariés.', mood: 'fier' },
-        wrong: { line: 'C’est ce que beaucoup pensent. En réalité, cet argent finance ta protection sociale.', mood: 'rassurant' },
+        correct: { line: 'Tu viens de lire toute une fiche de paie, de haut en bas.', mood: 'fier' },
+        wrong: { line: 'Presque. Pense à tout ce qu’on retire à chaque étape.', mood: 'rassurant' },
       },
       explanation:
-        'Ces cotisations financent ta retraite, ton assurance maladie et ton chômage. Ce n’est pas perdu : c’est une protection.',
+        'Du coût employeur, on retire les cotisations patronales : c’est le brut. Puis les cotisations salariales : c’est le net à payer. Puis le prélèvement à la source : c’est ce qui te reste.',
       payload: {
-        question: 'Où partent les 1 395 € d’écart ?',
-        // L'aide : les lignes de la révélation
-        subtitle: 'Rappel : 470 € de cotisations salariales et 925 € de cotisations patronales.',
-        mode: 'single',
-        options: [
-          { id: 'employeur', text: 'Dans la poche de ton employeur' },
+        question: 'Classe ces montants, du plus petit au plus grand.',
+        items: [
+          { id: 'apres-impot', text: 'Ton net après impôt sur le revenu' },
+          { id: 'net', text: 'Ton net à payer' },
+          { id: 'brut', text: 'Ton salaire brut' },
+          { id: 'cout', text: 'Ton coût pour l’employeur' },
+        ],
+        start: ['brut', 'cout', 'apres-impot', 'net'],
+      },
+    },
+    {
+      type: 'dialogue',
+      scored: true,
+      val: {
+        correct: { line: 'Exactement : ce n’est pas perdu, c’est une protection.', mood: 'fier' },
+        wrong: { line: 'C’est ce que beaucoup pensent. En réalité, elles financent ta protection sociale.', mood: 'rassurant' },
+      },
+      payload: {
+        character: { name: 'Sam', role: 'un collègue' },
+        messages: ['Les cotisations, franchement, c’est de l’argent perdu.'],
+        replies: [
           {
-            id: 'cotisations',
-            text: 'Dans les cotisations sociales, pour ta retraite, ta santé et ton chômage',
+            id: 'protection',
+            text: 'Elles financent ma retraite, ma santé et le chômage.',
             correct: true,
+            reaction: 'Ah ouais, vu comme ça… L’arrêt maladie de l’an dernier, c’était ça ?',
           },
-          { id: 'impot', text: 'Dans ton impôt sur le revenu' },
+          {
+            id: 'etat',
+            text: 'Oui, ça part à l’État pour rien.',
+            reaction: 'Ah bon ? Pourtant, quand j’étais au chômage, j’ai bien été payé…',
+          },
+          {
+            id: 'employeur',
+            text: 'C’est mon employeur qui les garde.',
+            reaction: 'Ah bon ? Pourtant, quand j’étais au chômage, j’ai bien été payé…',
+          },
         ],
       },
     },
@@ -74,13 +100,14 @@ export const decouvrir = {
         wrong: { line: 'Pas tout à fait. Le brut est plus haut que ce que tu touches.', mood: 'rassurant' },
       },
       explanation:
-        'Le brut, c’est avant les cotisations salariales. Le net à payer, c’est ce qui arrive vraiment sur ton compte.',
+        'Le brut, c’est avant les cotisations salariales. Le net à payer, c’est après. Le prélèvement à la source vient ensuite s’y retirer.',
       payload: {
-        question: 'Sur ta fiche de paie, la somme qui arrive sur ton compte s’appelle…',
+        question:
+          'Sur ta fiche de paie, la ligne qui donne ton salaire après les cotisations, mais avant le prélèvement à la source, s’appelle…',
         mode: 'single',
         options: [
           { id: 'brut', text: 'Le salaire brut' },
-          { id: 'net', text: 'Le net à payer', correct: true },
+          { id: 'net', text: 'Le net à payer avant impôt sur le revenu', correct: true },
           { id: 'cout', text: 'Le coût employeur' },
         ],
       },

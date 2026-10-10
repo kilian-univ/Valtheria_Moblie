@@ -68,7 +68,8 @@ export type DocumentScreen = ScreenBase & {
   aVenir: DocumentUpcoming[];
 };
 
-export type RevealLine = { label: string; value: number | string; key: boolean };
+// dim : ligne atténuée (hypothèse, précaution)
+export type RevealLine = { label: string; value: number | string; key: boolean; dim: boolean };
 
 export type RevealScreen = ScreenBase & {
   kind: 'reveal';
@@ -92,15 +93,116 @@ export type SliderScreen = ScreenBase & {
   answer: number | null;
 };
 
-// Types pas encore construits (number, dialogue, allocate, live_month) ou
-// inconnus : affichés par FallbackScreen
+// ---------------------------------------------------------------------------
+// Écrans interactifs (vrai ou faux, ordre, associer, répartir, simulateur,
+// dialogue). Corrigés sur le téléphone par lesson/interactive.ts.
+// ---------------------------------------------------------------------------
+
+export type TrueFalseCard = { id: string; statement: string; answer: boolean; explanation: string | null };
+
+// true_false — cartes à balayer (droite : vrai, gauche : faux). Réussi à
+// partir de pass bonnes réponses.
+export type TrueFalseScreen = ScreenBase & {
+  kind: 'true_false';
+  cards: TrueFalseCard[];
+  pass: number;
+};
+
+export type OrderItem = { id: string; text: string };
+
+// order — remettre dans l'ordre. items : dans l'ordre juste ; start : ordre
+// présenté (ids).
+export type OrderScreen = ScreenBase & {
+  kind: 'order';
+  items: OrderItem[];
+  start: string[];
+};
+
+export type MatchPair = { id: string; left: string; right: string };
+
+// match — relier des paires entre deux colonnes. rightOrder : ordre de la
+// colonne de droite (ids). Réussi avec au plus maxErrors erreurs.
+export type MatchScreen = ScreenBase & {
+  kind: 'match';
+  pairs: MatchPair[];
+  rightOrder: string[];
+  maxErrors: number;
+};
+
+export type AllocateBucket = {
+  key: string;
+  label: string;
+  hint: string | null;
+  start: number;
+  // Pot réservoir : absorbe les changements des autres
+  reservoir: boolean;
+  // Texte en direct sous le pot : {clé} ou {clé*12} remplacés par les montants
+  live: string | null;
+};
+
+// Règle de réussite : le pot doit valoir au moins min ; sinon, réplique de Val
+export type AllocateRule = { bucket: string; min: number; val: ValLine | null };
+
+// allocate — répartir un total fixe entre des pots, avec des curseurs
+export type AllocateScreen = ScreenBase & {
+  kind: 'allocate';
+  total: number;
+  step: number;
+  unit: string | null;
+  buckets: AllocateBucket[];
+  rules: AllocateRule[];
+};
+
+export type SimulatorOutput = { key: string; label: string; unit: string | null; big: boolean };
+export type SimulatorRange = { min: number | null; max: number | null; val: ValLine };
+
+// simulator — un curseur et des résultats calculés en direct par une formule
+// nommée (lesson/formulas.ts). Non noté.
+export type SimulatorScreen = ScreenBase & {
+  kind: 'simulator';
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  start: number;
+  unit: string | null;
+  formula: string;
+  params: Record<string, number>;
+  outputs: SimulatorOutput[];
+  // Réplique de Val selon la plage du curseur (bornes incluses)
+  ranges: SimulatorRange[];
+};
+
+export type DialogueReply = { id: string; text: string; correct: boolean; reaction: string | null };
+
+// dialogue — un personnage parle, on choisit sa réponse, il réagit
+export type DialogueScreen = ScreenBase & {
+  kind: 'dialogue';
+  character: { name: string; role: string | null };
+  messages: string[];
+  replies: DialogueReply[];
+};
+
+// Types pas encore construits (number, live_month) ou inconnus : affichés
+// par FallbackScreen
 export type UnsupportedScreen = ScreenBase & {
   kind: 'unsupported';
   type: string;
   payload: unknown;
 };
 
-export type LessonScreen = ChoiceScreen | DocumentScreen | RevealScreen | SliderScreen | UnsupportedScreen;
+export type LessonScreen =
+  | ChoiceScreen
+  | DocumentScreen
+  | RevealScreen
+  | SliderScreen
+  | TrueFalseScreen
+  | OrderScreen
+  | MatchScreen
+  | AllocateScreen
+  | SimulatorScreen
+  | DialogueScreen
+  | UnsupportedScreen;
 
 export type LessonModel = {
   title: string | null;

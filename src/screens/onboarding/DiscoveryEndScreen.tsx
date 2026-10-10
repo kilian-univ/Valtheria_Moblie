@@ -52,7 +52,10 @@ export default function DiscoveryEndScreen() {
         </StaggerItem>
         <StaggerItem index={1}>
           <View style={[styles.streak, { backgroundColor: colors.goldSoft }]}>
-            <Ionicons name="flame" size={18} color={colors.gold} />
+            {/* Émoji : exception autorisée par la DA pour la série */}
+            <AppText variant="bodyMedium" accessible={false}>
+              🔥
+            </AppText>
             <AppText variant="bodyMedium" tone="gold">
               Jour 1 : ta série commence
             </AppText>

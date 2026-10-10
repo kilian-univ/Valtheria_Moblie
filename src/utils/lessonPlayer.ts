@@ -30,7 +30,27 @@ export function buildResponses(answers: CollectedAnswer[], screens: Screen[]): R
 // autres types notés, pas encore construits, se passent avec « Continuer ».
 export function isGradable(screen: Screen | undefined): boolean {
   if (!screen?.scored) return false;
-  return screen.kind === 'choice' || screen.kind === 'document' || screen.kind === 'slider';
+  return screen.kind !== 'unsupported' && screen.kind !== 'reveal' && screen.kind !== 'simulator';
+}
+
+// Écran non noté : « Continuer » est-il actif ? Le simulateur attend que le
+// curseur ait bougé (il signale alors une réponse en cours).
+export function canContinue(screen: Screen | undefined, hasDraft: boolean): boolean {
+  return screen?.kind === 'simulator' ? hasDraft : true;
+}
+
+// Consigne sous un bouton Valider inactif
+export function validateHint(screen: Screen | undefined): string {
+  switch (screen?.kind) {
+    case 'true_false':
+      return 'Réponds à toutes les cartes.';
+    case 'match':
+      return 'Relie toutes les paires.';
+    case 'dialogue':
+      return 'Choisis ta réponse.';
+    default:
+      return 'Choisis une réponse pour valider.';
+  }
 }
 
 // Estimation donnée sur l'écran désigné par from_screen (slider ou number

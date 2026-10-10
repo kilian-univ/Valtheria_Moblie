@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import { durations } from '@/src/constants/motion';
-import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
+import { fonts, opacityDim, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import type { RevealScreen as RevealModel } from '@/src/lesson/model';
@@ -90,8 +90,16 @@ export default function RevealScreen({ screen, estimate }: LessonScreenProps<Rev
       {lines.length > 0 ? (
         <View>
           {lines.map((line, i) => (
-            <View key={i} style={[styles.line, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
-              <AppText variant="callout" tone={line.key ? 'gold' : 'text'} style={styles.lineLabel}>
+            <View
+              key={i}
+              style={[styles.line, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }, line.dim && styles.dim]}
+            >
+              {/* Ligne atténuée : hypothèse ou précaution, plus discrète */}
+              <AppText
+                variant={line.dim ? 'caption' : 'callout'}
+                tone={line.key ? 'gold' : line.dim ? 'subtitle' : 'text'}
+                style={styles.lineLabel}
+              >
                 {line.label}
               </AppText>
               {/* Pas d'unité ici : elle ne vaut que pour le grand chiffre */}
@@ -158,5 +166,8 @@ const styles = StyleSheet.create({
   },
   keyValue: {
     fontFamily: fonts.bodySemibold,
+  },
+  dim: {
+    opacity: opacityDim,
   },
 });

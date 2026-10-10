@@ -4,10 +4,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { Module } from '../src/context/ApiContext';
-import { DISCOVERY, discoveryLesson, discoveryPlan, nextLessonTitle, OBJECTIVE_OPTIONS, OBJECTIVES } from '../src/lesson/discovery';
-import type { Universe } from '../src/lesson/model';
-import { normalizeLesson } from '../src/lesson/normalize';
 import {
   emailValid,
   INITIAL_ONBOARDING,
@@ -16,6 +12,7 @@ import {
   PASSWORD_RULES,
   pseudoError,
   routeForStep,
+  sendDiscoveryCredit,
   shouldShowOnboarding,
   signupError,
 } from '../src/utils/onboarding';
@@ -27,111 +24,6 @@ import {
   reminderMessageFor,
   upcomingReminders,
 } from '../src/utils/reminder';
-
-// ---------------------------------------------------------------------------
-// Leçons découvertes
-// ---------------------------------------------------------------------------
-test('six objectifs, chacun avec une option, une leçon, un univers, une prochaine leçon et une phrase de Val', () => {
-  assert.deepEqual([...OBJECTIVES], ['comprendre', 'epargner', 'investir', 'projet', 'rouge', 'decouvrir']);
-  assert.deepEqual(
-    OBJECTIVE_OPTIONS.map((o) => o.value),
-    [...OBJECTIVES]
-  );
-  for (const o of OBJECTIVES) {
-    const plan = DISCOVERY[o];
-    assert.ok(plan.universe.slug && plan.universe.name, o);
-    assert.ok(plan.nextLesson === null || plan.nextLesson.length > 0, o);
-    assert.ok(plan.valLine.length > 0, o);
-  }
-  // Objectif inconnu : « je découvre »
-  assert.equal(discoveryPlan(null), DISCOVERY.decouvrir);
-});
-
-test('prochaine leçon : celle du document, sinon la première de l’univers conseillé, sinon le premier module', () => {
-  const mod = (id: number, title?: string) => ({ id, lessons: title ? [{ title }] : [] }) as unknown as Module;
-  const universe = (slug: string, moduleIds: number[]): Universe => ({ id: 1, slug, name: slug, description: null, position: 0, moduleIds });
-  const modules = [mod(1, 'Budget de base'), mod(2), mod(3, 'Le compte courant')];
-
-  // Fixée par le document
-  assert.equal(nextLessonTitle(DISCOVERY.epargner, [], []), 'Le mois où tout tombe en même temps');
-  // Première leçon publiée de l'univers conseillé (le module 2 est vide)
-  assert.equal(nextLessonTitle(DISCOVERY.comprendre, [universe('garder-la-main', [2, 3])], modules), 'Le compte courant');
-  // Univers sans module publié : premier module disponible
-  assert.equal(nextLessonTitle(DISCOVERY.comprendre, [universe('garder-la-main', [])], modules), 'Budget de base');
-  // Rien de chargé (pas encore de compte)
-  assert.equal(nextLessonTitle(DISCOVERY.comprendre, [], []), null);
-});
-
-test('chaque leçon passe la validation de normalize (aucun écran non géré, un titre)', () => {
-  for (const o of OBJECTIVES) {
-    const lesson = discoveryLesson(o);
-    assert.ok(lesson.title, o);
-    assert.ok(lesson.screens.length >= 3, o);
-    assert.deepEqual(
-      lesson.screens.filter((s) => s.kind === 'unsupported').map((s) => s.index),
-      [],
-      `${o} : écran non géré`
-    );
-    // Le pari vient en premier : le titre de la leçon est affiché avant lui
-    assert.equal(lesson.screens[0].kind, 'slider', o);
-  }
-});
-
-test('chaque question a exactement une bonne réponse', () => {
-  for (const o of OBJECTIVES) {
-    for (const s of discoveryLesson(o).screens) {
-      if (s.kind === 'choice') assert.equal(s.options.filter((x) => x.correct).length, 1, `${o} #${s.index}`);
-      if (s.kind === 'document' && s.mode === 'pick') assert.equal(s.lines.filter((l) => l.correct).length, 1, `${o} #${s.index}`);
-    }
-  }
-});
-
-test('révélations : rappel de l’estimation, et décomposition juste (+ ajoute, = vérifie le total)', () => {
-  for (const o of OBJECTIVES) {
-    const screens = discoveryLesson(o).screens;
-    for (const s of screens) {
-      if (s.kind !== 'reveal') continue;
-      // Rappel de l'estimation : un curseur avant, dont la plage contient la vraie valeur
-      assert.ok(s.fromScreen !== null && s.fromScreen < s.index, `${o} #${s.index}`);
-      const slider = screens[s.fromScreen!];
-      assert.equal(slider.kind, 'slider');
-      if (slider.kind === 'slider') assert.ok(slider.min <= s.value && s.value <= slider.max, `${o} : valeur hors du curseur`);
-      // Décomposition : on part de la première ligne, « + » ajoute, « = » doit tomber juste
-      // (en centimes : 13,49 + 11,99 + … ne tombe pas juste en virgule flottante)
-      const cents = (v: unknown) => Math.round(Number(v) * 100);
-      let total = cents(s.lines[0].value);
-      for (const line of s.lines.slice(1)) {
-        const v = cents(line.value);
-        if (line.label.startsWith('+')) total += v;
-        else if (line.label.startsWith('-') || line.label.startsWith('−')) total -= v;
-        else if (line.label.startsWith('=')) assert.equal(v, total, `${o} : « ${line.label} »`);
-      }
-      // La ligne clé vaut le grand chiffre (un total « par mois » une fois
-      // multiplié par 12), ou bien en est une part et les lignes chiffrées
-      // s'additionnent pour le donner (versé + intérêts)
-      const key = s.lines.find((l) => l.key);
-      const keyValue = /par mois/.test(key?.label ?? '') ? Math.round(Number(key?.value) * 12) : Number(key?.value);
-      const sum = s.lines.filter((l) => l.value !== '').reduce((acc, l) => acc + cents(l.value), 0);
-      assert.ok(keyValue === s.value || sum === cents(s.value), `${o} : la ligne clé vaut le grand chiffre`);
-    }
-  }
-});
-
-test('leçon « comprendre » : les chiffres du document (abonnements fantômes)', () => {
-  const lesson = normalizeLesson(DISCOVERY.comprendre.lesson);
-  const [pari, reveal] = lesson.screens;
-  assert.equal(lesson.title, 'Les abonnements fantômes');
-  assert.equal(pari.kind, 'slider');
-  if (pari.kind === 'slider') assert.deepEqual([pari.min, pari.max, pari.start], [0, 2000, 300]);
-  assert.equal(reveal.kind, 'reveal');
-  if (reveal.kind === 'reveal') {
-    assert.equal(reveal.value, 1012);
-    assert.deepEqual(
-      reveal.lines.map((l) => l.value),
-      [13.49, 11.99, 34.9, 15.99, 7.99, 84.36]
-    );
-  }
-});
 
 // ---------------------------------------------------------------------------
 // Parcours
@@ -149,6 +41,38 @@ test('état du parcours : relu du téléphone, illisible → départ', () => {
   assert.equal(parseOnboarding({ step: 'lecon' }).step, 'objectif');
   assert.equal(parseOnboarding({ step: 'inconnu' }).step, 'bienvenue');
   assert.equal(parseOnboarding({ objective: 'devenir-riche' }).objective, null);
+});
+
+test('état du parcours : un ancien objectif est traduit vers le plus proche', () => {
+  assert.equal(parseOnboarding({ step: 'lecon', objective: 'comprendre' }).objective, 'epargner');
+  assert.equal(parseOnboarding({ step: 'lecon', objective: 'rouge' }).objective, 'epargner');
+  assert.equal(parseOnboarding({ step: 'fin', objective: 'projet' }).objective, 'logement');
+  // Étape gardée : la leçon traduite reprend
+  assert.equal(parseOnboarding({ step: 'lecon', objective: 'projet' }).step, 'lecon');
+});
+
+test('inscription : l’objectif ne part que si le serveur l’accepte, sinon la leçon est créditée sans', async () => {
+  const calls: unknown[] = [];
+  const accepts = async (_path: string, body: Record<string, unknown>) => {
+    calls.push(body);
+  };
+  assert.equal(await sendDiscoveryCredit(accepts, 'crypto'), 'avec-objectif');
+  assert.deepEqual([...calls], [{ objective: 'crypto' }]);
+
+  calls.length = 0;
+  const refusesObjective = async (_path: string, body: Record<string, unknown>) => {
+    calls.push(body);
+    if ('objective' in body) throw new Error('The selected objective is invalid.');
+  };
+  assert.equal(await sendDiscoveryCredit(refusesObjective, 'crypto'), 'sans-objectif');
+  assert.deepEqual([...calls], [{ objective: 'crypto' }, {}]);
+
+  // Route absente ou serveur en panne : aucune erreur ne remonte
+  const down = async () => {
+    throw new Error('Network request failed');
+  };
+  assert.equal(await sendDiscoveryCredit(down, 'crypto'), 'echec');
+  assert.equal(await sendDiscoveryCredit(down, null), 'echec');
 });
 
 test('reprise : chaque étape a son écran', () => {

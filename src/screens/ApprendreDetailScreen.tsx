@@ -28,12 +28,14 @@ import { learningStore } from '@/src/state/learningStore';
 import { error as errorHaptic, success as successHaptic } from '@/src/utils/haptics';
 import {
   buildResponses,
+  canContinue,
   estimateFor,
   finishedModuleTitle,
   firstTryRun,
   isFirstTryCorrect,
   isGradable,
   LessonResult,
+  validateHint,
 } from '@/src/utils/lessonPlayer';
 
 type LoadError = 'network' | 'server';
@@ -294,13 +296,23 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       correct: draft.correct,
       firstTry: isFirstTryCorrect(nextAnswers, screens, index),
       correctText: draft.correctText,
-      explanation: current.explanation ?? undefined,
-      val: (draft.correct ? current.val.correct : current.val.wrong) ?? undefined,
+      explanation: (draft.explanation !== undefined ? draft.explanation : current.explanation) ?? undefined,
+      val: (draft.val !== undefined ? draft.val : draft.correct ? current.val.correct : current.val.wrong) ?? undefined,
     });
     setSheetOpen(true);
     if (draft.correct) successHaptic();
     else errorHaptic();
   };
+
+  // Réponse complète sans bouton (dernière carte, dernière paire, réplique
+  // choisie) : validée aussitôt
+  const validateRef = useRef(handleValidate);
+  useEffect(() => {
+    validateRef.current = handleValidate;
+  });
+  useEffect(() => {
+    if (draft?.autoSubmit && !answered) validateRef.current();
+  }, [draft, answered]);
 
   // « Continuer » de la feuille de réponse
   const continueFromSheet = () => {
@@ -428,7 +440,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                 label="Valider"
                 onPress={handleValidate}
                 disabled={!draft || answered}
-                disabledReason={!draft ? 'Choisis une réponse pour valider.' : undefined}
+                disabledReason={!draft ? validateHint(current) : undefined}
                 silent
               />
             ) : (
@@ -436,6 +448,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                 label={submitError ? 'Réessayer' : 'Continuer'}
                 onPress={handleContinue}
                 loading={isLast && isSubmitting}
+                disabled={!canContinue(current, draft !== null)}
+                disabledReason={!canContinue(current, draft !== null) ? 'Bouge le curseur pour continuer.' : undefined}
               />
             )}
           </View>

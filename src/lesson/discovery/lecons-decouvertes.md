@@ -4,187 +4,232 @@ Oct 10, 2026 · @Luce Quentin
 
 ## Le principe
 
-L'objectif est demandé juste après l'écran de bienvenue, et chacun des 6 objectifs ouvre sa propre leçon découverte : la personne reçoit tout de suite un déclic qui parle de ce qui l'a amenée.
+Six objectifs qui font vraiment installer une app d'argent, et pour chacun une leçon découverte de 5 écrans, sans jamais deux fois le même type d'écran.
 
-Le parcours devient : bienvenue, « Qu'est-ce qui t'amène ? », la leçon découverte de cet objectif, la fin avec la série qui commence, puis l'inscription (pseudo, compte, rappel).
+Le parcours : bienvenue, « Qu'est-ce qui t'amène ? », la leçon de cet objectif, la fin avec la série qui commence, puis l'inscription.
 
-**Les règles communes aux 6 leçons**, tirées de ton document « Écrire les leçons » et de la DA :
+**Les objectifs** : mettre de l'argent de côté ; commencer à investir ; comprendre la crypto ; acheter un jour un logement ; payer moins d'impôts ; je découvre, on verra.
 
-- **Un déclic, nommable en une phrase.** Il est écrit en tête de chaque leçon.
-- **4 écrans, environ 1 minute.** Le pari (on estime), la révélation (le vrai chiffre à côté de l'estimation), une question aidée, puis une question sans aide. C'est la séquence de ton document, ramassée pour une vitrine : on découvre, on applique avec l'aide, on vérifie sans.
-- **Que des types d'écrans qui existent déjà dans l'app** : `slider`, `reveal` (avec le rappel de l'estimation), `choice` et `document` (le relevé bancaire). Rien à développer en plus.
-- **Des calculs triviaux**, que la personne fait de tête.
-- **Aucune morale.** Val pointe, s'étonne, rassure. Pas de « tu dépenses trop ».
-- **Aucun mot interdit** (aube, voyage, continuer la marche, jargon, école, 5 minutes par jour).
-- **Des chiffres prudents** : soit des exemples fictifs cohérents, soit des ordres de grandeur présentés comme des hypothèses. Rien qui puisse être faux demain.
-- **Une réussite garantie mais pas gratuite** : les questions sont faisables avec ce qui vient d'être montré, et les mauvaises réponses sont crédibles.
+**La palette d'écrans** (ceux marqués « nouveau » sont à créer dans l'app, leur design pourra être revu) :
 
-Pour chaque écran, le document donne : le type, la question, le contenu, et les trois répliques de Val (à l'arrivée, en cas de bonne réponse, en cas d'erreur) avec son humeur.
+| Écran | Ce qu'on fait | Noté |
+| --- | --- | --- |
+| Le pari (`slider`) | estimer avec un curseur | non |
+| La révélation (`reveal`) | le vrai chiffre face à l'estimation, avec deux barres | non |
+| Vrai ou faux en rafale (nouveau) | 4 cartes à balayer, un verdict et une phrase par carte | oui, réussi à partir de 3 sur 4 |
+| Remettre dans l'ordre (nouveau) | glisser des éléments pour les classer, puis valider | oui |
+| Associer (nouveau) | relier 4 paires entre deux colonnes, verdict à chaque paire | oui, réussi à partir de 3 sur 4 |
+| Répartir (nouveau) | partager une somme entre plusieurs pots avec des curseurs | selon une règle simple |
+| Le simulateur (nouveau) | bouger un curseur et voir le résultat changer en direct | non |
+| Le dialogue (nouveau) | une conversation avec un personnage, choisir sa réponse | oui |
+| La question à choix (`choice`) | trois réponses, une bonne | oui |
 
-## Leçon 1 : Comprendre où part mon argent, « Les abonnements fantômes »
+**Les règles** : un déclic nommable en une phrase ; une vraie surprise (pari puis révélation, ou simulateur) ; des calculs triviaux ; des pièges crédibles ; aucune morale ; aucun mot interdit (aube, voyage, continuer la marche, jargon, école, 5 minutes par jour) ; des chiffres prudents, soit fictifs et cohérents, soit présentés comme des hypothèses ; et une dernière question notée, sans aide, pour finir sur une réussite.
 
-**Déclic : tes abonnements, ajoutés un par un, pèsent plus de 1 000 € par an.**
+Chaque écran donne son type, son contenu et les répliques de Val avec son humeur.
 
-1. **Le pari** (`slider`, non noté)
-   - Question : « Streaming, musique, sport, forfait… Tous ces abonnements, ça fait combien par an d'après toi ? »
-   - Curseur de 0 à 2 000 €, par pas de 50, départ à 300 €.
-   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
-2. **La révélation** (`reveal`, rappelle l'estimation)
-   - Valeur : 1 012 € par an.
-   - Lignes : streaming vidéo 13,49 € ; musique 11,99 € ; salle de sport 34,90 € ; forfait mobile 15,99 € ; assurance téléphone 7,99 € ; total par mois 84,36 € (ligne clé).
-   - Val (alerte) : « Aucun n'est cher tout seul. C'est ensemble qu'ils pèsent. »
-3. **Question aidée** (`document`, mode select, noté)
-   - Question : « Sur ce relevé, touche tout ce qui reviendra le mois prochain. »
-   - Relevé d'octobre : 01/10 loyer 650,00 (prélèvement, à trouver) ; 03/10 supermarché 54,20 (carte) ; 05/10 streaming vidéo 13,49 (prélèvement, à trouver) ; 06/10 restaurant 42,00 (carte) ; 08/10 salle de sport 34,90 (prélèvement, à trouver) ; 12/10 forfait mobile 15,99 (prélèvement, à trouver) ; 15/10 livraison de repas 23,50 (carte).
-   - L'aide : la mention « prélèvement » sous chaque ligne.
-   - Val (complice) : « Indice : regarde comment chaque ligne a été payée. » Bonne réponse (fier) : « Exactement. Ce qui est prélevé revient. » Erreur (rassurant) : « Presque. Les prélèvements reviennent chaque mois, les achats à la carte changent. »
-4. **Question sans aide** (`choice`, noté)
-   - Question : « Laquelle de ces dépenses est une dépense fixe ? »
-   - Réponses : tes courses de la semaine ; ta facture d'électricité mensualisée (bonne) ; tes pleins d'essence.
-   - Explication : « Une dépense fixe revient chaque mois, au même montant ou presque. Ce sont elles qu'il faut connaître en premier. »
-   - Val, bonne réponse (fier) : « Tu viens de faire ce que la plupart des gens ne font jamais. » Erreur (rassurant) : « Pas grave. Elle revient souvent, mais son montant change d'un mois à l'autre. »
+## Leçon 1 : Mettre de l'argent de côté, « L'argent qui fond »
 
-## Leçon 2 : Mettre de l'argent de côté, « L'argent qui fond »
-
-**Déclic : l'argent qui dort sur un compte courant perd de la valeur ; le mettre de côté au bon endroit le protège.**
+**Déclic : l'argent qui dort sur un compte courant perd de la valeur ; mis de côté en premier, au bon endroit, il est protégé.**
 
 1. **Le pari** (`slider`, non noté)
-   - Question : « Tu laisses 1 000 € sur ton compte courant pendant 10 ans. Avec 2 % d'inflation par an, que pourras-tu encore acheter avec, en euros d'aujourd'hui ? »
-   - Curseur de 500 à 1 200 €, par pas de 10, départ à 1 000 €.
+   - « Tu laisses 1 000 € sur ton compte courant pendant 10 ans. Avec 2 % d'inflation par an, que pourras-tu encore acheter avec, en euros d'aujourd'hui ? »
+   - Curseur de 500 à 1 200 €, pas de 10, départ 1 000 €.
    - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
-2. **La révélation** (`reveal`, rappelle l'estimation)
-   - Valeur : environ 820 €.
-   - Lignes : sur le compte, toujours 1 000 € ; ce que ça achète encore, environ 820 € (ligne clé) ; 2 % par an est une hypothèse (ligne atténuée).
+2. **La révélation** (`reveal`)
+   - Environ 820 €.
+   - Lignes : sur le compte, toujours 1 000 € ; ce que ça achète encore, environ 820 € (clé) ; 2 % par an est une hypothèse (atténuée).
    - Val (alerte) : « Le chiffre ne bouge pas. C'est ce qu'il achète qui fond. »
-3. **Question aidée** (`choice`, noté)
-   - L'aide, en sous-titre : « Indice : un livret rapporte des intérêts, un compte courant non. »
-   - Question : « Pour ton coussin de sécurité, quelle est la meilleure place ? »
-   - Réponses : le compte courant, pour l'avoir sous la main ; un livret d'épargne, disponible et rémunéré (bonne) ; des actions en bourse, pour qu'il rapporte plus.
-   - Explication : « Un livret se retire à tout moment et ses intérêts compensent une partie de l'inflation. La bourse, elle, peut baisser juste quand tu as besoin de l'argent. »
-   - Val, bonne réponse (fier) : « Exactement : disponible et protégé. » Erreur (rassurant) : « C'est tentant. Mais un coussin doit rester disponible et ne pas fondre. »
-4. **Question sans aide** (`choice`, noté)
-   - Question : « Pour mettre de côté sans y penser, le plus efficace ? »
-   - Réponses : garder ce qui reste à la fin du mois ; programmer un virement le jour où la paie tombe (bonne) ; mettre de côté chaque fois qu'une prime arrive.
+3. **Répartir** (nouveau, noté)
+   - « Ta paie de 1 800 € vient de tomber. Répartis-la. »
+   - Trois pots, curseurs par pas de 10 €, total toujours égal à 1 800 € : Besoins (loyer, courses, transport), départ 1 260 € ; Envies (sorties, achats), départ 540 € ; Épargne, départ 0 €.
+   - Sous l'épargne, en direct : « Dans un an : <épargne × 12> € ».
+   - Réussi si l'épargne fait au moins 10 % (180 €) et les besoins au moins 900 €.
+   - Val, réussi (fier) : « <épargne> € par mois, c'est <épargne × 12> € dans un an, sans y penser. » Pas réussi, épargne trop basse (rassurant) : « Essaie d'en garder au moins 10 % : 180 €. Tes envies s'en remettront. » Pas réussi, besoins trop bas (rassurant) : « Garde de quoi payer le loyer et les courses d'abord. »
+4. **Vrai ou faux en rafale** (nouveau, noté)
+   - « Le Livret A peut te faire perdre des euros. » Faux : « Ce que tu y mets est garanti. »
+   - « L'argent d'un Livret A est disponible à tout moment. » Vrai : « Tu peux le retirer quand tu veux, sans frais. »
+   - « Un coussin de sécurité se place en bourse. » Faux : « Il doit rester disponible et stable, la bourse peut baisser au mauvais moment. »
+   - « Mettre 20 € de côté par mois, ça ne sert à rien. » Faux : « C'est 240 € par an, et surtout une habitude. »
+   - Val, réussi (célébrant) : « Tu sais déjà où ranger ton argent. » Pas réussi (rassurant) : « Pas grave, c'est exactement ce qu'on va voir ensemble. »
+5. **Question sans aide** (`choice`, noté)
+   - « Pour mettre de côté sans y penser, le plus efficace ? »
+   - Garder ce qui reste à la fin du mois ; programmer un virement le jour où la paie tombe (bonne) ; mettre de côté chaque fois qu'une prime arrive.
    - Explication : « À la fin du mois, il reste rarement quelque chose, et les primes sont irrégulières. Un virement le jour de la paie, c'est te payer en premier. »
-   - Val, bonne réponse (célébrant) : « Le vrai secret de ceux qui épargnent sans effort. » Erreur (rassurant) : « C'est ce que fait presque tout le monde, et c'est pour ça que ça marche rarement. »
+   - Val, bonne réponse (fier) : « Le vrai secret de ceux qui épargnent sans effort. » Erreur (rassurant) : « C'est ce que fait presque tout le monde, et c'est pour ça que ça marche rarement. »
 
-## Leçon 3 : Commencer à investir, « La machine à intérêts »
+## Leçon 2 : Commencer à investir, « La machine à intérêts »
 
 **Déclic : le temps fait plus que le montant ; placés 30 ans, 100 € par mois peuvent plus que doubler.**
 
 1. **Le pari** (`slider`, non noté)
-   - Question : « Tu places 100 € par mois pendant 30 ans. Si ça rapporte 5 % par an en moyenne, combien as-tu à la fin ? »
-   - Curseur de 30 000 à 150 000 €, par pas de 1 000, départ à 45 000 €.
+   - « Tu places 100 € par mois pendant 30 ans. Si ça rapporte 5 % par an en moyenne, combien as-tu à la fin ? »
+   - Curseur de 30 000 à 150 000 €, pas de 1 000, départ 45 000 €.
    - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
-2. **La révélation** (`reveal`, rappelle l'estimation)
-   - Valeur : environ 81 500 €.
-   - Lignes : tu as versé 36 000 € ; les intérêts ont ajouté environ 45 500 € (ligne clé) ; 5 % par an est une hypothèse, rien n'est garanti en bourse (ligne atténuée).
+2. **La révélation** (`reveal`)
+   - Environ 81 500 €.
+   - Lignes : tu as versé 36 000 € ; les intérêts ont ajouté environ 45 500 € (clé) ; 5 % par an est une hypothèse, rien n'est garanti en bourse (atténuée).
    - Val (complice) : « Plus de la moitié de cet argent, tu ne l'as jamais versée. C'est le temps qui l'a fabriquée. »
-3. **Question aidée** (`choice`, noté)
-   - L'aide, en sous-titre : « Repense aux 36 000 € versés et aux 81 500 € obtenus. »
-   - Question : « Qu'est-ce qui a le plus fait grossir ces 100 € par mois ? »
-   - Réponses : le montant versé chaque mois ; le temps pendant lequel l'argent est resté placé (bonne) ; le fait de changer souvent de placement.
-   - Explication : « Les gains produisent à leur tour des gains : ce sont les intérêts composés. Plus c'est long, plus l'effet est fort. »
-   - Val, bonne réponse (fier) : « Tu viens de comprendre la règle la plus puissante de l'investissement. » Erreur (rassurant) : « Le montant compte, mais regarde : la moitié du résultat vient du temps. »
-4. **Question sans aide** (`choice`, noté)
-   - Question : « Investir en bourse, c'est… »
-   - Réponses : plus rentable qu'un livret chaque année ; ça peut baisser certaines années, mais sur de longues périodes ça a en général rapporté plus (bonne) ; à éviter tant qu'on n'a pas 10 000 € à placer.
-   - Explication : « Sur une courte période, ça peut baisser. Sur de longues années, les à-coups se lissent, sans que rien soit jamais garanti. Et on peut commencer avec de petites sommes. »
-   - Val, bonne réponse (célébrant) : « Exactement : du temps, de la patience, et pas besoin d'être riche. » Erreur (rassurant) : « C'est une idée très répandue. Mais certaines années baissent, et on peut commencer avec de petites sommes. »
+3. **Le simulateur** (nouveau, non noté)
+   - « Et si tu commençais plus tôt, ou plus tard ? Bouge le curseur. »
+   - Curseur « Âge de départ » de 20 à 50 ans, départ 30 ans. 100 € par mois jusqu'à 65 ans, à 5 % par an.
+   - Affiché en direct, en grand : le capital à 65 ans ; en petit : le total versé.
+   - Calcul : versements en fin de mois, taux mensuel = 1,05 puissance 1/12, moins 1. Ordres de grandeur : environ 196 000 € en partant à 20 ans, 111 000 € à 30 ans, 41 000 € à 45 ans.
+   - Val, en direct selon le curseur (complice) : avant 30 ans, « Commencer tôt, c'est le meilleur cadeau à te faire. » ; de 30 à 40 ans, « Chaque année gagnée compte, et il n'est pas trop tard. » ; après 40 ans, « Moins de temps, donc plus d'effort par mois : mais ça reste utile. »
+   - Bouton « Continuer » actif dès que le curseur a bougé.
+4. **Remettre dans l'ordre** (nouveau, noté)
+   - « Classe ces placements, du moins risqué au plus risqué. »
+   - Ordre juste : Livret A ; fonds en euros d'une assurance-vie ; ETF Monde ; action d'une seule entreprise. Présentés dans le désordre.
+   - Explication : « Le Livret A est garanti par l'État. Le fonds en euros protège ton capital. Un ETF Monde répartit ton argent sur des milliers d'entreprises. Une seule action, c'est tout miser sur un seul nom. »
+   - Val, bonne réponse (fier) : « Tu viens de comprendre la diversification. » Erreur (rassurant) : « Presque. Plus ton argent est réparti, moins il est risqué. »
+5. **Question sans aide** (`choice`, noté)
+   - « Pourquoi un ETF Monde est-il en général moins risqué qu'une seule action ? »
+   - Parce qu'il est garanti par l'État ; parce qu'il répartit ton argent sur des milliers d'entreprises (bonne) ; parce qu'il ne peut pas baisser de plus de 10 %.
+   - Explication : « Si une entreprise va mal, les milliers d'autres amortissent le choc. Mais un ETF peut baisser, et rien n'est garanti. »
+   - Val, bonne réponse (célébrant) : « Exactement : ne pas mettre tous ses œufs dans le même panier. » Erreur (rassurant) : « C'est une idée répandue, mais aucun ETF n'est garanti. Sa force, c'est la répartition. »
 
-Le calcul : 100 € versés chaque fin de mois pendant 360 mois, à 5 % par an, donnent 81 540 €. On l'arrondit à « environ 81 500 € » pour ne pas promettre une précision qui n'existe pas.
+## Leçon 3 : Comprendre la crypto, « Le grand huit »
 
-## Leçon 4 : Préparer un projet, « 3 000 €, c'est combien par jour ? »
-
-**Déclic : un gros projet n'est qu'une petite somme répétée ; 3 000 € en un an, c'est 8,20 € par jour.**
-
-1. **Le pari** (`slider`, non noté)
-   - Question : « Tu veux 3 000 € pour tes vacances dans 12 mois. À ton avis, ça représente combien par jour ? »
-   - Curseur de 1 à 30 €, par pas de 0,50, départ à 15 €.
-   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
-2. **La révélation** (`reveal`, rappelle l'estimation)
-   - Valeur : environ 8,20 € par jour.
-   - Lignes : 3 000 € sur 12 mois = 250 € par mois ; soit environ 8,20 € par jour (ligne clé) ; commencé 6 mois plus tard, 16,40 € par jour.
-   - Val (complice) : « 3 000 €, ça fait peur. 8 € par jour, beaucoup moins. Et plus tôt tu commences, plus c'est léger. »
-3. **Question aidée** (`choice`, noté)
-   - L'aide, en sous-titre : « La règle : le montant divisé par le nombre de mois. »
-   - Question : « Pour 2 400 € dans 8 mois, combien mettre de côté chaque mois ? »
-   - Réponses : 200 € ; 300 € (bonne) ; 400 €.
-   - Explication : « 2 400 divisés par 8 font 300. Un virement automatique de 300 €, et le projet se finance tout seul. »
-   - Val, bonne réponse (fier) : « Tu as la méthode. » Erreur (rassurant) : « Presque. Divise le montant par le nombre de mois. »
-4. **Question sans aide** (`choice`, noté)
-   - Question : « Tu as déjà 600 € de côté pour un projet à 1 800 € dans 6 mois. Combien chaque mois ? »
-   - Réponses : 200 € (bonne) ; 250 € ; 300 €.
-   - Explication : « Il manque 1 200 €, à répartir sur 6 mois : 200 €. Ce qui est déjà de côté allège chaque mois. »
-   - Val, bonne réponse (célébrant) : « Tu n'as pas oublié ce que tu avais déjà. Bien joué. » Erreur (rassurant) : « Le piège : commence par retirer les 600 € déjà mis de côté. »
-
-## Leçon 5 : Ne plus finir le mois dans le rouge, « Le piège du solde »
-
-**Déclic : dans le rouge, ce ne sont pas les intérêts qui coûtent cher, ce sont les frais ; le seul vrai rempart, c'est de regarder le solde moins ce qui va encore tomber.**
+**Déclic : la crypto peut perdre les trois quarts de sa valeur en un an ; on n'y met que ce qu'on peut se permettre de perdre.**
 
 1. **Le pari** (`slider`, non noté)
-   - Question : « Ton compte est à moins 50 €. Trois prélèvements passent quand même. Combien la banque peut-elle te prendre en frais ? »
-   - Curseur de 0 à 60 €, par pas de 1, départ à 5 €.
+   - « En novembre 2021, un bitcoin valait environ 69 000 dollars. À ton avis, combien valait-il un an plus tard ? »
+   - Curseur de 0 à 100 000 dollars, pas de 1 000, départ 60 000.
    - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
-2. **La révélation** (`reveal`, rappelle l'estimation)
-   - Valeur : jusqu'à 24 €.
-   - Lignes : 3 opérations × 8 € de commission d'intervention, le plafond légal par opération (ligne clé) ; plafonné à 80 € par mois ; plafonds plus bas pour les clients en difficulté (ligne atténuée).
-   - Val (alerte) : « Près de la moitié de ton découvert, juste en frais. Les intérêts, eux, ne font que quelques centimes. »
-3. **Question aidée** (`choice`, noté)
-   - L'aide, en sous-titre : « La règle : le solde, moins tout ce qui doit encore être prélevé. »
-   - Question : « Ton solde est de 600 €. Il reste à passer 450 € de loyer et 30 € d'abonnements. Combien as-tu vraiment ? »
-   - Réponses : 120 € (bonne) ; 150 € ; 570 €.
-   - Explication : « 600 moins 450, moins 30 : il te reste 120 €. C'est ce chiffre-là qu'il faut regarder avant d'acheter. »
-   - Val, bonne réponse (fier) : « Tu viens d'éviter le piège numéro un du découvert. » Erreur (rassurant) : « Presque. N'oublie aucun des prélèvements à venir. »
-4. **Question sans aide** (`choice`, noté)
-   - Question : « Fin du mois, tu hésites à faire un achat. Ton meilleur réflexe ? »
-   - Réponses : regarder le solde affiché ; regarder le solde moins ce qui doit encore être prélevé (bonne) ; comparer avec ce qu'il te restait le mois dernier à la même date.
-   - Explication : « Le solde du jour ne connaît pas les prélèvements de demain, et chaque mois est différent. Ce sont eux qui font passer dans le rouge. »
-   - Val, bonne réponse (célébrant) : « Ce réflexe-là t'évitera bien des frais. » Erreur (rassurant) : « Bonne intuition, mais ce qui compte, c'est ce qui n'est pas encore passé. »
+2. **La révélation** (`reveal`)
+   - Environ 16 500 dollars fin 2022.
+   - Lignes : une baisse d'environ 76 % (clé) ; 1 000 € placés au sommet en valaient environ 240 € un an plus tard ; il est remonté depuis, mais personne ne pouvait savoir quand (atténuée).
+   - Val (alerte) : « C'est ça, la crypto : des montées folles, et des descentes tout aussi folles. »
+3. **Vrai ou faux en rafale** (nouveau, noté)
+   - « Une crypto est garantie par une banque centrale. » Faux : « Aucune banque centrale ne garantit le bitcoin ni les autres cryptos. »
+   - « Si une plateforme fait faillite, tu peux perdre ce que tu y avais déposé. » Vrai : « C'est arrivé à des millions de clients en 2022. »
+   - « Le nombre total de bitcoins est limité à l'avance. » Vrai : « Il n'y en aura jamais plus de 21 millions. »
+   - « En France, les gains en crypto ne sont jamais imposés. » Faux : « Quand tu revends avec un gain, il est imposé. »
+   - Val, réussi (célébrant) : « Tu en sais plus que la moitié des gens qui en achètent. » Pas réussi (rassurant) : « Rien de grave, la crypto est pleine d'idées reçues. »
+4. **Le dialogue** (nouveau, noté)
+   - Personnage : Léo, un ami.
+   - Léo : « J'ai trouvé une nouvelle crypto, elle va faire fois 10 cette année. Mets tout ton livret dessus ! »
+   - Tes réponses : « Grave, je mets tout. » ; « Je veux bien tenter, mais seulement une petite somme que je peux perdre. » (bonne) ; « Je vais faire un crédit pour en acheter encore plus. »
+   - Léo répond, bonne réponse : « Pas bête. Comme ça, même si ça chute, tu dors tranquille. » Mauvaise réponse : « Euh… et si ça fait comme en 2022 ? »
+   - Val, bonne réponse (fier) : « Exactement : jamais plus que ce que tu peux te permettre de perdre. » Erreur (rassurant) : « Personne ne sait ce qu'une crypto fera. Mets-y seulement ce que tu peux perdre. »
+5. **Associer** (nouveau, noté, sans aide)
+   - « Relie chaque mot à sa définition. »
+   - Bitcoin : la première crypto, créée en 2009.
+   - Stablecoin : une crypto qui suit la valeur d'une monnaie, comme le dollar.
+   - Blockchain : le registre partagé de toutes les transactions.
+   - Portefeuille : l'outil qui garde tes clés d'accès à tes cryptos.
+   - Val, réussi (célébrant) : « Tu parles déjà crypto couramment. » Pas réussi (rassurant) : « Ces mots reviendront souvent : tu vas vite les retenir. »
+
+## Leçon 4 : Acheter un jour un logement, « Le vrai prix d'un crédit »
+
+**Déclic : avec un crédit, un logement coûte bien plus que son prix, et la durée change tout.**
+
+1. **Le pari** (`slider`, non noté)
+   - « Tu empruntes 200 000 € sur 25 ans à 3,5 %. Combien rembourses-tu en tout ? »
+   - Curseur de 200 000 à 400 000 €, pas de 5 000, départ 230 000 €.
+   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
+2. **La révélation** (`reveal`)
+   - Environ 300 000 €.
+   - Lignes : tu as emprunté 200 000 € ; les intérêts coûtent environ 100 000 € (clé) ; soit une mensualité d'environ 1 000 € ; hors assurance et frais, et le taux est une hypothèse (atténuée).
+   - Val (alerte) : « La moitié du prix en plus, juste pour avoir emprunté. »
+3. **Le simulateur** (nouveau, non noté)
+   - « Et si tu empruntais moins longtemps ? Bouge le curseur. »
+   - Curseur « Durée » de 15 à 25 ans, départ 25 ans, pour 200 000 € à 3,5 %.
+   - Affiché en direct : la mensualité et le coût total des intérêts.
+   - Calcul : mensualité = capital × t / (1 − (1 + t) puissance (−n)), avec t = 3,5 % / 12 et n le nombre de mois. Repères : 15 ans, environ 1 430 € par mois et 57 000 € d'intérêts ; 20 ans, environ 1 160 € et 78 000 € ; 25 ans, environ 1 000 € et 100 000 €.
+   - Val, en direct (complice) : « Plus court, chaque mois pèse plus, mais tu paies beaucoup moins d'intérêts. »
+   - Bouton « Continuer » actif dès que le curseur a bougé.
+4. **Remettre dans l'ordre** (nouveau, noté)
+   - « Remets les étapes d'un achat dans l'ordre. »
+   - Ordre juste : mettre de côté un apport ; faire une offre sur un logement ; signer le compromis de vente ; signer l'acte chez le notaire. Présentées dans le désordre.
+   - Explication : « L'apport rassure la banque. Une fois ton offre acceptée, le compromis t'engage, puis tu deviens propriétaire le jour de l'acte chez le notaire. »
+   - Val, bonne réponse (fier) : « Tu connais déjà le chemin. » Erreur (rassurant) : « Presque. Tout commence par l'apport, et tout finit chez le notaire. »
+5. **Question sans aide** (`choice`, noté)
+   - « Pour payer moins d'intérêts au total, le plus efficace ? »
+   - Emprunter sur une durée plus longue ; emprunter sur une durée plus courte, si la mensualité reste supportable (bonne) ; ne mettre aucun apport pour garder ton épargne.
+   - Explication : « Moins de mois, c'est moins d'intérêts. Et un apport réduit la somme empruntée. »
+   - Val, bonne réponse (célébrant) : « Avec ça, tu peux économiser des dizaines de milliers d'euros. » Erreur (rassurant) : « Une durée longue soulage chaque mois, mais elle coûte bien plus cher au total. »
+
+## Leçon 5 : Payer moins d'impôts, « Le mythe de la tranche »
+
+**Déclic : changer de tranche ne fait jamais perdre d'argent ; seule la partie au-dessus du seuil est taxée plus.** Pour que les calculs restent simples, la leçon utilise un barème simplifié, annoncé comme tel : 0 % jusqu'à 11 000 €, 11 % de 11 000 à 30 000 €, 30 % au-delà, pour une personne seule.
+
+1. **Le pari** (`slider`, non noté)
+   - « Une prime fait passer ton revenu imposable de 29 000 € à 31 000 €, et tu changes de tranche : de 11 % à 30 %. De combien augmente ton impôt ? »
+   - Sous la question, en petit : « Barème simplifié : 0 % jusqu'à 11 000 €, 11 % jusqu'à 30 000 €, 30 % au-delà. »
+   - Curseur de 0 à 3 000 €, pas de 10, départ 1 500 €.
+   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
+2. **La révélation** (`reveal`)
+   - 410 €.
+   - Lignes : les 1 000 € sous le seuil, taxés à 11 %, font 110 € ; les 1 000 € au-dessus, taxés à 30 %, font 300 € ; au total, 410 € d'impôt en plus pour 2 000 € de prime (clé) ; barème simplifié pour l'exemple (atténuée).
+   - Val (alerte) : « Beaucoup refusent une augmentation par peur de changer de tranche. C'est une erreur : tu gardes toujours la plus grosse partie. »
+3. **Vrai ou faux en rafale** (nouveau, noté)
+   - « Changer de tranche peut faire baisser ton revenu après impôt. » Faux : « Seule la partie au-dessus du seuil est taxée plus. »
+   - « Le prélèvement à la source est un impôt en plus. » Faux : « C'est seulement une façon de payer ton impôt, chaque mois. »
+   - « Un don à une association peut réduire ton impôt. » Vrai : « Une grande partie du don peut être déduite de ton impôt. »
+   - « Ton taux marginal est le taux de ta dernière tranche. » Vrai : « Et il ne s'applique qu'à la partie de ton revenu dans cette tranche. »
+   - Val, réussi (célébrant) : « Tu comprends déjà mieux l'impôt que la plupart des gens. » Pas réussi (rassurant) : « L'impôt est rempli d'idées reçues. On va les démonter ensemble. »
+4. **Associer** (nouveau, noté)
+   - « Relie chaque mot à sa définition. »
+   - Taux marginal : le taux de ta dernière tranche.
+   - Taux moyen : ton impôt divisé par ton revenu.
+   - Réduction d'impôt : une somme retirée directement de ton impôt.
+   - Déduction : une somme retirée de ton revenu imposable.
+   - Val, réussi (fier) : « Ces quatre mots, et ta feuille d'impôts devient lisible. » Pas réussi (rassurant) : « Ils se ressemblent, c'est normal de les mélanger au début. »
+5. **Question sans aide** (`choice`, noté)
+   - « Avec ce barème, Léa gagne 40 000 €. Son taux moyen est-il aussi de 30 % ? »
+   - Oui, tout son revenu est taxé à 30 % ; non, il est plus bas, car ses premiers euros sont moins taxés (bonne) ; non, il est plus haut que 30 %.
+   - Explication : « Ses 11 000 premiers euros ne sont pas taxés, les suivants le sont à 11 %. Son taux moyen est d'environ 12,7 %, bien en dessous de 30 %. »
+   - Val, bonne réponse (célébrant) : « Exactement. Et c'est ça qui compte vraiment. » Erreur (rassurant) : « C'est le piège classique : les 30 % ne touchent que le haut de son revenu. »
 
 ## Leçon 6 : Je découvre, « Ton vrai salaire »
 
 **Déclic : tu touches 1 660 € net, tu coûtes 3 055 € à ton employeur ; l'écart finance ta protection sociale.** C'est le déclic de ta leçon 1 publiée (« Tu coûtes plus cher »), avec ses chiffres.
 
 1. **Le pari** (`slider`, non noté)
-   - Question : « Tu touches 1 660 € net par mois. Combien coûtes-tu à ton employeur ? »
-   - Curseur de 1 660 à 4 000 €, par pas de 50, départ à 2 000 €.
+   - « Tu touches 1 660 € net par mois. Combien coûtes-tu à ton employeur ? »
+   - Curseur de 1 660 à 4 000 €, pas de 50, départ 2 000 €.
    - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
-2. **La révélation** (`reveal`, rappelle l'estimation)
-   - Valeur : 3 055 € par mois.
-   - Lignes : ton salaire net 1 660 € ; tes cotisations salariales 470 € ; ton salaire brut 2 130 € ; les cotisations patronales 925 € ; ce que tu coûtes 3 055 € (ligne clé).
+2. **La révélation** (`reveal`)
+   - 3 055 € par mois.
+   - Lignes : ton salaire net 1 660 € ; tes cotisations salariales 470 € ; ton salaire brut 2 130 € ; les cotisations patronales 925 € ; ce que tu coûtes 3 055 € (clé).
    - Val (alerte) : « Personne ne te montre ce chiffre. C'est pourtant ce que tu vaux pour ton employeur. »
-3. **Question aidée** (`choice`, noté)
-   - L'aide : les lignes de la révélation, rappelées en sous-titre (« cotisations salariales et patronales »).
-   - Question : « Où partent les 1 395 € d'écart ? »
-   - Réponses : dans la poche de ton employeur ; dans les cotisations sociales, pour ta retraite, ta santé et ton chômage (bonne) ; dans ton impôt sur le revenu.
-   - Explication : « Ces cotisations financent ta retraite, ton assurance maladie et ton chômage. Ce n'est pas perdu : c'est une protection. »
-   - Val, bonne réponse (fier) : « Bien vu. Tu en sais déjà plus que la plupart des salariés. » Erreur (rassurant) : « C'est ce que beaucoup pensent. En réalité, cet argent finance ta protection sociale. »
-4. **Question sans aide** (`choice`, noté)
-   - Question : « Sur ta fiche de paie, la somme qui arrive sur ton compte s'appelle… »
-   - Réponses : le salaire brut ; le net à payer (bonne) ; le coût employeur.
-   - Explication : « Le brut, c'est avant les cotisations salariales. Le net à payer, c'est ce qui arrive vraiment sur ton compte. »
+3. **Remettre dans l'ordre** (nouveau, noté)
+   - « Classe ces montants, du plus petit au plus grand. »
+   - Ordre juste : ton net après impôt sur le revenu ; ton net à payer ; ton salaire brut ; ton coût pour l'employeur. Présentés dans le désordre.
+   - Explication : « Du coût employeur, on retire les cotisations patronales : c'est le brut. Puis les cotisations salariales : c'est le net à payer. Puis le prélèvement à la source : c'est ce qui te reste. »
+   - Val, bonne réponse (fier) : « Tu viens de lire toute une fiche de paie, de haut en bas. » Erreur (rassurant) : « Presque. Pense à tout ce qu'on retire à chaque étape. »
+4. **Le dialogue** (nouveau, noté)
+   - Personnage : Sam, un collègue.
+   - Sam : « Les cotisations, franchement, c'est de l'argent perdu. »
+   - Tes réponses : « Elles financent ma retraite, ma santé et le chômage. » (bonne) ; « Oui, ça part à l'État pour rien. » ; « C'est mon employeur qui les garde. »
+   - Sam répond, bonne réponse : « Ah ouais, vu comme ça… L'arrêt maladie de l'an dernier, c'était ça ? » Mauvaise réponse : « Ah bon ? Pourtant, quand j'étais au chômage, j'ai bien été payé… »
+   - Val, bonne réponse (fier) : « Exactement : ce n'est pas perdu, c'est une protection. » Erreur (rassurant) : « C'est ce que beaucoup pensent. En réalité, elles financent ta protection sociale. »
+5. **Question sans aide** (`choice`, noté)
+   - « Sur ta fiche de paie, la ligne qui donne ton salaire après les cotisations, mais avant le prélèvement à la source, s'appelle… »
+   - Le salaire brut ; le net à payer avant impôt sur le revenu (bonne) ; le coût employeur.
+   - Explication : « Le brut, c'est avant les cotisations salariales. Le net à payer, c'est après. Le prélèvement à la source vient ensuite s'y retirer. »
    - Val, bonne réponse (célébrant) : « Tu sais maintenant lire la ligne la plus importante de ta fiche de paie. » Erreur (rassurant) : « Pas tout à fait. Le brut est plus haut que ce que tu touches. »
 
 ## Après la leçon
 
-Chaque objectif mène à un univers conseillé, que Val annonce à l'inscription et qui s'ouvre en premier sur l'accueil d'Apprendre.
+Chaque objectif mène à un univers conseillé, que Val nomme à l'étape du pseudo et qui s'ouvre en premier sur l'accueil d'Apprendre.
 
-| Objectif | Leçon découverte | Univers conseillé | Prochaine leçon en teaser |
+| Objectif | Leçon découverte | Univers conseillé | Types d'écrans |
 | --- | --- | --- | --- |
-| Comprendre où part mon argent | Tes abonnements | Garder la main sur son argent | \[titre de la première leçon de cet univers\] |
-| Mettre de l'argent de côté | L'argent qui fond | Avant d'investir | Le mois où tout tombe en même temps |
-| Commencer à investir | 100 € pendant 30 ans | Bourse | \[titre de la première leçon de cet univers\] |
-| Préparer un projet | 3 000 €, c'est combien par jour ? | Garder la main sur son argent | \[titre de la première leçon de cet univers\] |
-| Ne plus finir le mois dans le rouge | Le piège du solde | Garder la main sur son argent | \[titre de la première leçon de cet univers\] |
-| Je découvre, on verra | Le salaire | Paie, primes et aides | \[titre de la première leçon de cet univers\] |
+| Mettre de l'argent de côté | L'argent qui fond | Avant d'investir | pari, révélation, répartir, vrai ou faux, choix |
+| Commencer à investir | La machine à intérêts | Bourse | pari, révélation, simulateur, ordre, choix |
+| Comprendre la crypto | Le grand huit | Crypto | pari, révélation, vrai ou faux, dialogue, associer |
+| Acheter un jour un logement | Le vrai prix d'un crédit | Se loger | pari, révélation, simulateur, ordre, choix |
+| Payer moins d'impôts | Le mythe de la tranche | Impôts | pari, révélation, vrai ou faux, associer, choix |
+| Je découvre, on verra | Ton vrai salaire | Paie, primes et aides | pari, révélation, ordre, dialogue, choix |
 
-Tant qu'un univers n'a pas de module publié, l'app conseille le premier module disponible, comme aujourd'hui.
+La prochaine leçon en teaser est la première leçon du premier module publié de l'univers conseillé ; à défaut, le premier module disponible.
 
 **À vérifier avant de publier :**
 
 - [ ] Les chiffres du salaire (leçon 6) correspondent à ceux de ta leçon 1 publiée.
-- [ ] Les prix des abonnements de la leçon 1 restent crédibles (ce sont des exemples, sans nom de marque), et les plafonds de frais bancaires de la leçon 5 (8 € par opération, 80 € par mois) sont toujours ceux en vigueur.
+- [ ] Les cours du bitcoin (leçon 3) : environ 69 000 dollars en novembre 2021, environ 16 500 dollars fin 2022.
+- [ ] Le barème simplifié de la leçon 5 est bien présenté comme un exemple, pas comme le vrai barème.
 - [ ] La correspondance objectif et univers te convient.
-- [ ] Les titres des prochaines leçons en teaser, univers par univers.
-- [ ] Le serveur crédite la leçon découverte (XP et jour 1 de la série) après l'inscription, sinon la promesse de la fin de leçon n'est pas tenue.
+- [ ] Le serveur crédite la leçon découverte après l'inscription (pull request #2).

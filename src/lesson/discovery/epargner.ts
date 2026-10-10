@@ -1,9 +1,10 @@
-// Leçon découverte 2 — objectif « Mettre de l'argent de côté ».
-// Déclic : l'argent qui dort sur un compte courant perd de la valeur ; le
-// mettre de côté au bon endroit le protège.
-// Texte : lecons-decouvertes.md (leçon 2). Calcul : 1 000 / 1,02^10 = 820,35.
+// Leçon découverte 1 — objectif « Mettre de l'argent de côté ».
+// Déclic : l'argent qui dort sur un compte courant perd de la valeur ; mis de
+// côté en premier, au bon endroit, il est protégé.
+// Texte : lecons-decouvertes.md (leçon 1). Au format de GET /lessons/{id} :
+// elle passe par normalizeLesson, comme une vraie leçon.
 
-import { PARI_INTRO } from './shared';
+import { PARI_INTRO, TRUE_FALSE_QUESTION } from './shared';
 
 export const epargner = {
   title: 'L’argent qui fond',
@@ -14,7 +15,7 @@ export const epargner = {
       val: { intro: PARI_INTRO },
       payload: {
         question:
-          'Tu laisses 1 000 € sur ton compte courant pendant 10 ans. Avec 2 % d’inflation par an, que pourras-tu encore acheter avec, en euros d’aujourd’hui ?',
+          'Tu laisses 1 000 € sur ton compte courant pendant 10 ans. Avec 2 % d’inflation par an, que pourras-tu encore acheter avec, en euros d’aujourd’hui ?',
         min: 500,
         max: 1200,
         step: 10,
@@ -34,27 +35,69 @@ export const epargner = {
         lines: [
           { label: 'Sur le compte, toujours', value: 1000 },
           { label: 'Ce que ça achète encore, environ', value: 820, key: true },
-          { label: '2 % par an est une hypothèse', value: '', dim: true },
+          { label: '2 % par an est une hypothèse', value: '', dim: true },
         ],
       },
     },
     {
-      type: 'choice',
+      type: 'allocate',
       scored: true,
       val: {
-        correct: { line: 'Exactement : disponible et protégé.', mood: 'fier' },
-        wrong: { line: 'C’est tentant. Mais un coussin doit rester disponible et ne pas fondre.', mood: 'rassurant' },
+        correct: { line: '{epargne} € par mois, c’est {epargne*12} € dans un an, sans y penser.', mood: 'fier' },
+        wrong: { line: 'Essaie d’en garder au moins 10 % : 180 €. Tes envies s’en remettront.', mood: 'rassurant' },
       },
-      explanation:
-        'Un livret se retire à tout moment et ses intérêts compensent une partie de l’inflation. La bourse, elle, peut baisser juste quand tu as besoin de l’argent.',
       payload: {
-        question: 'Pour ton coussin de sécurité, quelle est la meilleure place ?',
-        subtitle: 'Indice : un livret rapporte des intérêts, un compte courant non.',
-        mode: 'single',
-        options: [
-          { id: 'courant', text: 'Le compte courant, pour l’avoir sous la main' },
-          { id: 'livret', text: 'Un livret d’épargne, disponible et rémunéré', correct: true },
-          { id: 'actions', text: 'Des actions en bourse, pour qu’il rapporte plus' },
+        question: 'Ta paie de 1 800 € vient de tomber. Répartis-la.',
+        total: 1800,
+        step: 10,
+        unit: '€',
+        buckets: [
+          { key: 'besoins', label: 'Besoins', hint: 'Loyer, courses, transport', start: 1260 },
+          // Réservoir : absorbe ce que les autres pots prennent ou rendent
+          { key: 'envies', label: 'Envies', hint: 'Sorties, achats', start: 540, reservoir: true },
+          { key: 'epargne', label: 'Épargne', start: 0, live: 'Dans un an : {epargne*12} €' },
+        ],
+        // Réussi si l'épargne fait au moins 10 % et les besoins au moins 900 €
+        rules: [
+          {
+            bucket: 'epargne',
+            min: 180,
+            val: { line: 'Essaie d’en garder au moins 10 % : 180 €. Tes envies s’en remettront.', mood: 'rassurant' },
+          },
+          { bucket: 'besoins', min: 900, val: { line: 'Garde de quoi payer le loyer et les courses d’abord.', mood: 'rassurant' } },
+        ],
+      },
+    },
+    {
+      type: 'true_false',
+      scored: true,
+      val: {
+        correct: { line: 'Tu sais déjà où ranger ton argent.', mood: 'celebrant' },
+        wrong: { line: 'Pas grave, c’est exactement ce qu’on va voir ensemble.', mood: 'rassurant' },
+      },
+      payload: {
+        question: TRUE_FALSE_QUESTION,
+        pass: 3,
+        cards: [
+          { id: 'perte', statement: 'Le Livret A peut te faire perdre des euros.', answer: false, explanation: 'Ce que tu y mets est garanti.' },
+          {
+            id: 'dispo',
+            statement: 'L’argent d’un Livret A est disponible à tout moment.',
+            answer: true,
+            explanation: 'Tu peux le retirer quand tu veux, sans frais.',
+          },
+          {
+            id: 'coussin',
+            statement: 'Un coussin de sécurité se place en bourse.',
+            answer: false,
+            explanation: 'Il doit rester disponible et stable, la bourse peut baisser au mauvais moment.',
+          },
+          {
+            id: 'vingt',
+            statement: 'Mettre 20 € de côté par mois, ça ne sert à rien.',
+            answer: false,
+            explanation: 'C’est 240 € par an, et surtout une habitude.',
+          },
         ],
       },
     },
@@ -62,7 +105,7 @@ export const epargner = {
       type: 'choice',
       scored: true,
       val: {
-        correct: { line: 'Le vrai secret de ceux qui épargnent sans effort.', mood: 'celebrant' },
+        correct: { line: 'Le vrai secret de ceux qui épargnent sans effort.', mood: 'fier' },
         wrong: { line: 'C’est ce que fait presque tout le monde, et c’est pour ça que ça marche rarement.', mood: 'rassurant' },
       },
       explanation:

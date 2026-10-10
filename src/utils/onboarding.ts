@@ -1,7 +1,7 @@
 // Première ouverture : étapes du parcours, reprise, règles du mot de passe.
 // Fonctions pures, sans React : testables avec Node.
 
-import { isObjective, type Objective } from '../lesson/discovery';
+import { toObjective, type Objective } from '../lesson/discovery';
 
 // Bienvenue → objectif → leçon découverte → fin → inscription (pseudo,
 // compte, rappel) → accueil d'Apprendre
@@ -27,7 +27,8 @@ export function parseOnboarding(raw: unknown): OnboardingState {
   const r = raw as Record<string, unknown>;
   const status: OnboardingStatus = r.status === 'termine' || r.status === 'plus-tard' ? r.status : 'en-cours';
   const step = (ONBOARDING_STEPS as readonly unknown[]).includes(r.step) ? (r.step as OnboardingStep) : 'bienvenue';
-  const objective = isObjective(r.objective) ? r.objective : null;
+  // Ancien objectif (première version) : traduit vers le plus proche
+  const objective = toObjective(r.objective);
   // Sans objectif, ni leçon ni fin : on repart du choix de l'objectif
   const safeStep = !objective && (step === 'lecon' || step === 'fin') ? 'objectif' : step;
   return { status, step: safeStep, objective, pseudo: typeof r.pseudo === 'string' ? r.pseudo : '' };
@@ -100,4 +101,34 @@ export function signupError(message: string | undefined): { text: string; emailT
   // Message du serveur déjà en français et lisible : on le garde
   if (m && !/^(Échec de l'inscription|Erreur API|Données invalides\.?)$/i.test(m)) return { text: m, emailTaken };
   return { text: 'L’inscription n’a pas abouti. Vérifie tes informations et réessaie.', emailTaken };
+}
+
+// ---------------------------------------------------------------------------
+// Leçon découverte créditée après l'inscription
+// ---------------------------------------------------------------------------
+
+export type DiscoveryCredit = 'avec-objectif' | 'sans-objectif' | 'echec';
+
+// L'objectif n'est gardé que si le serveur l'accepte : refusé (objectif
+// inconnu de lui, route absente…), la leçon est créditée sans objectif. Ne
+// lève jamais : l'inscription réussit quoi qu'il arrive.
+export async function sendDiscoveryCredit(
+  post: (path: string, body: Record<string, unknown>) => Promise<unknown>,
+  objective: Objective | null
+): Promise<DiscoveryCredit> {
+  const path = '/onboarding/discovery-complete';
+  if (objective) {
+    try {
+      await post(path, { objective });
+      return 'avec-objectif';
+    } catch {
+      // objectif refusé : on retente sans
+    }
+  }
+  try {
+    await post(path, {});
+    return 'sans-objectif';
+  } catch {
+    return 'echec';
+  }
 }

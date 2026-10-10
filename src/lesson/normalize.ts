@@ -5,16 +5,28 @@
 // pures, sans React : testables avec Node.
 //
 // Champs volontairement ignorés : variant, has_volatile_note,
-// volatile_verified_at, trap, trap_found, review, artifact, reveal.lines[].dim,
-// et les zones « recap » des documents.
+// volatile_verified_at, trap, trap_found, review, artifact, et les zones
+// « recap » des documents.
+//
+// Écrans interactifs (true_false, order, match, allocate, simulator,
+// dialogue) : format décrit ci-dessous, à chaque cas ; un écran mal formé
+// tombe sur FallbackScreen.
 
 import type {
+  AllocateBucket,
+  AllocateRule,
   ChoiceOption,
+  DialogueReply,
   DocumentLine,
   DocumentUpcoming,
   LessonModel,
   LessonScreen,
+  MatchPair,
+  OrderItem,
   RevealLine,
+  SimulatorOutput,
+  SimulatorRange,
+  TrueFalseCard,
   Universe,
   UniverseRef,
   ValBlock,
@@ -67,6 +79,23 @@ function valLine(raw: unknown): ValLine | null {
 function valBlock(raw: unknown): ValBlock {
   const v = isRecord(raw) ? raw : {};
   return { intro: valLine(v.intro), correct: valLine(v.correct), wrong: valLine(v.wrong) };
+}
+
+function records(raw: unknown): AnyRecord[] {
+  return Array.isArray(raw) ? raw.filter(isRecord) : [];
+}
+
+// Identifiant d'un élément ; absent : sa position
+function idOf(raw: unknown, index: number): string {
+  return raw === undefined || raw === null || String(raw) === '' ? String(index) : String(raw);
+}
+
+// Ordre d'affichage : la liste d'ids donnée si c'est bien une permutation
+// des ids, sinon l'ordre des ids
+function permutation(raw: unknown, ids: string[]): string[] {
+  const given = Array.isArray(raw) ? raw.map(String) : [];
+  const same = given.length === ids.length && new Set(given).size === ids.length && given.every((g) => ids.includes(g));
+  return same ? given : [...ids];
 }
 
 function num(raw: unknown): number | null {
@@ -162,6 +191,7 @@ export function normalizeScreen(raw: unknown, index: number): LessonScreen {
           label: plainText(l.label) ?? '',
           value: num(l.value) ?? str(l.value) ?? '',
           key: l.key === true,
+          dim: l.dim === true,
         }));
       const decimals = Number.isInteger(p.decimals) && p.decimals >= 0 && p.decimals <= 4 ? p.decimals : 0;
       return {
@@ -193,9 +223,119 @@ export function normalizeScreen(raw: unknown, index: number): LessonScreen {
         answer: num(p.answer),
       };
     }
+    // { cards: [{ id, statement, answer: bool, explanation }], pass }
+    case 'true_false': {
+      const cards: TrueFalseCard[] = records(p.cards)
+        .filter((c) => typeof c.answer === 'boolean' && plainText(c.statement))
+        .map((c, i) => ({
+          id: idOf(c.id, i),
+          statement: plainText(c.statement)!,
+          answer: c.answer,
+          explanation: plainText(c.explanation),
+        }));
+      if (cards.length === 0) break;
+      const pass = Number.isInteger(p.pass) && p.pass > 0 && p.pass <= cards.length ? p.pass : cards.length;
+      return { ...base, kind: 'true_false', cards, pass };
+    }
+
+    // { items: [{ id, text }] dans l'ordre juste, start: [ids] ordre présenté }
+    case 'order': {
+      const items: OrderItem[] = records(p.items)
+        .filter((it) => plainText(it.text))
+        .map((it, i) => ({ id: idOf(it.id, i), text: plainText(it.text)! }));
+      if (items.length < 2) break;
+      return { ...base, kind: 'order', items, start: permutation(p.start, items.map((it) => it.id)) };
+    }
+
+    // { pairs: [{ id, left, right }], right_order: [ids], max_errors }
+    case 'match': {
+      const pairs: MatchPair[] = records(p.pairs)
+        .filter((x) => plainText(x.left) && plainText(x.right))
+        .map((x, i) => ({ id: idOf(x.id, i), left: plainText(x.left)!, right: plainText(x.right)! }));
+      if (pairs.length < 2) break;
+      return {
+        ...base,
+        kind: 'match',
+        pairs,
+        rightOrder: permutation(p.right_order, pairs.map((x) => x.id)),
+        maxErrors: Number.isInteger(p.max_errors) && p.max_errors >= 0 ? p.max_errors : 0,
+      };
+    }
+
+    // { total, step, unit, buckets: [{ key, label, hint, start, reservoir,
+    // live }], rules: [{ bucket, min, val }] }. Sans rules (format à cibles
+    // du site) : pas encore géré, FallbackScreen.
+    case 'allocate': {
+      const total = num(p.total);
+      const buckets: AllocateBucket[] = records(p.buckets)
+        .filter((b) => typeof b.key === 'string' && plainText(b.label))
+        .map((b) => ({
+          key: b.key,
+          label: plainText(b.label)!,
+          hint: plainText(b.hint),
+          start: num(b.start) ?? 0,
+          reservoir: b.reservoir === true,
+          live: plainText(b.live),
+        }));
+      const rules: AllocateRule[] = records(p.rules)
+        .filter((r) => typeof r.bucket === 'string' && num(r.min) !== null)
+        .map((r) => ({ bucket: r.bucket, min: num(r.min)!, val: valLine(r.val) }));
+      const reservoirs = buckets.filter((b) => b.reservoir).length;
+      const sum = buckets.reduce((acc, b) => acc + b.start, 0);
+      if (total === null || buckets.length < 2 || reservoirs !== 1 || rules.length === 0 || Math.abs(sum - total) > 1e-6) break;
+      const step = num(p.step) !== null && p.step > 0 ? p.step : 1;
+      return { ...base, kind: 'allocate', total, step, unit: plainText(p.unit), buckets, rules };
+    }
+
+    // { label, min, max, step, start, unit, formula, params, outputs: [{ key,
+    // label, unit, big }], ranges: [{ min, max, line, mood }] }
+    case 'simulator': {
+      const min = num(p.min);
+      const max = num(p.max);
+      if (min === null || max === null || max <= min || typeof p.formula !== 'string') break;
+      const params: Record<string, number> = {};
+      if (isRecord(p.params)) {
+        for (const [k, v] of Object.entries(p.params)) if (num(v) !== null) params[k] = v as number;
+      }
+      const outputs: SimulatorOutput[] = records(p.outputs)
+        .filter((o) => typeof o.key === 'string' && plainText(o.label))
+        .map((o) => ({ key: o.key, label: plainText(o.label)!, unit: plainText(o.unit), big: o.big === true }));
+      if (outputs.length === 0) break;
+      const ranges: SimulatorRange[] = records(p.ranges)
+        .map((r) => ({ min: num(r.min), max: num(r.max), val: valLine(r) }))
+        .filter((r): r is SimulatorRange => r.val !== null);
+      const start = num(p.start) ?? min;
+      return {
+        ...base,
+        kind: 'simulator',
+        label: plainText(p.label) ?? '',
+        min,
+        max,
+        step: num(p.step) !== null && p.step > 0 ? p.step : 1,
+        start: Math.min(max, Math.max(min, start)),
+        unit: plainText(p.unit),
+        formula: p.formula,
+        params,
+        outputs,
+        ranges,
+      };
+    }
+
+    // { character: { name, role }, messages: [texte], replies: [{ id, text,
+    // correct, reaction }] }. replies[].id et correct : comme le site (grade.ts).
+    case 'dialogue': {
+      const character = isRecord(p.character) ? p.character : {};
+      const name = plainText(character.name);
+      const messages = (Array.isArray(p.messages) ? p.messages : []).map(plainText).filter((m): m is string => m !== null);
+      const replies: DialogueReply[] = records(p.replies)
+        .filter((r) => r.id !== undefined && r.id !== null && plainText(r.text))
+        .map((r) => ({ id: String(r.id), text: plainText(r.text)!, correct: r.correct === true, reaction: plainText(r.reaction) }));
+      if (!name || messages.length === 0 || replies.length < 2) break;
+      return { ...base, kind: 'dialogue', character: { name, role: plainText(character.role) }, messages, replies };
+    }
   }
 
-  // number, dialogue, allocate, live_month, type inconnu ou écran mal formé
+  // number, live_month, type inconnu ou écran mal formé
   return { ...base, kind: 'unsupported', type: type || 'inconnu', payload: s.payload };
 }
 
