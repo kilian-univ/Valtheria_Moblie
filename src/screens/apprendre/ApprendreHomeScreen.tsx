@@ -3,7 +3,7 @@ import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import GuestState from '@/src/components/apprendre/home/GuestState';
+import GuestHome from '@/src/components/apprendre/home/GuestHome';
 import HomeHeader from '@/src/components/apprendre/home/HomeHeader';
 import { ModuleRowsSkeleton, UpNextSkeleton } from '@/src/components/apprendre/home/HomeSkeleton';
 import ModuleRow from '@/src/components/apprendre/home/ModuleRow';
@@ -21,7 +21,10 @@ import { loadErrorMessage, OFFLINE_BANNER, OFFLINE_REASON, useLearningData } fro
 import { useKnownPseudo } from '@/src/hooks/useKnownPseudo';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
+import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
+import { discoveryTiles, guestTitle } from '@/src/utils/discoveryHome';
 import { inProgressModules, pickUpNext, resolveHomeSituation } from '@/src/utils/learning';
+import { isSignupClosed } from '@/src/utils/onboarding';
 import { modulesOutsideUniverses, visibleUniverses } from '@/src/utils/universes';
 
 export default function ApprendreHomeScreen() {
@@ -37,6 +40,11 @@ export default function ApprendreHomeScreen() {
   const memory = useLearningMemory(user?.id);
   const { launch, startingId, launchError } = useLessonLauncher();
   const [refreshing, setRefreshing] = useState(false);
+  // Sans compte : objectif choisi, leçons découvertes jouées, inscription fermée
+  const onboarding = useOnboarding();
+  useEffect(() => {
+    onboardingStore.load();
+  }, []);
 
   // La mémoire locale (dernier module ouvert) dépend du profil : on l'attend
   // pour que « À suivre » ne change pas de module sous les yeux. Profil
@@ -94,9 +102,12 @@ export default function ApprendreHomeScreen() {
     startLesson(upNext.module, upNext.lesson);
   };
 
+  const isGuest = !data.isAuthenticated && !data.authPending;
+
   const header = (
     <HomeHeader
-      pseudo={known.pseudo}
+      title={isGuest ? guestTitle() : undefined}
+      pseudo={isGuest ? undefined : known.pseudo}
       pseudoPending={known.pending}
       stats={
         data.isAuthenticated && !loading
@@ -109,19 +120,23 @@ export default function ApprendreHomeScreen() {
     />
   );
 
-  const isGuest = !data.isAuthenticated && !data.authPending;
-
   let body: ReactNode;
   if (isGuest) {
+    // Les leçons découvertes restent jouables à tout moment, même après la
+    // première ouverture
     body = (
       <View style={styles.stack}>
         {header}
-        <StaggerItem index={0}>
-          <GuestState
-            onRegister={() => router.push('/client/register')}
-            onLogin={() => router.push('/client/login')}
-          />
-        </StaggerItem>
+        <GuestHome
+          tiles={discoveryTiles(onboarding.state.objective, onboarding.state.played)}
+          universes={data.universes}
+          signupClosed={isSignupClosed(onboarding.state.signupClosedAt)}
+          onPlay={(tile) =>
+            router.push({ pathname: '/bienvenue/lecon', params: { objectif: tile.objective, depuis: 'accueil' } })
+          }
+          onRegister={() => router.push('/client/register')}
+          onLogin={() => router.push('/client/login')}
+        />
       </View>
     );
   } else if (!loading && data.error) {

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSyncExternalStore } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,9 +10,10 @@ import { StaggerItem } from '@/src/components/common/Stagger';
 import ValFullBody from '@/src/components/common/ValFullBody';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { discoveryPlan, nextLessonTitle } from '@/src/lesson/discovery';
+import { discoveryPlan, nextLessonTitle, toObjective } from '@/src/lesson/discovery';
 import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
+import { isSignupClosed } from '@/src/utils/onboarding';
 
 const VAL_HEIGHT = 170;
 const LOCK = 44;
@@ -25,19 +26,27 @@ export default function DiscoveryEndScreen() {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { state } = useOnboarding();
-  const plan = discoveryPlan(state.objective);
+  // Jouée depuis l'accueil sans compte : la leçon de la tuile, retour à l'accueil
+  const params = useLocalSearchParams<{ objectif?: string; depuis?: string }>();
+  const fromHome = params.depuis === 'accueil';
+  const plan = discoveryPlan((fromHome ? toObjective(params.objectif) : null) ?? state.objective);
+  const closed = isSignupClosed(state.signupClosedAt);
   // Sans compte, rien n'est chargé en général : la carte nomme alors l'univers
   const { modules, universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
   const nextTitle = nextLessonTitle(plan, universes, modules) ?? `Première leçon de l’univers ${plan.universe.name}`;
 
   const signUp = () => {
+    if (fromHome) {
+      router.push('/client/register');
+      return;
+    }
     onboardingStore.update({ step: 'pseudo' });
     router.push('/bienvenue/inscription');
   };
 
   // « Plus tard » : l'accueil sans compte ; le parcours ne revient plus
   const later = () => {
-    onboardingStore.update({ status: 'plus-tard' });
+    if (state.status === 'en-cours') onboardingStore.update({ status: 'plus-tard' });
     router.replace('/apprendre');
   };
 
@@ -81,11 +90,23 @@ export default function DiscoveryEndScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
-        <Button label="Créer mon compte pour continuer" onPress={signUp} />
-        <AppText variant="caption" tone="subtitle" style={styles.center}>
-          Gratuit. Ta série et ta progression sont gardées.
-        </AppText>
-        <Button variant="text" label="Plus tard" onPress={later} />
+        {/* Même règle que l'accueil : inscription fermée, pas de « Créer mon compte » */}
+        {closed ? (
+          <>
+            <AppText variant="caption" tone="subtitle" style={styles.center}>
+              Les inscriptions ouvrent très bientôt. Ta progression est gardée sur ton téléphone.
+            </AppText>
+            <Button label="J’ai déjà un compte" onPress={() => router.push('/client/login')} />
+          </>
+        ) : (
+          <>
+            <Button label="Créer mon compte pour continuer" onPress={signUp} />
+            <AppText variant="caption" tone="subtitle" style={styles.center}>
+              Gratuit. Ta série et ta progression sont gardées.
+            </AppText>
+          </>
+        )}
+        <Button variant="text" label={fromHome ? 'Retour à l’accueil' : 'Plus tard'} onPress={later} />
       </View>
     </View>
   );

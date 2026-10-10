@@ -36,6 +36,13 @@ export const onboardingStore = {
       // stockage indisponible : la reprise ne marchera pas, sans autre conséquence
     });
   },
+  // Développement : efface toute la mémoire du parcours (« Rejouer la
+  // première ouverture »)
+  reset() {
+    store = { state: INITIAL_ONBOARDING, loaded: true };
+    emit();
+    AsyncStorage.removeItem(KEY).catch(() => {});
+  },
   subscribe(listener: () => void) {
     listeners.add(listener);
     return () => {

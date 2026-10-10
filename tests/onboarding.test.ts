@@ -36,6 +36,8 @@ test('état du parcours : relu du téléphone, illisible → départ', () => {
     step: 'fin',
     objective: 'investir',
     pseudo: 'alex',
+    played: [],
+    signupClosedAt: null,
   });
   // Leçon sans objectif : retour au choix de l'objectif
   assert.equal(parseOnboarding({ step: 'lecon' }).step, 'objectif');

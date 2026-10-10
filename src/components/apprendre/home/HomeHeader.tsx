@@ -35,6 +35,8 @@ type HomeHeaderProps = {
   statsLoading?: boolean;
   onStreak: () => void;
   onAccount: () => void;
+  // Titre imposé (accueil sans compte : « Bienvenue » ou « Bonsoir »)
+  title?: string;
 };
 
 export default function HomeHeader({
@@ -44,11 +46,12 @@ export default function HomeHeader({
   statsLoading = false,
   onStreak,
   onAccount,
+  title,
 }: HomeHeaderProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const initial = pseudo?.trim().charAt(0).toUpperCase();
-  const hello = pseudo ? `${greeting()}, ${pseudo}` : greeting();
+  const hello = title ?? (pseudo ? `${greeting()}, ${pseudo}` : greeting());
 
   return (
     <View style={styles.wrap}>
@@ -91,7 +94,7 @@ export default function HomeHeader({
       </View>
 
       <View style={styles.greeting}>
-        {pseudoPending && !pseudo ? (
+        {pseudoPending && !pseudo && !title ? (
           <View style={styles.helloRow} accessible accessibilityRole="header" accessibilityLabel={greeting()}>
             <AppText variant="title1">{`${greeting()},`}</AppText>
             <Skeleton width={NAME_SKELETON_WIDTH} height={NAME_SKELETON_HEIGHT} />

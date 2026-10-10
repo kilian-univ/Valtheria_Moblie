@@ -123,7 +123,7 @@ export default function SignupScreen() {
   // Compte créé (le jeton est enregistré par ApiContext)
   const accountCreated = () => {
     track('compte_cree', { objectif: state.objective });
-    onboardingStore.update({ status: 'termine', step: 'rappel' });
+    onboardingStore.update({ status: 'termine', step: 'rappel', signupClosedAt: null });
     // Leçon découverte créditée dès que le jeton du nouveau compte est en
     // place (voir l'effet plus haut)
     if (state.objective) pendingCredit.current = state.objective;
@@ -155,9 +155,13 @@ export default function SignupScreen() {
           await login(body.email, body.password);
           accountCreated();
         } else if (isRegistrationClosed(again.failure)) {
-          // Pseudo et objectif restent mémorisés pour une prochaine tentative
+          // Pseudo et objectif restent mémorisés pour une prochaine tentative ;
+          // l'accueil sans compte s'en souvient
+          onboardingStore.update({ signupClosedAt: Date.now() });
           setClosed(true);
         } else {
+          // Le serveur répond autre chose : l'inscription est ouverte
+          onboardingStore.update({ signupClosedAt: null });
           setError(signupErrorFrom(again.failure, message));
         }
       } catch {

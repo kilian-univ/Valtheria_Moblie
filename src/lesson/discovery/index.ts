@@ -38,13 +38,14 @@ export function toObjective(value: unknown): Objective | null {
 
 // Options de l'écran « Qu'est-ce qui t'amène ? », dans l'ordre du document.
 // icon : nom Ionicons (contour).
-export const OBJECTIVE_OPTIONS: readonly { value: Objective; label: string; icon: string }[] = [
-  { value: 'epargner', label: 'Mettre de l’argent de côté', icon: 'wallet-outline' },
-  { value: 'investir', label: 'Commencer à investir', icon: 'trending-up-outline' },
-  { value: 'crypto', label: 'Comprendre la crypto', icon: 'logo-bitcoin' },
-  { value: 'logement', label: 'Acheter un jour un logement', icon: 'home-outline' },
-  { value: 'impots', label: 'Payer moins d’impôts', icon: 'receipt-outline' },
-  { value: 'decouvrir', label: 'Je découvre, on verra', icon: 'compass-outline' },
+// subject : sujet court, sur les tuiles de l'accueil sans compte
+export const OBJECTIVE_OPTIONS: readonly { value: Objective; label: string; subject: string; icon: string }[] = [
+  { value: 'epargner', label: 'Mettre de l’argent de côté', subject: 'Épargner', icon: 'wallet-outline' },
+  { value: 'investir', label: 'Commencer à investir', subject: 'Investir', icon: 'trending-up-outline' },
+  { value: 'crypto', label: 'Comprendre la crypto', subject: 'Crypto', icon: 'logo-bitcoin' },
+  { value: 'logement', label: 'Acheter un jour un logement', subject: 'Logement', icon: 'home-outline' },
+  { value: 'impots', label: 'Payer moins d’impôts', subject: 'Impôts', icon: 'receipt-outline' },
+  { value: 'decouvrir', label: 'Je découvre, on verra', subject: 'Découvrir', icon: 'compass-outline' },
 ];
 
 export type DiscoveryPlan = {

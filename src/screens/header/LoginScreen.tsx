@@ -144,6 +144,19 @@ export default function LoginScreen() {
             {error}
           </AppText>
         ) : null}
+
+        {/* Développement seulement : efface la mémoire du parcours (objectif,
+            leçons jouées, inscription fermée) et relance la bienvenue */}
+        {__DEV__ ? (
+          <Button
+            variant="text"
+            label="Rejouer la première ouverture"
+            onPress={() => {
+              onboardingStore.reset();
+              router.replace('/bienvenue');
+            }}
+          />
+        ) : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>

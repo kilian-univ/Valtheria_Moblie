@@ -18,9 +18,20 @@ export type OnboardingState = {
   step: OnboardingStep;
   objective: Objective | null;
   pseudo: string;
+  // Leçons découvertes déjà jouées (accueil sans compte : « Rejouer »)
+  played: Objective[];
+  // Dernière réponse « inscription_fermee » du serveur (horodatage), sinon null
+  signupClosedAt: number | null;
 };
 
-export const INITIAL_ONBOARDING: OnboardingState = { status: 'en-cours', step: 'bienvenue', objective: null, pseudo: '' };
+export const INITIAL_ONBOARDING: OnboardingState = {
+  status: 'en-cours',
+  step: 'bienvenue',
+  objective: null,
+  pseudo: '',
+  played: [],
+  signupClosedAt: null,
+};
 
 // État relu du téléphone ; illisible ou incomplet → départ du parcours
 export function parseOnboarding(raw: unknown): OnboardingState {
@@ -32,7 +43,34 @@ export function parseOnboarding(raw: unknown): OnboardingState {
   const objective = toObjective(r.objective);
   // Sans objectif, ni leçon ni fin : on repart du choix de l'objectif
   const safeStep = !objective && (step === 'lecon' || step === 'fin') ? 'objectif' : step;
-  return { status, step: safeStep, objective, pseudo: typeof r.pseudo === 'string' ? r.pseudo : '' };
+  // Leçons jouées : objectifs connus (anciens traduits), sans doublon
+  const played = Array.isArray(r.played)
+    ? [...new Set(r.played.map(toObjective).filter((o): o is Objective => o !== null))]
+    : [];
+  const closedAt = typeof r.signupClosedAt === 'number' && Number.isFinite(r.signupClosedAt) ? r.signupClosedAt : null;
+  return {
+    status,
+    step: safeStep,
+    objective,
+    pseudo: typeof r.pseudo === 'string' ? r.pseudo : '',
+    played,
+    signupClosedAt: closedAt,
+  };
+}
+
+// Leçon découverte terminée : ajoutée aux leçons jouées (une seule fois)
+export function withPlayed(played: Objective[], objective: Objective): Objective[] {
+  return played.includes(objective) ? played : [...played, objective];
+}
+
+// L'inscription est tenue pour fermée tant que la dernière réponse
+// « inscription_fermee » date de moins de 3 jours : passé ce délai, l'app
+// propose de nouveau de créer un compte (une nouvelle tentative remet la
+// mémoire à jour, dans un sens ou dans l'autre)
+export const SIGNUP_CLOSED_MEMORY_MS = 3 * 24 * 60 * 60 * 1000;
+
+export function isSignupClosed(closedAt: number | null, now: number = Date.now()): boolean {
+  return closedAt !== null && now - closedAt >= 0 && now - closedAt < SIGNUP_CLOSED_MEMORY_MS;
 }
 
 export type OnboardingRoute = '/bienvenue' | '/bienvenue/objectif' | '/bienvenue/lecon' | '/bienvenue/fin' | '/bienvenue/inscription';
