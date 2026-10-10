@@ -5,16 +5,21 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  cleanFirstName,
   emailValid,
+  FIRST_NAME_MAX,
   INITIAL_ONBOARDING,
+  ONBOARDING_STEPS,
   parseOnboarding,
   passwordValid,
   PASSWORD_RULES,
   pseudoError,
+  pseudoFromFirstName,
   routeForStep,
   sendDiscoveryCredit,
   shouldShowOnboarding,
   signupError,
+  stepAfter,
 } from '../src/utils/onboarding';
 import {
   clampTime,
@@ -35,8 +40,11 @@ test('état du parcours : relu du téléphone, illisible → départ', () => {
     status: 'en-cours',
     step: 'fin',
     objective: 'investir',
+    firstName: '',
     pseudo: 'alex',
+    started: [],
     played: [],
+    lessonDays: [],
     signupClosedAt: null,
   });
   // Leçon sans objectif : retour au choix de l'objectif
@@ -75,6 +83,51 @@ test('inscription : l’objectif ne part que si le serveur l’accepte, sinon la
   };
   assert.equal(await sendDiscoveryCredit(down, 'crypto'), 'echec');
   assert.equal(await sendDiscoveryCredit(down, null), 'echec');
+});
+
+test('enchaînement : bienvenue, prénom, objectif, leçon, fin, puis l’inscription', () => {
+  assert.deepEqual(
+    [...ONBOARDING_STEPS],
+    ['bienvenue', 'prenom', 'objectif', 'lecon', 'fin', 'pseudo', 'compte', 'rappel']
+  );
+  assert.equal(stepAfter('bienvenue'), 'prenom');
+  assert.equal(stepAfter('prenom'), 'objectif');
+  assert.equal(stepAfter('objectif'), 'lecon');
+  assert.equal(stepAfter('lecon'), 'fin');
+  assert.equal(stepAfter('fin'), 'pseudo');
+  assert.equal(stepAfter('rappel'), 'rappel');
+});
+
+test('reprise : le prénom reprend sur son écran, le prénom donné est gardé', () => {
+  assert.equal(routeForStep('prenom'), '/bienvenue/prenom');
+  const state = parseOnboarding({ step: 'prenom', firstName: '  Quentin  ' });
+  assert.equal(state.step, 'prenom');
+  assert.equal(state.firstName, 'Quentin');
+  // Prénom illisible : aucun
+  assert.equal(parseOnboarding({ step: 'objectif', firstName: 42 }).firstName, '');
+  // Objectif choisi, quitté pendant la leçon : la leçon reprend, prénom compris
+  const lesson = parseOnboarding({ step: 'lecon', objective: 'crypto', firstName: 'Léa', started: ['crypto', 'x'] });
+  assert.equal(routeForStep(lesson.step), '/bienvenue/lecon');
+  assert.equal(lesson.firstName, 'Léa');
+  assert.deepEqual(lesson.started, ['crypto']);
+});
+
+test('prénom : espaces retirés, 30 caractères au plus', () => {
+  assert.equal(cleanFirstName('  Jean   Pierre '), 'Jean Pierre');
+  assert.equal(cleanFirstName('   '), '');
+  assert.equal(cleanFirstName('a'.repeat(40)).length, FIRST_NAME_MAX);
+  assert.equal(FIRST_NAME_MAX, 30);
+});
+
+test('pseudo prérempli d’après le prénom, aux règles du serveur', () => {
+  assert.equal(pseudoFromFirstName('Quentin'), 'Quentin');
+  assert.equal(pseudoFromFirstName('Zoé'), 'Zoe');
+  assert.equal(pseudoFromFirstName('Jean Pierre'), 'Jean-Pierre');
+  assert.equal(pseudoFromFirstName('Anne-Sophie'), 'Anne-Sophie');
+  assert.equal(pseudoFromFirstName('N’Golo'), 'NGolo');
+  assert.equal(pseudoFromFirstName(''), '');
+  assert.equal(pseudoError(pseudoFromFirstName('Maëlle Françoise')), null);
+  assert.ok(pseudoFromFirstName('a'.repeat(30)).length <= 20);
 });
 
 test('reprise : chaque étape a son écran', () => {

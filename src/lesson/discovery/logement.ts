@@ -7,6 +7,8 @@ import { PARI_INTRO } from './shared';
 
 export const logement = {
   title: 'Le vrai prix d’un crédit',
+  // Phrase d'accroche : carte de l'accueil sans compte
+  hook: 'Ce que coûte vraiment un emprunt',
   screens: [
     {
       type: 'slider',

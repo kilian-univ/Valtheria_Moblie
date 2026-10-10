@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
-import { palette, radius, space } from '@/src/constants/style/Style';
+import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import {
+  allocationAmount,
   allocationMax,
+  allocationTemplateValues,
   fillTemplate,
   gradeAllocation,
   initialAllocation,
@@ -20,7 +22,8 @@ import { LessonScreenProps } from '../types';
 // allocate — répartir un total fixe entre des pots, un curseur chacun. Le pot
 // réservoir absorbe les changements des autres, sans passer sous zéro.
 // Valider : règles de la leçon (screen.rules), réplique de Val du cas.
-// Réponse : { clé du pot: montant }.
+// En pourcentages d'une somme (screen.base) : pourcentage en grand, montant
+// en petit dessous. Réponse : { clé du pot: valeur }.
 export default function AllocateScreen({ screen, answered, onDraftChange }: LessonScreenProps<AllocateModel>) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -29,12 +32,16 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
   const [values, setValues] = useState(() => initialAllocation(buckets));
 
   const withUnit = useMemo(() => (n: number) => `${formatNumber(n)}${unit ? ` ${unit}` : ''}`, [unit]);
+  const baseUnit = screen.baseUnit ?? '';
+  const amountText = (n: number) => `${formatNumber(allocationAmount(screen, n))}${baseUnit ? ` ${baseUnit}` : ''}`;
+  const percent = screen.base !== null;
+  const templateValues = allocationTemplateValues(screen, values);
 
   useEffect(() => {
     const { passed, failed } = gradeAllocation(screen, values);
     const success = screen.val.correct;
     const val: ValLine | null = passed
-      ? success && { ...success, line: fillTemplate(success.line, values, (n) => formatNumber(n)) }
+      ? success && { ...success, line: fillTemplate(success.line, allocationTemplateValues(screen, values), (n) => formatNumber(n)) }
       : (failed?.val ?? screen.val.wrong);
     onDraftChange({ raw: values, correct: passed, correctText: null, val, explanation: null });
   }, [values, screen, onDraftChange]);
@@ -57,9 +64,20 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
                     </AppText>
                   ) : null}
                 </View>
-                <AppText variant="bodyMedium" tone="gold" style={styles.amount}>
-                  {withUnit(value)}
-                </AppText>
+                {percent ? (
+                  <View style={styles.percentBlock}>
+                    <AppText maxFontSizeMultiplier={1.4} style={[styles.percent, { color: colors.gold }]}>
+                      {withUnit(value)}
+                    </AppText>
+                    <AppText variant="caption" tone="subtitle" style={styles.amount}>
+                      {amountText(value)}
+                    </AppText>
+                  </View>
+                ) : (
+                  <AppText variant="bodyMedium" tone="gold" style={styles.amount}>
+                    {withUnit(value)}
+                  </AppText>
+                )}
               </View>
               <TrackSlider
                 value={value}
@@ -70,7 +88,7 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
                 disabled={answered}
                 onChange={(next) => setValues((prev) => moveAllocation(screen, prev, b.key, next))}
                 accessibilityLabel={b.reservoir ? `${b.label}, s’ajuste tout seul` : b.label}
-                valueText={`${withUnit(value)}, au plus ${withUnit(allocationMax(screen, values, b.key))}`}
+                valueText={`${withUnit(value)}${percent ? `, soit ${amountText(value)}` : ''}, au plus ${withUnit(allocationMax(screen, values, b.key))}`}
               />
               {b.reservoir ? (
                 <AppText variant="caption" tone="subtitle">
@@ -79,7 +97,7 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
               ) : null}
               {b.live ? (
                 <AppText variant="callout" tone="gold" accessibilityLiveRegion="polite">
-                  {fillTemplate(b.live, values, (n) => formatNumber(n))}
+                  {fillTemplate(b.live, templateValues, (n) => formatNumber(n))}
                 </AppText>
               ) : null}
             </View>
@@ -88,7 +106,7 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
       </View>
 
       <AppText variant="caption" tone="subtitle" style={styles.center}>
-        Total : {withUnit(total)}
+        Total : {withUnit(total)}{percent ? `, soit ${amountText(total)}` : ''}
       </AppText>
     </View>
   );
@@ -118,6 +136,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   amount: {
+    fontVariant: ['tabular-nums'],
+  },
+  percentBlock: {
+    alignItems: 'flex-end',
+  },
+  percent: {
+    fontFamily: fonts.title,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: titleLetterSpacing(28),
     fontVariant: ['tabular-nums'],
   },
   center: {

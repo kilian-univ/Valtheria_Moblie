@@ -16,6 +16,8 @@ import { useTheme } from '@/src/context/ThemeContext';
 
 const BORDER = 2;
 const ICON = 24;
+const BADGE = 34;
+const BADGE_ICON = 17;
 const SINK_DURATION = 80; // comme le bouton principal
 
 export type OptionState = 'idle' | 'selected' | 'correct' | 'wrong';
@@ -29,12 +31,15 @@ type ReliefOptionProps = {
   multiple?: boolean;
   // Icône Ionicons à gauche du texte (objectifs, créneaux de rappel)
   icon?: ComponentProps<typeof Ionicons>['name'];
+  // Icône posée dans une pastille ronde de cette couleur (objectifs : couleur
+  // de l'univers), l'icône en iconColor
+  badge?: { color: string; iconColor: string };
   onPress: () => void;
 };
 
 // Réponse de QCM en relief : face posée sur une tranche, qui s'y enfonce à
 // l'appui. Couleurs selon l'état (choisie, juste, fausse).
-export default function ReliefOption({ label, state, selected, disabled, multiple, icon, onPress }: ReliefOptionProps) {
+export default function ReliefOption({ label, state, selected, disabled, multiple, icon, badge, onPress }: ReliefOptionProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
@@ -76,7 +81,13 @@ export default function ReliefOption({ label, state, selected, disabled, multipl
       >
         <View style={[styles.tint, { backgroundColor: look.tint }]} />
         <View style={styles.content}>
-          {icon ? <Ionicons name={icon} size={ICON} color={state === 'idle' ? colors.subtitle : look.border} /> : null}
+          {icon && badge ? (
+            <View style={[styles.badge, { backgroundColor: badge.color }]}>
+              <Ionicons name={icon} size={BADGE_ICON} color={badge.iconColor} />
+            </View>
+          ) : icon ? (
+            <Ionicons name={icon} size={ICON} color={state === 'idle' ? colors.subtitle : look.border} />
+          ) : null}
           <AppText variant="bodyMedium" style={styles.label}>
             {label}
           </AppText>
@@ -123,5 +134,12 @@ const styles = StyleSheet.create({
   },
   label: {
     flexShrink: 1,
+  },
+  badge: {
+    width: BADGE,
+    height: BADGE,
+    borderRadius: BADGE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

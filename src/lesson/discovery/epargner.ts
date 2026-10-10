@@ -8,6 +8,8 @@ import { PARI_INTRO, TRUE_FALSE_QUESTION } from './shared';
 
 export const epargner = {
   title: 'L’argent qui fond',
+  // Phrase d'accroche : carte de l'accueil sans compte
+  hook: 'Pourquoi l’argent qui dort perd de la valeur',
   screens: [
     {
       type: 'slider',
@@ -43,28 +45,34 @@ export const epargner = {
       type: 'allocate',
       scored: true,
       val: {
-        correct: { line: '{epargne} € par mois, c’est {epargne*12} € dans un an, sans y penser.', mood: 'fier' },
-        wrong: { line: 'Essaie d’en garder au moins 10 % : 180 €. Tes envies s’en remettront.', mood: 'rassurant' },
+        correct: {
+          line: '{epargne} % de ta paie, c’est {epargne_montant} € par mois et {epargne_montant*12} € dans un an, sans y penser.',
+          mood: 'fier',
+        },
+        wrong: { line: 'Essaie d’en garder au moins 10 %. Tes envies s’en remettront.', mood: 'rassurant' },
       },
       payload: {
-        question: 'Ta paie de 1 800 € vient de tomber. Répartis-la.',
-        total: 1800,
-        step: 10,
-        unit: '€',
+        question: 'Ta paie de 1 800 € vient de tomber. Quelle part pour chaque pot ?',
+        // Pots en pourcentages de la paie, montant en euros dessous
+        total: 100,
+        step: 5,
+        unit: '%',
+        base: 1800,
+        base_unit: '€',
         buckets: [
-          { key: 'besoins', label: 'Besoins', hint: 'Loyer, courses, transport', start: 1260 },
+          { key: 'besoins', label: 'Besoins', hint: 'Loyer, courses, transport', start: 70 },
           // Réservoir : absorbe ce que les autres pots prennent ou rendent
-          { key: 'envies', label: 'Envies', hint: 'Sorties, achats', start: 540, reservoir: true },
-          { key: 'epargne', label: 'Épargne', start: 0, live: 'Dans un an : {epargne*12} €' },
+          { key: 'envies', label: 'Envies', hint: 'Sorties, achats', start: 30, reservoir: true },
+          { key: 'epargne', label: 'Épargne', start: 0, live: 'Dans un an : {epargne_montant*12} €' },
         ],
-        // Réussi si l'épargne fait au moins 10 % et les besoins au moins 900 €
+        // Réussi si l'épargne fait au moins 10 % et les besoins au moins 50 %
         rules: [
           {
             bucket: 'epargne',
-            min: 180,
-            val: { line: 'Essaie d’en garder au moins 10 % : 180 €. Tes envies s’en remettront.', mood: 'rassurant' },
+            min: 10,
+            val: { line: 'Essaie d’en garder au moins 10 %. Tes envies s’en remettront.', mood: 'rassurant' },
           },
-          { bucket: 'besoins', min: 900, val: { line: 'Garde de quoi payer le loyer et les courses d’abord.', mood: 'rassurant' } },
+          { bucket: 'besoins', min: 50, val: { line: 'Garde au moins la moitié pour le loyer et les courses.', mood: 'rassurant' } },
         ],
       },
     },

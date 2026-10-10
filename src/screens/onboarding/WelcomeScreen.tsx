@@ -44,8 +44,8 @@ export default function WelcomeScreen() {
   }, [get]);
 
   const start = () => {
-    onboardingStore.update({ step: 'objectif' });
-    router.push('/bienvenue/objectif');
+    onboardingStore.update({ step: 'prenom' });
+    router.push('/bienvenue/prenom');
   };
 
   return (

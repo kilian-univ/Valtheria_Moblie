@@ -8,6 +8,8 @@ import { PARI_INTRO, TRUE_FALSE_QUESTION } from './shared';
 
 export const impots = {
   title: 'Le mythe de la tranche',
+  // Phrase d'accroche : carte de l'accueil sans compte
+  hook: 'Pourquoi une prime ne fait jamais perdre d’argent',
   screens: [
     {
       type: 'slider',

@@ -116,6 +116,21 @@ export function gradeAllocation(screen: Pick<AllocateScreen, 'rules'>, values: A
   return { passed: failed === null, failed };
 }
 
+// Valeurs des gabarits : celles des pots, plus, en pourcentages d'une somme
+// de base, le montant de chaque pot sous « <clé>_montant » (arrondi à l'euro)
+export function allocationTemplateValues(screen: Pick<AllocateScreen, 'base'>, values: Allocation): Allocation {
+  if (screen.base === null) return values;
+  const amounts = Object.fromEntries(
+    Object.entries(values).map(([key, v]) => [`${key}_montant`, allocationAmount(screen, v)])
+  );
+  return { ...values, ...amounts };
+}
+
+// Montant d'un pourcentage de la somme de base (sans base : la valeur)
+export function allocationAmount(screen: Pick<AllocateScreen, 'base'>, value: number): number {
+  return screen.base === null ? value : Math.round((screen.base * value) / 100);
+}
+
 // « Dans un an : {epargne*12} € » → « Dans un an : 2 160 € ». format : mise
 // en forme des nombres (formatNumber de l'app).
 export function fillTemplate(template: string, values: Allocation, format: (n: number) => string): string {

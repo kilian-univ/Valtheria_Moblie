@@ -7,7 +7,9 @@ import { test } from 'node:test';
 
 import { computeFormula } from '../src/lesson/formulas';
 import {
+  allocationAmount,
   allocationMax,
+  allocationTemplateValues,
   fillTemplate,
   gradeAllocation,
   initialAllocation,
@@ -206,4 +208,63 @@ test('lecteur : nouveaux types notés validés, simulateur bloqué tant que le c
   assert.equal(canContinue(sim, true), true);
   assert.equal(canContinue(tf, false), true);
   assert.equal(validateHint(tf), 'Réponds à toutes les cartes.');
+});
+
+// Répartir en pourcentages (leçon d'épargne)
+const PART = normalizeScreen(
+  {
+    type: 'allocate',
+    scored: true,
+    payload: {
+      total: 100,
+      step: 5,
+      unit: '%',
+      base: 1800,
+      base_unit: '€',
+      buckets: [
+        { key: 'besoins', label: 'Besoins', start: 70 },
+        { key: 'envies', label: 'Envies', start: 30, reservoir: true },
+        { key: 'epargne', label: 'Épargne', start: 0, live: 'Dans un an : {epargne_montant*12} €' },
+      ],
+      rules: [
+        { bucket: 'epargne', min: 10, val: { line: 'Épargne trop basse', mood: 'rassurant' } },
+        { bucket: 'besoins', min: 50, val: { line: 'Besoins trop bas', mood: 'rassurant' } },
+      ],
+    },
+  },
+  0
+) as AllocateScreen;
+
+test('répartir en pourcentages : pas de 5 %, total toujours 100 %, montants de la paie', () => {
+  assert.equal(PART.kind, 'allocate');
+  assert.equal(PART.base, 1800);
+  assert.equal(PART.baseUnit, '€');
+  let v = initialAllocation(PART.buckets);
+  assert.deepEqual(v, { besoins: 70, envies: 30, epargne: 0 });
+  v = moveAllocation(PART, v, 'epargne', 12);
+  assert.equal(v.epargne, 10);
+  assert.equal(sum(v), 100);
+  v = moveAllocation(PART, v, 'epargne', 13);
+  assert.equal(v.epargne, 15);
+  for (let i = 0; i < 40; i++) {
+    v = moveAllocation(PART, v, i % 2 ? 'besoins' : 'epargne', Math.round(Math.sin(i) * 150));
+    assert.equal(sum(v), 100);
+    assert.ok(Object.values(v).every((n) => n >= 0 && n % 5 === 0));
+  }
+  assert.equal(allocationAmount(PART, 10), 180);
+  assert.equal(allocationAmount(PART, 70), 1260);
+  const t = allocationTemplateValues(PART, { besoins: 70, envies: 15, epargne: 15 });
+  assert.equal(t.epargne_montant, 270);
+  assert.equal(fillTemplate('Dans un an : {epargne_montant*12} €', t, String), 'Dans un an : 3240 €');
+  // Sans base : les valeurs telles quelles
+  assert.equal(allocationTemplateValues(PAIE, { epargne: 180 }).epargne_montant, undefined);
+  assert.equal(PAIE.base, null);
+});
+
+test('répartir en pourcentages : épargne d’au moins 10 %, besoins d’au moins 50 %', () => {
+  assert.equal(gradeAllocation(PART, initialAllocation(PART.buckets)).failed?.val?.line, 'Épargne trop basse');
+  assert.equal(gradeAllocation(PART, { besoins: 70, envies: 20, epargne: 10 }).passed, true);
+  assert.equal(gradeAllocation(PART, { besoins: 70, envies: 25, epargne: 5 }).passed, false);
+  assert.equal(gradeAllocation(PART, { besoins: 45, envies: 35, epargne: 20 }).failed?.val?.line, 'Besoins trop bas');
+  assert.equal(gradeAllocation(PART, { besoins: 50, envies: 40, epargne: 10 }).passed, true);
 });

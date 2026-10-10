@@ -4,9 +4,9 @@
 import { toObjective, type Objective } from '../lesson/discovery';
 import { type AuthFailure, readableMessage } from './authErrors';
 
-// Bienvenue → objectif → leçon découverte → fin → inscription (pseudo,
-// compte, rappel) → accueil d'Apprendre
-export const ONBOARDING_STEPS = ['bienvenue', 'objectif', 'lecon', 'fin', 'pseudo', 'compte', 'rappel'] as const;
+// Bienvenue → prénom → objectif → leçon découverte → fin → inscription
+// (pseudo, compte, rappel) → accueil d'Apprendre
+export const ONBOARDING_STEPS = ['bienvenue', 'prenom', 'objectif', 'lecon', 'fin', 'pseudo', 'compte', 'rappel'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 // en-cours : parcours à reprendre ; termine : compte créé ou connecté (jamais
@@ -17,9 +17,15 @@ export type OnboardingState = {
   status: OnboardingStatus;
   step: OnboardingStep;
   objective: Objective | null;
+  // Prénom donné à Val (vide : passé). Reste sur le téléphone.
+  firstName: string;
   pseudo: string;
-  // Leçons découvertes déjà jouées (accueil sans compte : « Rejouer »)
+  // Leçons découvertes commencées, et terminées au moins une fois
+  started: Objective[];
   played: Objective[];
+  // Jours (AAAA-MM-JJ, heure du téléphone) où une leçon découverte a été
+  // terminée : la série de l'accueil sans compte
+  lessonDays: string[];
   // Dernière réponse « inscription_fermee » du serveur (horodatage), sinon null
   signupClosedAt: number | null;
 };
@@ -28,8 +34,11 @@ export const INITIAL_ONBOARDING: OnboardingState = {
   status: 'en-cours',
   step: 'bienvenue',
   objective: null,
+  firstName: '',
   pseudo: '',
+  started: [],
   played: [],
+  lessonDays: [],
   signupClosedAt: null,
 };
 
@@ -43,22 +52,28 @@ export function parseOnboarding(raw: unknown): OnboardingState {
   const objective = toObjective(r.objective);
   // Sans objectif, ni leçon ni fin : on repart du choix de l'objectif
   const safeStep = !objective && (step === 'lecon' || step === 'fin') ? 'objectif' : step;
-  // Leçons jouées : objectifs connus (anciens traduits), sans doublon
-  const played = Array.isArray(r.played)
-    ? [...new Set(r.played.map(toObjective).filter((o): o is Objective => o !== null))]
-    : [];
   const closedAt = typeof r.signupClosedAt === 'number' && Number.isFinite(r.signupClosedAt) ? r.signupClosedAt : null;
   return {
     status,
     step: safeStep,
     objective,
+    firstName: typeof r.firstName === 'string' ? cleanFirstName(r.firstName) : '',
     pseudo: typeof r.pseudo === 'string' ? r.pseudo : '',
-    played,
+    started: objectiveList(r.started),
+    played: objectiveList(r.played),
+    lessonDays: Array.isArray(r.lessonDays)
+      ? [...new Set(r.lessonDays.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)))].sort()
+      : [],
     signupClosedAt: closedAt,
   };
 }
 
-// Leçon découverte terminée : ajoutée aux leçons jouées (une seule fois)
+// Leçons relues : objectifs connus (anciens traduits), sans doublon
+function objectiveList(raw: unknown): Objective[] {
+  return Array.isArray(raw) ? [...new Set(raw.map(toObjective).filter((o): o is Objective => o !== null))] : [];
+}
+
+// Leçon découverte commencée ou terminée : ajoutée à la liste (une seule fois)
 export function withPlayed(played: Objective[], objective: Objective): Objective[] {
   return played.includes(objective) ? played : [...played, objective];
 }
@@ -73,11 +88,13 @@ export function isSignupClosed(closedAt: number | null, now: number = Date.now()
   return closedAt !== null && now - closedAt >= 0 && now - closedAt < SIGNUP_CLOSED_MEMORY_MS;
 }
 
-export type OnboardingRoute = '/bienvenue' | '/bienvenue/objectif' | '/bienvenue/lecon' | '/bienvenue/fin' | '/bienvenue/inscription';
+export type OnboardingRoute = '/bienvenue' | '/bienvenue/prenom' | '/bienvenue/objectif' | '/bienvenue/lecon' | '/bienvenue/fin' | '/bienvenue/inscription';
 
 // Écran où reprendre le parcours
 export function routeForStep(step: OnboardingStep): OnboardingRoute {
   switch (step) {
+    case 'prenom':
+      return '/bienvenue/prenom';
     case 'objectif':
       return '/bienvenue/objectif';
     case 'lecon':
@@ -93,10 +110,43 @@ export function routeForStep(step: OnboardingStep): OnboardingRoute {
   }
 }
 
+// Étape suivante du parcours (la dernière reste la dernière)
+export function stepAfter(step: OnboardingStep): OnboardingStep {
+  const i = ONBOARDING_STEPS.indexOf(step);
+  return ONBOARDING_STEPS[Math.min(i + 1, ONBOARDING_STEPS.length - 1)];
+}
+
 // Montrer le parcours ? Jamais à une personne connectée ; une fois terminé
 // ou remis à plus tard, plus jamais
 export function shouldShowOnboarding(state: OnboardingState, isAuthenticated: boolean): boolean {
   return !isAuthenticated && state.status === 'en-cours';
+}
+
+// ---------------------------------------------------------------------------
+// Prénom
+// ---------------------------------------------------------------------------
+
+export const FIRST_NAME_MAX = 30;
+
+// Prénom saisi : espaces de début et de fin retirés, espaces répétés réduits
+// à un seul, 30 caractères au plus
+export function cleanFirstName(raw: string): string {
+  return raw.replace(/\s+/g, ' ').trim().slice(0, FIRST_NAME_MAX).trim();
+}
+
+// Pseudo proposé à l'inscription à partir du prénom, aux règles du serveur :
+// accents retirés, espaces changés en tirets, autres signes écartés, 20
+// caractères au plus. Trop court pour le serveur : proposé quand même (la
+// personne le complète).
+export function pseudoFromFirstName(firstName: string): string {
+  return cleanFirstName(firstName)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s']+/g, '-')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 20);
 }
 
 // ---------------------------------------------------------------------------

@@ -21,7 +21,7 @@ import {
   universeName,
 } from '../src/lesson/discovery';
 import { computeFormula } from '../src/lesson/formulas';
-import { rangeLine } from '../src/lesson/interactive';
+import { allocationTemplateValues, fillTemplate, rangeLine } from '../src/lesson/interactive';
 import type { LessonScreen, Universe } from '../src/lesson/model';
 import { normalizeLesson } from '../src/lesson/normalize';
 
@@ -265,7 +265,14 @@ test('répliques de Val : l’humeur du document', () => {
       const lines = [...valLines(s), ...(s.kind === 'allocate' ? s.rules.map((r) => r.val).filter((v) => v !== null) : [])];
       for (const v of lines) {
         // Gabarit : comparé sans ses valeurs
-        const key = plain(v.line.includes('{') ? v.line.replace(/\{epargne\}/, '<épargne>').replace(/\{epargne\*12\}/, '<épargne × 12>') : v.line);
+        const key = plain(
+          v.line.includes('{')
+            ? v.line
+                .replace(/\{epargne\}/, '<épargne>')
+                .replace(/\{epargne_montant\*12\}/, '<montant × 12>')
+                .replace(/\{epargne_montant\}/, '<montant>')
+            : v.line
+        );
         const mood = DOC_MOODS.get(key);
         assert.ok(mood, `${o} #${s.index} : réplique sans humeur dans le document « ${v.line} »`);
         assert.equal(v.mood, mood, `${o} #${s.index} « ${v.line} »`);
@@ -368,27 +375,33 @@ test('simulateur de la leçon 4 : mensualité et intérêts selon la durée (rep
   assert.equal(rangeLine(s.ranges, 15), rangeLine(s.ranges, 25));
 });
 
-test('répartir de la leçon 1 : 1 800 €, pots et règles du document', () => {
+test('répartir de la leçon 1 : 1 800 € en pourcentages, pots et règles du document', () => {
   const s = screens('epargner')[2];
   assert.ok(s.kind === 'allocate');
-  assert.equal(s.total, 1800);
-  assert.equal(s.step, 10);
+  assert.equal(s.question, 'Ta paie de 1 800 € vient de tomber. Quelle part pour chaque pot ?');
+  assert.equal(s.total, 100);
+  assert.equal(s.step, 5);
+  assert.equal(s.unit, '%');
+  assert.equal(s.base, 1800);
   assert.deepEqual(
     s.buckets.map((b) => [b.key, b.start, b.reservoir]),
     [
-      ['besoins', 1260, false],
-      ['envies', 540, true],
+      ['besoins', 70, false],
+      ['envies', 30, true],
       ['epargne', 0, false],
     ]
   );
+  assert.equal(s.buckets[2].live, 'Dans un an : {epargne_montant*12} €');
   assert.deepEqual(
     s.rules.map((r) => [r.bucket, r.min]),
     [
-      ['epargne', 180],
-      ['besoins', 900],
+      ['epargne', 10],
+      ['besoins', 50],
     ]
   );
-  assert.equal(180, 1800 * 0.1);
+  // Réplique de réussite : 15 % de 1 800 €, c'est 270 € par mois, 3 240 € par an
+  const line = fillTemplate(s.val.correct!.line, allocationTemplateValues(s, { besoins: 70, envies: 15, epargne: 15 }), String);
+  assert.equal(line, '15 % de ta paie, c’est 270 € par mois et 3240 € dans un an, sans y penser.');
 });
 
 test('impôts : le barème simplifié donne bien 410 € et un taux moyen de 12,7 % pour Léa', () => {

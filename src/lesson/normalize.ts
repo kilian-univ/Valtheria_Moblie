@@ -262,8 +262,9 @@ export function normalizeScreen(raw: unknown, index: number): LessonScreen {
       };
     }
 
-    // { total, step, unit, buckets: [{ key, label, hint, start, reservoir,
-    // live }], rules: [{ bucket, min, val }] }. Sans rules (format à cibles
+    // { total, step, unit, base, base_unit, buckets: [{ key, label, hint,
+    // start, reservoir, live }], rules: [{ bucket, min, val }] }. base : pots
+    // en pourcentages de cette somme (total 100). Sans rules (format à cibles
     // du site) : pas encore géré, FallbackScreen.
     case 'allocate': {
       const total = num(p.total);
@@ -284,7 +285,18 @@ export function normalizeScreen(raw: unknown, index: number): LessonScreen {
       const sum = buckets.reduce((acc, b) => acc + b.start, 0);
       if (total === null || buckets.length < 2 || reservoirs !== 1 || rules.length === 0 || Math.abs(sum - total) > 1e-6) break;
       const step = num(p.step) !== null && p.step > 0 ? p.step : 1;
-      return { ...base, kind: 'allocate', total, step, unit: plainText(p.unit), buckets, rules };
+      const amountBase = num(p.base);
+      return {
+        ...base,
+        kind: 'allocate',
+        total,
+        step,
+        unit: plainText(p.unit),
+        base: amountBase !== null && amountBase > 0 && total === 100 ? amountBase : null,
+        baseUnit: plainText(p.base_unit),
+        buckets,
+        rules,
+      };
     }
 
     // { label, min, max, step, start, unit, formula, params, outputs: [{ key,

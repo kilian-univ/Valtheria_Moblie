@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,13 +13,17 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { discoveryPlan, nextLessonTitle, toObjective, universeName } from '@/src/lesson/discovery';
 import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
+import { getReminderSettings } from '@/src/state/reminder';
+import { discoveryStreak, endActions, endTitle } from '@/src/utils/discoveryHome';
 import { isSignupClosed } from '@/src/utils/onboarding';
 
 const VAL_HEIGHT = 170;
 const LOCK = 44;
 
-// Fin de la leçon découverte : Val fier, la série qui commence, la prochaine
-// leçon (verrouillée tant qu'il n'y a pas de compte)
+// Fin de la leçon découverte : Val fier (« Bravo, <prénom> ! »), la série,
+// la prochaine leçon (verrouillée tant qu'il n'y a pas de compte). Inscription
+// ouverte : créer le compte ; fermée : « Me rappeler demain » (choix du
+// rappel), ou « Plus tard » vers l'accueil.
 export default function DiscoveryEndScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -31,6 +35,19 @@ export default function DiscoveryEndScreen() {
   const fromHome = params.depuis === 'accueil';
   const plan = discoveryPlan((fromHome ? toObjective(params.objectif) : null) ?? state.objective);
   const closed = isSignupClosed(state.signupClosedAt);
+  const streak = Math.max(1, discoveryStreak(state.lessonDays));
+  // Rappel déjà actif : pas de « Me rappeler demain »
+  const [reminderOn, setReminderOn] = useState(false);
+  useEffect(() => {
+    let active = true;
+    getReminderSettings().then((r) => {
+      if (active) setReminderOn(r.enabled);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const actions = endActions(closed, reminderOn);
   // Sans compte, rien n'est chargé en général : la carte nomme alors l'univers
   const { modules, universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
   const nextTitle = nextLessonTitle(plan, universes, modules) ?? `Première leçon de l’univers ${universeName(plan, universes)}`;
@@ -56,7 +73,7 @@ export default function DiscoveryEndScreen() {
         <ValFullBody pose="fier" height={VAL_HEIGHT} halo />
         <StaggerItem index={0}>
           <AppText variant="title1" accessibilityRole="header" style={styles.center}>
-            Première leçon terminée !
+            {endTitle(state.firstName, state.played.length <= 1)}
           </AppText>
         </StaggerItem>
         <StaggerItem index={1}>
@@ -66,7 +83,7 @@ export default function DiscoveryEndScreen() {
               🔥
             </AppText>
             <AppText variant="bodyMedium" tone="gold">
-              Jour 1 : ta série commence
+              {streak === 1 ? 'Jour 1 : ta série commence' : `Jour ${streak} : ta série continue`}
             </AppText>
           </View>
         </StaggerItem>
@@ -91,22 +108,29 @@ export default function DiscoveryEndScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
         {/* Même règle que l'accueil : inscription fermée, pas de « Créer mon compte » */}
-        {closed ? (
-          <>
-            <AppText variant="caption" tone="subtitle" style={styles.center}>
-              Les inscriptions ouvrent très bientôt. Ta progression est gardée sur ton téléphone.
-            </AppText>
-            <Button label="J’ai déjà un compte" onPress={() => router.push('/client/login')} />
-          </>
-        ) : (
+        {actions.kind === 'register' ? (
           <>
             <Button label="Créer mon compte pour continuer" onPress={signUp} />
             <AppText variant="caption" tone="subtitle" style={styles.center}>
               Gratuit. Ta série et ta progression sont gardées.
             </AppText>
+            <Button variant="text" label={fromHome ? 'Retour à l’accueil' : 'Plus tard'} onPress={later} />
+          </>
+        ) : (
+          <>
+            <AppText variant="caption" tone="subtitle" style={styles.center}>
+              Les inscriptions ouvrent très bientôt. Ta progression est gardée sur ton téléphone.
+            </AppText>
+            {actions.kind === 'reminder' ? (
+              <>
+                <Button label="Me rappeler demain" onPress={() => router.push('/bienvenue/rappel')} />
+                <Button variant="text" label="Plus tard" onPress={later} />
+              </>
+            ) : (
+              <Button label="Retour à l’accueil" onPress={later} />
+            )}
           </>
         )}
-        <Button variant="text" label={fromHome ? 'Retour à l’accueil' : 'Plus tard'} onPress={later} />
       </View>
     </View>
   );

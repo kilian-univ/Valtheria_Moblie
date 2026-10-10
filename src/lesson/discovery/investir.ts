@@ -7,6 +7,8 @@ import { PARI_INTRO } from './shared';
 
 export const investir = {
   title: 'La machine à intérêts',
+  // Phrase d'accroche : carte de l'accueil sans compte
+  hook: 'Ce que le temps fait à 100 € par mois',
   screens: [
     {
       type: 'slider',

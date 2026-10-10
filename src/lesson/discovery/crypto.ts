@@ -7,6 +7,8 @@ import { PARI_INTRO, TRUE_FALSE_QUESTION } from './shared';
 
 export const crypto = {
   title: 'Le grand huit',
+  // Phrase d'accroche : carte de l'accueil sans compte
+  hook: 'Ce que la crypto peut faire en un an',
   screens: [
     {
       type: 'slider',

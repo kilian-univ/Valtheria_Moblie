@@ -8,6 +8,8 @@ import { PARI_INTRO } from './shared';
 
 export const decouvrir = {
   title: 'Ton vrai salaire',
+  // Phrase d'accroche : carte de l'accueil sans compte
+  hook: 'Ce que tu coûtes à ton employeur',
   screens: [
     {
       type: 'slider',

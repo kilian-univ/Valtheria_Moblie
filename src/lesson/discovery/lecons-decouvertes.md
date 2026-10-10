@@ -41,11 +41,12 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - Lignes : sur le compte, toujours 1 000 € ; ce que ça achète encore, environ 820 € (clé) ; 2 % par an est une hypothèse (atténuée).
    - Val (alerte) : « Le chiffre ne bouge pas. C'est ce qu'il achète qui fond. »
 3. **Répartir** (nouveau, noté)
-   - « Ta paie de 1 800 € vient de tomber. Répartis-la. »
-   - Trois pots, curseurs par pas de 10 €, total toujours égal à 1 800 € : Besoins (loyer, courses, transport), départ 1 260 € ; Envies (sorties, achats), départ 540 € ; Épargne, départ 0 €.
-   - Sous l'épargne, en direct : « Dans un an : <épargne × 12> € ».
-   - Réussi si l'épargne fait au moins 10 % (180 €) et les besoins au moins 900 €.
-   - Val, réussi (fier) : « <épargne> € par mois, c'est <épargne × 12> € dans un an, sans y penser. » Pas réussi, épargne trop basse (rassurant) : « Essaie d'en garder au moins 10 % : 180 €. Tes envies s'en remettront. » Pas réussi, besoins trop bas (rassurant) : « Garde de quoi payer le loyer et les courses d'abord. »
+   - « Ta paie de 1 800 € vient de tomber. Quelle part pour chaque pot ? »
+   - Trois pots en pourcentages de la paie, curseurs par pas de 5 %, total toujours égal à 100 % : Besoins (loyer, courses, transport), départ 70 % ; Envies (sorties, achats), départ 30 %, qui s'ajuste tout seul ; Épargne, départ 0 %.
+   - Le pourcentage s'affiche en grand, le montant en euros en petit dessous (10 % = 180 €).
+   - Sous l'épargne, en direct : « Dans un an : <montant × 12> € ».
+   - Réussi si l'épargne fait au moins 10 % et les besoins au moins 50 %.
+   - Val, réussi (fier) : « <épargne> % de ta paie, c'est <montant> € par mois et <montant × 12> € dans un an, sans y penser. » Pas réussi, épargne trop basse (rassurant) : « Essaie d'en garder au moins 10 %. Tes envies s'en remettront. » Pas réussi, besoins trop bas (rassurant) : « Garde au moins la moitié pour le loyer et les courses. »
 4. **Vrai ou faux en rafale** (nouveau, noté)
    - « Le Livret A peut te faire perdre des euros. » Faux : « Ce que tu y mets est garanti. »
    - « L'argent d'un Livret A est disponible à tout moment. » Vrai : « Tu peux le retirer quand tu veux, sans frais. »
@@ -223,6 +224,17 @@ Chaque objectif mène à un univers conseillé, que Val nomme à l'étape du pse
 | Acheter un jour un logement | Le vrai prix d'un crédit | Se loger | pari, révélation, simulateur, ordre, choix |
 | Payer moins d'impôts | Le mythe de la tranche | Impôts | pari, révélation, vrai ou faux, associer, choix |
 | Je découvre, on verra | Ton vrai salaire | Paie, primes et aides | pari, révélation, ordre, dialogue, choix |
+
+Phrase d'accroche de chaque leçon, sur la carte de l'accueil sans compte tant qu'elle n'est pas terminée :
+
+| Leçon découverte | Phrase d'accroche |
+| --- | --- |
+| L'argent qui fond | Pourquoi l'argent qui dort perd de la valeur |
+| La machine à intérêts | Ce que le temps fait à 100 € par mois |
+| Le grand huit | Ce que la crypto peut faire en un an |
+| Le vrai prix d'un crédit | Ce que coûte vraiment un emprunt |
+| Le mythe de la tranche | Pourquoi une prime ne fait jamais perdre d'argent |
+| Ton vrai salaire | Ce que tu coûtes à ton employeur |
 
 La prochaine leçon en teaser est la première leçon du premier module publié de l'univers conseillé ; à défaut, le premier module disponible.
 

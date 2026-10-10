@@ -22,7 +22,15 @@ import { useKnownPseudo } from '@/src/hooks/useKnownPseudo';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
-import { discoveryTiles, guestTitle } from '@/src/utils/discoveryHome';
+import { DISCOVERY } from '@/src/lesson/discovery';
+import {
+  discoveryStreak,
+  discoveryXp,
+  doneToday,
+  guestSubtitle,
+  guestTitle,
+  homeCard,
+} from '@/src/utils/discoveryHome';
 import { inProgressModules, pickUpNext, resolveHomeSituation } from '@/src/utils/learning';
 import { isSignupClosed } from '@/src/utils/onboarding';
 import { modulesOutsideUniverses, visibleUniverses } from '@/src/utils/universes';
@@ -103,10 +111,14 @@ export default function ApprendreHomeScreen() {
   };
 
   const isGuest = !data.isAuthenticated && !data.authPending;
+  // Sans compte : prénom, leçon de l'objectif, série et XP du téléphone
+  const guest = onboarding.state;
+  const signupClosed = isSignupClosed(guest.signupClosedAt);
 
   const header = (
     <HomeHeader
-      title={isGuest ? guestTitle() : undefined}
+      title={isGuest ? guestTitle(guest.firstName) : undefined}
+      subtitle={isGuest ? guestSubtitle(doneToday(guest.lessonDays)) : undefined}
       pseudo={isGuest ? undefined : known.pseudo}
       pseudoPending={known.pending}
       stats={
@@ -124,15 +136,26 @@ export default function ApprendreHomeScreen() {
   if (isGuest) {
     // Les leçons découvertes restent jouables à tout moment, même après la
     // première ouverture
+    const card = homeCard({
+      objective: guest.objective,
+      started: guest.started,
+      played: guest.played,
+      signupClosed,
+      universes: data.universes,
+    });
     body = (
       <View style={styles.stack}>
         {header}
         <GuestHome
-          tiles={discoveryTiles(onboarding.state.objective, onboarding.state.played)}
+          card={card}
+          universeSlug={DISCOVERY[card.objective].universe.slug}
           universes={data.universes}
-          signupClosed={isSignupClosed(onboarding.state.signupClosedAt)}
-          onPlay={(tile) =>
-            router.push({ pathname: '/bienvenue/lecon', params: { objectif: tile.objective, depuis: 'accueil' } })
+          played={guest.played}
+          streak={discoveryStreak(guest.lessonDays)}
+          xp={discoveryXp(guest.played)}
+          signupClosed={signupClosed}
+          onPlay={(objective) =>
+            router.push({ pathname: '/bienvenue/lecon', params: { objectif: objective, depuis: 'accueil' } })
           }
           onRegister={() => router.push('/client/register')}
           onLogin={() => router.push('/client/login')}

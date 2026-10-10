@@ -4,12 +4,16 @@
 
 export type TrackEvent =
   | 'app_ouverte'
+  | 'prenom_saisi'
+  | 'prenom_passe'
   | 'objectif_choisi'
   | 'decouverte_commencee'
   | 'decouverte_terminee'
   | 'inscription_commencee'
   | 'compte_cree'
-  | 'rappel_active';
+  | 'rappel_active'
+  | 'rappel_active_sans_compte'
+  | 'autre_sujet_ouvert';
 
 export function track(name: TrackEvent, data: Record<string, unknown> = {}): void {
   if (typeof __DEV__ !== 'undefined' && __DEV__) console.log(`[mesure] ${name}`, data);

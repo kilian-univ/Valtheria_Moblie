@@ -136,19 +136,24 @@ export type AllocateBucket = {
   start: number;
   // Pot réservoir : absorbe les changements des autres
   reservoir: boolean;
-  // Texte en direct sous le pot : {clé} ou {clé*12} remplacés par les montants
+  // Texte en direct sous le pot : {clé} ou {clé*12} remplacés par les valeurs,
+  // {clé_montant} par le montant en euros (répartition en pourcentages)
   live: string | null;
 };
 
 // Règle de réussite : le pot doit valoir au moins min ; sinon, réplique de Val
 export type AllocateRule = { bucket: string; min: number; val: ValLine | null };
 
-// allocate — répartir un total fixe entre des pots, avec des curseurs
+// allocate — répartir un total fixe entre des pots, avec des curseurs.
+// Avec base : pots en pourcentages (total 100) d'une somme de base (la paie),
+// le montant affiché en petit sous le pourcentage.
 export type AllocateScreen = ScreenBase & {
   kind: 'allocate';
   total: number;
   step: number;
   unit: string | null;
+  base: number | null;
+  baseUnit: string | null;
   buckets: AllocateBucket[];
   rules: AllocateRule[];
 };

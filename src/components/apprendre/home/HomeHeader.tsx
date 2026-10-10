@@ -35,8 +35,10 @@ type HomeHeaderProps = {
   statsLoading?: boolean;
   onStreak: () => void;
   onAccount: () => void;
-  // Titre imposé (accueil sans compte : « Bienvenue » ou « Bonsoir »)
+  // Titre imposé (accueil sans compte : « Bonsoir, <prénom> »)
   title?: string;
+  // Phrase sous le titre (accueil sans compte)
+  subtitle?: string;
 };
 
 export default function HomeHeader({
@@ -47,6 +49,7 @@ export default function HomeHeader({
   onStreak,
   onAccount,
   title,
+  subtitle,
 }: HomeHeaderProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -104,6 +107,11 @@ export default function HomeHeader({
             {hello}
           </AppText>
         )}
+        {subtitle ? (
+          <AppText variant="callout" tone="subtitle">
+            {subtitle}
+          </AppText>
+        ) : null}
         {stats ? (
           <Text style={styles.levelRow} maxFontSizeMultiplier={1.6}>
             <Text style={[LEVEL_TEXT, { color: colors.gold }]}>{`Niveau ${formatInteger(stats.level)}`}</Text>

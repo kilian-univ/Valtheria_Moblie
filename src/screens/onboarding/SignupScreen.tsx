@@ -10,9 +10,10 @@ import Button from '@/src/components/common/Button';
 import TextField from '@/src/components/common/TextField';
 import ValBubble from '@/src/components/common/ValBubble';
 import ReminderPicker from '@/src/components/onboarding/ReminderPicker';
+import ReminderPromise from '@/src/components/onboarding/ReminderPromise';
 import SocialButtons from '@/src/components/onboarding/SocialButtons';
 import StepHeader from '@/src/components/onboarding/StepHeader';
-import { palette, radius, space } from '@/src/constants/style/Style';
+import { palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { discoveryPlan, type Objective, pseudoValLine } from '@/src/lesson/discovery';
@@ -24,6 +25,7 @@ import {
   passwordValid,
   PASSWORD_RULES,
   pseudoError,
+  pseudoFromFirstName,
   sendDiscoveryCredit,
   signupError,
   signupErrorFrom,
@@ -55,7 +57,8 @@ export default function SignupScreen() {
   const [step, setStep] = useState<Step>(() =>
     state.step === 'compte' || state.step === 'rappel' ? state.step : 'pseudo'
   );
-  const [pseudo, setPseudo] = useState(state.pseudo);
+  // Pseudo déjà choisi, sinon proposé d'après le prénom donné à Val
+  const [pseudo, setPseudo] = useState(state.pseudo || pseudoFromFirstName(state.firstName));
   const [pseudoTouched, setPseudoTouched] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -400,19 +403,6 @@ function PasswordRules({ password }: { password: string }) {
   );
 }
 
-function ReminderPromise() {
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
-  return (
-    <View style={[styles.promise, { backgroundColor: colors.surface }]}>
-      <Ionicons name="notifications-outline" size={22} color={colors.gold} />
-      <AppText variant="callout" tone="subtitle" style={styles.promiseText}>
-        Un seul rappel par jour, jamais plus. Tu peux le couper à tout moment dans ton profil.
-      </AppText>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -446,16 +436,6 @@ const styles = StyleSheet.create({
   error: {
     gap: space[1],
     alignItems: 'flex-start',
-  },
-  promise: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space[3] - 2,
-    padding: space[4] - 2,
-    borderRadius: radius.option,
-  },
-  promiseText: {
-    flex: 1,
   },
   footer: {
     paddingHorizontal: space[5],
