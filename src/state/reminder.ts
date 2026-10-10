@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsModule from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { DEFAULT_REMINDER, ReminderTime, reminderMessageFor, upcomingReminders } from '@/src/utils/reminder';
@@ -17,15 +17,31 @@ export type ReminderSettings = { enabled: boolean; time: ReminderTime };
 
 const DEFAULT_SETTINGS: ReminderSettings = { enabled: false, time: DEFAULT_REMINDER };
 
-// Notification reçue app ouverte : affichée quand même
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+// expo-notifications n'est chargé qu'au premier besoin, jamais au lancement :
+// s'il manque ou échoue (Expo Go, module natif absent), le rappel est
+// simplement indisponible et l'app s'ouvre normalement.
+let loaded: typeof NotificationsModule | null | undefined;
+
+function notifications(): typeof NotificationsModule | null {
+  if (loaded !== undefined) return loaded;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod: typeof NotificationsModule = require('expo-notifications');
+    // Notification reçue app ouverte : affichée quand même
+    mod.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }),
+    });
+    loaded = mod;
+  } catch {
+    loaded = null;
+  }
+  return loaded;
+}
 
 export async function getReminderSettings(): Promise<ReminderSettings> {
   try {
@@ -47,7 +63,7 @@ async function saveSettings(settings: ReminderSettings): Promise<void> {
   }
 }
 
-async function schedule(time: ReminderTime): Promise<void> {
+async function schedule(Notifications: typeof NotificationsModule, time: ReminderTime): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(CHANNEL, {
@@ -68,10 +84,12 @@ async function schedule(time: ReminderTime): Promise<void> {
 // n'est programmé, le réglage reste coupé).
 export async function enableReminder(time: ReminderTime): Promise<boolean> {
   try {
+    const Notifications = notifications();
+    if (!Notifications) return false;
     const current = await Notifications.getPermissionsAsync();
     const granted = current.granted || (await Notifications.requestPermissionsAsync()).granted;
     if (!granted) return false;
-    await schedule(time);
+    await schedule(Notifications, time);
     await saveSettings({ enabled: true, time });
     return true;
   } catch {
@@ -82,7 +100,7 @@ export async function enableReminder(time: ReminderTime): Promise<boolean> {
 export async function disableReminder(): Promise<void> {
   const settings = await getReminderSettings();
   try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    await notifications()?.cancelAllScheduledNotificationsAsync();
   } catch {
     // rien de programmé : sans conséquence
   }
@@ -94,8 +112,10 @@ export async function refreshReminder(): Promise<void> {
   const settings = await getReminderSettings();
   if (!settings.enabled) return;
   try {
+    const Notifications = notifications();
+    if (!Notifications) return;
     const permission = await Notifications.getPermissionsAsync();
-    if (permission.granted) await schedule(settings.time);
+    if (permission.granted) await schedule(Notifications, settings.time);
   } catch {
     // échec de programmation : on réessaiera à la prochaine ouverture
   }
