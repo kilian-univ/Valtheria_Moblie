@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSyncExternalStore } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,7 +10,8 @@ import { StaggerItem } from '@/src/components/common/Stagger';
 import ValFullBody from '@/src/components/common/ValFullBody';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { discoveryPlan } from '@/src/lesson/discovery';
+import { discoveryPlan, nextLessonTitle } from '@/src/lesson/discovery';
+import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 
 const VAL_HEIGHT = 170;
@@ -24,6 +26,9 @@ export default function DiscoveryEndScreen() {
   const colors = palette[colorScheme];
   const { state } = useOnboarding();
   const plan = discoveryPlan(state.objective);
+  // Sans compte, rien n'est chargé en général : la carte nomme alors l'univers
+  const { modules, universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
+  const nextTitle = nextLessonTitle(plan, universes, modules) ?? `Première leçon de l’univers ${plan.universe.name}`;
 
   const signUp = () => {
     onboardingStore.update({ step: 'pseudo' });
@@ -57,7 +62,7 @@ export default function DiscoveryEndScreen() {
           <View
             style={[styles.next, { backgroundColor: colors.surface, borderColor: colors.controlBorder }]}
             accessible
-            accessibilityLabel={`Prochaine leçon, verrouillée : ${plan.nextLessonTitle}`}
+            accessibilityLabel={`Prochaine leçon, verrouillée : ${nextTitle}`}
           >
             <View style={[styles.lock, { backgroundColor: colors.pathLockedFace }]}>
               <Ionicons name="lock-closed-outline" size={20} color={colors.subtitle} />
@@ -66,7 +71,7 @@ export default function DiscoveryEndScreen() {
               <AppText variant="sectionLabel" tone="subtitle">
                 Prochaine leçon
               </AppText>
-              <AppText variant="bodyMedium">{plan.nextLessonTitle}</AppText>
+              <AppText variant="bodyMedium">{nextTitle}</AppText>
             </View>
           </View>
         </StaggerItem>

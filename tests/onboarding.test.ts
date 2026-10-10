@@ -4,7 +4,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { DISCOVERY, discoveryLesson, discoveryPlan, OBJECTIVE_OPTIONS, OBJECTIVES } from '../src/lesson/discovery';
+import type { Module } from '../src/context/ApiContext';
+import { DISCOVERY, discoveryLesson, discoveryPlan, nextLessonTitle, OBJECTIVE_OPTIONS, OBJECTIVES } from '../src/lesson/discovery';
+import type { Universe } from '../src/lesson/model';
 import { normalizeLesson } from '../src/lesson/normalize';
 import {
   emailValid,
@@ -38,11 +40,26 @@ test('six objectifs, chacun avec une option, une leçon, un univers, une prochai
   for (const o of OBJECTIVES) {
     const plan = DISCOVERY[o];
     assert.ok(plan.universe.slug && plan.universe.name, o);
-    assert.ok(plan.nextLessonTitle.length > 0, o);
+    assert.ok(plan.nextLesson === null || plan.nextLesson.length > 0, o);
     assert.ok(plan.valLine.length > 0, o);
   }
   // Objectif inconnu : « je découvre »
   assert.equal(discoveryPlan(null), DISCOVERY.decouvrir);
+});
+
+test('prochaine leçon : celle du document, sinon la première de l’univers conseillé, sinon le premier module', () => {
+  const mod = (id: number, title?: string) => ({ id, lessons: title ? [{ title }] : [] }) as unknown as Module;
+  const universe = (slug: string, moduleIds: number[]): Universe => ({ id: 1, slug, name: slug, description: null, position: 0, moduleIds });
+  const modules = [mod(1, 'Budget de base'), mod(2), mod(3, 'Le compte courant')];
+
+  // Fixée par le document
+  assert.equal(nextLessonTitle(DISCOVERY.epargner, [], []), 'Le mois où tout tombe en même temps');
+  // Première leçon publiée de l'univers conseillé (le module 2 est vide)
+  assert.equal(nextLessonTitle(DISCOVERY.comprendre, [universe('garder-la-main', [2, 3])], modules), 'Le compte courant');
+  // Univers sans module publié : premier module disponible
+  assert.equal(nextLessonTitle(DISCOVERY.comprendre, [universe('garder-la-main', [])], modules), 'Budget de base');
+  // Rien de chargé (pas encore de compte)
+  assert.equal(nextLessonTitle(DISCOVERY.comprendre, [], []), null);
 });
 
 test('chaque leçon passe la validation de normalize (aucun écran non géré, un titre)', () => {
@@ -80,39 +97,40 @@ test('révélations : rappel de l’estimation, et décomposition juste (+ ajout
       assert.equal(slider.kind, 'slider');
       if (slider.kind === 'slider') assert.ok(slider.min <= s.value && s.value <= slider.max, `${o} : valeur hors du curseur`);
       // Décomposition : on part de la première ligne, « + » ajoute, « = » doit tomber juste
-      let total = Number(s.lines[0].value);
+      // (en centimes : 13,49 + 11,99 + … ne tombe pas juste en virgule flottante)
+      const cents = (v: unknown) => Math.round(Number(v) * 100);
+      let total = cents(s.lines[0].value);
       for (const line of s.lines.slice(1)) {
-        const v = Number(line.value);
+        const v = cents(line.value);
         if (line.label.startsWith('+')) total += v;
         else if (line.label.startsWith('-') || line.label.startsWith('−')) total -= v;
         else if (line.label.startsWith('=')) assert.equal(v, total, `${o} : « ${line.label} »`);
       }
+      // La ligne clé vaut le grand chiffre (un total « par mois » une fois
+      // multiplié par 12), ou bien en est une part et les lignes chiffrées
+      // s'additionnent pour le donner (versé + intérêts)
       const key = s.lines.find((l) => l.key);
-      assert.equal(Number(key?.value), s.value, `${o} : la ligne clé vaut le grand chiffre`);
+      const keyValue = /par mois/.test(key?.label ?? '') ? Math.round(Number(key?.value) * 12) : Number(key?.value);
+      const sum = s.lines.filter((l) => l.value !== '').reduce((acc, l) => acc + cents(l.value), 0);
+      assert.ok(keyValue === s.value || sum === cents(s.value), `${o} : la ligne clé vaut le grand chiffre`);
     }
   }
 });
 
-test('leçon « comprendre » : les chiffres de la maquette', () => {
+test('leçon « comprendre » : les chiffres du document (abonnements fantômes)', () => {
   const lesson = normalizeLesson(DISCOVERY.comprendre.lesson);
-  const [pari, reveal, question] = lesson.screens;
+  const [pari, reveal] = lesson.screens;
+  assert.equal(lesson.title, 'Les abonnements fantômes');
   assert.equal(pari.kind, 'slider');
-  if (pari.kind === 'slider') assert.deepEqual([pari.min, pari.max, pari.start, pari.unit], [1660, 4000, 2200, '€']);
+  if (pari.kind === 'slider') assert.deepEqual([pari.min, pari.max, pari.start], [0, 2000, 300]);
   assert.equal(reveal.kind, 'reveal');
   if (reveal.kind === 'reveal') {
-    assert.equal(reveal.value, 3055);
+    assert.equal(reveal.value, 1012);
     assert.deepEqual(
       reveal.lines.map((l) => l.value),
-      [1660, 470, 2130, 925, 3055]
+      [13.49, 11.99, 34.9, 15.99, 7.99, 84.36]
     );
   }
-  assert.equal(question.kind, 'choice');
-  if (question.kind === 'choice') {
-    assert.equal(question.question, 'Où partent les 1 395 € d’écart ?');
-    assert.equal(question.options.find((x) => x.correct)?.text, 'Dans les cotisations sociales : retraite, santé, chômage');
-  }
-  // Écart annoncé dans la question = vrai coût − net
-  assert.equal(3055 - 1660, 1395);
 });
 
 // ---------------------------------------------------------------------------
