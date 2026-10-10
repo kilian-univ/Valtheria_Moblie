@@ -9,7 +9,8 @@ import StreakMedal from '@/src/components/common/StreakMedal';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { formatInteger } from '@/src/utils/format';
-import { daysLabel, freezesLabel, MEDALS } from '@/src/utils/streakRewards';
+import { daysLabel, freezesLabel, MEDALS, type WeekDay } from '@/src/utils/streakRewards';
+import StreakWeek from './StreakWeek';
 
 // Emoji de 64 au palier le plus haut
 const FLAME_BOX = 64 / 0.8;
@@ -24,6 +25,8 @@ type StreakSheetProps = {
   best: number;
   // Gels en réserve ; null : compte connecté, le gel arrive bientôt
   freezes: number | null;
+  // Semaine en cours (sans compte : l'historique est sur le téléphone)
+  week?: WeekDay[];
   open: boolean;
   onRequestClose: () => void;
   onClosed: () => void;
@@ -40,6 +43,7 @@ export default function StreakSheet({
   streak,
   best,
   freezes,
+  week,
   open,
   onRequestClose,
   onClosed,
@@ -65,6 +69,11 @@ export default function StreakSheet({
         <AppText variant="callout" tone="subtitle" style={styles.center}>
           {`Meilleure série : ${daysLabel(Math.max(best, streak))}`}
         </AppText>
+        {week ? (
+          <View style={styles.week}>
+            <StreakWeek week={week} />
+          </View>
+        ) : null}
 
         <View style={styles.medals}>
           {MEDALS.map((m) => {
@@ -127,6 +136,10 @@ const styles = StyleSheet.create({
   },
   center: {
     textAlign: 'center',
+  },
+  week: {
+    alignSelf: 'stretch',
+    marginTop: space[4],
   },
   medals: {
     alignSelf: 'stretch',

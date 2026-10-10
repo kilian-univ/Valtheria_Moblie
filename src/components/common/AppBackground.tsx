@@ -14,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { TAB_ROUTES } from '@/src/constants/tabs';
-import { palette, withOpacity } from '@/src/constants/style/Style';
+import { palette } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { Corner, cornerForPath } from '@/src/utils/backgroundCorner';
 
@@ -146,25 +146,36 @@ export function StaticBackground({ tab }: { tab: string }) {
   );
 }
 
-// Hauteur du fondu sous la barre d'état
-const SHADE_FADE = 16;
+// Fondu sous la barre d'état : 32 px en 16 tranches de 2 px, chacune une
+// copie exacte du fond, de moins en moins opaque (courbe adoucie aux deux
+// bouts). Le fondu est fait de la même matière que le fond (dégradé et
+// grain), pas d'une couleur unie : aucun bord ne se devine.
+const SHADE_FADE = 32;
+const SHADE_SLICES = 16;
+const SLICE_HEIGHT = SHADE_FADE / SHADE_SLICES;
+const SLICE_OPACITIES = Array.from({ length: SHADE_SLICES }, (_, i) => {
+  const t = (i + 0.5) / SHADE_SLICES;
+  return 1 - t * t * (3 - 2 * t);
+});
 
 // Bande du haut d'une page qui défile sous la barre d'état : copie exacte du
-// fond (même coin, même grain) sur la zone de sécurité, puis un court fondu.
-// Le contenu qui remonte ne passe jamais sous l'heure ni la batterie.
+// fond (même coin, même grain) sur la zone de sécurité, puis un fondu
+// progressif. Le contenu qui remonte ne passe jamais sous l'heure ni la batterie.
 export function StatusBarShade({ tab }: { tab: string }) {
   const insets = useSafeAreaInsets();
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
-  return (
-    <View pointerEvents="none" style={[styles.shade, { height: insets.top + SHADE_FADE }]}>
-      <View style={[styles.clip, { height: insets.top }]}>
+  const { width, height } = useWindowDimensions();
+  // Tranche de la copie du fond, alignée sur l'écran (même dessin dessous)
+  const slice = (top: number, h: number, opacity: number, key?: number) => (
+    <View key={key} style={[styles.clip, styles.slice, { top, height: h, opacity }]}>
+      <View style={[styles.abs, { top: -top, left: 0, width, height }]}>
         <StaticBackground tab={tab} />
       </View>
-      <LinearGradient
-        colors={[colors.background, withOpacity(colors.background, 0)]}
-        style={{ height: SHADE_FADE }}
-      />
+    </View>
+  );
+  return (
+    <View pointerEvents="none" style={[styles.shade, { height: insets.top + SHADE_FADE }]}>
+      {slice(0, insets.top, 1)}
+      {SLICE_OPACITIES.map((o, i) => slice(insets.top + i * SLICE_HEIGHT, SLICE_HEIGHT, o, i))}
     </View>
   );
 }
@@ -193,6 +204,11 @@ const styles = StyleSheet.create({
   },
   clip: {
     overflow: 'hidden',
+  },
+  slice: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
   },
   abs: {
     position: 'absolute',

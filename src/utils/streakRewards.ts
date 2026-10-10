@@ -155,6 +155,27 @@ export function nextRewardLabel(streak: number): string {
   return `${medal.name} dans ${daysLabel(medal.days - streak)}`;
 }
 
+export type MedalProgress = {
+  // Médaille visée (après 100 jours : la dernière, gagnée)
+  medal: Medal;
+  earned: boolean;
+  // Remplissage de la barre, de 0 à 1, entre le palier précédent et le visé
+  ratio: number;
+  label: string;
+};
+
+// Barre de la carte « Ta série » : progression du palier précédent (0 au
+// départ) au prochain. 1 jour : 1 sur 3 vers Étincelle ; 5 jours : 2 sur 4
+// (de 3 à 7) vers Feu de camp. 0 jour : vide ; 100 et plus : pleine.
+export function medalProgress(streak: number): MedalProgress {
+  const label = nextRewardLabel(streak);
+  const next = nextMedal(Math.max(0, streak));
+  if (!next) return { medal: MEDALS[MEDALS.length - 1], earned: true, ratio: 1, label };
+  if (streak <= 0) return { medal: next, earned: false, ratio: 0, label };
+  const previous = [...MEDALS].reverse().find((m) => m.days <= streak)?.days ?? 0;
+  return { medal: next, earned: false, ratio: (streak - previous) / (next.days - previous), label };
+}
+
 // « 1 gel », « 2 gels »
 export function freezesLabel(n: number): string {
   return `${n} ${n > 1 ? 'gels' : 'gel'}`;

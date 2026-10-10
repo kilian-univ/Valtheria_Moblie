@@ -109,7 +109,6 @@ export default function GuestHome({
       <StaggerItem index={1}>
         <GuestStreakCard
           streak={history.streak}
-          week={weekDays(lessonDays)}
           xp={xp}
           freezes={history.freezes}
           savedYesterday={frozenYesterday(history)}
@@ -144,6 +143,7 @@ export default function GuestHome({
           streak={history.streak}
           best={Math.max(bestStreak, history.best)}
           freezes={history.freezes}
+          week={weekDays(lessonDays)}
           open={streakOpen}
           onRequestClose={closeStreakSheet}
           onClosed={unmountStreakSheet}

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
@@ -10,23 +11,19 @@ import { fonts, palette, radius, softShadow, space, titleLetterSpacing } from '@
 import { useTheme } from '@/src/context/ThemeContext';
 import { formatInteger } from '@/src/utils/format';
 import { tap } from '@/src/utils/haptics';
-import { daysLabel, freezesLabel, nextMedal, nextRewardLabel, type WeekDay } from '@/src/utils/streakRewards';
+import { daysLabel, freezesLabel, medalProgress } from '@/src/utils/streakRewards';
 
 const DEPTH = 6;
 const RADIUS = 20;
 const FLAME = 64;
 const VALUE_SIZE = 28;
-const DAY = 34;
-const SMALL_MEDAL = 28;
-const QUIET_OPACITY = 0.42;
+const TARGET_MEDAL = 32;
+const BAR = 8;
 const SINK_DURATION = 80; // comme le bouton principal
 const NBSP = ' ';
-// Seul emoji autorisé de l'app (validé) : la flamme de la série
-const SMALL_FLAME = '\u{1F525}';
 
 type GuestStreakCardProps = {
   streak: number;
-  week: WeekDay[];
   xp: number;
   freezes: number;
   // Un gel a sauvé la série hier
@@ -37,17 +34,24 @@ type GuestStreakCardProps = {
 };
 
 // Carte « Ta série » de l'accueil sans compte, en relief : flamme vivante,
-// nombre de jours, semaine en cours, prochaine récompense, XP et gels.
+// nombre de jours, message du gel, barre vers la prochaine médaille, XP et
+// gels. La semaine en cours est dans la feuille.
 // Touchée : la feuille « Ta série » (médailles, gel).
-export default function GuestStreakCard({ streak, week, xp, freezes, savedYesterday, ignite, onPress }: GuestStreakCardProps) {
+export default function GuestStreakCard({ streak, xp, freezes, savedYesterday, ignite, onPress }: GuestStreakCardProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
   const press = useSharedValue(0);
   const faceStyle = useAnimatedStyle(() => ({ transform: [{ translateY: press.get() * DEPTH }] }));
   const lit = streak > 0;
-  const next = nextMedal(streak);
-  const reward = nextRewardLabel(streak);
+  const progress = medalProgress(streak);
+
+  // La barre se remplit avec un ressort doux à l'apparition
+  const fill = useSharedValue(reduced ? progress.ratio : 0);
+  useEffect(() => {
+    fill.set(reduced ? progress.ratio : withSpring(progress.ratio, springs.screen));
+  }, [reduced, progress.ratio, fill]);
+  const fillStyle = useAnimatedStyle(() => ({ width: `${Math.round(fill.get() * 1000) / 10}%` }));
 
   return (
     <Pressable
@@ -61,8 +65,7 @@ export default function GuestStreakCard({ streak, week, xp, freezes, savedYester
       accessibilityLabel={[
         lit ? `Ta série : ${daysLabel(streak)}` : 'Allume ta flamme. Termine une leçon aujourd’hui.',
         savedYesterday ? 'Ton gel a sauvé ta série hier.' : null,
-        weekLabel(week),
-        reward,
+        progress.label,
         `${formatInteger(xp)} XP`,
         freezes > 0 ? `${freezesLabel(freezes)} en réserve` : null,
       ]
@@ -93,85 +96,35 @@ export default function GuestStreakCard({ streak, week, xp, freezes, savedYester
           </View>
         </View>
 
-        <View style={styles.week}>
-          {week.map((d, i) => (
-            <View key={i} style={styles.day}>
-              <DayDot day={d} />
-              <AppText variant="caption" tone={d.isToday ? 'gold' : 'subtitle'} maxFontSizeMultiplier={1.3}>
-                {d.letter}
-              </AppText>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.bottom}>
-          <View style={styles.reward}>
-            {next && lit ? <StreakMedal days={next.days} size={SMALL_MEDAL} earned={false} /> : null}
+        <View style={styles.progress}>
+          <View style={styles.progressHead}>
             <AppText variant="caption" tone="subtitle" style={styles.rewardText}>
-              {reward}
+              {progress.label}
             </AppText>
-          </View>
-          <View style={styles.pills}>
-            <View style={[styles.pill, { backgroundColor: colors.goldSoft }]}>
-              <AppText variant="caption" tone="gold" style={styles.pillText}>{`${formatInteger(xp)}${NBSP}XP`}</AppText>
-            </View>
-            {freezes > 0 ? (
-              <View style={[styles.pill, { backgroundColor: colors.frost }]}>
-                <Ionicons name="snow" size={12} color={colors.frostInk} />
-                <AppText variant="caption" style={[styles.pillText, { color: colors.frostInk }]}>
-                  {freezesLabel(freezes)}
-                </AppText>
+            <View style={styles.pills}>
+              <View style={[styles.pill, { backgroundColor: colors.goldSoft }]}>
+                <AppText variant="caption" tone="gold" style={styles.pillText}>{`${formatInteger(xp)}${NBSP}XP`}</AppText>
               </View>
-            ) : null}
+              {freezes > 0 ? (
+                <View style={[styles.pill, { backgroundColor: colors.frost }]}>
+                  <Ionicons name="snow" size={12} color={colors.frostInk} />
+                  <AppText variant="caption" style={[styles.pillText, { color: colors.frostInk }]}>
+                    {freezesLabel(freezes)}
+                  </AppText>
+                </View>
+              ) : null}
+            </View>
+          </View>
+          <View style={styles.barRow}>
+            <View style={[styles.track, { backgroundColor: colors.surface2 }]}>
+              <Animated.View style={[styles.fill, { backgroundColor: colors.gold }, fillStyle]} />
+            </View>
+            <StreakMedal days={progress.medal.days} size={TARGET_MEDAL} earned={progress.earned} />
           </View>
         </View>
       </Animated.View>
     </Pressable>
   );
-}
-
-// Jour de la semaine : série (or, petite flamme), sauvé par un gel (glacier,
-// flocon), manqué (gris plein), avant le début ou à venir (contour discret).
-// Aujourd'hui reste entouré.
-function DayDot({ day }: { day: WeekDay }) {
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
-  const look =
-    day.state === 'done'
-      ? { backgroundColor: colors.gold }
-      : day.state === 'frozen'
-        ? { backgroundColor: colors.frost }
-        : day.state === 'missed'
-          ? { backgroundColor: colors.surface2 }
-          : day.state === 'quiet'
-            ? { borderWidth: 1.5, borderColor: colors.controlBorder, opacity: QUIET_OPACITY }
-            : { borderWidth: 1.5, borderColor: colors.controlBorder };
-  return (
-    <View style={[styles.dayDot, look, day.isToday && { borderWidth: 2, borderColor: colors.gold, opacity: 1 }]}>
-      {day.state === 'done' ? (
-        <Text allowFontScaling={false} style={styles.dayFlame}>
-          {SMALL_FLAME}
-        </Text>
-      ) : day.state === 'frozen' ? (
-        <Ionicons name="snow" size={15} color={colors.frostInk} />
-      ) : null}
-    </View>
-  );
-}
-
-// « Cette semaine : lundi, leçon faite ; mardi, sauvé par un gel… »
-function weekLabel(week: WeekDay[]): string {
-  const states = {
-    done: 'leçon faite',
-    frozen: 'sauvé par un gel',
-    missed: 'manqué',
-    quiet: '',
-    today: 'pas encore de leçon',
-  };
-  return `Cette semaine : ${week
-    .filter((d) => d.state !== 'quiet' || d.isToday)
-    .map((d) => `${d.name}${d.isToday ? ' (aujourd’hui)' : ''}, ${states[d.state] || 'à venir'}`)
-    .join(' ; ')}`;
 }
 
 const styles = StyleSheet.create({
@@ -214,38 +167,31 @@ const styles = StyleSheet.create({
     gap: space[1],
     marginTop: 2,
   },
-  week: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  progress: {
+    gap: space[2],
   },
-  day: {
-    alignItems: 'center',
-    gap: space[1],
-  },
-  dayDot: {
-    width: DAY,
-    height: DAY,
-    borderRadius: DAY / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayFlame: {
-    fontSize: 15,
-    lineHeight: 19,
-  },
-  bottom: {
+  progressHead: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space[3],
   },
-  reward: {
-    flex: 1,
+  barRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space[2],
+    gap: space[3],
+  },
+  track: {
+    flex: 1,
+    height: BAR,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: BAR,
+    borderRadius: radius.pill,
   },
   rewardText: {
-    flexShrink: 1,
+    flex: 1,
   },
   pills: {
     flexDirection: 'row',

@@ -12,6 +12,7 @@ import {
   FREEZE_MAX,
   freezesLabel,
   frozenYesterday,
+  medalProgress,
   medalToCelebrate,
   MEDALS,
   nextMedal,
@@ -186,4 +187,37 @@ test('développement : séries simulées finissant hier, ou avant-hier avec un g
   // Leçon du jour : 30, Flamme d'or
   const done = recordLessonDone({ ...INITIAL_ONBOARDING, lessonDays: simulatedLessonDays(29, NOW), celebratedMedals: [3, 7, 14] }, null, NOW);
   assert.equal(done.medal?.name, 'Flamme d’or');
+});
+
+// ---------------------------------------------------------------------------
+// Barre vers la prochaine médaille
+// ---------------------------------------------------------------------------
+test('barre : progression entre le palier précédent et le prochain', () => {
+  const at = (n: number) => {
+    const p = medalProgress(n);
+    return [p.medal.name, Math.round(p.ratio * 1000) / 1000, p.earned];
+  };
+  // 0 jour : vide, vers Étincelle
+  assert.deepEqual(at(0), ['Étincelle', 0, false]);
+  // 1 jour sur 3 vers Étincelle, puis de 3 à 7 vers Feu de camp
+  assert.deepEqual(at(1), ['Étincelle', 0.333, false]);
+  assert.deepEqual(at(2), ['Étincelle', 0.667, false]);
+  assert.deepEqual(at(3), ['Feu de camp', 0, false]);
+  assert.deepEqual(at(5), ['Feu de camp', 0.5, false]);
+  assert.deepEqual(at(10), ['Brasier', 0.429, false]);
+  assert.deepEqual(at(29), ['Flamme d’or', 0.938, false]);
+  assert.deepEqual(at(80), ['Légende', 0.5, false]);
+  // 100 jours et plus : pleine, la dernière médaille gagnée
+  assert.deepEqual(at(100), ['Légende', 1, true]);
+  assert.deepEqual(at(365), ['Légende', 1, true]);
+});
+
+test('barre : textes et accords', () => {
+  assert.equal(medalProgress(0).label, 'Termine une leçon pour allumer ta flamme');
+  assert.equal(medalProgress(1).label, 'Étincelle dans 2 jours');
+  assert.equal(medalProgress(2).label, 'Étincelle dans 1 jour');
+  assert.equal(medalProgress(13).label, 'Brasier dans 1 jour');
+  assert.equal(medalProgress(59).label, 'Phénix dans 1 jour');
+  assert.equal(medalProgress(61).label, 'Légende dans 39 jours');
+  assert.equal(medalProgress(100).label, 'Ta flamme est à son maximum');
 });
