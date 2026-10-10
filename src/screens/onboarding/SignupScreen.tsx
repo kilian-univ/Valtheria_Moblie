@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,7 +15,8 @@ import StepHeader from '@/src/components/onboarding/StepHeader';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { discoveryPlan, type Objective } from '@/src/lesson/discovery';
+import { discoveryPlan, type Objective, pseudoValLine } from '@/src/lesson/discovery';
+import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { enableReminder } from '@/src/state/reminder';
 import {
@@ -48,6 +49,8 @@ export default function SignupScreen() {
   const { register, login, post, isAuthenticated } = useApi();
   const { state } = useOnboarding();
   const plan = state.objective ? discoveryPlan(state.objective) : null;
+  // Univers déjà chargés (compte connecté auparavant) : leur nom réel
+  const { universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
 
   const [step, setStep] = useState<Step>(() =>
     state.step === 'compte' || state.step === 'rappel' ? state.step : 'pseudo'
@@ -225,7 +228,7 @@ export default function SignupScreen() {
         <ValBubble
           mood="complice"
           diameter={VAL_DIAMETER}
-          text={plan ? plan.valLine : 'Moi, c’est Val. Et toi ?'}
+          text={plan ? pseudoValLine(plan, universes) : 'Moi, c’est Val. Et toi ?'}
         />
         <AppText variant="title2" accessibilityRole="header" style={styles.title}>
           Comment Val doit t’appeler ?

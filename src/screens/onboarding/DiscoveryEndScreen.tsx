@@ -10,7 +10,7 @@ import { StaggerItem } from '@/src/components/common/Stagger';
 import ValFullBody from '@/src/components/common/ValFullBody';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { discoveryPlan, nextLessonTitle, toObjective } from '@/src/lesson/discovery';
+import { discoveryPlan, nextLessonTitle, toObjective, universeName } from '@/src/lesson/discovery';
 import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { isSignupClosed } from '@/src/utils/onboarding';
@@ -33,7 +33,7 @@ export default function DiscoveryEndScreen() {
   const closed = isSignupClosed(state.signupClosedAt);
   // Sans compte, rien n'est chargé en général : la carte nomme alors l'univers
   const { modules, universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
-  const nextTitle = nextLessonTitle(plan, universes, modules) ?? `Première leçon de l’univers ${plan.universe.name}`;
+  const nextTitle = nextLessonTitle(plan, universes, modules) ?? `Première leçon de l’univers ${universeName(plan, universes)}`;
 
   const signUp = () => {
     if (fromHome) {

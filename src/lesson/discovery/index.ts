@@ -51,10 +51,12 @@ export const OBJECTIVE_OPTIONS: readonly { value: Objective; label: string; subj
 export type DiscoveryPlan = {
   // Leçon au format du serveur (GET /lessons/{id})
   lesson: unknown;
-  // Univers conseillé (slug et nom du serveur)
+  // Univers conseillé : slug et nom exacts du serveur (seeder des univers,
+  // ThemesResetSeeder du site), utilisés tant que GET /universes n'est pas chargé
   universe: { slug: string; name: string };
-  // Réaction de Val sur l'écran du pseudo, qui nomme l'univers conseillé
-  valLine: string;
+  // Début de la phrase de Val à l'étape du pseudo ; la suite nomme l'univers
+  // (pseudoValLine)
+  valLead: string;
 };
 
 // Tableau « Après la leçon » du document
@@ -62,34 +64,48 @@ export const DISCOVERY: Record<Objective, DiscoveryPlan> = {
   epargner: {
     lesson: epargner,
     universe: { slug: 'avant-d-investir', name: 'Avant d’investir' },
-    valLine: 'Mettre de côté, bonne idée : on commence par l’univers Avant d’investir. Moi, c’est Val. Et toi ?',
+    valLead: 'Mettre de l’argent de côté ?',
   },
   investir: {
     lesson: investir,
     universe: { slug: 'bourse', name: 'Bourse' },
-    valLine: 'Faire travailler ton argent, ça s’apprend vite : on commence par l’univers Bourse. Moi, c’est Val. Et toi ?',
+    valLead: 'Faire travailler ton argent ?',
   },
   crypto: {
     lesson: crypto,
     universe: { slug: 'crypto', name: 'Crypto' },
-    valLine: 'La crypto, sans le bruit autour : on commence par l’univers Crypto. Moi, c’est Val. Et toi ?',
+    valLead: 'La crypto, sans le bruit autour ?',
   },
   logement: {
     lesson: logement,
     universe: { slug: 'se-loger', name: 'Se loger' },
-    valLine: 'Un logement à toi, ça se prépare : on commence par l’univers Se loger. Moi, c’est Val. Et toi ?',
+    valLead: 'Un logement à toi, un jour ?',
   },
   impots: {
     lesson: impots,
-    universe: { slug: 'impots', name: 'Impôts' },
-    valLine: 'Payer le juste prix, pas un euro de plus : on commence par l’univers Impôts. Moi, c’est Val. Et toi ?',
+    universe: { slug: 'impots', name: 'Impôts, déclarations et remboursements' },
+    valLead: 'Payer moins d’impôts ?',
   },
   decouvrir: {
     lesson: decouvrir,
     universe: { slug: 'paie-primes-et-aides', name: 'Paie, primes et aides' },
-    valLine: 'Tu découvres ? Parfait : on commence par l’univers Paie, primes et aides. Moi, c’est Val. Et toi ?',
+    valLead: 'Tu découvres ? Parfait,',
   },
 };
+
+// Nom de l'univers conseillé : celui du serveur s'il est chargé, sinon celui
+// du code. Apostrophe typographique, comme dans tous les textes de l'app.
+export function universeName(plan: DiscoveryPlan, universes: readonly Universe[] = []): string {
+  const loaded = universes.find((u) => u.slug === plan.universe.slug)?.name?.trim();
+  return (loaded || plan.universe.name).replace(/'/g, '’');
+}
+
+// Phrase de Val à l'étape du pseudo : l'accroche de l'objectif, puis l'univers
+// nommé en fin de phrase (naturel même avec un nom long)
+export function pseudoValLine(plan: DiscoveryPlan, universes: readonly Universe[] = []): string {
+  const next = plan.valLead.endsWith(',') ? 'on commencera' : 'On commencera';
+  return `${plan.valLead} ${next} par l’univers ${universeName(plan, universes)}. Moi, c’est Val. Et toi ?`;
+}
 
 export function discoveryPlan(objective: Objective | null | undefined): DiscoveryPlan {
   return DISCOVERY[toObjective(objective) ?? 'decouvrir'];

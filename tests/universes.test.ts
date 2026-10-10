@@ -12,6 +12,7 @@ import {
   fetchUniverses,
   modulesOutsideUniverses,
   modulesProgressLabel,
+  UNIVERSE_ICONS,
   universeBannerLabel,
   universeIcon,
   visibleUniverses,
@@ -201,4 +202,29 @@ test('icône par slug, icône par défaut pour un univers inconnu', () => {
   assert.equal(universeIcon('bourse'), 'trending-up-outline');
   assert.equal(universeIcon('inconnu'), DEFAULT_UNIVERSE_ICON);
   assert.equal(universeIcon('constructor'), DEFAULT_UNIVERSE_ICON);
+});
+
+// L'ordre des clés de UNIVERSE_ICONS DOIT suivre le champ `ordre` du serveur
+// (ThemesResetSeeder du site, renvoyé comme `position` par GET /api/universes) :
+// sans compte, les univers ne sont pas chargés, et la couleur d'une pastille
+// (accueil, leçons découvertes) se déduit de ce rang. Si le serveur réordonne
+// ses univers, mettre à jour la liste de l'app ET ce test.
+test('les 15 univers de l’app suivent l’ordre du serveur (champ ordre)', () => {
+  assert.deepEqual(Object.keys(UNIVERSE_ICONS), [
+    'avant-d-investir', // 1
+    'bourse', // 2
+    'crypto', // 3
+    'immobilier', // 4
+    'investir-autrement', // 5
+    'paie-primes-et-aides', // 6
+    'revenus-annexes', // 7
+    'entreprendre', // 8
+    'garder-la-main', // 9
+    'se-loger', // 10
+    'savoir-s-endetter', // 11
+    'impots', // 12
+    'macroeconomie', // 13
+    'prix-marches', // 14
+    'analyser-une-entreprise', // 15
+  ]);
 });
