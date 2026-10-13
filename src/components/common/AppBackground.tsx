@@ -146,36 +146,79 @@ export function StaticBackground({ tab }: { tab: string }) {
   );
 }
 
-// Fondu sous la barre d'état : 32 px en 16 tranches de 2 px, chacune une
-// copie exacte du fond, de moins en moins opaque (courbe adoucie aux deux
-// bouts). Le fondu est fait de la même matière que le fond (dégradé et
-// grain), pas d'une couleur unie : aucun bord ne se devine.
+// Fondu fait de la matière du fond (même dégradé, même grain), pas d'une
+// couleur unie : des tranches de 2 à 4 px, chacune une copie exacte du fond
+// alignée sur l'écran, de plus en plus (ou de moins en moins) opaques, sur une
+// courbe adoucie aux deux bouts. Aucun bord ne se devine.
+function smooth(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
+// Tranche de la copie du fond, alignée sur l'écran (même dessin dessous) :
+// top est sa place dans son parent, screenTop sa hauteur réelle à l'écran
+function BackdropSlice({
+  tab,
+  top,
+  screenTop,
+  height,
+  opacity,
+}: {
+  tab: string;
+  top: number;
+  screenTop: number;
+  height: number;
+  opacity: number;
+}) {
+  const { width: w, height: h } = useWindowDimensions();
+  return (
+    <View style={[styles.clip, styles.slice, { top, height, opacity }]}>
+      <View style={[styles.abs, { top: -screenTop, left: 0, width: w, height: h }]}>
+        <StaticBackground tab={tab} />
+      </View>
+    </View>
+  );
+}
+
+type BackdropFadeProps = {
+  tab: string;
+  // Position du fondu depuis le haut de l'écran, et sa hauteur
+  top: number;
+  height: number;
+  // 'in' : de transparent (en haut) au fond plein (en bas) ; 'out' : l'inverse
+  direction: 'in' | 'out';
+  // Nombre de tranches (plus il y en a, plus le fondu est doux)
+  steps?: number;
+};
+
+// Fondu vers le fond commun (bas d'un décor, bande de la barre d'état).
+// Posé en absolu ; ne capte aucun toucher.
+export function BackdropFade({ tab, top, height, direction, steps = 16 }: BackdropFadeProps) {
+  const slice = height / steps;
+  return (
+    <View pointerEvents="none" style={[styles.shade, { top, height }]}>
+      {Array.from({ length: steps }, (_, i) => {
+        const t = (i + 0.5) / steps;
+        const opacity = direction === 'in' ? smooth(t) : 1 - smooth(t);
+        return (
+          <BackdropSlice key={i} tab={tab} top={i * slice} screenTop={top + i * slice} height={slice + 0.5} opacity={opacity} />
+        );
+      })}
+    </View>
+  );
+}
+
+// Fondu sous la barre d'état : 32 px
 const SHADE_FADE = 32;
-const SHADE_SLICES = 16;
-const SLICE_HEIGHT = SHADE_FADE / SHADE_SLICES;
-const SLICE_OPACITIES = Array.from({ length: SHADE_SLICES }, (_, i) => {
-  const t = (i + 0.5) / SHADE_SLICES;
-  return 1 - t * t * (3 - 2 * t);
-});
 
 // Bande du haut d'une page qui défile sous la barre d'état : copie exacte du
 // fond (même coin, même grain) sur la zone de sécurité, puis un fondu
 // progressif. Le contenu qui remonte ne passe jamais sous l'heure ni la batterie.
 export function StatusBarShade({ tab }: { tab: string }) {
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
-  // Tranche de la copie du fond, alignée sur l'écran (même dessin dessous)
-  const slice = (top: number, h: number, opacity: number, key?: number) => (
-    <View key={key} style={[styles.clip, styles.slice, { top, height: h, opacity }]}>
-      <View style={[styles.abs, { top: -top, left: 0, width, height }]}>
-        <StaticBackground tab={tab} />
-      </View>
-    </View>
-  );
   return (
     <View pointerEvents="none" style={[styles.shade, { height: insets.top + SHADE_FADE }]}>
-      {slice(0, insets.top, 1)}
-      {SLICE_OPACITIES.map((o, i) => slice(insets.top + i * SLICE_HEIGHT, SLICE_HEIGHT, o, i))}
+      <BackdropSlice tab={tab} top={0} screenTop={0} height={insets.top} opacity={1} />
+      <BackdropFade tab={tab} top={insets.top} height={SHADE_FADE} direction="out" />
     </View>
   );
 }

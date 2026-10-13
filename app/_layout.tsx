@@ -20,6 +20,7 @@ import OnboardingGate from '@/src/components/onboarding/OnboardingGate';
 import StartupGate from '@/src/components/splash/StartupGate';
 import { valPose } from '@/src/components/common/ValFullBody';
 import { LOGO } from '@/src/constants/brand';
+import { VAULT_IMAGE } from '@/src/components/onboarding/VaultScene';
 import { usePreloadedImages } from '@/src/hooks/usePreloadedImages';
 import { palette } from '@/src/constants/style/Style';
 import { CustomDarkTheme, CustomLightTheme } from '@/src/constants/theme';
@@ -31,8 +32,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 // masque en fondu ; l'accueil est déjà là dessous, avec son squelette.
 // Tout est géré par StartupGate.
 
-// Images du tout premier écran (bienvenue), chargées avant de le montrer
-const STARTUP_IMAGES = [LOGO, valPose('saut').source];
+// Images du tout premier écran (bienvenue : logo, Val, décor du coffre),
+// chargées avant de le montrer
+const STARTUP_IMAGES = [LOGO, valPose('saut').source, VAULT_IMAGE];
 
 function RootLayoutContent() {
   const { colorScheme } = useTheme();
