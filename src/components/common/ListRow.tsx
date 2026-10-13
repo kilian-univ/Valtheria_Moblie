@@ -24,6 +24,15 @@ type BaseProps = {
   last?: boolean;
   onPress?: () => void;
   accessibilityHint?: string;
+  // Lu à la place de « titre, valeur, sous-titre »
+  accessibilityLabel?: string;
+  // Ligne compacte (listes de feuille) : marge verticale de 11, sous-titre
+  // en caption, filet fin, 14 entre l'élément de gauche et le texte, titre
+  // sur deux lignes au plus
+  compact?: boolean;
+  // Marge horizontale du conteneur : la ligne déborde d'autant, pour que
+  // l'appui s'éclaire jusqu'aux bords (le texte reste aligné sur la marge)
+  bleed?: number;
 };
 
 // Verrouillée : estompée, non touchable, et la raison est obligatoire.
@@ -59,15 +68,18 @@ export default function ListRow({
   lockedReason,
   onPress,
   accessibilityHint,
+  accessibilityLabel: labelOverride,
+  compact = false,
+  bleed,
 }: ListRowProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const interactive = !!onPress && !locked;
   const shownSubtitle = locked ? lockedReason : subtitle;
 
-  const accessibilityLabel = [title, value, locked ? `verrouillée, ${lockedReason}` : subtitle]
-    .filter(Boolean)
-    .join(', ');
+  const accessibilityLabel =
+    labelOverride ??
+    [title, value, locked ? `verrouillée, ${lockedReason}` : subtitle].filter(Boolean).join(', ');
 
   return (
     <Pressable
@@ -80,17 +92,24 @@ export default function ListRow({
       accessibilityState={onPress ? { disabled: locked } : undefined}
       style={({ pressed }) => [
         styles.row,
-        !last && { borderBottomWidth: 1, borderBottomColor: colors.border },
+        compact && styles.compactRow,
+        bleed !== undefined && { marginHorizontal: -bleed, paddingHorizontal: bleed },
+        !last &&
+          (compact
+            ? { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.controlBorder }
+            : { borderBottomWidth: 1, borderBottomColor: colors.border }),
         pressed && interactive && { backgroundColor: colors.surface2 },
         locked && styles.locked,
       ]}
     >
       {leading ? <View style={styles.leading}>{leading}</View> : null}
 
-      <View style={styles.texts}>
-        <AppText variant="bodyMedium">{title}</AppText>
+      <View style={[styles.texts, compact && styles.compactTexts]}>
+        <AppText variant="bodyMedium" numberOfLines={compact ? 2 : undefined}>
+          {title}
+        </AppText>
         {shownSubtitle ? (
-          <AppText variant="callout" tone="subtitle">
+          <AppText variant={compact ? 'caption' : 'callout'} tone="subtitle">
             {shownSubtitle}
           </AppText>
         ) : null}
@@ -118,6 +137,13 @@ const styles = StyleSheet.create({
     minHeight: size.rowMin,
     paddingVertical: space[4],
     paddingHorizontal: space[4],
+  },
+  compactRow: {
+    gap: space[4] - 2,
+    paddingVertical: space[3] - 1,
+  },
+  compactTexts: {
+    minWidth: 0,
   },
   leading: {
     alignItems: 'center',
