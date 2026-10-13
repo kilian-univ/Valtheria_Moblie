@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
+import { BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import EndFlowBoundary from '@/src/components/apprendre/end/EndFlowBoundary';
@@ -194,7 +194,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   // Retour Android : la feuille s'ouvre avant toute navigation (aucune page
   // ne s'affiche derrière). Les feuilles ouvertes gèrent leur propre retour.
   useEffect(() => {
-    if (!guarded) return;
+    // Bouton retour matériel : Android seulement (le web ne l'a pas)
+    if (!guarded || Platform.OS !== 'android') return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       askQuit();
       return true;
