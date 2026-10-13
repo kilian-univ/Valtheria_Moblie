@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
+import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -14,6 +13,7 @@ import { counterEasing, durations, springs } from '@/src/constants/motion';
 import { fonts, palette, radius, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { runLabel } from '@/src/utils/lessonPlayer';
+import IconButton from '@/src/components/common/IconButton';
 
 const CLOSE_ICON = 26;
 const BAR_HEIGHT = 14;
@@ -74,14 +74,15 @@ export default function LessonTopBar({ progress, run, onClose }: LessonTopBarPro
 
   return (
     <View style={styles.row}>
-      <Pressable
+      <IconButton
+        variant="plain"
+        icon="close"
+        iconSize={CLOSE_ICON}
+        color={colors.subtitle}
         onPress={onClose}
-        accessibilityRole="button"
         accessibilityLabel="Fermer la leçon"
         style={styles.close}
-      >
-        <Ionicons name="close" size={CLOSE_ICON} color={colors.subtitle} />
-      </Pressable>
+      />
 
       <View style={styles.barColumn}>
         <View style={styles.runSlot}>

@@ -1,9 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
-import { palette, radius, size, space } from '@/src/constants/style/Style';
+import { palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import Button from '@/src/components/common/Button';
 
 // « Continuer avec Apple / Google » de la maquette. Rien n'est branché côté
 // serveur : tant que ce réglage vaut false, aucun bouton n'est affiché (pas
@@ -23,31 +23,8 @@ export default function SocialButtons({ onApple, onGoogle }: SocialButtonsProps)
 
   return (
     <View style={styles.stack}>
-      {onApple ? (
-        <Pressable
-          onPress={onApple}
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.button, { backgroundColor: colors.text, opacity: pressed ? 0.85 : 1 }]}
-        >
-          <Ionicons name="logo-apple" size={20} color={colors.background} />
-          <AppText variant="button" tone="background">
-            Continuer avec Apple
-          </AppText>
-        </Pressable>
-      ) : null}
-      {onGoogle ? (
-        <Pressable
-          onPress={onGoogle}
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.button,
-            { borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: pressed ? colors.surface2 : 'transparent' },
-          ]}
-        >
-          <Ionicons name="logo-google" size={20} color={colors.text} />
-          <AppText variant="button">Continuer avec Google</AppText>
-        </Pressable>
-      ) : null}
+      {onApple ? <Button variant="contrast" icon="logo-apple" label="Continuer avec Apple" onPress={onApple} /> : null}
+      {onGoogle ? <Button variant="secondary" icon="logo-google" label="Continuer avec Google" onPress={onGoogle} /> : null}
       <View style={styles.separator}>
         <View style={[styles.rule, { backgroundColor: colors.border }]} />
         <AppText variant="caption" tone="subtitle">
@@ -62,14 +39,6 @@ export default function SocialButtons({ onApple, onGoogle }: SocialButtonsProps)
 const styles = StyleSheet.create({
   stack: {
     gap: space[3],
-  },
-  button: {
-    minHeight: size.buttonHeight,
-    borderRadius: radius.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space[3] - 2,
   },
   separator: {
     flexDirection: 'row',

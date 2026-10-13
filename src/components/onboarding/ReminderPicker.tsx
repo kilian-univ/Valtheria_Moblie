@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -6,11 +5,12 @@ import Animated from 'react-native-reanimated';
 import AppText from '@/src/components/common/AppText';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
-import { fonts, palette, radius, reliefDepth, size, space, titleLetterSpacing } from '@/src/constants/style/Style';
+import { fonts, palette, radius, reliefDepth, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { select } from '@/src/utils/haptics';
 import { clampTime, formatTime, REMINDER_SLOTS, ReminderTime, sameTime } from '@/src/utils/reminder';
 import { useReliefPress } from '@/src/hooks/useReliefPress';
+import IconButton from '@/src/components/common/IconButton';
 
 const MINUTE_STEP = 15;
 const BIG_TIME = 44;
@@ -59,11 +59,7 @@ export default function ReminderPicker({ value, onChange }: ReminderPickerProps)
         ))}
       </View>
 
-      <Pressable onPress={openCustom} accessibilityRole="button" style={styles.customLink}>
-        <AppText variant="callout" tone="gold" style={styles.center}>
-          {custom ? `Autre heure : ${formatTime(value)}` : 'Choisir une autre heure'}
-        </AppText>
-      </Pressable>
+      <Button variant="link" label={custom ? `Autre heure : ${formatTime(value)}` : 'Choisir une autre heure'} onPress={openCustom} />
 
       {sheetMounted ? (
         <BottomSheet open={sheetOpen} onRequestClose={() => setSheetOpen(false)} onClosed={() => setSheetMounted(false)}>
@@ -137,17 +133,8 @@ function Slot({ label, time, selected, onPress }: { label: string; time: string;
 }
 
 function Stepper({ label, value, onMinus, onPlus }: { label: string; value: string; onMinus: () => void; onPlus: () => void }) {
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
   const button = (icon: 'chevron-up' | 'chevron-down', onPress: () => void, a11y: string) => (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={a11y}
-      style={({ pressed }) => [styles.stepButton, pressed && { backgroundColor: colors.surface2 }]}
-    >
-      <Ionicons name={icon} size={24} color={colors.text} />
-    </Pressable>
+    <IconButton icon={icon} onPress={onPress} accessibilityLabel={a11y} />
   );
   return (
     <View style={styles.stepper}>
@@ -193,10 +180,6 @@ const styles = StyleSheet.create({
   center: {
     textAlign: 'center',
   },
-  customLink: {
-    minHeight: size.tapMin,
-    justifyContent: 'center',
-  },
   sheet: {
     gap: space[5],
     paddingHorizontal: space[5],
@@ -210,13 +193,6 @@ const styles = StyleSheet.create({
   },
   stepper: {
     alignItems: 'center',
-  },
-  stepButton: {
-    width: size.tapMin,
-    height: size.tapMin,
-    borderRadius: size.tapMin / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   bigTime: {
     fontFamily: fonts.title,

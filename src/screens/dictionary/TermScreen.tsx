@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ReactNode, useEffect } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackButton } from '@/src/components/apprendre/module/ModuleHeader';
+import BackButton from '@/src/components/common/BackButton';
 import { StatusBarShade } from '@/src/components/common/AppBackground';
 import AppText from '@/src/components/common/AppText';
 import ListRow from '@/src/components/common/ListRow';
@@ -26,6 +26,7 @@ import { learningStore } from '@/src/state/learningStore';
 import { DictionaryLesson, findEntry, neighbors, sameFamily, shareMessage } from '@/src/utils/dictionary';
 import { dictionaryTermHref, termHref } from '@/src/utils/dictionaryLinks';
 import { select, tap } from '@/src/utils/haptics';
+import IconButton from '@/src/components/common/IconButton';
 
 const TERM_SIZE = 40;
 const VAL_DIAMETER = 56;
@@ -221,23 +222,21 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
           <BackButton onBack={goBack} />
           {entry && !data.reserved ? (
             <View style={styles.actions}>
-              <Pressable
+              <IconButton
+                icon={starred ? 'star' : 'star-outline'}
+                iconSize={ACTION_ICON}
+                color={colors.gold}
                 onPress={toggleStar}
-                accessibilityRole="button"
                 accessibilityLabel={starred ? 'Retirer de Mes mots' : 'Ajouter à Mes mots'}
                 accessibilityState={{ selected: starred }}
-                style={({ pressed }) => [styles.action, pressed && { backgroundColor: colors.surface2 }]}
-              >
-                <Ionicons name={starred ? 'star' : 'star-outline'} size={ACTION_ICON} color={colors.gold} />
-              </Pressable>
-              <Pressable
+              />
+              <IconButton
+                icon="share-outline"
+                iconSize={ACTION_ICON}
                 onPress={share}
-                accessibilityRole="button"
                 accessibilityLabel="Partager ce mot"
-                style={({ pressed }) => [styles.action, styles.lastAction, pressed && { backgroundColor: colors.surface2 }]}
-              >
-                <Ionicons name="share-outline" size={ACTION_ICON} color={colors.text} />
-              </Pressable>
+                style={styles.lastAction}
+              />
             </View>
           ) : null}
         </View>
@@ -266,13 +265,6 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  action: {
-    width: size.tapMin,
-    height: size.tapMin,
-    borderRadius: size.tapMin / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   // Aligne optiquement la dernière icône sur la marge de 20
   lastAction: {

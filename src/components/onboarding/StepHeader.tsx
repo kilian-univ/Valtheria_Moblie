@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { BackButton } from '@/src/components/apprendre/module/ModuleHeader';
+import BackButton from '@/src/components/common/BackButton';
 import AppText from '@/src/components/common/AppText';
 import { palette, radius, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';

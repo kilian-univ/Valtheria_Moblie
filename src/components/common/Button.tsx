@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -8,14 +10,21 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { durations, springs } from '@/src/constants/motion';
-import { opacityDisabled, palette, radius, reliefDepth, size, space } from '@/src/constants/style/Style';
+import { fonts, opacityDisabled, palette, radius, reliefDepth, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { tap } from '@/src/utils/haptics';
 import AppText, { TextTone } from './AppText';
 
 // primary, success, danger : en relief (face + tranche)
-// textDanger : bouton texte rouge (action destructrice discrète)
-export type ButtonVariant = 'primary' | 'success' | 'danger' | 'secondary' | 'text' | 'textDanger';
+// secondary : filet, fond transparent
+// contrast : plein, couleur du texte (« Continuer avec Apple »)
+// text : bouton texte doré ; textDanger : rouge (action destructrice discrète)
+// link : lien dans une phrase ou une carte (taille 14, sans marge,
+//   souligné ou non, couleur au choix)
+export type ButtonVariant = 'primary' | 'success' | 'danger' | 'secondary' | 'contrast' | 'text' | 'textDanger' | 'link';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
+const ICON_SIZE = 20;
 
 type ReliefColors = { face: 'gold' | 'success' | 'error'; edge: 'goldDeep' | 'successDeep' | 'dangerDeep' };
 
@@ -39,6 +48,17 @@ type ButtonProps = {
   // Pas de vibration d'appui : l'action déclenche déjà la sienne
   silent?: boolean;
   style?: StyleProp<ViewStyle>;
+  // Icône à côté du libellé, à gauche par défaut
+  icon?: IconName;
+  iconPosition?: 'left' | 'right';
+  // Couleur du libellé (variantes link et text) : un ton de la palette, ou
+  // une couleur libre (lien posé sur une carte colorée)
+  tone?: TextTone;
+  color?: string;
+  // Lien : souligné, et en demi-gras
+  underline?: boolean;
+  strong?: boolean;
+  accessibilityRole?: 'button' | 'link';
 };
 
 const LABEL_TONE: Record<ButtonVariant, TextTone> = {
@@ -46,8 +66,10 @@ const LABEL_TONE: Record<ButtonVariant, TextTone> = {
   success: 'background',
   danger: 'background',
   secondary: 'text',
+  contrast: 'background',
   text: 'gold',
   textDanger: 'error',
+  link: 'gold',
 };
 
 const PRESSED_SCALE = 0.97; // secondary et boutons texte
@@ -59,17 +81,27 @@ export default function Button({
   disabled = false,
   disabledReason,
   loading = false,
-  fullWidth = variant !== 'text' && variant !== 'textDanger',
+  fullWidth = variant !== 'text' && variant !== 'textDanger' && variant !== 'link',
   accessibilityHint,
   silent = false,
   style,
+  icon,
+  iconPosition = 'left',
+  tone,
+  color,
+  underline = false,
+  strong = false,
+  accessibilityRole = 'button',
 }: ButtonProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
   const relief = RELIEF[variant];
   const isRelief = relief !== undefined;
-  const isText = variant === 'text' || variant === 'textDanger';
+  const isText = variant === 'text' || variant === 'textDanger' || variant === 'link';
+  const isLink = variant === 'link';
+  const labelTone = tone ?? LABEL_TONE[variant];
+  const labelColor = color ?? colors[labelTone];
 
   // relief : enfoncement (0 → reliefDepth) ; autres : échelle (1 → 0,97)
   const press = useSharedValue(0);
@@ -97,14 +129,18 @@ export default function Button({
     onPress();
   };
 
-  const spinnerColor = colors[LABEL_TONE[variant]];
-
+  const iconNode = icon ? <Ionicons name={icon} size={ICON_SIZE} color={labelColor} /> : null;
   const content = (
     <>
-      {loading ? <ActivityIndicator size="small" color={spinnerColor} /> : null}
-      <AppText variant="button" tone={LABEL_TONE[variant]} style={styles.label}>
+      {loading ? <ActivityIndicator size="small" color={labelColor} /> : null}
+      {iconPosition === 'left' ? iconNode : null}
+      <AppText
+        variant={isLink ? 'callout' : 'button'}
+        style={[styles.label, { color: labelColor }, strong && styles.strong, underline && styles.underline]}
+      >
         {label}
       </AppText>
+      {iconPosition === 'right' ? iconNode : null}
     </>
   );
 
@@ -115,7 +151,7 @@ export default function Button({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={inactive}
-        accessibilityRole="button"
+        accessibilityRole={accessibilityRole}
         accessibilityLabel={label}
         accessibilityHint={disabled && disabledReason ? disabledReason : accessibilityHint}
         accessibilityState={{ disabled: inactive, busy: loading }}
@@ -134,7 +170,11 @@ export default function Button({
           <Animated.View
             style={[
               styles.base,
-              isText ? styles.textFace : [styles.secondaryFace, { borderColor: colors.controlBorder }],
+              isText
+                ? [styles.textFace, isLink && styles.linkFace]
+                : variant === 'contrast'
+                  ? [styles.primaryFace, { backgroundColor: colors.text }]
+                  : [styles.secondaryFace, { borderColor: colors.controlBorder }],
               faceStyle,
             ]}
           >
@@ -194,6 +234,16 @@ const styles = StyleSheet.create({
   },
   textFace: {
     minHeight: size.tapMin,
+  },
+  // Lien : aucune marge, il s'aligne sur le texte voisin
+  linkFace: {
+    paddingHorizontal: 0,
+  },
+  strong: {
+    fontFamily: fonts.bodySemibold,
+  },
+  underline: {
+    textDecorationLine: 'underline',
   },
   label: {
     flexShrink: 1,

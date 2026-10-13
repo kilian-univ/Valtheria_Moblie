@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import AppText from '@/src/components/common/AppText';
 import Pill from '@/src/components/common/Pill';
@@ -26,6 +25,8 @@ import type { HomeCard, HomeCardAction } from '@/src/utils/discoveryHome';
 import { tap } from '@/src/utils/haptics';
 import { universeDecor } from '@/src/utils/universes';
 import { useReliefPress } from '@/src/hooks/useReliefPress';
+import Button from '@/src/components/common/Button';
+import Sheen from '@/src/components/common/Sheen';
 
 const RADIUS = 22;
 const DEPTH = 8;
@@ -108,29 +109,10 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
 
       <View style={[styles.edge, { backgroundColor: look.deep, boxShadow: softShadow(colors.groundShadow) }]} />
       <View style={[styles.face, { backgroundColor: look.face }]}>
-        {/* Reflet radial, en haut à gauche */}
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Defs>
-            <RadialGradient id="guestCardShine" cx="25%" cy="15%" r="45%" fx="25%" fy="15%">
-              <Stop offset="0" stopColor={colors.nodeHighlight} stopOpacity={0.28} />
-              <Stop offset="1" stopColor={colors.nodeHighlight} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Rect width="100%" height="100%" fill="url(#guestCardShine)" />
-        </Svg>
-        {six ? (
-          // Assombrissement léger derrière Val : le trophée et les détails
-          // dorés se détachent du fond doré
-          <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Defs>
-              <RadialGradient id="guestCardShade" cx="78%" cy="48%" r="42%" fx="78%" fy="48%">
-                <Stop offset="0" stopColor={colors.nodeShade} stopOpacity={0.18} />
-                <Stop offset="1" stopColor={colors.nodeShade} stopOpacity={0} />
-              </RadialGradient>
-            </Defs>
-            <Rect width="100%" height="100%" fill="url(#guestCardShade)" />
-          </Svg>
-        ) : null}
+        {/* Reflet radial en haut à gauche ; six sur six : léger assombrissement
+            derrière Val, pour que le trophée se détache du fond doré */}
+        <Sheen spots={[{ cx: 0.25, cy: 0.15, r: 0.45, color: colors.nodeHighlight, opacity: 0.28 }]} />
+        {six ? <Sheen spots={[{ cx: 0.78, cy: 0.48, r: 0.42, color: colors.nodeShade, opacity: 0.18 }]} /> : null}
 
         {six ? null : (
           <Image
@@ -183,9 +165,16 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
           onPress={() => onAction(card.action)}
         />
         {card.action === 'creer-compte' ? (
-          <Pressable onPress={onLogin} accessibilityRole="link" accessibilityLabel="J’ai déjà un compte, se connecter" style={styles.login}>
-            <AppText style={[styles.loginText, { color: ink }]}>J’ai déjà un compte</AppText>
-          </Pressable>
+          <Button
+            variant="link"
+            label="J’ai déjà un compte"
+            color={ink}
+            underline
+            strong
+            accessibilityRole="link"
+            onPress={onLogin}
+            style={styles.login}
+          />
         ) : null}
       </View>
 
@@ -328,12 +317,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: -space[3],
     marginBottom: -space[2],
-  },
-  loginText: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 14,
-    lineHeight: 20,
-    textDecorationLine: 'underline',
   },
   // Toujours en bas de la carte
   button: {

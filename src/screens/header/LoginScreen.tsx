@@ -1,15 +1,15 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackButton } from '@/src/components/apprendre/module/ModuleHeader';
+import BackButton from '@/src/components/common/BackButton';
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import TextField from '@/src/components/common/TextField';
 import ValBubble from '@/src/components/common/ValBubble';
 import SocialButtons from '@/src/components/onboarding/SocialButtons';
-import { opacityDisabled, size, space } from '@/src/constants/style/Style';
+import { space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { resetFlameIgnition } from '@/src/state/flameIgnition';
 import { onboardingStore } from '@/src/state/onboarding';
@@ -121,15 +121,13 @@ export default function LoginScreen() {
         />
 
         <View style={styles.forgot}>
-          <Pressable
+          <Button
+            variant="link"
+            tone="text"
+            label="Mot de passe oublié ?"
             onPress={forgotPassword}
             disabled={!FORGOT_PASSWORD_ENABLED}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !FORGOT_PASSWORD_ENABLED }}
-            style={[styles.forgotButton, !FORGOT_PASSWORD_ENABLED && styles.disabled]}
-          >
-            <AppText variant="callout">Mot de passe oublié ?</AppText>
-          </Pressable>
+          />
           {!FORGOT_PASSWORD_ENABLED ? (
             <AppText variant="caption" tone="subtitle" style={styles.right}>
               Bientôt disponible dans l’app. En attendant, passe par le site.
@@ -230,13 +228,6 @@ const styles = StyleSheet.create({
   forgot: {
     alignItems: 'flex-end',
     gap: 2,
-  },
-  forgotButton: {
-    minHeight: size.tapMin,
-    justifyContent: 'center',
-  },
-  disabled: {
-    opacity: opacityDisabled,
   },
   right: {
     textAlign: 'right',

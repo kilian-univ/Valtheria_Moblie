@@ -11,11 +11,12 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Defs, Ellipse, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 
 import { durations, springs } from '@/src/constants/motion';
 import { palette, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import Sheen from '@/src/components/common/Sheen';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -198,20 +199,14 @@ export default function PathNode({
           ]}
         >
           {/* Volume : reflet radial clair en haut à gauche, ombre en bas à droite */}
-          <Svg width={width} height={faceHeight} style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Defs>
-              <RadialGradient id={`h${id}`} cx="30%" cy="26%" r={`${HIGHLIGHT_REACH * 100}%`}>
-                <Stop offset="0" stopColor={colors.nodeHighlight} stopOpacity={HIGHLIGHT_OPACITY} />
-                <Stop offset="1" stopColor={colors.nodeHighlight} stopOpacity={0} />
-              </RadialGradient>
-              <RadialGradient id={`s${id}`} cx="78%" cy="82%" r="60%">
-                <Stop offset="0" stopColor={colors.nodeShade} stopOpacity={SHADE_OPACITY} />
-                <Stop offset="1" stopColor={colors.nodeShade} stopOpacity={0} />
-              </RadialGradient>
-            </Defs>
-            <Rect x="0" y="0" width={width} height={faceHeight} fill={`url(#s${id})`} />
-            <Rect x="0" y="0" width={width} height={faceHeight} fill={`url(#h${id})`} />
-          </Svg>
+          <Sheen
+            width={width}
+            height={faceHeight}
+            spots={[
+              { cx: 0.78, cy: 0.82, r: 0.6, color: colors.nodeShade, opacity: SHADE_OPACITY },
+              { cx: 0.3, cy: 0.26, r: HIGHLIGHT_REACH, color: colors.nodeHighlight, opacity: HIGHLIGHT_OPACITY },
+            ]}
+          />
           <View style={styles.icon}>
             <Animated.View style={[StyleSheet.absoluteFill, styles.center, offIconStyle]}>
               <Ionicons name={iconName} size={iconSize} color={off.icon} />

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { ReactNode, useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,6 +16,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { durations, springs } from '@/src/constants/motion';
 import { palette, radius, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import IconButton from './IconButton';
 
 const HANDLE_WIDTH = 36;
 const HANDLE_HEIGHT = 5;
@@ -186,14 +186,14 @@ export default function BottomSheet({
               <>
                 <View style={[styles.handle, { backgroundColor: colors.controlBorder }]} />
 
-                <Pressable
+                <IconButton
+                  icon="close"
+                  iconSize={CLOSE_SIZE}
+                  color={colors.subtitle}
                   onPress={onRequestClose}
-                  accessibilityRole="button"
                   accessibilityLabel="Fermer"
-                  style={({ pressed }) => [styles.close, pressed && { backgroundColor: colors.surface2 }]}
-                >
-                  <Ionicons name="close" size={CLOSE_SIZE} color={colors.subtitle} />
-                </Pressable>
+                  style={styles.close}
+                />
               </>
             ) : null}
 

@@ -9,7 +9,7 @@ import StatPills, { StatPillsSkeleton } from '@/src/components/apprendre/home/St
 import StreakSheet from '@/src/components/apprendre/home/StreakSheet';
 import LessonList from '@/src/components/apprendre/module/LessonList';
 import LessonSheet from '@/src/components/apprendre/module/LessonSheet';
-import { BackButton } from '@/src/components/apprendre/module/ModuleHeader';
+import BackButton from '@/src/components/common/BackButton';
 import ModuleSkeleton from '@/src/components/apprendre/module/ModuleSkeleton';
 import NextLessonBar from '@/src/components/apprendre/module/NextLessonBar';
 import JumpButton from '@/src/components/apprendre/module/path/JumpButton';

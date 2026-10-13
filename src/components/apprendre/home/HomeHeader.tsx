@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import Skeleton from '@/src/components/common/Skeleton';
@@ -9,6 +8,7 @@ import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { formatInteger } from '@/src/utils/format';
 import StatPills, { PILL_HEIGHT, StatPillsSkeleton } from './StatPills';
+import IconButton from '@/src/components/common/IconButton';
 
 const LOGO_HEIGHT = 26;
 // Bloc à la place du pseudo pas encore connu (titre de 30 / 36)
@@ -78,24 +78,22 @@ export default function HomeHeader({
             <StatPillsSkeleton />
           ) : null}
 
-          <Pressable
-            onPress={onAccount}
-            accessibilityRole="button"
-            accessibilityLabel={stats || statsLoading ? 'Mon compte' : 'Se connecter'}
+          <IconButton
+            variant="filled"
+            size={PILL_HEIGHT}
             hitSlop={4}
-            style={({ pressed }) => [
-              styles.avatar,
-              { backgroundColor: pressed ? colors.surface2 : colors.surface },
-            ]}
+            icon="person-outline"
+            iconSize={PERSON_ICON_SIZE}
+            color={colors.gold}
+            onPress={onAccount}
+            accessibilityLabel={stats || statsLoading ? 'Mon compte' : 'Se connecter'}
           >
             {initial ? (
               <Text maxFontSizeMultiplier={1.2} style={[styles.initial, { color: colors.gold }]}>
                 {initial}
               </Text>
-            ) : (
-              <Ionicons name="person-outline" size={PERSON_ICON_SIZE} color={colors.gold} />
-            )}
-          </Pressable>
+            ) : undefined}
+          </IconButton>
         </View>
       </View>
 
@@ -146,13 +144,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space[2],
-  },
-  avatar: {
-    width: PILL_HEIGHT,
-    height: PILL_HEIGHT,
-    borderRadius: PILL_HEIGHT / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   initial: {
     fontFamily: fonts.title,

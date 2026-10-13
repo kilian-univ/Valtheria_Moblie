@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useId } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { fonts, palette, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import Sheen from './Sheen';
 
 // Seul emoji autorisé de l'app (validé) : la flamme de la série
 const FLAME = '\u{1F525}';
@@ -26,7 +25,6 @@ type StreakMedalProps = {
 export default function StreakMedal({ days, size, earned }: StreakMedalProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const id = `medal${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const depth = Math.max(2, Math.round(size * 0.07));
   const face = earned ? colors.gold : colors.surface2;
   const edge = earned ? colors.goldDeep : colors.surfaceEdge;
@@ -44,17 +42,7 @@ export default function StreakMedal({ days, size, earned }: StreakMedalProps) {
     >
       <View style={[styles.disc, { top: depth, width: size, height: size, borderRadius: size / 2, backgroundColor: edge }]} />
       <View style={[styles.disc, styles.face, { width: size, height: size, borderRadius: size / 2, backgroundColor: face }]}>
-        {earned ? (
-          <Svg style={StyleSheet.absoluteFill}>
-            <Defs>
-              <RadialGradient id={id} cx="32%" cy="26%" r="55%" fx="32%" fy="26%">
-                <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.45} />
-                <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
-              </RadialGradient>
-            </Defs>
-            <Rect width="100%" height="100%" fill={`url(#${id})`} />
-          </Svg>
-        ) : null}
+        {earned ? <Sheen spots={[{ cx: 0.32, cy: 0.26, r: 0.55, color: colors.nodeHighlight, opacity: 0.45 }]} /> : null}
         {/* Anneau intérieur : le médaillon */}
         <View
           style={[

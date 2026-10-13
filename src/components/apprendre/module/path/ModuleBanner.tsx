@@ -1,11 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useId } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Animated from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
 import { fonts, ModuleColors, palette, radius, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import IconButton from '@/src/components/common/IconButton';
+import Sheen from '@/src/components/common/Sheen';
+import { useReliefPress } from '@/src/hooks/useReliefPress';
 
 const RADIUS = 18;
 const EDGE = 6;
@@ -50,20 +51,13 @@ export default function ModuleBanner({
 }: ModuleBannerProps) {
   const { colorScheme } = useTheme();
   const theme = palette[colorScheme];
-  const id = useId().replace(/[^a-zA-Z0-9]/g, '');
+  // Bannière touchable : la face seule s'enfonce dans sa tranche
+  const { faceStyle, onPressIn, onPressOut } = useReliefPress(EDGE);
   const clamped = Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0));
 
   const face = (
-    <View style={[styles.face, { backgroundColor: colors.face }]}>
-      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Defs>
-          <RadialGradient id={`b${id}`} cx="22%" cy="20%" r={`${HIGHLIGHT_REACH * 100}%`}>
-            <Stop offset="0" stopColor={theme.nodeHighlight} stopOpacity={HIGHLIGHT_OPACITY} />
-            <Stop offset="1" stopColor={theme.nodeHighlight} stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#b${id})`} />
-      </Svg>
+    <Animated.View style={[styles.face, { backgroundColor: colors.face }, onPress ? faceStyle : null]}>
+      <Sheen spots={[{ cx: 0.22, cy: 0.2, r: HIGHLIGHT_REACH, color: theme.nodeHighlight, opacity: HIGHLIGHT_OPACITY }]} />
 
       <View style={styles.titles}>
         {universe ? (
@@ -92,18 +86,19 @@ export default function ModuleBanner({
       {onGuide ? (
         <>
           <View style={[styles.rule, { backgroundColor: withOpacity(colors.onFace, 0.2) }]} />
-          <Pressable
+          <IconButton
+            variant="plain"
+            size={GUIDE_ZONE}
+            icon="book-outline"
+            iconSize={GUIDE_ICON}
+            color={colors.onFace}
             onPress={onGuide}
-            accessibilityRole="button"
             accessibilityLabel="Guide du module"
             accessibilityHint="Description et liste des leçons"
-            style={styles.guide}
-          >
-            <Ionicons name="book-outline" size={GUIDE_ICON} color={colors.onFace} />
-          </Pressable>
+          />
         </>
       ) : null}
-    </View>
+    </Animated.View>
   );
 
   const body = (
@@ -119,7 +114,9 @@ export default function ModuleBanner({
       accessibilityRole="button"
       accessibilityLabel={[universe, label, title].filter(Boolean).join(', ')}
       accessibilityHint={accessibilityHint}
-      style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={styles.wrap}
     >
       {body}
     </Pressable>
@@ -131,9 +128,6 @@ export default function ModuleBanner({
 const styles = StyleSheet.create({
   wrap: {
     paddingBottom: EDGE,
-  },
-  pressed: {
-    transform: [{ translateY: EDGE / 2 }],
   },
   edge: {
     position: 'absolute',
@@ -185,11 +179,5 @@ const styles = StyleSheet.create({
   rule: {
     width: RULE_W,
     alignSelf: 'stretch',
-  },
-  guide: {
-    width: GUIDE_ZONE,
-    height: GUIDE_ZONE,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

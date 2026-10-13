@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import GuestState from '@/src/components/apprendre/home/GuestState';
 import { ModuleRowsSkeleton } from '@/src/components/apprendre/home/HomeSkeleton';
 import ModuleRow from '@/src/components/apprendre/home/ModuleRow';
-import { BackButton } from '@/src/components/apprendre/module/ModuleHeader';
+import BackButton from '@/src/components/common/BackButton';
 import { StatusBarShade } from '@/src/components/common/AppBackground';
 import AppText from '@/src/components/common/AppText';
 import PageState from '@/src/components/common/PageState';
