@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import AppText from '@/src/components/common/AppText';
+import Pill from '@/src/components/common/Pill';
+import ProgressDots from '@/src/components/common/ProgressDots';
 import GoldHalo from '@/src/components/common/GoldHalo';
 import ValFullBody, { ValPose } from '@/src/components/common/ValFullBody';
 import { DECOR_IMAGES } from '@/src/constants/decorImages';
-import { springs } from '@/src/constants/motion';
 import {
   fonts,
   ModuleColors,
@@ -24,6 +25,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import type { HomeCard, HomeCardAction } from '@/src/utils/discoveryHome';
 import { tap } from '@/src/utils/haptics';
 import { universeDecor } from '@/src/utils/universes';
+import { useReliefPress } from '@/src/hooks/useReliefPress';
 
 const RADIUS = 22;
 const DEPTH = 8;
@@ -53,11 +55,8 @@ const GLOW_OPACITY = 0.2;
 // Décor peint de l'univers, en grand dans la carte, en bas à gauche
 const DECOR_SIZE = 190;
 const DECOR_OPACITY = 0.12;
-const BADGE_HEIGHT = 26;
-const DOT = 9;
 const BUTTON_HEIGHT = 46;
 const BUTTON_RADIUS = 14;
-const SINK_DURATION = 80; // comme le bouton principal
 
 // Libellés lus par le lecteur d'écran (les capitales s'épellent parfois)
 const SPOKEN: Record<HomeCardAction, string> = {
@@ -113,8 +112,8 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
         <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
             <RadialGradient id="guestCardShine" cx="25%" cy="15%" r="45%" fx="25%" fy="15%">
-              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.28} />
-              <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
+              <Stop offset="0" stopColor={colors.nodeHighlight} stopOpacity={0.28} />
+              <Stop offset="1" stopColor={colors.nodeHighlight} stopOpacity={0} />
             </RadialGradient>
           </Defs>
           <Rect width="100%" height="100%" fill="url(#guestCardShine)" />
@@ -125,8 +124,8 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
           <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
             <Defs>
               <RadialGradient id="guestCardShade" cx="78%" cy="48%" r="42%" fx="78%" fy="48%">
-                <Stop offset="0" stopColor="#000000" stopOpacity={0.18} />
-                <Stop offset="1" stopColor="#000000" stopOpacity={0} />
+                <Stop offset="0" stopColor={colors.nodeShade} stopOpacity={0.18} />
+                <Stop offset="1" stopColor={colors.nodeShade} stopOpacity={0} />
               </RadialGradient>
             </Defs>
             <Rect width="100%" height="100%" fill="url(#guestCardShade)" />
@@ -148,12 +147,13 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
           accessible
           accessibilityLabel={`${spokenBadge(card.badge)}. ${card.title}. ${card.text}${spokenProgress}`}
         >
-          <View style={[styles.badge, { backgroundColor: withOpacity(ink, 0.14) }]}>
-            {card.state === 'terminee' || six ? <Ionicons name={six ? 'trophy' : 'checkmark'} size={14} color={ink} /> : null}
-            <AppText maxFontSizeMultiplier={1.3} style={[styles.badgeText, { color: ink }]}>
-              {card.badge}
-            </AppText>
-          </View>
+          <Pill
+            size="badge"
+            label={card.badge}
+            icon={six ? 'trophy' : card.state === 'terminee' ? 'checkmark' : undefined}
+            background={withOpacity(ink, 0.14)}
+            color={ink}
+          />
           <AppText maxFontSizeMultiplier={1.4} style={[styles.title, { color: ink }]} accessibilityRole="header">
             {card.title}
           </AppText>
@@ -162,15 +162,12 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
             <>
               <AppText style={[styles.progress, { color: ink }]}>{card.progress.line}</AppText>
               <View style={styles.dots}>
-                {card.progress.dots.map((done, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dot,
-                      done ? { backgroundColor: colors.gold, borderColor: colors.goldDeep } : { borderColor: withOpacity(ink, 0.45) },
-                    ]}
-                  />
-                ))}
+                <ProgressDots
+                  dots={card.progress.dots}
+                  doneColor={colors.gold}
+                  doneBorder={colors.goldDeep}
+                  emptyBorder={withOpacity(ink, 0.45)}
+                />
               </View>
             </>
           ) : null}
@@ -182,6 +179,7 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
           icon={ICONS[card.action]}
           color={look.deep}
           ivory={colors.ivory}
+          edgeColor={colors.cardEdge}
           onPress={() => onAction(card.action)}
         />
         {card.action === 'creer-compte' ? (
@@ -214,6 +212,7 @@ function IvoryButton({
   icon,
   color,
   ivory,
+  edgeColor,
   onPress,
 }: {
   label: string;
@@ -221,11 +220,10 @@ function IvoryButton({
   icon?: ComponentProps<typeof Ionicons>['name'];
   color: string;
   ivory: string;
+  edgeColor: string;
   onPress: () => void;
 }) {
-  const reduced = useReducedMotion();
-  const press = useSharedValue(0);
-  const faceStyle = useAnimatedStyle(() => ({ transform: [{ translateY: press.get() * reliefDepth }] }));
+  const { faceStyle, onPressIn, onPressOut } = useReliefPress();
 
   return (
     <Pressable
@@ -233,13 +231,13 @@ function IvoryButton({
         tap();
         onPress();
       }}
-      onPressIn={() => press.set(reduced ? 1 : withTiming(1, { duration: SINK_DURATION }))}
-      onPressOut={() => press.set(reduced ? 0 : withSpring(0, springs.press))}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       accessibilityRole="button"
       accessibilityLabel={spokenLabel}
       style={styles.button}
     >
-      <View style={styles.buttonEdge} />
+      <View style={[styles.buttonEdge, { backgroundColor: edgeColor }]} />
       <Animated.View style={[styles.buttonFace, { backgroundColor: ivory }, faceStyle]}>
         {icon ? <Ionicons name={icon} size={18} color={color} /> : null}
         <AppText maxFontSizeMultiplier={1.3} style={[styles.buttonText, { color }]}>
@@ -301,20 +299,6 @@ const styles = StyleSheet.create({
     marginRight: TEXT_RIGHT - PAD,
     alignItems: 'flex-start',
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: BADGE_HEIGHT,
-    paddingHorizontal: 10,
-    borderRadius: BADGE_HEIGHT / 2,
-  },
-  badgeText: {
-    fontFamily: fonts.bodyExtraBold,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 1,
-  },
   title: {
     fontFamily: fonts.title,
     fontSize: TITLE_SIZE,
@@ -336,15 +320,7 @@ const styles = StyleSheet.create({
     marginTop: space[2],
   },
   dots: {
-    flexDirection: 'row',
-    gap: 6,
     marginTop: space[2],
-  },
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    borderWidth: 1.5,
   },
   login: {
     alignSelf: 'flex-start',
@@ -373,7 +349,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: BUTTON_RADIUS,
     borderCurve: 'continuous',
-    backgroundColor: 'rgba(0,0,0,0.25)',
   },
   buttonFace: {
     flexDirection: 'row',

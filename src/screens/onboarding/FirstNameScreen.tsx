@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/src/components/common/Button';
 import TextField from '@/src/components/common/TextField';
-import { valAccessibilityLabel, ValSpeechBubble } from '@/src/components/common/ValBubble';
-import ValFullBody from '@/src/components/common/ValFullBody';
+import { ValBeside } from '@/src/components/common/ValBubble';
+import ValFullBody, { VAL_FACES, valPose } from '@/src/components/common/ValFullBody';
 import StepHeader from '@/src/components/onboarding/StepHeader';
 import { space } from '@/src/constants/style/Style';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
@@ -14,6 +14,7 @@ import { cleanFirstName, FIRST_NAME_MAX } from '@/src/utils/onboarding';
 import { track } from '@/src/utils/track';
 
 const VAL_WIDTH = 96;
+const VAL_HEIGHT = Math.round(VAL_WIDTH / valPose('salut').ratio);
 const VAL_LINE = 'Salut ! Moi, c’est Val. Et toi, comment je t’appelle ?';
 
 // Prénom (étape 1 sur 2) : Val demande comment t'appeler. Gardé sur le
@@ -56,12 +57,14 @@ export default function FirstNameScreen() {
         <StepHeader onBack={back} step={1} total={2} />
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.valRow} accessible accessibilityRole="header" accessibilityLabel={valAccessibilityLabel(VAL_LINE)}>
-          {/* Largeur imposée : la hauteur en découle */}
-          <View>
-            <ValFullBody pose="salut" width={VAL_WIDTH} height={0} />
-          </View>
-          <ValSpeechBubble text={VAL_LINE} tail="bottomLeft" bordered style={styles.bubble} />
+        <View accessibilityRole="header">
+          <ValBeside
+            figure={<ValFullBody pose="salut" width={VAL_WIDTH} height={0} />}
+            width={VAL_WIDTH}
+            height={VAL_HEIGHT}
+            face={VAL_FACES.salut}
+            text={VAL_LINE}
+          />
         </View>
         <TextField
           label="Ton prénom"
@@ -105,14 +108,6 @@ const styles = StyleSheet.create({
     paddingTop: space[10],
     paddingBottom: space[6],
     gap: space[6],
-  },
-  valRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: space[3],
-  },
-  bubble: {
-    flex: 1,
   },
   footer: {
     paddingHorizontal: space[5],

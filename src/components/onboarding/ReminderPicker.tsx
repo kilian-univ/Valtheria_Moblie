@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
-import { springs } from '@/src/constants/motion';
 import { fonts, palette, radius, reliefDepth, size, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { select } from '@/src/utils/haptics';
 import { clampTime, formatTime, REMINDER_SLOTS, ReminderTime, sameTime } from '@/src/utils/reminder';
+import { useReliefPress } from '@/src/hooks/useReliefPress';
 
 const MINUTE_STEP = 15;
 const BIG_TIME = 44;
@@ -104,15 +104,13 @@ export default function ReminderPicker({ value, onChange }: ReminderPickerProps)
 function Slot({ label, time, selected, onPress }: { label: string; time: string; selected: boolean; onPress: () => void }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const reduced = useReducedMotion();
-  const press = useSharedValue(0);
-  const faceStyle = useAnimatedStyle(() => ({ transform: [{ translateY: press.get() * reliefDepth }] }));
+  const { faceStyle, onPressIn, onPressOut } = useReliefPress();
 
   return (
     <Pressable
       onPress={onPress}
-      onPressIn={() => press.set(reduced ? 1 : withTiming(1, { duration: 80 }))}
-      onPressOut={() => press.set(reduced ? 0 : withSpring(0, springs.press))}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       accessibilityRole="radio"
       accessibilityLabel={`${label}, ${time}`}
       accessibilityState={{ checked: selected }}

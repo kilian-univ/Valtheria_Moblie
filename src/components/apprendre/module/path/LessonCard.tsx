@@ -2,15 +2,11 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
-  useAnimatedStyle,
   useReducedMotion,
-  useSharedValue,
-  withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
-import { durations, springs } from '@/src/constants/motion';
+import { durations } from '@/src/constants/motion';
 import {
   fonts,
   ModuleColors,
@@ -25,6 +21,7 @@ import {
 import { useTheme } from '@/src/context/ThemeContext';
 import { tap } from '@/src/utils/haptics';
 import { LessonView } from '@/src/utils/learning';
+import { useReliefPress } from '@/src/hooks/useReliefPress';
 
 const RADIUS = 18;
 const TIP = 16;
@@ -32,7 +29,6 @@ const TITLE_SIZE = 22;
 const TITLE_LINE_HEIGHT = 28;
 const META_SIZE = 14;
 const BUTTON_TEXT = 16;
-const SINK_MS = 80;
 
 type LessonCardProps = {
   view: LessonView;
@@ -63,13 +59,12 @@ export default function LessonCard({
   const { colorScheme } = useTheme();
   const theme = palette[colorScheme];
   const reduced = useReducedMotion();
-  const press = useSharedValue(0);
+  const { faceStyle, onPressIn, onPressOut } = useReliefPress();
 
   const replay = view.status === 'completed';
   const label = replay ? 'REFAIRE' : `COMMENCER + ${view.lesson.xp_reward} XP`;
   const inactive = disabled || loading;
 
-  const faceStyle = useAnimatedStyle(() => ({ transform: [{ translateY: press.get() * reliefDepth }] }));
   const fade = reduced ? undefined : FadeIn.duration(durations.fade);
   const fadeOut = reduced ? undefined : FadeOut.duration(durations.fade);
 
@@ -100,8 +95,8 @@ export default function LessonCard({
               tap();
               onStart(view);
             }}
-            onPressIn={() => press.set(reduced ? 1 : withTiming(1, { duration: SINK_MS }))}
-            onPressOut={() => press.set(reduced ? 0 : withSpring(0, springs.press))}
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
             disabled={inactive}
             accessibilityRole="button"
             accessibilityLabel={replay ? 'Refaire la leçon' : `Commencer la leçon, ${view.lesson.xp_reward} XP à gagner`}

@@ -21,7 +21,6 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 
 export type NodeColors = { face: string; deep: string; icon: string };
 
-const SINK_DURATION = 80; // comme le bouton principal
 const SHAKE_X = 5;
 const SHAKE_MS = 50;
 const POP_FROM = 0.8;
@@ -147,7 +146,7 @@ export default function PathNode({
   const onIconStyle = useAnimatedStyle(() => ({ opacity: tint.get() }));
   const offIconStyle = useAnimatedStyle(() => ({ opacity: 1 - tint.get() }));
 
-  const pressIn = () => press.set(reduced ? 1 : withTiming(1, { duration: SINK_DURATION }));
+  const pressIn = () => press.set(reduced ? 1 : withTiming(1, { duration: durations.sink }));
   const pressOut = () => press.set(reduced ? 0 : withSpring(0, springs.press));
 
   const shape = { borderRadius: cornerRadius ?? ('50%' as const) };

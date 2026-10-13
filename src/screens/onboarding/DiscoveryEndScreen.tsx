@@ -8,6 +8,7 @@ import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import { StatusBarShade } from '@/src/components/common/AppBackground';
 import GoldConfetti from '@/src/components/common/GoldConfetti';
+import ProgressDots from '@/src/components/common/ProgressDots';
 import MedalCelebration from '@/src/components/common/MedalCelebration';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import StreakFlame from '@/src/components/common/StreakFlame';
@@ -34,7 +35,6 @@ import { isSignupClosed } from '@/src/utils/onboarding';
 const VAL_HEIGHT = 170;
 const LOCK = 44;
 const PILL_FLAME = 24;
-const DOT = 9;
 // Le nombre de jours défile une fois la flamme lancée
 const COUNT_DELAY = 450;
 
@@ -150,17 +150,7 @@ function EndContent() {
               <AppText variant="callout" tone="subtitle">
                 {remainingLabel(remaining)}
               </AppText>
-              <View style={styles.dots}>
-                {topicDots(state.played).map((done, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dot,
-                      done ? { backgroundColor: colors.gold, borderColor: colors.gold } : { borderColor: colors.controlBorder },
-                    ]}
-                  />
-                ))}
-              </View>
+              <ProgressDots dots={topicDots(state.played)} doneColor={colors.gold} emptyBorder={colors.controlBorder} />
             </View>
           </StaggerItem>
         ) : null}
@@ -262,16 +252,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space[2],
   },
-  dots: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    borderWidth: 1.5,
-  },
   content: {
     flexGrow: 1,
     alignItems: 'center',
@@ -295,7 +275,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space[4] - 2,
     padding: space[4] - 2,
-    borderRadius: radius.md + 4,
+    borderRadius: radius.card,
     borderWidth: 1,
     marginTop: space[2],
   },

@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space[4] - 2,
     padding: space[4],
-    borderRadius: radius.md + 4,
+    borderRadius: radius.card,
     borderCurve: 'continuous',
   },
   accountTexts: {

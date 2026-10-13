@@ -18,6 +18,15 @@ export const durations = {
   shimmer: 1200,
   stagger: 90,
   skeletonDelay: 300,
+  // Face d'un élément en relief qui s'enfonce dans sa tranche à l'appui
+  sink: 80,
+} as const;
+
+// Boucles très douces (durée d'un aller-retour complet, en ms)
+export const loops = {
+  bubbleFloat: 3000, // bulle de Val qui flotte de 2 px
+  breath: 3000, // Val qui respire (échelle 1 → 1,02)
+  haloPulse: 4000, // halo qui pulse (opacité 0,8 → 1)
 } as const;
 
 // Courbe des compteurs et barres de progression

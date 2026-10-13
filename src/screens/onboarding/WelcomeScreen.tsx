@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ReactNode, useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -14,51 +13,60 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Defs, Ellipse, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { StatusBarShade } from '@/src/components/common/AppBackground';
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import GroundShadow from '@/src/components/common/GroundShadow';
-import { ValSpeechBubble } from '@/src/components/common/ValBubble';
-import ValFullBody from '@/src/components/common/ValFullBody';
+import Pill from '@/src/components/common/Pill';
+import { SpeechBubble } from '@/src/components/common/ValBubble';
+import ValFullBody, { VAL_FACES, valPose } from '@/src/components/common/ValFullBody';
 import { LOGO, LOGO_RATIO } from '@/src/constants/brand';
-import { springs } from '@/src/constants/motion';
-import { fonts, palette, radius, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
+import { loops, springs } from '@/src/constants/motion';
+import { bubble, fonts, palette, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { onboardingStore } from '@/src/state/onboarding';
+import { tailLength } from '@/src/utils/speechBubble';
 import { track } from '@/src/utils/track';
 import { trustPills } from '@/src/utils/welcome';
 
 const LOGO_HEIGHT = 28;
 const TITLE_SIZE = 38;
 const VAL_LINE = 'Salut ! Moi, c’est Val.';
-const PILL_HEIGHT = 32;
+// Espace fixe entre la scène et le titre
+const STAGE_TO_TITLE = space[6];
 
-// Scène de Val, à l'échelle de la maquette (330 de haut sur un écran de 390) :
-// elle se réduit sur petit écran (iPhone SE) pour que tout tienne sans vide
-const STAGE = 330;
-const STAGE_MIN = 190;
-// Hauteur prise par le reste de l'écran (logo, textes, boutons, marges),
-// grossie avec la taille du texte
-const RESERVED = 470;
-const RESERVED_PER_FONT_SCALE = 160;
-const HALO = 300; // diamètre du halo projecteur
-const HALO_TOP = 10;
+// Scène de Val : la bulle au-dessus de sa tête, Val en pied, sa lueur au sol.
+// Val mesure 180 de large sur un grand écran et se réduit (jusqu'à 55 %) pour
+// que scène et texte tiennent au-dessus des boutons, iPhone SE compris.
 const VAL_WIDTH = 180;
-const VAL_TOP = 44;
-const GLOW = { width: 200, height: 26, top: 268 }; // lueur au sol
-const SHADOW = { width: 160, height: 14, top: 276 }; // ombre portée
-const BUBBLE_MAX = 172;
-// Éclats : écart au centre et hauteur (unités de la maquette), taille, opacité
-const SPARKS = [
-  { dx: -125, y: 190, size: 4, opacity: 0.7 },
-  { dx: 123, y: 160, size: 3, opacity: 0.6 },
-  { dx: 105, y: 300, size: 5, opacity: 0.5 },
-  { dx: -135, y: 286, size: 3, opacity: 0.5 },
-  { dx: 145, y: 250, size: 2, opacity: 0.8 },
-  { dx: -85, y: 120, size: 2, opacity: 0.6 },
+const VAL_RATIO = valPose('saut').ratio;
+const VAL_HEIGHT = VAL_WIDTH / VAL_RATIO;
+const FACE = VAL_FACES.saut;
+// Haut du chapeau, en fraction de l'image (la pointe s'arrête avant)
+const HEAD_TOP = 0.08;
+const MIN_SCALE = 0.55;
+const BUBBLE_HEIGHT_GUESS = bubble.lineHeight + bubble.paddingY * 2;
+// Écart entre le bas de la bulle et le haut de l'image de Val (poings)
+const BUBBLE_GAP = 10;
+const GROUND = 18; // place sous les pieds pour la lueur
+// Hauteur estimée du reste de l'écran (logo, textes, boutons, marges),
+// grossie avec la taille du texte
+const RESERVED = 500;
+const RESERVED_PER_FONT_SCALE = 180;
+const HALO = 300; // diamètre du halo projecteur
+const GLOW = { width: 200, height: 26 }; // lueur au sol
+const SHADOW = { width: 160, height: 14 }; // ombre portée
+// Étoiles : position en fractions de l'image de Val (hors de la bulle), taille
+const STARS = [
+  { x: -0.38, y: 0.6, size: 10 },
+  { x: 1.28, y: 0.42, size: 8 },
+  { x: 1.12, y: 0.9, size: 12 },
+  { x: -0.22, y: 0.95, size: 7 },
+  { x: 1.4, y: 0.72, size: 6 },
+  { x: -0.12, y: 0.3, size: 8 },
 ] as const;
 
 // Entrée animée, 1,2 s au plus : halo, Val qui saute, bulle, puis la cascade
@@ -68,13 +76,20 @@ const CASCADE_START = 380;
 const CASCADE_STEP = 80;
 const REVEAL_FADE = 260;
 const REVEAL_RISE = 8;
-// Les éclats scintillent ensuite, très doucement
-const TWINKLE_START = 1200;
+// Ensuite, tout vit doucement : étoiles, halo
+const LIFE_START = 1200;
+
+// Pseudo-aléatoire stable (mêmes rythmes à chaque ouverture)
+function seeded(i: number, salt: number): number {
+  const x = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
 
 // Bienvenue : le tout premier écran, sans compte. Val mis en scène (halo,
-// lueur au sol, éclats), la promesse, deux pastilles de confiance, puis
-// « Commencer » dans la zone du pouce. Les boutons répondent dès la première
-// image, même pendant l'entrée animée.
+// lueur au sol, étoiles, bulle collée à sa tête), la promesse, deux pastilles
+// de confiance, puis « Commencer » dans la zone du pouce. Scène et texte sont
+// centrés ensemble au-dessus des boutons. Les boutons répondent dès la
+// première image, même pendant l'entrée animée.
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -113,8 +128,10 @@ export default function WelcomeScreen() {
     router.push('/client/login');
   };
 
+  // Échelle de la scène : ce qui reste une fois le reste posé
   const reserved = RESERVED + Math.max(0, fontScale - 1) * RESERVED_PER_FONT_SCALE;
-  const stage = Math.round(Math.min(STAGE, Math.max(STAGE_MIN, height - insets.top - insets.bottom - reserved)));
+  const available = height - insets.top - insets.bottom - reserved - BUBBLE_HEIGHT_GUESS - BUBBLE_GAP;
+  const scale = Math.min(1, Math.max(MIN_SCALE, available / (VAL_HEIGHT + GROUND)));
 
   return (
     <View style={styles.screen}>
@@ -132,37 +149,39 @@ export default function WelcomeScreen() {
           accessibilityLabel="Valtheria"
         />
 
-        <ValStage size={stage} width={width} />
+        {/* Scène + texte, centrés ensemble dans la place au-dessus des boutons */}
+        <View style={styles.middle}>
+          <ValStage scale={scale} width={width} />
 
-        <View style={styles.texts}>
-          <Reveal delay={CASCADE_START}>
-            <AppText maxFontSizeMultiplier={1.3} style={styles.title} accessibilityRole="header">
-              L’argent, <AppText style={[styles.title, styles.italic, { color: colors.gold }]}>enfin</AppText>
-              {'\n'}expliqué.
-            </AppText>
-          </Reveal>
-          <Reveal delay={CASCADE_START + CASCADE_STEP}>
-            <AppText variant="body" tone="subtitle" style={styles.center}>
-              Budget, épargne, placements : je t’explique tout, simplement, en jouant.
-            </AppText>
-          </Reveal>
-          <Reveal delay={CASCADE_START + CASCADE_STEP * 2}>
-            <View style={styles.pills}>
-              {trustPills(words).map((pill) => (
-                <View
-                  key={pill.key}
-                  style={[styles.pill, { backgroundColor: withOpacity(colors.text, 0.05), borderColor: colors.border }]}
-                  accessible
-                  accessibilityLabel={pill.label}
-                >
-                  <Ionicons name={pill.icon} size={15} color={colors.gold} />
-                  <AppText variant="caption" maxFontSizeMultiplier={1.3}>
-                    {pill.label}
-                  </AppText>
-                </View>
-              ))}
-            </View>
-          </Reveal>
+          <View style={styles.texts}>
+            <Reveal delay={CASCADE_START}>
+              <AppText maxFontSizeMultiplier={1.3} style={styles.title} accessibilityRole="header">
+                L’argent, <AppText style={[styles.title, styles.italic, { color: colors.gold }]}>enfin</AppText>
+                {'\n'}expliqué.
+              </AppText>
+            </Reveal>
+            <Reveal delay={CASCADE_START + CASCADE_STEP}>
+              <AppText variant="body" tone="subtitle" style={styles.center}>
+                Budget, épargne, placements : je t’explique tout, simplement, en jouant.
+              </AppText>
+            </Reveal>
+            <Reveal delay={CASCADE_START + CASCADE_STEP * 2}>
+              <View style={styles.pills}>
+                {trustPills(words).map((pill) => (
+                  <Pill
+                    key={pill.key}
+                    size="md"
+                    icon={pill.icon}
+                    label={pill.label}
+                    background={withOpacity(colors.text, 0.05)}
+                    borderColor={colors.border}
+                    color={colors.text}
+                    iconColor={colors.gold}
+                  />
+                ))}
+              </View>
+            </Reveal>
+          </View>
         </View>
       </ScrollView>
 
@@ -183,31 +202,58 @@ export default function WelcomeScreen() {
   );
 }
 
-// Val mis en scène : halo projecteur, lueur au sol et ombre, éclats qui
-// scintillent, bulle au-dessus à droite de sa tête. Décoratif pour le lecteur
-// d'écran, sauf la bulle, lue comme une phrase.
-function ValStage({ size, width }: { size: number; width: number }) {
+// Val mis en scène : bulle collée au-dessus de sa tête (pointe vers sa
+// bouche), halo projecteur qui pulse, Val qui respire, lueur et ombre au sol,
+// étoiles qui scintillent. Décoratif pour le lecteur d'écran, sauf la bulle,
+// lue « Val : … ».
+function ValStage({ scale, width }: { scale: number; width: number }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
-  const s = size / STAGE;
-  const center = width / 2;
-  const halo = HALO * s;
-  const valWidth = Math.round(VAL_WIDTH * s);
-  const glowW = GLOW.width * s;
-  const glowH = GLOW.height * s;
+  const [bubbleSize, setBubbleSize] = useState({ width: 0, height: BUBBLE_HEIGHT_GUESS });
 
-  // Le halo s'allume
+  const valW = Math.round(VAL_WIDTH * scale);
+  const valH = Math.round(VAL_HEIGHT * scale);
+  const valLeft = (width - valW) / 2;
+  const valTop = bubbleSize.height + BUBBLE_GAP;
+  const stageHeight = valTop + valH + GROUND * scale;
+  const mouth = { x: valLeft + valW * FACE.mouthX, y: valTop + valH * FACE.mouthY };
+
+  // Bulle centrée sur la bouche, jamais hors de l'écran ; pointe vers la bouche
+  const margin = space[4];
+  const bubbleLeft = bubbleSize.width
+    ? Math.min(width - margin - bubbleSize.width, Math.max(margin, mouth.x - bubbleSize.width / 2))
+    : margin;
+  const edge = bubble.radius + bubble.tailBase / 2;
+  const anchor = bubbleSize.width ? Math.min(bubbleSize.width - edge, Math.max(edge, mouth.x - bubbleLeft)) : edge;
+  const tailBase = { x: bubbleLeft + anchor, y: bubbleSize.height };
+  const aim = { x: mouth.x - tailBase.x, y: mouth.y - tailBase.y };
+  const length = tailLength(BUBBLE_GAP + valH * HEAD_TOP);
+
+  const halo = HALO * scale;
+  const haloCenterY = valTop + valH * 0.45;
+  const feetY = valTop + valH * 0.97;
+  const glowW = GLOW.width * scale;
+  const glowH = GLOW.height * scale;
+
+  // Le halo s'allume, puis pulse lentement (0,8 → 1)
   const haloOpacity = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
-    if (!reduced) haloOpacity.set(withTiming(1, { duration: HALO_FADE, easing: Easing.out(Easing.quad) }));
+    if (reduced) return;
+    const half = { duration: loops.haloPulse / 2, easing: Easing.inOut(Easing.sin) };
+    haloOpacity.set(
+      withSequence(
+        withTiming(1, { duration: HALO_FADE, easing: Easing.out(Easing.quad) }),
+        withDelay(LIFE_START - HALO_FADE, withRepeat(withSequence(withTiming(0.8, half), withTiming(1, half)), -1))
+      )
+    );
   }, [reduced, haloOpacity]);
   const haloStyle = useAnimatedStyle(() => ({ opacity: haloOpacity.get() }));
 
   return (
-    <View style={[styles.stage, { height: size }]}>
+    <View style={[styles.stage, { height: stageHeight }]}>
       <Animated.View
-        style={[styles.abs, { left: center - halo / 2, top: HALO_TOP * s, width: halo, height: halo }, haloStyle]}
+        style={[styles.abs, { left: width / 2 - halo / 2, top: haloCenterY - halo / 2, width: halo, height: halo }, haloStyle]}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
         pointerEvents="none"
@@ -226,7 +272,7 @@ function ValStage({ size, width }: { size: number; width: number }) {
 
       <View style={styles.abs} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
         {/* Lueur dorée au sol, puis l'ombre portée sous les pieds */}
-        <Svg width={glowW} height={glowH} style={[styles.abs, { left: center - glowW / 2, top: GLOW.top * s }]}>
+        <Svg width={glowW} height={glowH} style={[styles.abs, { left: width / 2 - glowW / 2, top: feetY - glowH / 2 }]}>
           <Defs>
             <RadialGradient id="welcomeGlow" cx="50%" cy="50%" r="50%">
               <Stop offset="0" stopColor={colors.gold} stopOpacity={0.25} />
@@ -236,82 +282,101 @@ function ValStage({ size, width }: { size: number; width: number }) {
           <Ellipse cx={glowW / 2} cy={glowH / 2} rx={glowW / 2} ry={glowH / 2} fill="url(#welcomeGlow)" />
         </Svg>
         <GroundShadow
-          width={SHADOW.width * s}
-          height={SHADOW.height * s}
+          width={SHADOW.width * scale}
+          height={SHADOW.height * scale}
           opacity={0.6}
-          left={center - (SHADOW.width * s) / 2}
-          top={SHADOW.top * s}
+          left={width / 2 - (SHADOW.width * scale) / 2}
+          top={feetY - (SHADOW.height * scale) / 2}
         />
       </View>
 
       <View
-        style={[styles.abs, { left: center - valWidth / 2, top: VAL_TOP * s }]}
+        style={[styles.abs, { left: valLeft, top: valTop }]}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
         pointerEvents="none"
       >
-        <ValFullBody pose="saut" width={valWidth} height={0} />
+        <ValFullBody pose="saut" width={valW} height={0} breathe />
       </View>
 
-      {SPARKS.map((spark, i) => (
-        <Spark key={i} index={i} left={center + spark.dx * s} top={spark.y * s} size={spark.size} opacity={spark.opacity} />
+      {STARS.map((star, i) => (
+        <Star
+          key={i}
+          index={i}
+          left={valLeft + valW * star.x - star.size / 2}
+          top={valTop + valH * star.y - star.size / 2}
+          size={star.size}
+        />
       ))}
 
-      <View
-        style={[styles.abs, { left: center + s, top: 0, maxWidth: Math.min(BUBBLE_MAX, center - space[4]) }]}
-        accessible
-        accessibilityLabel={`Val : ${VAL_LINE}`}
-      >
-        <ValSpeechBubble
+      {/* Bulle collée au-dessus de la tête : la pointe s'arrête à 55 % de
+          l'écart jusqu'au chapeau, dirigée vers la bouche */}
+      <View style={[styles.abs, { left: bubbleLeft, top: 0, opacity: bubbleSize.width ? 1 : 0 }]}>
+        <SpeechBubble
           text={VAL_LINE}
-          tail="bottomLeft"
-          bordered
+          side="bottom"
+          anchor={anchor}
+          aim={aim}
+          tailLength={length}
           delay={BUBBLE_DELAY}
-          radius={16}
-          borderColor={withOpacity(colors.gold, 0.3)}
+          maxWidth={width - margin * 2}
+          onLayout={(w, h) => {
+            if (w !== bubbleSize.width || h !== bubbleSize.height) setBubbleSize({ width: w, height: h });
+          }}
         />
       </View>
     </View>
   );
 }
 
-// Éclat doré qui scintille très doucement en boucle, chacun à son rythme.
-// Animations réduites : fixe.
-function Spark({ index, left, top, size, opacity }: { index: number; left: number; top: number; size: number; opacity: number }) {
+// Étoile dorée à quatre branches qui scintille (taille et opacité), chacune à
+// son rythme, avec des décalages stables. Animations réduites : fixe.
+function Star({ index, left, top, size }: { index: number; left: number; top: number; size: number }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
-  const value = useSharedValue(reduced ? opacity : 0);
+  const twinkle = useSharedValue(reduced ? 1 : 0);
 
   useEffect(() => {
     if (reduced) {
-      value.set(opacity);
+      twinkle.set(1);
       return;
     }
-    const half = 1300 + index * 230;
+    const half = 900 + Math.round(seeded(index, 1) * 1400);
+    const offset = Math.round(seeded(index, 2) * 1200);
     const curve = { easing: Easing.inOut(Easing.sin) };
-    value.set(
+    twinkle.set(
       withSequence(
-        withTiming(opacity, { duration: HALO_FADE }),
+        withTiming(1, { duration: HALO_FADE }),
         withDelay(
-          TWINKLE_START - HALO_FADE + index * 140,
-          withRepeat(
-            withSequence(withTiming(opacity * 0.35, { duration: half, ...curve }), withTiming(opacity, { duration: half, ...curve })),
-            -1
-          )
+          LIFE_START - HALO_FADE + offset,
+          withRepeat(withSequence(withTiming(0, { duration: half, ...curve }), withTiming(1, { duration: half, ...curve })), -1)
         )
       )
     );
-  }, [reduced, opacity, index, value]);
+  }, [reduced, index, twinkle]);
 
-  const style = useAnimatedStyle(() => ({ opacity: value.get() }));
+  const style = useAnimatedStyle(() => {
+    const t = twinkle.get();
+    return { opacity: 0.35 + 0.55 * t, transform: [{ scale: 0.65 + 0.35 * t }] };
+  });
+
+  // Quatre branches fines, centre pincé
+  const c = size / 2;
+  const w = size * 0.14;
+  const d = `M${c} 0 Q${c + w} ${c - w} ${size} ${c} Q${c + w} ${c + w} ${c} ${size} Q${c - w} ${c + w} 0 ${c} Q${c - w} ${c - w} ${c} 0 Z`;
+
   return (
     <Animated.View
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.abs, { left, top, width: size, height: size, borderRadius: size / 2, backgroundColor: colors.gold }, style]}
-    />
+      style={[styles.abs, { left, top, width: size, height: size }, style]}
+    >
+      <Svg width={size} height={size}>
+        <Path d={d} fill={colors.gold} />
+      </Svg>
+    </Animated.View>
   );
 }
 
@@ -337,17 +402,21 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  // Logo, scène et textes répartis sur toute la hauteur disponible
   content: {
     flexGrow: 1,
-    justifyContent: 'space-between',
     paddingBottom: space[3],
-    gap: space[3],
   },
   logo: {
     alignSelf: 'center',
     height: LOGO_HEIGHT,
     width: LOGO_HEIGHT * LOGO_RATIO,
+  },
+  // Scène + texte centrés verticalement, 24 entre la scène et le titre
+  middle: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    gap: STAGE_TO_TITLE,
+    paddingTop: space[3],
   },
   stage: {
     alignSelf: 'stretch',
@@ -379,15 +448,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space[2],
     marginTop: space[1],
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: PILL_HEIGHT,
-    paddingHorizontal: space[3],
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   footer: {
     paddingHorizontal: space[5],

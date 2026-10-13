@@ -51,7 +51,6 @@ const LABEL_TONE: Record<ButtonVariant, TextTone> = {
 };
 
 const PRESSED_SCALE = 0.97; // secondary et boutons texte
-const SINK_DURATION = 80; // relief : la face s'enfonce dans sa tranche
 
 export default function Button({
   label,
@@ -85,7 +84,7 @@ export default function Button({
 
   const handlePressIn = () => {
     // Animations réduites : l'état pressé reste visible, sans mouvement progressif
-    press.set(reduced ? 1 : withTiming(1, { duration: isRelief ? SINK_DURATION : durations.pressIn }));
+    press.set(reduced ? 1 : withTiming(1, { duration: isRelief ? durations.sink : durations.pressIn }));
   };
 
   const handlePressOut = () => {

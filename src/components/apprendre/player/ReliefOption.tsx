@@ -2,23 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
-import { springs } from '@/src/constants/motion';
 import { palette, radius, reliefDepth, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useReliefPress } from '@/src/hooks/useReliefPress';
 
 const BORDER = 2;
 const ICON = 24;
 const BADGE = 34;
 const BADGE_ICON = 17;
-const SINK_DURATION = 80; // comme le bouton principal
 
 export type OptionState = 'idle' | 'selected' | 'correct' | 'wrong';
 
@@ -42,8 +36,7 @@ type ReliefOptionProps = {
 export default function ReliefOption({ label, state, selected, disabled, multiple, icon, badge, onPress }: ReliefOptionProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const reduced = useReducedMotion();
-  const press = useSharedValue(0);
+  const { faceStyle, onPressIn: handlePressIn, onPressOut: handlePressOut } = useReliefPress();
 
   const look = {
     idle: { border: colors.controlBorder, tint: 'transparent', edge: colors.reliefEdge },
@@ -52,14 +45,6 @@ export default function ReliefOption({ label, state, selected, disabled, multipl
     wrong: { border: colors.error, tint: colors.dangerSoft, edge: colors.dangerDeep },
   }[state];
 
-  const faceStyle = useAnimatedStyle(() => ({ transform: [{ translateY: press.get() * reliefDepth }] }));
-
-  const handlePressIn = () => {
-    press.set(reduced ? 1 : withTiming(1, { duration: SINK_DURATION }));
-  };
-  const handlePressOut = () => {
-    press.set(reduced ? 0 : withSpring(0, springs.press));
-  };
 
   return (
     <Pressable

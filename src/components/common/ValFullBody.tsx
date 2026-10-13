@@ -14,6 +14,7 @@ import Animated, {
 
 import { springs } from '@/src/constants/motion';
 import { fitHeight, windowFitHeight } from '@/src/utils/fit';
+import type { ValFace } from '@/src/utils/speechBubble';
 import GoldHalo from './GoldHalo';
 
 export type ValPose = 'saut' | 'fier' | 'salut' | 'pense';
@@ -25,6 +26,16 @@ const POSES: Record<ValPose, { source: ImageSourcePropType; ratio: number }> = {
   fier: { source: require('@/assets/images/val/val-pied-fier.webp'), ratio: 534 / 800 },
   salut: { source: require('@/assets/images/val/val-pied-salut.webp'), ratio: 534 / 800 },
   pense: { source: require('@/assets/images/val/val-pied-pense.webp'), ratio: 533 / 800 },
+};
+
+// Bouche et bord droit de la tête, en fractions de l'image de chaque pose
+// (relevés sur les dessins) : la bulle se pose à hauteur de bouche, sa
+// pointe dirigée vers elle
+export const VAL_FACES: Record<ValPose, ValFace> = {
+  saut: { mouthX: 0.52, mouthY: 0.22, headRight: 0.64 },
+  salut: { mouthX: 0.5, mouthY: 0.235, headRight: 0.66 },
+  fier: { mouthX: 0.5, mouthY: 0.2, headRight: 0.64 },
+  pense: { mouthX: 0.5, mouthY: 0.22, headRight: 0.64 },
 };
 
 // Image et proportions d'une pose (préchargement, mises en scène)

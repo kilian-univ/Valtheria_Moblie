@@ -13,12 +13,13 @@ import QuitSheet from '@/src/components/apprendre/player/QuitSheet';
 import ScreenRenderer from '@/src/components/apprendre/ScreenRenderer';
 import { AnswerDraft, CollectedAnswer } from '@/src/components/apprendre/types';
 import AppText from '@/src/components/common/AppText';
+import Pill from '@/src/components/common/Pill';
 import Button from '@/src/components/common/Button';
 import PageState from '@/src/components/common/PageState';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import { devSlowLoading } from '@/src/constants/dev';
-import { fonts, palette, radius, space } from '@/src/constants/style/Style';
+import { palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useApi } from '@/src/context/ApiContext';
 import { isNetworkError } from '@/src/hooks/useLearningData';
@@ -404,11 +405,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
             {/* key : chaque écran est remonté (état neuf, apparition rejouée) */}
             {discovery ? (
               <View style={styles.discoveryHead}>
-                <View style={[styles.badge, { backgroundColor: colors.goldSoft }]}>
-                  <AppText tone="gold" maxFontSizeMultiplier={1.2} style={styles.badgeText}>
-                    LEÇON DÉCOUVERTE
-                  </AppText>
-                </View>
+                <Pill size="badge" label="LEÇON DÉCOUVERTE" accessibilityLabel="Leçon découverte" background={colors.goldSoft} color={colors.gold} />
                 {/* Titre de la leçon, avant le pari */}
                 {index === 0 && discovery.lesson.title ? (
                   <AppText variant="title2" accessibilityRole="header">
@@ -507,18 +504,6 @@ const styles = StyleSheet.create({
     gap: space[3],
     marginBottom: space[4],
     alignItems: 'flex-start',
-  },
-  badge: {
-    height: 26,
-    paddingHorizontal: space[3] - 2,
-    borderRadius: radius.pill,
-    justifyContent: 'center',
-  },
-  badgeText: {
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 1,
-    fontFamily: fonts.bodyBold,
   },
   state: {
     flex: 1,

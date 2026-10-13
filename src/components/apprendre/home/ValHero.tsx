@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import Svg, { Defs, Image as SvgImage, LinearGradient, Mask, Rect, Stop } from 'react-native-svg';
 
-import { useBlink, valAccessibilityLabel, ValMood, valSources, ValSpeechBubble } from '@/src/components/common/ValBubble';
+import { AVATAR_FACE, useBlink, ValBeside, ValMood, valSources } from '@/src/components/common/ValBubble';
 import { palette, space } from '@/src/constants/style/Style';
 
 const BUST_WIDTH = 120;
@@ -11,6 +11,13 @@ const BUST_HEIGHT = 150;
 // Image carrée affichée plus large que le cadre, ancrée en haut : on garde la
 // tête et le haut du buste, le bas s'efface (masque).
 const IMAGE_SIZE = BUST_HEIGHT;
+const IMAGE_LEFT = (BUST_WIDTH - IMAGE_SIZE) / 2;
+// Bouche et tête dans le cadre du buste (le portrait y est décalé et agrandi)
+const BUST_FACE = {
+  mouthX: (IMAGE_LEFT + IMAGE_SIZE * AVATAR_FACE.mouthX) / BUST_WIDTH,
+  mouthY: (IMAGE_SIZE * AVATAR_FACE.mouthY) / BUST_HEIGHT,
+  headRight: (IMAGE_LEFT + IMAGE_SIZE * AVATAR_FACE.headRight) / BUST_WIDTH,
+};
 const FADE_HEIGHT = 48;
 // Masque : le blanc laisse voir, la transparence efface (indépendant du thème)
 const MASK_ON = palette.dark.nodeHighlight;
@@ -21,26 +28,25 @@ type ValHeroProps = {
   title?: string;
 };
 
-// Val en grand, en buste, avec sa bulle à droite. Le bas du buste s'efface
+// Val en grand, en buste, avec sa bulle à droite à hauteur de bouche. Le bas du buste s'efface
 // par un masque (vraie transparence) : il se fond dans n'importe quel fond,
 // le fond commun dégradé compris.
 export default function ValHero({ mood, text, title }: ValHeroProps) {
   return (
-    <View style={styles.wrap} accessible accessibilityLabel={valAccessibilityLabel(text, title)}>
-      <View style={styles.row}>
-        <View style={styles.bust} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <FadedBust mood={mood} />
-        </View>
-        {/* key : un nouveau texte relance l'écriture mot à mot */}
-        <ValSpeechBubble
-          key={`${title ?? ''}|${text}`}
-          text={text}
-          title={title}
-          tail="bottomLeft"
-          bordered
-          style={styles.bubble}
-        />
-      </View>
+    <View style={styles.wrap}>
+      <ValBeside
+        figure={
+          <View style={styles.bust}>
+            <FadedBust mood={mood} />
+          </View>
+        }
+        width={BUST_WIDTH}
+        height={BUST_HEIGHT}
+        face={BUST_FACE}
+        gap={space[2]}
+        text={text}
+        title={title}
+      />
     </View>
   );
 }
@@ -53,7 +59,7 @@ function FadedBust({ mood }: { mood: ValMood }) {
   const blinking = useBlink(!!closed && !reduced);
   const id = useId().replace(/[^a-zA-Z0-9]/g, '');
   const fadeStart = 1 - FADE_HEIGHT / BUST_HEIGHT;
-  const left = (BUST_WIDTH - IMAGE_SIZE) / 2;
+  const left = IMAGE_LEFT;
 
   return (
     <Svg width={BUST_WIDTH} height={BUST_HEIGHT}>
@@ -87,18 +93,9 @@ const styles = StyleSheet.create({
   wrap: {
     paddingTop: space[4],
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: space[2],
-  },
   bust: {
     width: BUST_WIDTH,
     height: BUST_HEIGHT,
     overflow: 'hidden',
-  },
-  bubble: {
-    flex: 1,
-    marginBottom: space[4],
   },
 });

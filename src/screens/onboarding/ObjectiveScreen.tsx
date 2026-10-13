@@ -6,8 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import ReliefOption from '@/src/components/apprendre/player/ReliefOption';
 import Button from '@/src/components/common/Button';
-import { valAccessibilityLabel, ValSpeechBubble } from '@/src/components/common/ValBubble';
-import ValFullBody from '@/src/components/common/ValFullBody';
+import { ValBeside } from '@/src/components/common/ValBubble';
+import ValFullBody, { VAL_FACES, valPose } from '@/src/components/common/ValFullBody';
 import StepHeader from '@/src/components/onboarding/StepHeader';
 import { space } from '@/src/constants/style/Style';
 import { DISCOVERY, OBJECTIVE_OPTIONS, Objective } from '@/src/lesson/discovery';
@@ -20,6 +20,7 @@ import { universeTint } from '@/src/utils/universeTint';
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
 const VAL_WIDTH = 72;
+const VAL_HEIGHT = Math.round(VAL_WIDTH / valPose('salut').ratio);
 
 // Objectif (étape 2 sur 2) : Val, prénom compris, demande ce qui t'amène ;
 // six objectifs à la couleur de leur univers, « C'est parti » dès qu'un est
@@ -55,12 +56,14 @@ export default function ObjectiveScreen() {
         <StepHeader onBack={back} step={2} total={2} />
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.valRow} accessible accessibilityRole="header" accessibilityLabel={valAccessibilityLabel(valLine)}>
-          {/* Largeur imposée : la hauteur en découle */}
-          <View>
-            <ValFullBody pose="salut" width={VAL_WIDTH} height={0} />
-          </View>
-          <ValSpeechBubble text={valLine} tail="bottomLeft" bordered style={styles.bubble} />
+        <View accessibilityRole="header">
+          <ValBeside
+            figure={<ValFullBody pose="salut" width={VAL_WIDTH} height={0} />}
+            width={VAL_WIDTH}
+            height={VAL_HEIGHT}
+            face={VAL_FACES.salut}
+            text={valLine}
+          />
         </View>
         <View style={styles.options} accessibilityRole="radiogroup">
           {OBJECTIVE_OPTIONS.map((o) => {
@@ -103,14 +106,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[5],
     paddingTop: space[4],
     paddingBottom: space[6],
-  },
-  valRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: space[3],
-  },
-  bubble: {
-    flex: 1,
   },
   options: {
     gap: space[3] - 3,

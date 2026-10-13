@@ -13,6 +13,8 @@ export const fonts = {
   bodySemibold: 'Inter_600SemiBold',
   bodyBold: 'Inter_700Bold',
   bodyExtraBold: 'Inter_800ExtraBold',
+  // Emphase dans la bulle de Val (**mot**)
+  bodyEmphasis: 'Inter_600SemiBold_Italic',
 } as const;
 
 // Titres Fraunces : interlettrage resserré proportionnel à la taille
@@ -50,6 +52,8 @@ export const palette = {
     goldSoft: 'rgba(201,168,76,0.13)',   // fond de sélection discret
     frost: 'rgba(143,190,224,0.18)',     // jour sauvé par un gel (bleu glacier discret)
     frostInk: '#8FBEE0',                 // flocon du gel de série
+    bubble: '#F7F4EE',                   // bulle de Val (ivoire)
+    onBubble: '#0D0D0F',                 // texte de la bulle de Val
     onGold: '#0D0D0F',                   // texte posé sur l'or
     success: '#3FA876',
     error: '#E0715F',
@@ -125,6 +129,8 @@ export const palette = {
     goldSoft: 'rgba(232,178,61,0.13)',
     frost: 'rgba(74,138,184,0.14)',      // jour sauvé par un gel (bleu glacier discret)
     frostInk: '#4A8AB8',                 // flocon du gel de série
+    bubble: '#FFFFFF',                   // bulle de Val (blanche sur le fond clair)
+    onBubble: '#0D0D0F',                 // texte de la bulle de Val
     goldDeep: '#B08526',
     goldHalo: 'rgba(232,178,61,0.12)',
     goldLine: 'rgba(232,178,61,0.35)',
@@ -167,6 +173,23 @@ export function withOpacity(hex: string, opacity: number): string {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${opacity})`;
 }
 
+// Bulle de Val : forme, texte, ombre
+export const bubble = {
+  radius: 18,
+  paddingX: 16,
+  paddingY: 12,
+  maxWidth: 280,
+  fontSize: 17,
+  lineHeight: 24,
+  tailBase: 16, // largeur de la pointe à sa base
+  shadowOpacity: 0.35,
+} as const;
+
+// Ombre de la bulle de Val : noire à 35 %, flou moyen, décalée vers le bas
+export function bubbleShadow(groundShadow: string) {
+  return [{ offsetX: 0, offsetY: 6, blurRadius: 14, color: withOpacity(groundShadow, bubble.shadowOpacity) }];
+}
+
 // Ombre douce sous une carte en relief qui flotte (accueil sans compte) :
 // noire à 45 %, floue et décalée vers le bas, en plus de la tranche
 export function softShadow(groundShadow: string) {
@@ -179,7 +202,8 @@ export function softShadow(groundShadow: string) {
 export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40 } as const;
 
 // option : réponses de QCM en relief
-export const radius = { sm: 6, md: 12, option: 14, lg: 20, pill: 999 } as const;
+// card : cartes plates (surface, rayon 16)
+export const radius = { sm: 6, md: 12, option: 14, card: 16, lg: 20, pill: 999 } as const;
 
 export const size = {
   tapMin: 44,

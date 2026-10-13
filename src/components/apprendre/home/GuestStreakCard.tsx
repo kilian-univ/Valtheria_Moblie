@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
+import Pill from '@/src/components/common/Pill';
 import StreakFlame from '@/src/components/common/StreakFlame';
 import StreakMedal from '@/src/components/common/StreakMedal';
 import { springs } from '@/src/constants/motion';
@@ -12,6 +13,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { formatInteger } from '@/src/utils/format';
 import { tap } from '@/src/utils/haptics';
 import { daysLabel, freezesLabel, medalProgress } from '@/src/utils/streakRewards';
+import { useReliefPress } from '@/src/hooks/useReliefPress';
 
 const DEPTH = 6;
 const RADIUS = 20;
@@ -19,7 +21,6 @@ const FLAME = 64;
 const VALUE_SIZE = 28;
 const TARGET_MEDAL = 32;
 const BAR = 8;
-const SINK_DURATION = 80; // comme le bouton principal
 const NBSP = ' ';
 
 type GuestStreakCardProps = {
@@ -41,8 +42,7 @@ export default function GuestStreakCard({ streak, xp, freezes, savedYesterday, i
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
-  const press = useSharedValue(0);
-  const faceStyle = useAnimatedStyle(() => ({ transform: [{ translateY: press.get() * DEPTH }] }));
+  const { faceStyle, onPressIn, onPressOut } = useReliefPress(DEPTH);
   const lit = streak > 0;
   const progress = medalProgress(streak);
 
@@ -59,8 +59,8 @@ export default function GuestStreakCard({ streak, xp, freezes, savedYesterday, i
         tap();
         onPress();
       }}
-      onPressIn={() => press.set(reduced ? 1 : withTiming(1, { duration: SINK_DURATION }))}
-      onPressOut={() => press.set(reduced ? 0 : withSpring(0, springs.press))}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       accessibilityRole="button"
       accessibilityLabel={[
         lit ? `Ta série : ${daysLabel(streak)}` : 'Allume ta flamme. Termine une leçon aujourd’hui.',
@@ -102,16 +102,9 @@ export default function GuestStreakCard({ streak, xp, freezes, savedYesterday, i
               {progress.label}
             </AppText>
             <View style={styles.pills}>
-              <View style={[styles.pill, { backgroundColor: colors.goldSoft }]}>
-                <AppText variant="caption" tone="gold" style={styles.pillText}>{`${formatInteger(xp)}${NBSP}XP`}</AppText>
-              </View>
+              <Pill size="sm" label={`${formatInteger(xp)}${NBSP}XP`} background={colors.goldSoft} color={colors.gold} />
               {freezes > 0 ? (
-                <View style={[styles.pill, { backgroundColor: colors.frost }]}>
-                  <Ionicons name="snow" size={12} color={colors.frostInk} />
-                  <AppText variant="caption" style={[styles.pillText, { color: colors.frostInk }]}>
-                    {freezesLabel(freezes)}
-                  </AppText>
-                </View>
+                <Pill size="sm" icon="snow" label={freezesLabel(freezes)} background={colors.frost} color={colors.frostInk} />
               ) : null}
             </View>
           </View>
@@ -196,17 +189,5 @@ const styles = StyleSheet.create({
   pills: {
     flexDirection: 'row',
     gap: space[1] + 2,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: space[2] + 2,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-  },
-  pillText: {
-    fontFamily: fonts.bodySemibold,
-    fontVariant: ['tabular-nums'],
   },
 });

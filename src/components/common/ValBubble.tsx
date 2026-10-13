@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -11,18 +11,30 @@ import {
   ViewStyle,
 } from 'react-native';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withDelay,
+  withRepeat,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, { Polygon } from 'react-native-svg';
 
-import { springs } from '@/src/constants/motion';
-import { fonts, palette, radius, size, space, titleLetterSpacing } from '@/src/constants/style/Style';
+import { loops, springs } from '@/src/constants/motion';
+import { bubble, bubbleShadow, fonts, palette, size, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import AppText from './AppText';
+import {
+  besideLayout,
+  noOrphan,
+  type Point,
+  tailDirection,
+  tailPoints,
+  type TailSide,
+  type ValFace,
+} from '@/src/utils/speechBubble';
 
 export type ValMood =
   | 'neutre'
@@ -146,17 +158,24 @@ export function ValPicture({
   );
 }
 
-const BUBBLE_TOP_OFFSET = 10; // la bulle démarre sous le haut du chapeau
-const BUBBLE_TIP_RADIUS = 4; // coin pointu, tourné vers Val
 const APPEAR_DELAY = 150;
 const APPEAR_FADE = 220;
-const APPEAR_SCALE_FROM = 0.92;
+// La bulle grandit depuis sa pointe
+const APPEAR_SCALE_FROM = 0.85;
 const WORD_INTERVAL = 45;
 const TYPING_MAX = 1200;
+// Flottement très doux une fois le texte écrit
+const FLOAT_HEIGHT = 2;
+// Hauteur de la pointe dans la bulle, par défaut : milieu d'une ligne
+const DEFAULT_ANCHOR = 24;
+// Écart entre la tête de Val et sa bulle, par défaut
+const BESIDE_GAP = space[3];
+// Portrait rond (cadrages md et xl) : bouche et bord droit de la tête
+export const AVATAR_FACE: ValFace = { mouthX: 0.58, mouthY: 0.66, headRight: 0.8 };
 
 type Word = { text: string; bold: boolean };
 
-// "Tu as **gagné** 20 XP" → mots avec leur espace de fin, gras compris
+// "Tu as **gagné** 20 XP" → mots avec leur espace de fin, emphase comprise
 function parseWords(source: string): Word[] {
   const words: Word[] = [];
   for (const run of source.split(/(\*\*[^*]+\*\*)/)) {
@@ -170,16 +189,10 @@ function parseWords(source: string): Word[] {
   return words;
 }
 
-type ValBubbleProps = {
-  mood: ValMood;
-  text: string;
-  title?: string;
-  diameter?: number;
-};
-
+// Lu par le lecteur d'écran : « Val : <titre>. <texte> »
 export function valAccessibilityLabel(text: string, title?: string): string {
   const plainText = text.replace(/\*\*([^*]+)\*\*/g, '$1');
-  return `Val dit : ${title ? `${title}. ` : ''}${plainText}`;
+  return `Val : ${title ? `${title}. ` : ''}${plainText}`;
 }
 
 // Portrait de Val dans un cercle (décoratif : jamais lu)
@@ -195,12 +208,63 @@ export function ValAvatar({ mood, diameter = size.valSm }: { mood: ValMood; diam
   );
 }
 
-export default function ValBubble({ mood, text, title, diameter }: ValBubbleProps) {
+type ValBubbleProps = {
+  mood: ValMood;
+  text: string;
+  title?: string;
+  diameter?: number;
+};
+
+// Val en portrait rond, sa bulle à droite, collée à hauteur de bouche
+export default function ValBubble({ mood, text, title, diameter = size.valSm }: ValBubbleProps) {
   return (
-    <View style={styles.row} accessible accessibilityLabel={valAccessibilityLabel(text, title)}>
-      <ValAvatar mood={mood} diameter={diameter} />
+    <ValBeside
+      figure={<ValAvatar mood={mood} diameter={diameter} />}
+      width={diameter}
+      height={diameter}
+      face={AVATAR_FACE}
+      text={text}
+      title={title}
+    />
+  );
+}
+
+type ValBesideProps = {
+  // Dessin de Val (portrait, buste, en pied), décoratif
+  figure: ReactNode;
+  // Taille de l'image de Val (la bouche s'y repère par `face`)
+  width: number;
+  height: number;
+  face: ValFace;
+  text: string;
+  title?: string;
+  gap?: number;
+  delay?: number;
+  maxWidth?: number;
+};
+
+// Val, puis sa bulle à droite : la pointe à hauteur de bouche, dirigée vers
+// elle, longue de 55 % de l'écart jusqu'à la tête
+export function ValBeside({ figure, width, height, face, text, title, gap = BESIDE_GAP, delay, maxWidth }: ValBesideProps) {
+  const layout = besideLayout(face, width, height, gap, DEFAULT_ANCHOR);
+  return (
+    <View style={[styles.row, { gap }]}>
+      <View style={{ width, height }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        {figure}
+      </View>
       {/* key : un nouveau texte remonte la bulle et relance l'écriture */}
-      <ValSpeechBubble key={`${title ?? ''}|${text}`} text={text} title={title} style={styles.bubbleWrap} />
+      <SpeechBubble
+        key={`${title ?? ''}|${text}`}
+        text={text}
+        title={title}
+        side="left"
+        anchor={layout.anchor}
+        aim={layout.aim}
+        tailLength={layout.length}
+        delay={delay}
+        maxWidth={maxWidth}
+        style={[styles.besideBubble, { marginTop: layout.offsetTop }]}
+      />
     </View>
   );
 }
@@ -208,48 +272,70 @@ export default function ValBubble({ mood, text, title, diameter }: ValBubbleProp
 type SpeechBubbleProps = {
   text: string;
   title?: string;
-  // Coin pointu tourné vers Val : en haut à gauche (Val à côté, en haut)
-  // ou en bas à gauche (Val à côté, en bas)
-  tail?: 'topLeft' | 'bottomLeft';
-  bordered?: boolean;
-  style?: StyleProp<ViewStyle>;
-  // Attente avant l'apparition (ms), 150 par défaut
+  // Côté de la pointe : à gauche, à droite ou en bas de la bulle
+  side?: TailSide;
+  // Position de la pointe le long de ce côté (depuis le haut pour gauche et
+  // droite, depuis la gauche pour le bas)
+  anchor?: number;
+  // Vers la bouche de Val, depuis la base de la pointe (px)
+  aim?: Point;
+  // Longueur de la pointe : environ 55 % de l'écart jusqu'à la tête
+  tailLength?: number;
+  // Attente avant l'apparition (ms)
   delay?: number;
-  // Rayon des coins (le coin tourné vers Val reste à 4), 20 par défaut
-  radius?: number;
-  // Couleur de la bordure (avec bordered), filet doré par défaut
-  borderColor?: string;
+  maxWidth?: number;
+  // Placement de la bulle (marges, position)
+  style?: StyleProp<ViewStyle>;
+  // false : le parent porte le libellé lu
+  accessible?: boolean;
+  onLayout?: (width: number, height: number) => void;
 };
 
-// Bulle de Val seule : apparition, écriture mot à mot, toucher = tout afficher.
-// Le parent porte le libellé accessible (valAccessibilityLabel).
-export function ValSpeechBubble({
+// LA bulle de Val, partout où il parle : ivoire, texte sombre, vraie pointe
+// dirigée vers sa bouche, ombre douce. Elle grandit depuis sa pointe, le
+// texte s'écrit mot à mot (un toucher affiche tout), puis elle flotte très
+// doucement. Animations réduites : affichée directement, immobile. Pas de
+// mot seul sur la dernière ligne. Lue « Val : <texte> ».
+export function SpeechBubble({
   text,
   title,
-  tail = 'topLeft',
-  bordered = false,
-  style,
+  side = 'left',
+  anchor,
+  aim,
+  tailLength = 12,
   delay = APPEAR_DELAY,
-  radius: cornerRadius,
-  borderColor,
+  maxWidth = bubble.maxWidth,
+  style,
+  accessible = true,
+  onLayout,
 }: SpeechBubbleProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
 
-  const words = useMemo(() => parseWords(text), [text]);
+  const words = useMemo(() => parseWords(noOrphan(text)), [text]);
   const [shown, setShown] = useState(reduced ? words.length : 0);
+  const at = anchor ?? (side === 'bottom' ? bubble.radius + bubble.tailBase : DEFAULT_ANCHOR);
 
-  const opacity = useSharedValue(0);
+  const opacity = useSharedValue(reduced ? 1 : 0);
   const scale = useSharedValue(reduced ? 1 : APPEAR_SCALE_FROM);
+  const float = useSharedValue(0);
 
   useEffect(() => {
-    opacity.set(withDelay(delay, withTiming(1, { duration: APPEAR_FADE })));
     if (reduced) return;
-
+    opacity.set(withDelay(delay, withTiming(1, { duration: APPEAR_FADE })));
     scale.set(withDelay(delay, withSpring(1, springs.enter)));
 
     const step = Math.min(WORD_INTERVAL, TYPING_MAX / Math.max(words.length, 1));
+    // Flottement une fois le texte écrit
+    const half = { duration: loops.bubbleFloat / 2, easing: Easing.inOut(Easing.sin) };
+    float.set(
+      withDelay(
+        delay + APPEAR_FADE + step * words.length,
+        withRepeat(withSequence(withTiming(-FLOAT_HEIGHT, half), withTiming(0, half)), -1)
+      )
+    );
+
     let interval: ReturnType<typeof setInterval> | undefined;
     let written = 0;
     const start = setTimeout(() => {
@@ -265,52 +351,72 @@ export function ValSpeechBubble({
       clearTimeout(start);
       if (interval) clearInterval(interval);
     };
-  }, [opacity, scale, reduced, words.length, delay]);
+  }, [opacity, scale, float, reduced, words.length, delay]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.get(),
-    transform: [{ scale: scale.get() }],
+    transform: [{ translateY: float.get() }, { scale: scale.get() }],
   }));
 
-  const revealAll = () => setShown(words.length);
+  // La bulle grandit depuis sa pointe
+  const origin: (string | number)[] = side === 'left' ? [0, at, 0] : side === 'right' ? ['100%', at, 0] : [at, '100%', 0];
 
   return (
     <Animated.View
-      style={[{ transformOrigin: tail === 'topLeft' ? 'top left' : 'bottom left' }, style, animatedStyle]}
+      style={[styles.bubbleWrap, { transformOrigin: origin }, style, animatedStyle]}
+      accessible={accessible}
+      accessibilityLabel={accessible ? valAccessibilityLabel(text, title) : undefined}
+      onLayout={onLayout ? (e) => onLayout(e.nativeEvent.layout.width, e.nativeEvent.layout.height) : undefined}
     >
       <Pressable
-        onPress={revealAll}
+        onPress={() => setShown(words.length)}
         disabled={shown >= words.length}
         style={[
           styles.bubble,
-          cornerRadius !== undefined && { borderRadius: cornerRadius },
-          tail === 'topLeft' ? styles.tailTop : styles.tailBottom,
-          { backgroundColor: colors.surface },
-          bordered && { borderWidth: 1, borderColor: borderColor ?? colors.goldLine },
+          { maxWidth, backgroundColor: colors.bubble, boxShadow: bubbleShadow(colors.groundShadow) },
         ]}
       >
         {title ? (
-          <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: colors.text }]}>
+          <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: colors.onBubble }]}>
             {title}
           </Text>
         ) : null}
         {/* Tout le texte est posé dès le départ (taille de bulle stable) ;
             les mots pas encore écrits sont simplement invisibles. */}
-        <AppText variant="body">
+        <Text maxFontSizeMultiplier={1.6} style={[styles.text, { color: colors.onBubble }]}>
           {words.map((word, i) => (
-            <Text
-              key={i}
-              style={[
-                word.bold && styles.bold,
-                i >= shown && styles.hidden,
-              ]}
-            >
+            <Text key={i} style={[word.bold && styles.emphasis, i >= shown && styles.hidden]}>
               {word.text}
             </Text>
           ))}
-        </AppText>
+        </Text>
+        <Tail side={side} anchor={at} aim={aim} length={tailLength} color={colors.bubble} />
       </Pressable>
     </Animated.View>
+  );
+}
+
+// Pointe triangulaire, dans la matière de la bulle, posée sur son bord
+function Tail({ side, anchor, aim, length, color }: { side: TailSide; anchor: number; aim?: Point; length: number; color: string }) {
+  const box = Math.ceil(length + bubble.tailBase);
+  const points = tailPoints(side, tailDirection(side, aim), length, bubble.tailBase)
+    .map((p) => `${p.x + box},${p.y + box}`)
+    .join(' ');
+  const place =
+    side === 'left'
+      ? { left: -box, top: anchor - box }
+      : side === 'right'
+        ? { right: -box, top: anchor - box }
+        : { bottom: -box, left: anchor - box };
+  return (
+    <Svg
+      width={box * 2}
+      height={box * 2}
+      style={[styles.tail, place]}
+      pointerEvents="none"
+    >
+      <Polygon points={points} fill={color} />
+    </Svg>
   );
 }
 
@@ -318,23 +424,19 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: space[3],
   },
+  besideBubble: {
+    flexShrink: 1,
+  },
+  // Largeur adaptée au texte, jamais au-delà de maxWidth
   bubbleWrap: {
-    flex: 1,
-    marginTop: BUBBLE_TOP_OFFSET,
-  },
-  tailTop: {
-    borderTopLeftRadius: BUBBLE_TIP_RADIUS,
-  },
-  tailBottom: {
-    borderBottomLeftRadius: BUBBLE_TIP_RADIUS,
+    alignSelf: 'flex-start',
   },
   bubble: {
-    borderRadius: radius.lg,
+    borderRadius: bubble.radius,
     borderCurve: 'continuous',
-    paddingVertical: space[3],
-    paddingHorizontal: space[4],
+    paddingVertical: bubble.paddingY,
+    paddingHorizontal: bubble.paddingX,
     gap: space[1],
   },
   title: {
@@ -343,8 +445,16 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     letterSpacing: titleLetterSpacing(18),
   },
-  bold: {
-    fontFamily: fonts.bodySemibold,
+  text: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: bubble.fontSize,
+    lineHeight: bubble.lineHeight,
+  },
+  emphasis: {
+    fontFamily: fonts.bodyEmphasis,
+  },
+  tail: {
+    position: 'absolute',
   },
   fill: {
     position: 'absolute',
