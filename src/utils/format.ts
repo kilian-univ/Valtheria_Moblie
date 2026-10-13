@@ -142,3 +142,14 @@ export function formatRelativeDate(input: Date | string | number, now: Date = ne
   const dayMonth = `${date.getDate()}${NBSP}${SHORT_MONTHS[date.getMonth()]}`;
   return date.getFullYear() === now.getFullYear() ? dayMonth : `${dayMonth} ${date.getFullYear()}`;
 }
+
+// Nombre arrondi vers le bas, suivi de « + », pour annoncer un volume sans
+// promettre un chiffre exact : moins de 10 → rien (null) ; 10 à 99 → à la
+// dizaine (43 → « 40+ ») ; 100 à 999 → à la centaine (930 → « 900+ ») ;
+// 1 000 et plus → au millier, espace insécable (1 340 → « 1 000+ »).
+export function roundedCount(value: number | null | undefined): string | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 10) return null;
+  const step = value < 100 ? 10 : value < 1000 ? 100 : 1000;
+  const rounded = Math.floor(value / step) * step;
+  return `${String(rounded).replace(/\B(?=(\d{3})+(?!\d))/g, NBSP)}+`;
+}

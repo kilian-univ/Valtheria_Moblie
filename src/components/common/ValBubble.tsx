@@ -213,11 +213,26 @@ type SpeechBubbleProps = {
   tail?: 'topLeft' | 'bottomLeft';
   bordered?: boolean;
   style?: StyleProp<ViewStyle>;
+  // Attente avant l'apparition (ms), 150 par défaut
+  delay?: number;
+  // Rayon des coins (le coin tourné vers Val reste à 4), 20 par défaut
+  radius?: number;
+  // Couleur de la bordure (avec bordered), filet doré par défaut
+  borderColor?: string;
 };
 
 // Bulle de Val seule : apparition, écriture mot à mot, toucher = tout afficher.
 // Le parent porte le libellé accessible (valAccessibilityLabel).
-export function ValSpeechBubble({ text, title, tail = 'topLeft', bordered = false, style }: SpeechBubbleProps) {
+export function ValSpeechBubble({
+  text,
+  title,
+  tail = 'topLeft',
+  bordered = false,
+  style,
+  delay = APPEAR_DELAY,
+  radius: cornerRadius,
+  borderColor,
+}: SpeechBubbleProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
@@ -229,10 +244,10 @@ export function ValSpeechBubble({ text, title, tail = 'topLeft', bordered = fals
   const scale = useSharedValue(reduced ? 1 : APPEAR_SCALE_FROM);
 
   useEffect(() => {
-    opacity.set(withDelay(APPEAR_DELAY, withTiming(1, { duration: APPEAR_FADE })));
+    opacity.set(withDelay(delay, withTiming(1, { duration: APPEAR_FADE })));
     if (reduced) return;
 
-    scale.set(withDelay(APPEAR_DELAY, withSpring(1, springs.enter)));
+    scale.set(withDelay(delay, withSpring(1, springs.enter)));
 
     const step = Math.min(WORD_INTERVAL, TYPING_MAX / Math.max(words.length, 1));
     let interval: ReturnType<typeof setInterval> | undefined;
@@ -244,13 +259,13 @@ export function ValSpeechBubble({ text, title, tail = 'topLeft', bordered = fals
         setShown((n) => Math.max(n, written));
         if (written >= words.length) clearInterval(interval);
       }, step);
-    }, APPEAR_DELAY);
+    }, delay);
 
     return () => {
       clearTimeout(start);
       if (interval) clearInterval(interval);
     };
-  }, [opacity, scale, reduced, words.length]);
+  }, [opacity, scale, reduced, words.length, delay]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.get(),
@@ -268,9 +283,10 @@ export function ValSpeechBubble({ text, title, tail = 'topLeft', bordered = fals
         disabled={shown >= words.length}
         style={[
           styles.bubble,
+          cornerRadius !== undefined && { borderRadius: cornerRadius },
           tail === 'topLeft' ? styles.tailTop : styles.tailBottom,
           { backgroundColor: colors.surface },
-          bordered && { borderWidth: 1, borderColor: colors.goldLine },
+          bordered && { borderWidth: 1, borderColor: borderColor ?? colors.goldLine },
         ]}
       >
         {title ? (

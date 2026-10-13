@@ -17,6 +17,9 @@ import AppBackground from '@/src/components/common/AppBackground';
 import { SkeletonProvider } from '@/src/components/common/Skeleton';
 import OnboardingGate from '@/src/components/onboarding/OnboardingGate';
 import StartupGate from '@/src/components/splash/StartupGate';
+import { valPose } from '@/src/components/common/ValFullBody';
+import { LOGO } from '@/src/constants/brand';
+import { usePreloadedImages } from '@/src/hooks/usePreloadedImages';
 import { palette } from '@/src/constants/style/Style';
 import { CustomDarkTheme, CustomLightTheme } from '@/src/constants/theme';
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext';
@@ -26,6 +29,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 // que l'app soit prête (polices + session lue sur le téléphone), puis se
 // masque en fondu ; l'accueil est déjà là dessous, avec son squelette.
 // Tout est géré par StartupGate.
+
+// Images du tout premier écran (bienvenue), chargées avant de le montrer
+const STARTUP_IMAGES = [LOGO, valPose('saut').source];
 
 function RootLayoutContent() {
   const { colorScheme } = useTheme();
@@ -39,8 +45,10 @@ function RootLayoutContent() {
     Inter_700Bold,
     Inter_800ExtraBold,
   });
+  // Logo et Val de la bienvenue préchargés pendant le splash (0,8 s au plus)
+  const imagesReady = usePreloadedImages(STARTUP_IMAGES);
   // En cas d'erreur de chargement, on affiche l'app en police système plutôt que de bloquer
-  const fontsReady = fontsLoaded || !!fontError;
+  const fontsReady = (fontsLoaded || !!fontError) && imagesReady;
 
   return (
     <NavigationThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : CustomLightTheme}>

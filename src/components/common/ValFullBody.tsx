@@ -27,6 +27,11 @@ const POSES: Record<ValPose, { source: ImageSourcePropType; ratio: number }> = {
   pense: { source: require('@/assets/images/val/val-pied-pense.webp'), ratio: 533 / 800 },
 };
 
+// Image et proportions d'une pose (préchargement, mises en scène)
+export function valPose(pose: ValPose): { source: ImageSourcePropType; ratio: number } {
+  return POSES[pose];
+}
+
 export const VAL_FULL_BODY_MIN = 160;
 const RISE = 24;
 const FROM_SCALE = 0.9;

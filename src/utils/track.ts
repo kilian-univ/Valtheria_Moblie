@@ -4,6 +4,9 @@
 
 export type TrackEvent =
   | 'app_ouverte'
+  | 'bienvenue_vue'
+  | 'bienvenue_commencer'
+  | 'bienvenue_deja_compte'
   | 'prenom_saisi'
   | 'prenom_passe'
   | 'objectif_choisi'
