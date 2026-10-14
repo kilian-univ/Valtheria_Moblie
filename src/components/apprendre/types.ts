@@ -38,4 +38,10 @@ export type LessonScreenProps<S extends LessonScreen = LessonScreen> = {
   scrollToY: (y: number) => void;
   // Révélation : estimation donnée plus tôt par l'utilisateur (from_screen)
   estimate: number | null;
+  // Moment (ms après le montage) où le contenu de l'écran finit d'arriver :
+  // les séquences propres à l'écran partent de là
+  enterDelay: number;
+  // Change la réplique (et l'humeur) de Val en haut de l'écran ; null :
+  // celle de l'arrivée
+  setVal: (line: ValLine | null) => void;
 };

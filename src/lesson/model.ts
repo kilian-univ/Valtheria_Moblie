@@ -78,6 +78,9 @@ export type RevealScreen = ScreenBase & {
   decimals: number;
   label: string | null;
   lines: RevealLine[];
+  // Valeur de départ, montrée en barre pâle au-dessus de l'estimation
+  // (1 000 € qui dorment, somme empruntée…). Facultative.
+  start: { label: string; value: number } | null;
   // Index d'un écran slider / number précédent dont on rappelle l'estimation
   fromScreen: number | null;
 };

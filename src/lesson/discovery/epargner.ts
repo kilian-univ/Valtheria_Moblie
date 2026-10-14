@@ -32,6 +32,7 @@ export const epargner = {
       payload: {
         value: 820,
         unit: '€',
+        start: { label: 'Au départ', value: 1000 },
         label: 'En vrai, environ',
         from_screen: 0,
         lines: [

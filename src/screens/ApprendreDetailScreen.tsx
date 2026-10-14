@@ -2,14 +2,17 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import EndFlowBoundary from '@/src/components/apprendre/end/EndFlowBoundary';
 import LessonEndFlow from '@/src/components/apprendre/end/LessonEndFlow';
 import LessonSkeleton from '@/src/components/apprendre/LessonSkeleton';
 import AnswerSheet, { Verdict } from '@/src/components/apprendre/player/AnswerSheet';
+import Cascade from '@/src/components/apprendre/player/Cascade';
 import LessonTopBar from '@/src/components/apprendre/player/LessonTopBar';
 import QuitSheet from '@/src/components/apprendre/player/QuitSheet';
+import ValSays from '@/src/components/apprendre/player/ValSays';
 import ScreenRenderer from '@/src/components/apprendre/ScreenRenderer';
 import { AnswerDraft, CollectedAnswer } from '@/src/components/apprendre/types';
 import AppText from '@/src/components/common/AppText';
@@ -17,25 +20,28 @@ import Pill from '@/src/components/common/Pill';
 import Button from '@/src/components/common/Button';
 import PageState from '@/src/components/common/PageState';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
-import { StaggerItem } from '@/src/components/common/Stagger';
 import { devSlowLoading } from '@/src/constants/dev';
+import { easeOut, motion } from '@/src/constants/motion';
 import { palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useApi } from '@/src/context/ApiContext';
 import { isNetworkError } from '@/src/hooks/useLearningData';
-import type { LessonModel, LessonScreen } from '@/src/lesson/model';
+import { PARI_INTRO } from '@/src/lesson/discovery/shared';
+import type { LessonModel, LessonScreen, ValLine } from '@/src/lesson/model';
 import { normalizeLesson } from '@/src/lesson/normalize';
 import { learningStore } from '@/src/state/learningStore';
 import { error as errorHaptic, success as successHaptic } from '@/src/utils/haptics';
 import {
   buildResponses,
   canContinue,
+  defaultValLine,
   estimateFor,
   finishedModuleTitle,
   firstTryRun,
   isFirstTryCorrect,
   isGradable,
   LessonResult,
+  primaryLabel,
   validateHint,
 } from '@/src/utils/lessonPlayer';
 
@@ -44,7 +50,24 @@ type LoadError = 'network' | 'server';
 // Hauteur de la feuille de réponse repliée, moins le bouton du bas qu'elle
 // recouvre (place laissée sous le contenu)
 const COLLAPSED_SHEET_ROOM = 160;
-const COLLAPSE_SCROLL_DELAY = 250;
+const COLLAPSE_SCROLL_DELAY = motion.sheet;
+
+// Passage d'un écran au suivant : l'ancien glisse à gauche, le nouveau
+// arrive de la droite (300 ms, ease-out). Animations réduites : direct.
+// (Le web ne connaît pas cette courbe : il garde la sienne, proche.)
+const SLIDE_IN =
+  Platform.OS === 'web' ? SlideInRight.duration(motion.screen) : SlideInRight.duration(motion.screen).easing(easeOut);
+const SLIDE_OUT =
+  Platform.OS === 'web' ? SlideOutLeft.duration(motion.screen) : SlideOutLeft.duration(motion.screen).easing(easeOut);
+// Cascade de l'écran (Val, sa bulle, le contenu) : dès l'arrivée sur le
+// premier écran, à mi-glissement ensuite
+const CASCADE_AFTER_SLIDE = motion.screen / 2;
+const RANK_VAL = 0;
+const RANK_BUBBLE = 1;
+const RANK_CONTENT = 2;
+// Après « Valider » : le temps de montrer les options corrigées
+// (pulsation, tremblement), puis la feuille monte avec la vibration
+const SHEET_AFTER_VERDICT = motion.shake;
 
 const LOAD_ERROR_MESSAGE: Record<LoadError, string> = {
   network: 'Impossible de charger la leçon : pas de connexion internet.',
@@ -60,6 +83,13 @@ function submitErrorMessage(err: unknown): string {
 // Type tel que le serveur le nomme (« number », « choice »…)
 function typeOf(screen: LessonScreen): string {
   return screen.kind === 'unsupported' ? screen.type : screen.kind;
+}
+
+// Réplique de Val à l'arrivée sur un écran. Pari d'une leçon découverte :
+// la réplique courte commune ; écran sans réplique : celle de son type.
+function introLine(screen: LessonScreen, discovery: boolean, isLast: boolean): ValLine {
+  if (discovery && screen.kind === 'slider' && !screen.scored) return PARI_INTRO;
+  return screen.val.intro ?? defaultValLine(screen, isLast);
 }
 
 // Leçon découverte de la première ouverture : leçon fournie (pas de
@@ -93,6 +123,14 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   // Feuille de réponse : montée tant que verdict existe, ouverte selon sheetOpen
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (sheetTimer.current) clearTimeout(sheetTimer.current);
+  }, []);
+
+  // Réplique de Val qui remplace celle de l'arrivée (réaction, tranche du
+  // simulateur…) ; null : celle de l'arrivée
+  const [valOverride, setValOverride] = useState<ValLine | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Dernier « Continuer » donné : la barre de progression est pleine
@@ -161,6 +199,12 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const estimate = estimateFor(screens, answers, index);
   const run = firstTryRun(answers, screens);
 
+  // Val en haut de l'écran : sa réaction, sinon sa réplique d'arrivée
+  const valLine = current ? (valOverride ?? introLine(current, !!discovery, isLast)) : null;
+  // Cascade de l'écran, et moment où son contenu a fini d'arriver
+  const cascadeAt = index > 0 ? CASCADE_AFTER_SLIDE : 0;
+  const enterDelay = cascadeAt + RANK_CONTENT * motion.stagger + motion.sheet;
+
   // ---------------------------------------------------------------------------
   // Quitter : croix et retour Android → feuille de confirmation. Le balayage
   // iOS est coupé (gestureEnabled: false, app/_layout.tsx et
@@ -224,6 +268,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     setIndex((i) => i + 1);
     setDraft(null);
     setAnswered(false);
+    setValOverride(null);
   };
 
   // Leçon découverte : rien à envoyer, l'écran de fin du parcours prend la main
@@ -292,18 +337,28 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       raw: draft.raw,
     };
     const nextAnswers = [...answers, answer];
+    const reaction = (draft.val !== undefined ? draft.val : draft.correct ? current.val.correct : current.val.wrong) ?? undefined;
     setAnswers(nextAnswers);
+    // L'écran montre aussitôt sa correction, Val réagit (sans réplique
+    // prévue : la sienne d'arrivée, avec l'humeur du verdict)
     setAnswered(true);
-    setVerdict({
+    const arrival = introLine(current, !!discovery, isLast);
+    setValOverride(reaction ?? { line: arrival.line, mood: draft.correct ? 'celebrant' : 'rassurant' });
+    const nextVerdict: Verdict = {
       correct: draft.correct,
       firstTry: isFirstTryCorrect(nextAnswers, screens, index),
       correctText: draft.correctText,
       explanation: (draft.explanation !== undefined ? draft.explanation : current.explanation) ?? undefined,
-      val: (draft.val !== undefined ? draft.val : draft.correct ? current.val.correct : current.val.wrong) ?? undefined,
-    });
-    setSheetOpen(true);
-    if (draft.correct) successHaptic();
-    else errorHaptic();
+      val: reaction,
+    };
+    // Puis la feuille monte, en même temps que la vibration (montée
+    // directement ouverte : une feuille montée fermée se démonterait)
+    sheetTimer.current = setTimeout(() => {
+      setVerdict(nextVerdict);
+      setSheetOpen(true);
+      if (nextVerdict.correct) successHaptic();
+      else errorHaptic();
+    }, SHEET_AFTER_VERDICT);
   };
 
   // Réponse complète sans bouton (dernière carte, dernière paire, réplique
@@ -394,38 +449,54 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
         </SkeletonGroup>
       ) : (
         <>
-          <ScrollView
-            ref={scrollRef}
-            style={styles.scroll}
-            // Après validation, de la place sous le contenu : feuille repliée,
-            // les dernières options restent visibles au-dessus de la bande
-            contentContainerStyle={[styles.scrollContent, answered && styles.scrollContentAnswered]}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* key : chaque écran est remonté (état neuf, apparition rejouée) */}
-            {discovery ? (
-              <View style={styles.discoveryHead}>
-                <Pill size="badge" label="LEÇON DÉCOUVERTE" accessibilityLabel="Leçon découverte" background={colors.goldSoft} color={colors.gold} />
-                {/* Titre de la leçon, avant le pari */}
-                {index === 0 && discovery.lesson.title ? (
-                  <AppText variant="title2" accessibilityRole="header">
-                    {discovery.lesson.title}
-                  </AppText>
+          <View style={styles.stage}>
+            {/* key : chaque écran est remonté (état neuf, entrée rejouée) */}
+            <Animated.View
+              key={index}
+              entering={index > 0 ? SLIDE_IN : undefined}
+              exiting={SLIDE_OUT}
+              style={StyleSheet.absoluteFill}
+            >
+              <ScrollView
+                ref={scrollRef}
+                style={styles.scroll}
+                // Après validation, de la place sous le contenu : feuille
+                // repliée, les dernières options restent visibles au-dessus
+                contentContainerStyle={[styles.scrollContent, answered && styles.scrollContentAnswered]}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Pastille seulement sur le premier écran d'une leçon découverte */}
+                {discovery && index === 0 ? (
+                  <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.discoveryHead}>
+                    <Pill size="badge" label="LEÇON DÉCOUVERTE" accessibilityLabel="Leçon découverte" background={colors.goldSoft} color={colors.gold} />
+                  </Cascade>
                 ) : null}
-              </View>
-            ) : null}
-            <View key={index} onLayout={(e) => (screenY.current = e.nativeEvent.layout.y)}>
-              <StaggerItem index={0}>
-                <ScreenRenderer
-                  screen={current}
-                  answered={answered}
-                  onDraftChange={setDraft}
-                  scrollToY={scrollToY}
-                  estimate={estimate}
-                />
-              </StaggerItem>
-            </View>
-          </ScrollView>
+                {valLine ? (
+                  <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.val}>
+                    <ValSays
+                      line={valLine}
+                      // Réaction : tout de suite ; arrivée : dans la cascade
+                      bubbleDelay={valOverride ? 0 : cascadeAt + RANK_BUBBLE * motion.stagger}
+                      typing={current.kind !== 'simulator' || !valOverride}
+                    />
+                  </Cascade>
+                ) : null}
+                <Cascade index={RANK_CONTENT} delay={cascadeAt} style={styles.content}>
+                  <View style={styles.content} onLayout={(e) => (screenY.current = e.nativeEvent.layout.y)}>
+                    <ScreenRenderer
+                      screen={current}
+                      answered={answered}
+                      onDraftChange={setDraft}
+                      scrollToY={scrollToY}
+                      estimate={estimate}
+                      enterDelay={enterDelay}
+                      setVal={setValOverride}
+                    />
+                  </View>
+                </Cascade>
+              </ScrollView>
+            </Animated.View>
+          </View>
 
           <View style={styles.footer}>
             {submitError && !verdict ? (
@@ -435,7 +506,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
             ) : null}
             {gradable ? (
               <Button
-                label="Valider"
+                label={primaryLabel(current)}
                 onPress={handleValidate}
                 disabled={!draft || answered}
                 disabledReason={!draft ? validateHint(current) : undefined}
@@ -443,11 +514,16 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
               />
             ) : (
               <Button
-                label={submitError ? 'Réessayer' : 'Continuer'}
+                label={submitError ? 'Réessayer' : primaryLabel(current)}
                 onPress={handleContinue}
                 loading={isLast && isSubmitting}
                 disabled={!canContinue(current, draft !== null)}
-                disabledReason={!canContinue(current, draft !== null) ? 'Bouge le curseur pour continuer.' : undefined}
+                // Le pari dit déjà « Fais glisser pour parier »
+                disabledReason={
+                  current.kind === 'simulator' && !canContinue(current, draft !== null)
+                    ? 'Bouge le curseur pour continuer.'
+                    : undefined
+                }
               />
             )}
           </View>
@@ -489,21 +565,34 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  // Scène des écrans : l'ancien et le nouveau s'y croisent en glissant
+  stage: {
+    flex: 1,
+    overflow: 'hidden',
+  },
   scroll: {
     flex: 1,
   },
+  // Le contenu occupe toute la hauteur : rien ne reste vide en bas
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: space[5],
-    paddingTop: space[4],
-    paddingBottom: space[8],
+    paddingTop: space[2],
+    paddingBottom: space[5],
   },
   scrollContentAnswered: {
     paddingBottom: COLLAPSED_SHEET_ROOM,
   },
   discoveryHead: {
-    gap: space[3],
-    marginBottom: space[4],
     alignItems: 'flex-start',
+    marginBottom: space[3],
+  },
+  val: {
+    marginLeft: -space[1],
+    marginBottom: space[4],
+  },
+  content: {
+    flex: 1,
   },
   state: {
     flex: 1,

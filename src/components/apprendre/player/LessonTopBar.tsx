@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -9,22 +11,25 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
-import { counterEasing, durations, springs } from '@/src/constants/motion';
+import IconButton from '@/src/components/common/IconButton';
+import { motion, springs, timing } from '@/src/constants/motion';
 import { fonts, palette, radius, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { runLabel } from '@/src/utils/lessonPlayer';
-import IconButton from '@/src/components/common/IconButton';
+import { runAccessibilityLabel, runBadge } from '@/src/utils/lessonPlayer';
 
 const CLOSE_ICON = 26;
 const BAR_HEIGHT = 14;
-// Reflet clair dans le remplissage
+// Reflet clair en haut du remplissage
 const SHINE_HEIGHT = 3;
-const SHINE_INSET_X = 8;
+const SHINE_INSET_X = 6;
 const SHINE_INSET_TOP = 3;
-const GLOW_BLUR = 12;
-const RUN_FONT_SIZE = 12;
-const RUN_LINE_HEIGHT = 16;
+// Pastille d'affilée
+const RUN_HEIGHT = 28;
+const RUN_ICON = 14;
+const RUN_FONT_SIZE = 14;
 const RUN_POP_FROM = 0.7;
+// Éclat doré : bande qui traverse la barre une fois
+const GLINT_WIDTH = 64;
 
 type LessonTopBarProps = {
   // De 0 à 1
@@ -34,41 +39,49 @@ type LessonTopBarProps = {
   onClose: () => void;
 };
 
-// Barre du haut du lecteur : croix, progression, série d'affilée (dès 3).
+// Barre du haut du lecteur : croix, progression (ressort de 300 ms après
+// chaque écran validé), pastille d'affilée dès 3 bonnes réponses du premier
+// coup ; à son arrivée, un éclat doré parcourt la barre une fois.
 export default function LessonTopBar({ progress, run, onClose }: LessonTopBarProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
 
   const clamped = Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0));
-  const label = runLabel(run);
-  const onFire = label !== null;
+  const badge = runBadge(run);
+  const onFire = badge !== null;
 
   const [trackWidth, setTrackWidth] = useState(0);
   const fillWidth = useSharedValue(0);
-  const glow = useSharedValue(0);
   const pop = useSharedValue(1);
+  const glint = useSharedValue(-GLINT_WIDTH);
+  const wasOnFire = useRef(false);
 
   useEffect(() => {
     if (trackWidth === 0) return;
     const target = clamped * trackWidth;
-    fillWidth.set(reduced ? target : withTiming(target, { duration: durations.counter, easing: counterEasing }));
+    fillWidth.set(reduced ? target : withSpring(target, springs.progress));
   }, [clamped, trackWidth, reduced, fillWidth]);
 
-  useEffect(() => {
-    glow.set(withTiming(onFire ? 1 : 0, { duration: durations.fade }));
-  }, [onFire, glow]);
-
-  // Petit rebond à chaque nouvelle bonne réponse de la série
+  // Petit rebond de la pastille à chaque nouvelle bonne réponse de la série
   useEffect(() => {
     if (!onFire || reduced) return;
     pop.set(RUN_POP_FROM);
     pop.set(withSpring(1, springs.celebrate));
   }, [run, onFire, reduced, pop]);
 
+  // Éclat doré : une seule traversée, quand la pastille apparaît
+  useEffect(() => {
+    if (onFire && !wasOnFire.current && !reduced && trackWidth > 0) {
+      glint.set(-GLINT_WIDTH);
+      glint.set(withTiming(trackWidth, timing(motion.max)));
+    }
+    wasOnFire.current = onFire;
+  }, [onFire, reduced, trackWidth, glint]);
+
   const fillStyle = useAnimatedStyle(() => ({ width: fillWidth.get() }));
-  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.get() }));
   const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.get() }] }));
+  const glintStyle = useAnimatedStyle(() => ({ transform: [{ translateX: glint.get() }] }));
 
   const onLayout = (e: LayoutChangeEvent) => setTrackWidth(e.nativeEvent.layout.width);
 
@@ -84,40 +97,39 @@ export default function LessonTopBar({ progress, run, onClose }: LessonTopBarPro
         style={styles.close}
       />
 
-      <View style={styles.barColumn}>
-        <View style={styles.runSlot}>
-          {label ? (
-            <Animated.View style={popStyle} accessibilityLiveRegion="polite">
-              <AppText style={[styles.runText, { color: colors.gold }]}>{label}</AppText>
-            </Animated.View>
-          ) : null}
-        </View>
-
-        <View>
-          {/* Lueur dorée sous la barre pendant une série */}
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.glow,
-              {
-                boxShadow: [{ offsetX: 0, offsetY: 0, blurRadius: GLOW_BLUR, color: colors.goldRing }],
-              },
-              glowStyle,
-            ]}
+      <View
+        onLayout={onLayout}
+        accessibilityRole="progressbar"
+        accessibilityLabel="Progression de la leçon"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(clamped * 100)}
+        style={[styles.track, { backgroundColor: colors.surface }]}
+      >
+        <Animated.View style={[styles.fill, { backgroundColor: colors.gold }, fillStyle]}>
+          <View style={[styles.shine, { backgroundColor: colors.progressShine }]} />
+        </Animated.View>
+        <Animated.View pointerEvents="none" style={[styles.glint, glintStyle]}>
+          <LinearGradient
+            colors={['transparent', colors.goldGlint, 'transparent']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={StyleSheet.absoluteFill}
           />
-          <View
-            onLayout={onLayout}
-            accessibilityRole="progressbar"
-            accessibilityLabel="Progression de la leçon"
-            accessibilityValue={{ min: 0, max: 100, now: Math.round(clamped * 100) }}
-            style={[styles.track, { backgroundColor: colors.surface }]}
-          >
-            <Animated.View style={[styles.fill, { backgroundColor: colors.gold }, fillStyle]}>
-              <View style={[styles.shine, { backgroundColor: colors.progressShine }]} />
-            </Animated.View>
-          </View>
-        </View>
+        </Animated.View>
       </View>
+
+      {badge !== null ? (
+        <Animated.View
+          style={[styles.run, { backgroundColor: colors.goldSoft }, popStyle]}
+          accessible
+          accessibilityLabel={runAccessibilityLabel(badge)}
+          accessibilityLiveRegion="polite"
+        >
+          <Ionicons name="flash" size={RUN_ICON} color={colors.gold} />
+          <AppText style={[styles.runText, { color: colors.gold }]}>{badge}</AppText>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -125,11 +137,11 @@ export default function LessonTopBar({ progress, run, onClose }: LessonTopBarPro
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     gap: space[2],
-    paddingLeft: space[2],
-    paddingRight: space[5],
-    paddingBottom: space[2],
+    paddingLeft: space[1],
+    paddingRight: space[4],
+    minHeight: size.tapMin,
   },
   close: {
     width: size.tapMin,
@@ -137,30 +149,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // La barre est centrée sur la croix ; la série s'affiche au-dessus
-  barColumn: {
-    flex: 1,
-    paddingBottom: (size.tapMin - BAR_HEIGHT) / 2,
-  },
-  runSlot: {
-    minHeight: RUN_LINE_HEIGHT,
-    alignItems: 'flex-end',
-    marginBottom: space[1],
-  },
-  runText: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: RUN_FONT_SIZE,
-    lineHeight: RUN_LINE_HEIGHT,
-  },
-  glow: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: radius.pill,
-  },
   track: {
+    flex: 1,
     height: BAR_HEIGHT,
     borderRadius: radius.pill,
     overflow: 'hidden',
@@ -179,5 +169,26 @@ const styles = StyleSheet.create({
     right: SHINE_INSET_X,
     height: SHINE_HEIGHT,
     borderRadius: radius.pill,
+  },
+  glint: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: GLINT_WIDTH,
+  },
+  run: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[1],
+    height: RUN_HEIGHT,
+    paddingHorizontal: space[2] + 2,
+    borderRadius: radius.pill,
+  },
+  runText: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: RUN_FONT_SIZE,
+    lineHeight: RUN_HEIGHT - 8,
+    fontVariant: ['tabular-nums'],
   },
 });

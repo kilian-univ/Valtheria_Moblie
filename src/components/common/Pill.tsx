@@ -10,7 +10,8 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 // badge : capitales en petit (« LEÇON TERMINÉE »), 26 de haut
 // md : pastille d'information (bienvenue), 32 de haut, filet fin
 // sm : petite pastille de chiffre (XP, gels)
-export type PillSize = 'badge' | 'md' | 'sm';
+// lg : verdict mis en avant (révélation d'une leçon), 38 de haut
+export type PillSize = 'badge' | 'md' | 'sm' | 'lg';
 
 type PillProps = {
   label: string;
@@ -26,7 +27,7 @@ type PillProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-const ICON_SIZE: Record<PillSize, number> = { badge: 14, md: 15, sm: 12 };
+const ICON_SIZE: Record<PillSize, number> = { badge: 14, md: 15, sm: 12, lg: 18 };
 
 // Pastille non touchable : fond arrondi, icône facultative, libellé court
 export default function Pill({
@@ -56,7 +57,10 @@ export default function Pill({
       <AppText
         variant="caption"
         maxFontSizeMultiplier={1.3}
-        style={[size === 'badge' ? styles.badgeText : size === 'sm' ? styles.smText : null, { color }]}
+        style={[
+          size === 'badge' ? styles.badgeText : size === 'sm' ? styles.smText : size === 'lg' ? styles.lgText : null,
+          { color },
+        ]}
       >
         {label}
       </AppText>
@@ -81,6 +85,11 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: space[3],
   },
+  lg: {
+    minHeight: 38,
+    gap: space[2],
+    paddingHorizontal: space[4],
+  },
   sm: {
     gap: 3,
     paddingHorizontal: space[2] + 2,
@@ -91,6 +100,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 1,
+  },
+  lgText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    lineHeight: 20,
   },
   smText: {
     fontFamily: fonts.bodySemibold,

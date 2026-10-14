@@ -35,7 +35,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 1. **Le pari** (`slider`, non noté)
    - « Tu laisses 1 000 € sur ton compte courant pendant 10 ans. Avec 2 % d'inflation par an, que pourras-tu encore acheter avec, en euros d'aujourd'hui ? »
    - Curseur de 500 à 1 200 €, pas de 10, départ 1 000 €.
-   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
+   - Val (complice) : « Petit pari, sans mauvaise réponse. À ton avis ? »
 2. **La révélation** (`reveal`)
    - Environ 820 €.
    - Lignes : sur le compte, toujours 1 000 € ; ce que ça achète encore, environ 820 € (clé) ; 2 % par an est une hypothèse (atténuée).
@@ -66,7 +66,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 1. **Le pari** (`slider`, non noté)
    - « Tu places 100 € par mois pendant 30 ans. Si ça rapporte 5 % par an en moyenne, combien as-tu à la fin ? »
    - Curseur de 30 000 à 150 000 €, pas de 1 000, départ 45 000 €.
-   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
+   - Val (complice) : « Petit pari, sans mauvaise réponse. À ton avis ? »
 2. **La révélation** (`reveal`)
    - Environ 81 500 €.
    - Lignes : tu as versé 36 000 € ; les intérêts ont ajouté environ 45 500 € (clé) ; 5 % par an est une hypothèse, rien n'est garanti en bourse (atténuée).
@@ -96,7 +96,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 1. **Le pari** (`slider`, non noté)
    - « En novembre 2021, un bitcoin valait environ 69 000 dollars. À ton avis, combien valait-il un an plus tard ? »
    - Curseur de 0 à 100 000 dollars, pas de 1 000, départ 60 000.
-   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
+   - Val (complice) : « Petit pari, sans mauvaise réponse. À ton avis ? »
 2. **La révélation** (`reveal`)
    - Environ 16 500 dollars fin 2022.
    - Lignes : une baisse d'environ 76 % (clé) ; 1 000 € placés au sommet en valaient environ 240 € un an plus tard ; il est remonté depuis, mais personne ne pouvait savoir quand (atténuée).
@@ -128,7 +128,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 1. **Le pari** (`slider`, non noté)
    - « Tu empruntes 200 000 € sur 25 ans à 3,5 %. Combien rembourses-tu en tout ? »
    - Curseur de 200 000 à 400 000 €, pas de 5 000, départ 230 000 €.
-   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
+   - Val (complice) : « Petit pari, sans mauvaise réponse. À ton avis ? »
 2. **La révélation** (`reveal`)
    - Environ 300 000 €.
    - Lignes : tu as emprunté 200 000 € ; les intérêts coûtent environ 100 000 € (clé) ; soit une mensualité d'environ 1 000 € ; hors assurance et frais, et le taux est une hypothèse (atténuée).
@@ -159,7 +159,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - « Une prime fait passer ton revenu imposable de 29 000 € à 31 000 €, et tu changes de tranche : de 11 % à 30 %. De combien augmente ton impôt ? »
    - Sous la question, en petit : « Barème simplifié : 0 % jusqu'à 11 000 €, 11 % jusqu'à 30 000 €, 30 % au-delà. »
    - Curseur de 0 à 3 000 €, pas de 10, départ 1 500 €.
-   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
+   - Val (complice) : « Petit pari, sans mauvaise réponse. À ton avis ? »
 2. **La révélation** (`reveal`)
    - 410 €.
    - Lignes : les 1 000 € sous le seuil, taxés à 11 %, font 110 € ; les 1 000 € au-dessus, taxés à 30 %, font 300 € ; au total, 410 € d'impôt en plus pour 2 000 € de prime (clé) ; barème simplifié pour l'exemple (atténuée).
@@ -190,7 +190,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 1. **Le pari** (`slider`, non noté)
    - « Tu touches 1 660 € net par mois. Combien coûtes-tu à ton employeur ? »
    - Curseur de 1 660 à 4 000 €, pas de 50, départ 2 000 €.
-   - Val (complice) : « Un petit pari pour commencer. Il n'y a pas de mauvaise réponse. »
+   - Val (complice) : « Petit pari, sans mauvaise réponse. À ton avis ? »
 2. **La révélation** (`reveal`)
    - 3 055 € par mois.
    - Lignes : ton salaire net 1 660 € ; tes cotisations salariales 470 € ; ton salaire brut 2 130 € ; les cotisations patronales 925 € ; ce que tu coûtes 3 055 € (clé).

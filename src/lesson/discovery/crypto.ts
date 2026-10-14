@@ -30,6 +30,7 @@ export const crypto = {
       payload: {
         value: 16500,
         unit: 'dollars',
+        start: { label: 'Au sommet, fin 2021', value: 69000 },
         label: 'Fin 2022, environ',
         from_screen: 0,
         lines: [

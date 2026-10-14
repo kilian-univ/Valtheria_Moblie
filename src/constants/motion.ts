@@ -1,5 +1,9 @@
 import { Easing } from 'react-native-reanimated';
 
+import { motion } from './style/Style';
+
+export { motion };
+
 // Ressorts Reanimated (withSpring). Toujours passer par ces configs :
 // les animations de l'app doivent se ressembler.
 export const springs = {
@@ -7,6 +11,8 @@ export const springs = {
   enter: { damping: 18, stiffness: 180, mass: 1 },     // apparition d'un élément
   screen: { damping: 24, stiffness: 220, mass: 1 },    // grands blocs, feuilles
   celebrate: { damping: 10, stiffness: 160, mass: 1 }, // réussite (rebond visible)
+  // Barre de progression du lecteur : avance en 300 ms, léger dépassement
+  progress: { duration: motion.screen, dampingRatio: 0.72 },
 } as const;
 
 // Durées en millisecondes (withTiming, withDelay)
@@ -31,6 +37,14 @@ export const loops = {
 
 // Courbe des compteurs et barres de progression
 export const counterEasing = Easing.out(Easing.cubic);
+
+// Courbe par défaut du lecteur de leçon (jetons motion de Style.ts)
+export const easeOut = Easing.out(Easing.cubic);
+
+// withTiming d'une durée du lecteur, en ease-out
+export function timing(duration: number) {
+  return { duration, easing: easeOut };
+}
 
 // Au-delà de 8 éléments, les suivants apparaissent en même temps que le 8e
 export const STAGGER_MAX_ITEMS = 8;

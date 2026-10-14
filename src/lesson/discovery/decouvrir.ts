@@ -33,6 +33,7 @@ export const decouvrir = {
       payload: {
         value: 3055,
         unit: '€ par mois',
+        start: { label: 'Ton salaire net', value: 1660 },
         label: 'En vrai',
         from_screen: 0,
         lines: [

@@ -65,6 +65,7 @@ export const palette = {
     dangerSheet: '#2A1715',              // feuille de réponse fausse
     reliefEdge: 'rgba(255,255,255,0.13)', // tranche d'une option en relief
     progressShine: 'rgba(255,255,255,0.35)', // reflet de la barre de progression
+    goldGlint: 'rgba(255,236,170,0.8)',  // éclat doré qui parcourt la barre (série d'affilée)
     pathLockedFace: '#2B2F38',           // rond verrouillé du chemin
     pathLockedDeep: '#171A20',           // sa tranche (et celle du bouton flottant)
     pathShine: 'rgba(255,255,255,0.25)', // reflet en haut à gauche des ronds
@@ -80,6 +81,13 @@ export const palette = {
     blobDark: '#000000',
     surface2: '#202026',                 // surface pressée, deuxième niveau
     surfaceEdge: '#08080A',              // tranche d'une carte en relief posée sur surface (mot du jour)
+    optionFace: '#1D1D23',               // face d'une carte en relief du lecteur (option, carte, ligne)
+    optionEdge: '#0E0E11',               // sa tranche
+    optionBorder: 'rgba(255,255,255,0.10)', // son filet
+    disabledFace: '#2A2A31',             // bouton en relief inactif (gris foncé neutre)
+    disabledEdge: '#1F1F25',             // sa tranche
+    disabledText: 'rgba(242,239,232,0.38)', // son libellé (ivoire à 38 %)
+    panel: 'rgba(255,255,255,0.04)',     // encart posé sur le fond (barres d'une révélation)
     scrim: 'rgba(0,0,0,0.6)',            // voile sous les feuilles et modales
     focusRing: '#C9A84C',                // = gold
     skeletonShine: 'rgba(255,255,255,0.06)', // reflet des squelettes de chargement
@@ -113,6 +121,7 @@ export const palette = {
     dangerSheet: '#FBECEA',
     reliefEdge: 'rgba(0,0,0,0.13)',
     progressShine: 'rgba(255,255,255,0.5)',
+    goldGlint: 'rgba(255,248,220,0.9)',
     pathLockedFace: '#DDDCE2',
     pathLockedDeep: '#BDBCC4',
     pathShine: 'rgba(255,255,255,0.35)',
@@ -141,6 +150,13 @@ export const palette = {
     blobDark: '#000000',
     surface2: '#ECEBF0',
     surfaceEdge: '#DEDCE3',
+    optionFace: '#FFFFFF',
+    optionEdge: '#DEDCE3',
+    optionBorder: 'rgba(0,0,0,0.10)',
+    disabledFace: '#E4E3E8',
+    disabledEdge: '#CFCED6',
+    disabledText: 'rgba(13,13,15,0.38)',
+    panel: 'rgba(0,0,0,0.04)',
     scrim: 'rgba(0,0,0,0.4)',
     focusRing: '#E8B23D',                // = gold
     skeletonShine: 'rgba(0,0,0,0.05)',
@@ -221,6 +237,24 @@ export const opacityDim = 0.52;
 // Épaisseur de la tranche sous les éléments en relief (bouton principal,
 // rond de la leçon en cours) ; la face s'y enfonce à l'appui.
 export const reliefDepth = 4;
+
+// ---------------------------------------------------------------------------
+// Mouvement (ms). Toute animation du lecteur de leçon part de ces durées ;
+// courbe par défaut : ease-out (constants/motion.ts), ressorts existants
+// pour les rebonds. Rien au-delà de max, sauf le défilement d'un chiffre de
+// révélation (roll).
+// ---------------------------------------------------------------------------
+export const motion = {
+  tap: 90,          // retour simple : appui, sélection
+  state: 150,       // changement d'état (couleur, humeur de Val)
+  shake: 200,       // tremblement d'une réponse fausse
+  sheet: 250,       // feuille qui monte, élément d'une cascade
+  screen: 300,      // passage d'un écran au suivant, avance de la progression
+  suspense: 300,    // silence avant la révélation d'un chiffre
+  max: 500,
+  roll: 1000,       // chiffre de révélation qui défile
+  stagger: 40,      // décalage entre deux éléments d'une cascade
+} as const;
 
 // ---------------------------------------------------------------------------
 // Styles de texte. maxFontSizeMultiplier est une prop de <Text>, pas un style :

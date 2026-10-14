@@ -98,6 +98,12 @@ export function formatNumber(value: number, decimals?: number): string {
   return `${sign}${digits(value, min, max)}`;
 }
 
+// Valeur et son unité, collées par une espace insécable : « 850 € ».
+// Sans unité : la valeur seule.
+export function withUnit(value: string, unit: string | null | undefined): string {
+  return unit ? `${value}${NBSP}${unit}` : value;
+}
+
 // formatXp(20) → "+ 20 XP"
 export function formatXp(value: number): string {
   const sign = value < 0 ? MINUS : '+';

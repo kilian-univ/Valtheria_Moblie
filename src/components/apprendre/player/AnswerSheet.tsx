@@ -6,12 +6,10 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import AppText from '@/src/components/common/AppText';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
-import ValBubble, { ValAvatar } from '@/src/components/common/ValBubble';
 import { durations } from '@/src/constants/motion';
 import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { ValLine } from '@/src/lesson/model';
-import { VAL_DIAMETER } from './ScreenIntro';
 
 const ICON_SIZE = 28;
 // Au-delà, le contenu de la feuille défile (le bouton reste visible)
@@ -22,7 +20,8 @@ export type Verdict = {
   firstTry: boolean;
   correctText: string | null;
   explanation?: string;
-  // Réplique de Val prévue par la leçon (screen.val.correct / wrong)
+  // Réplique de Val prévue par la leçon (screen.val.correct / wrong) :
+  // Val la dit en haut de l'écran, pas dans la feuille
   val?: ValLine;
 };
 
@@ -41,7 +40,8 @@ type AnswerSheetProps = {
 };
 
 // Feuille de correction, sans voile : l'écran reste visible au-dessus avec
-// ses options colorées. Ne se ferme que par « Continuer ». Deux positions :
+// ses options colorées et Val qui réagit. Monte du bas en 250 ms avec la
+// vibration ; seul « Continuer » fait avancer. Deux positions :
 // dépliée (correction complète) et repliée (bande : icône, titre, bouton),
 // pour voir toutes les options corrigées au-dessus.
 export default function AnswerSheet({
@@ -59,7 +59,6 @@ export default function AnswerSheet({
   const { height } = useWindowDimensions();
   const { correct } = verdict;
 
-  const fallbackMood = correct ? 'celebrant' : 'rassurant';
   const [collapsed, setCollapsedState] = useState(false);
   const setCollapsed = (next: boolean) => {
     setCollapsedState(next);
@@ -98,12 +97,6 @@ export default function AnswerSheet({
         {collapsed ? null : (
           <Animated.View entering={FadeIn.duration(durations.fade)} exiting={FadeOut.duration(durations.fade)}>
             <ScrollView style={{ maxHeight: height * MAX_CONTENT_RATIO }} contentContainerStyle={styles.body}>
-              {verdict.val?.line ? (
-                <ValBubble mood={verdict.val.mood} text={verdict.val.line} diameter={VAL_DIAMETER} />
-              ) : (
-                <ValAvatar mood={fallbackMood} diameter={VAL_DIAMETER} />
-              )}
-
               {!correct && verdict.correctText ? (
                 <AppText variant="bodyMedium">
                   {verdict.correctText.includes(', ') ? 'Les bonnes réponses : ' : 'La bonne réponse : '}

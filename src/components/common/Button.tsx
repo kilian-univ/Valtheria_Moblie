@@ -15,7 +15,8 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { tap } from '@/src/utils/haptics';
 import AppText, { TextTone } from './AppText';
 
-// primary, success, danger : en relief (face + tranche)
+// primary, success, danger : en relief (face + tranche) ; inactifs, ils
+//   passent en gris foncé neutre (jetons disabledFace / disabledEdge)
 // secondary : filet, fond transparent
 // contrast : plein, couleur du texte (« Continuer avec Apple »)
 // text : bouton texte doré ; textDanger : rouge (action destructrice discrète)
@@ -101,7 +102,9 @@ export default function Button({
   const isText = variant === 'text' || variant === 'textDanger' || variant === 'link';
   const isLink = variant === 'link';
   const labelTone = tone ?? LABEL_TONE[variant];
-  const labelColor = color ?? colors[labelTone];
+  // Relief inactif : gris foncé neutre (pas un or terne), libellé ivoire pâle
+  const dimmedRelief = isRelief && disabled && !loading;
+  const labelColor = dimmedRelief ? colors.disabledText : (color ?? colors[labelTone]);
 
   // relief : enfoncement (0 → reliefDepth) ; autres : échelle (1 → 0,97)
   const press = useSharedValue(0);
@@ -156,13 +159,20 @@ export default function Button({
         accessibilityHint={disabled && disabledReason ? disabledReason : accessibilityHint}
         accessibilityState={{ disabled: inactive, busy: loading }}
         // En chargement le bouton reste plein : seul l'état désactivé estompe
-        style={[isRelief && styles.reliefWrap, disabled && !loading && styles.disabled]}
+        style={[isRelief && styles.reliefWrap, disabled && !loading && !isRelief && styles.disabled]}
       >
         {relief ? (
           <>
             {/* Tranche : visible sous la face, recouverte quand la face s'enfonce */}
-            <View style={[styles.edge, { backgroundColor: colors[relief.edge] }]} />
-            <Animated.View style={[styles.base, styles.primaryFace, { backgroundColor: colors[relief.face] }, faceStyle]}>
+            <View style={[styles.edge, { backgroundColor: dimmedRelief ? colors.disabledEdge : colors[relief.edge] }]} />
+            <Animated.View
+              style={[
+                styles.base,
+                styles.primaryFace,
+                { backgroundColor: dimmedRelief ? colors.disabledFace : colors[relief.face] },
+                faceStyle,
+              ]}
+            >
               {content}
             </Animated.View>
           </>

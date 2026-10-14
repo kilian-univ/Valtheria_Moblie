@@ -25,3 +25,37 @@ export function windowFitHeight(full: number, min: number, windowHeight: number)
   if (!(windowHeight > 0) || windowHeight >= REFERENCE_SCREEN_HEIGHT) return full;
   return fitHeight(full, min, full - (full * windowHeight) / REFERENCE_SCREEN_HEIGHT);
 }
+
+// ---------------------------------------------------------------------------
+// Grand chiffre sur une seule ligne (pari, révélation, simulateur, coffre) :
+// taille de police réduite tant qu'il ne tient pas dans la largeur
+// ---------------------------------------------------------------------------
+
+// Largeur approximative de chaque signe, en fraction de la taille de police
+// (Fraunces, chiffres tabulaires), un peu large pour ne jamais déborder
+const NARROW = /[\s  .,:;'’]/;
+const WIDE = /[%€$]/;
+const DIGIT_WIDTH = 0.62;
+const NARROW_WIDTH = 0.3;
+const WIDE_WIDTH = 0.82;
+const LETTER_WIDTH = 0.6;
+
+export function textWidthEm(text: string): number {
+  let em = 0;
+  for (const char of text) {
+    if (/[0-9]/.test(char)) em += DIGIT_WIDTH;
+    else if (NARROW.test(char)) em += NARROW_WIDTH;
+    else if (WIDE.test(char)) em += WIDE_WIDTH;
+    else em += LETTER_WIDTH;
+  }
+  return em;
+}
+
+// Taille qui fait tenir le texte dans `width` px : `max` si possible, jamais
+// sous `min`. Sans largeur connue (premier rendu) : `max`.
+export function fitFontSize(text: string, max: number, min: number, width: number): number {
+  const em = textWidthEm(text);
+  if (!(width > 0) || em <= 0) return max;
+  const fitted = Math.floor(width / em);
+  return Math.max(Math.min(min, max), Math.min(max, fitted));
+}

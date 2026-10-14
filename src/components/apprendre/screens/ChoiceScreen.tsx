@@ -10,6 +10,7 @@ import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
 
 // choice — QCM à réponse unique (single) ou multiple (multiple). Noté.
+// Toucher une option la choisit (on peut changer d'avis jusqu'à « Valider »).
 // Réponse envoyée : l'id choisi, ou la liste des ids en mode multiple.
 export default function ChoiceScreen({ screen, answered, onDraftChange }: LessonScreenProps<ChoiceModel>) {
   const { options, multiple } = screen;
@@ -57,18 +58,21 @@ export default function ChoiceScreen({ screen, answered, onDraftChange }: Lesson
     <View style={styles.wrap}>
       <ScreenIntro screen={screen} hint={multiple ? 'Plusieurs réponses possibles' : undefined} />
 
-      <View style={styles.options} accessibilityRole={multiple ? undefined : 'radiogroup'}>
-        {options.map((option) => (
-          <ReliefOption
-            key={option.id}
-            label={option.text}
-            state={stateOf(option.id, option.correct)}
-            selected={selectedIds.includes(option.id)}
-            multiple={multiple}
-            disabled={answered}
-            onPress={() => toggle(option.id)}
-          />
-        ))}
+      {/* Les options se placent au centre de la place qui reste */}
+      <View style={styles.center}>
+        <View style={styles.options} accessibilityRole={multiple ? undefined : 'radiogroup'}>
+          {options.map((option) => (
+            <ReliefOption
+              key={option.id}
+              label={option.text}
+              state={stateOf(option.id, option.correct)}
+              selected={selectedIds.includes(option.id)}
+              multiple={multiple}
+              disabled={answered}
+              onPress={() => toggle(option.id)}
+            />
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -76,7 +80,12 @@ export default function ChoiceScreen({ screen, answered, onDraftChange }: Lesson
 
 const styles = StyleSheet.create({
   wrap: {
+    flex: 1,
     gap: space[6],
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
   },
   options: {
     gap: space[3],

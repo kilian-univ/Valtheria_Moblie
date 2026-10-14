@@ -30,6 +30,7 @@ export const logement = {
       payload: {
         value: 300000,
         unit: '€',
+        start: { label: 'Tu as emprunté', value: 200000 },
         label: 'En tout, environ',
         from_screen: 0,
         lines: [

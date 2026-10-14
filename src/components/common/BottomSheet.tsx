@@ -13,7 +13,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { durations, springs } from '@/src/constants/motion';
+import { motion, springs, timing } from '@/src/constants/motion';
 import { palette, radius, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import IconButton from './IconButton';
@@ -64,7 +64,7 @@ type BottomSheetProps = {
   collapse?: SheetCollapse;
 };
 
-// Feuille qui monte du bas sur un voile, ressort « screen ». Le parent la
+// Feuille qui monte du bas sur un voile (250 ms, ease-out). Le parent la
 // monte avec open = true, passe open à false pour la fermer, puis la démonte
 // dans onClosed. Animations réduites : simple fondu, sans glissement.
 export default function BottomSheet({
@@ -89,25 +89,26 @@ export default function BottomSheet({
   const scrimOpacity = useSharedValue(0);
 
   useEffect(() => {
+    // Monte du bas en 250 ms (ease-out), redescend de même
     if (open) {
-      scrimOpacity.set(withTiming(1, { duration: durations.fade }));
+      scrimOpacity.set(withTiming(1, timing(motion.sheet)));
       if (reduced) {
-        sheetOpacity.set(withTiming(1, { duration: durations.fade }));
+        sheetOpacity.set(withTiming(1, timing(motion.state)));
       } else {
-        translateY.set(withSpring(0, springs.screen));
+        translateY.set(withTiming(0, timing(motion.sheet)));
       }
       return;
     }
 
-    scrimOpacity.set(withTiming(0, { duration: durations.fade }));
+    scrimOpacity.set(withTiming(0, timing(motion.sheet)));
     const finish = (finished?: boolean) => {
       'worklet';
       if (finished) scheduleOnRN(onClosed);
     };
     if (reduced) {
-      sheetOpacity.set(withTiming(0, { duration: durations.fade }, finish));
+      sheetOpacity.set(withTiming(0, timing(motion.state), finish));
     } else {
-      translateY.set(withSpring(sheetHeight.get(), { ...springs.screen, overshootClamping: true }, finish));
+      translateY.set(withTiming(sheetHeight.get(), timing(motion.sheet), finish));
     }
   }, [open, reduced, onClosed, scrimOpacity, sheetOpacity, translateY, sheetHeight]);
 

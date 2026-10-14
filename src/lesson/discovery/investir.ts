@@ -35,6 +35,7 @@ export const investir = {
       payload: {
         value: 81500,
         unit: '€',
+        start: { label: 'Tu as versé', value: 36000 },
         label: 'En vrai, environ',
         from_screen: 0,
         lines: [

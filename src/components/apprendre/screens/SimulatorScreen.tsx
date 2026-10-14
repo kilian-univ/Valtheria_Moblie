@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
-import ValBubble from '@/src/components/common/ValBubble';
 import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useRollingNumber } from '@/src/hooks/useRollingNumber';
@@ -10,7 +9,7 @@ import { computeFormula } from '@/src/lesson/formulas';
 import { rangeLine } from '@/src/lesson/interactive';
 import type { SimulatorOutput, SimulatorScreen as SimulatorModel } from '@/src/lesson/model';
 import { formatNumber } from '@/src/utils/format';
-import ScreenIntro, { VAL_DIAMETER } from '../player/ScreenIntro';
+import ScreenIntro from '../player/ScreenIntro';
 import TrackSlider from '../player/TrackSlider';
 import { LessonScreenProps } from '../types';
 
@@ -46,7 +45,7 @@ function Output({ output, value }: { output: SimulatorOutput; value: number }) {
 // de la leçon (lesson/formulas.ts). La réplique de Val change selon la plage.
 // Non noté : « Continuer » s'active dès que le curseur a bougé (le lecteur
 // attend une réponse en cours, voir canContinue).
-export default function SimulatorScreen({ screen, onDraftChange }: LessonScreenProps<SimulatorModel>) {
+export default function SimulatorScreen({ screen, onDraftChange, setVal }: LessonScreenProps<SimulatorModel>) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { min, max, step, formula, params, outputs, ranges } = screen;
@@ -61,6 +60,13 @@ export default function SimulatorScreen({ screen, onDraftChange }: LessonScreenP
   useEffect(() => {
     if (moved) onDraftChange({ raw: value, correct: true, correctText: null });
   }, [moved, value, onDraftChange]);
+
+  // Val (en haut de l'écran) change de phrase quand on change de tranche
+  const valText = val?.line ?? null;
+  const valMood = val?.mood ?? null;
+  useEffect(() => {
+    if (moved && valText && valMood) setVal({ line: valText, mood: valMood });
+  }, [moved, valText, valMood, setVal]);
 
   return (
     <View style={styles.wrap}>
@@ -109,18 +115,13 @@ export default function SimulatorScreen({ screen, onDraftChange }: LessonScreenP
           </AppText>
         </View>
       </View>
-
-      {val ? (
-        <View accessibilityLiveRegion="polite">
-          <ValBubble mood={val.mood} text={val.line} diameter={VAL_DIAMETER} />
-        </View>
-      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
+    flex: 1,
     gap: space[6],
   },
   panel: {

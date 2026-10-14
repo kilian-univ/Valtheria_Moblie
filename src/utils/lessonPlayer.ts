@@ -4,7 +4,8 @@
 
 import type { CollectedAnswer } from '@/src/components/apprendre/types';
 import type { Module } from '@/src/context/ApiContext';
-import type { LessonScreen } from '@/src/lesson/model';
+import type { LessonScreen, RevealLine, ValLine } from '@/src/lesson/model';
+import { formatNumber, withUnit } from './format';
 import { parseNumber } from './grade';
 
 type Screen = LessonScreen;
@@ -33,10 +34,47 @@ export function isGradable(screen: Screen | undefined): boolean {
   return screen.kind !== 'unsupported' && screen.kind !== 'reveal' && screen.kind !== 'simulator';
 }
 
-// Écran non noté : « Continuer » est-il actif ? Le simulateur attend que le
-// curseur ait bougé (il signale alors une réponse en cours).
+// Écran non noté : le bouton du bas est-il actif ? Le pari et le simulateur
+// attendent que le curseur ait bougé (ils signalent alors une réponse en
+// cours).
 export function canContinue(screen: Screen | undefined, hasDraft: boolean): boolean {
-  return screen?.kind === 'simulator' ? hasDraft : true;
+  return screen?.kind === 'simulator' || screen?.kind === 'slider' ? hasDraft : true;
+}
+
+// Libellé du bouton principal : « Je parie » sous un pari, « Valider » sous
+// une question notée, « Continuer » ailleurs
+export function primaryLabel(screen: Screen | undefined): string {
+  if (screen?.kind === 'slider' && !screen.scored) return 'Je parie';
+  return isGradable(screen) ? 'Valider' : 'Continuer';
+}
+
+// Réplique de Val quand l'écran n'en prévoit pas : Val pose toujours la
+// question (rien ne bouge quand il réagit ensuite)
+export function defaultValLine(screen: Screen, isLast: boolean): ValLine {
+  switch (screen.kind) {
+    case 'choice':
+      return isLast
+        ? { line: 'Dernière question, sans aide. Tu as tout ce qu’il faut.', mood: 'determine' }
+        : { line: screen.multiple ? 'Plusieurs bonnes réponses, à toi de les trouver.' : 'À toi de jouer. Une seule bonne réponse.', mood: 'complice' };
+    case 'true_false':
+      return { line: 'Vrai ou faux ? Touche un bouton, ou balaie la carte.', mood: 'complice' };
+    case 'order':
+      return { line: 'Attrape une ligne par sa poignée pour la déplacer.', mood: 'complice' };
+    case 'match':
+      return { line: 'Touche un mot, puis sa définition.', mood: 'complice' };
+    case 'allocate':
+      return { line: 'Fais glisser les curseurs pour répartir.', mood: 'complice' };
+    case 'simulator':
+      return { line: 'Fais glisser le curseur et regarde ce qui change.', mood: 'complice' };
+    case 'dialogue':
+      return { line: 'À toi de répondre. Touche ta réponse pour l’envoyer.', mood: 'complice' };
+    case 'slider':
+      return { line: 'Fais glisser le curseur pour répondre.', mood: 'complice' };
+    case 'document':
+      return { line: 'Regarde bien ce document.', mood: 'neutre' };
+    default:
+      return { line: 'Regarde bien.', mood: 'neutre' };
+  }
 }
 
 // Consigne sous un bouton Valider inactif
@@ -67,13 +105,30 @@ export function estimateFor(screens: Screen[], answers: CollectedAnswer[], index
   return first ? parseNumber(first.raw) : null;
 }
 
-// Phrase sous le vrai chiffre, selon l'écart avec l'estimation
-export function estimateSentence(guess: number, actual: number): string {
-  if (guess === actual) return 'Pile dans le mille.';
+// Verdict d'une révélation, selon l'écart entre l'estimation et le vrai
+// chiffre : pile, tout près (à 10 % près), un peu (à 50 % près) ou bien
+// plus / moins. close : pile ou tout près (vibration de réussite, Val fier).
+export type EstimateVerdict = { text: string; close: boolean; direction: 'exact' | 'more' | 'less' };
+
+export function estimateVerdict(guess: number, actual: number, unit: string | null = null, decimals = 0): EstimateVerdict {
+  if (guess === actual) return { text: 'Pile dans le mille', close: true, direction: 'exact' };
+  const direction = guess < actual ? 'more' : 'less';
   const gap = Math.abs(guess - actual) / Math.max(Math.abs(actual), 1e-9);
-  if (gap <= 0.1) return 'Tout près.';
-  if (guess < actual) return gap <= 0.5 ? 'Un peu plus que tu pensais.' : 'Bien plus que tu pensais.';
-  return gap <= 0.5 ? 'Un peu moins que tu pensais.' : 'Bien moins que tu pensais.';
+  if (gap <= 0.1) {
+    const away = withUnit(formatNumber(Math.abs(guess - actual), decimals), unit);
+    return { text: `Tout près : tu étais à ${away}`, close: true, direction };
+  }
+  const much = gap > 0.5 ? 'Bien' : 'Un peu';
+  return { text: `${much} ${direction === 'more' ? 'plus' : 'moins'} que tu pensais`, close: false, direction };
+}
+
+// Lignes d'une révélation qui apportent une information nouvelle : celles
+// qui répètent un chiffre déjà affiché (départ, estimation, vrai chiffre)
+// disparaissent. La ligne atténuée (hypothèse) reste toujours.
+export function revealExtraLines(lines: RevealLine[], shown: number[]): RevealLine[] {
+  return lines.filter(
+    (line) => line.dim || typeof line.value !== 'number' || !shown.some((v) => Math.abs(v - (line.value as number)) < 1e-9)
+  );
 }
 
 // Première tentative de chaque écran noté, dans l'ordre où elles ont été données
@@ -103,11 +158,17 @@ export function firstTryRun(answers: CollectedAnswer[], screens: Screen[]): numb
   return run;
 }
 
-// La série d'affilée s'affiche à partir de 3
+// La pastille d'affilée (éclair et nombre) s'affiche à partir de 3
 export const RUN_MIN = 3;
 
-export function runLabel(run: number): string | null {
-  return run >= RUN_MIN ? `${run} d’affilée !` : null;
+// Nombre affiché dans la pastille, ou null tant que la série est trop courte
+export function runBadge(run: number): number | null {
+  return Number.isFinite(run) && run >= RUN_MIN ? run : null;
+}
+
+// Lu par le lecteur d'écran
+export function runAccessibilityLabel(run: number): string {
+  return `${run} bonnes réponses d’affilée`;
 }
 
 // ---------------------------------------------------------------------------

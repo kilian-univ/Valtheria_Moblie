@@ -194,9 +194,13 @@ export function normalizeScreen(raw: unknown, index: number): LessonScreen {
           dim: l.dim === true,
         }));
       const decimals = Number.isInteger(p.decimals) && p.decimals >= 0 && p.decimals <= 4 ? p.decimals : 0;
+      // Valeur de départ facultative : { label, value } (barre pâle)
+      const startValue = isRecord(p.start) ? num(p.start.value) : null;
+      const start = startValue !== null ? { label: plainText(p.start.label) ?? 'Au départ', value: startValue } : null;
       return {
         ...base,
         kind: 'reveal',
+        start,
         value,
         unit: plainText(p.unit),
         decimals,

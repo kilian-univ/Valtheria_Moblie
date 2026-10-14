@@ -241,11 +241,13 @@ type ValBesideProps = {
   gap?: number;
   delay?: number;
   maxWidth?: number;
+  // false : le texte s'affiche d'un coup (réplique qui change souvent)
+  typing?: boolean;
 };
 
 // Val, puis sa bulle à droite : la pointe à hauteur de bouche, dirigée vers
 // elle, longue de 55 % de l'écart jusqu'à la tête
-export function ValBeside({ figure, width, height, face, text, title, gap = BESIDE_GAP, delay, maxWidth }: ValBesideProps) {
+export function ValBeside({ figure, width, height, face, text, title, gap = BESIDE_GAP, delay, maxWidth, typing }: ValBesideProps) {
   const layout = besideLayout(face, width, height, gap, DEFAULT_ANCHOR);
   return (
     <View style={[styles.row, { gap }]}>
@@ -263,6 +265,7 @@ export function ValBeside({ figure, width, height, face, text, title, gap = BESI
         tailLength={layout.length}
         delay={delay}
         maxWidth={maxWidth}
+        typing={typing}
         style={[styles.besideBubble, { marginTop: layout.offsetTop }]}
       />
     </View>
@@ -286,6 +289,8 @@ type SpeechBubbleProps = {
   maxWidth?: number;
   // Placement de la bulle (marges, position)
   style?: StyleProp<ViewStyle>;
+  // false : le texte s'affiche d'un coup, sans s'écrire mot à mot
+  typing?: boolean;
   // false : le parent porte le libellé lu
   accessible?: boolean;
   onLayout?: (width: number, height: number) => void;
@@ -308,13 +313,14 @@ export function SpeechBubble({
   style,
   accessible = true,
   onLayout,
+  typing = true,
 }: SpeechBubbleProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
 
   const words = useMemo(() => parseWords(noOrphan(text)), [text]);
-  const [shown, setShown] = useState(reduced ? words.length : 0);
+  const [shown, setShown] = useState(reduced || !typing ? words.length : 0);
   const at = anchor ?? (side === 'bottom' ? bubble.radius + bubble.tailBase : DEFAULT_ANCHOR);
 
   const opacity = useSharedValue(reduced ? 1 : 0);
@@ -326,7 +332,7 @@ export function SpeechBubble({
     opacity.set(withDelay(delay, withTiming(1, { duration: APPEAR_FADE })));
     scale.set(withDelay(delay, withSpring(1, springs.enter)));
 
-    const step = Math.min(WORD_INTERVAL, TYPING_MAX / Math.max(words.length, 1));
+    const step = typing ? Math.min(WORD_INTERVAL, TYPING_MAX / Math.max(words.length, 1)) : 0;
     // Flottement une fois le texte écrit
     const half = { duration: loops.bubbleFloat / 2, easing: Easing.inOut(Easing.sin) };
     float.set(
@@ -336,6 +342,7 @@ export function SpeechBubble({
       )
     );
 
+    if (!typing) return;
     let interval: ReturnType<typeof setInterval> | undefined;
     let written = 0;
     const start = setTimeout(() => {
@@ -351,7 +358,7 @@ export function SpeechBubble({
       clearTimeout(start);
       if (interval) clearInterval(interval);
     };
-  }, [opacity, scale, float, reduced, words.length, delay]);
+  }, [opacity, scale, float, reduced, words.length, delay, typing]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.get(),

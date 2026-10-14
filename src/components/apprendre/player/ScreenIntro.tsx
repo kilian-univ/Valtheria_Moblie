@@ -1,61 +1,62 @@
 import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
-import ValBubble from '@/src/components/common/ValBubble';
 import { fonts, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import type { LessonScreen } from '@/src/lesson/model';
 
+// Portrait rond de Val dans les feuilles (quitter la leçon)
 export const VAL_DIAMETER = 64;
-const QUESTION_SIZE = 24;
-const QUESTION_LINE_HEIGHT = 31;
+
+// md : sous un pari (23/30) ; lg : question à choix et autres (25/31)
+const QUESTION = {
+  md: { fontSize: 23, lineHeight: 30 },
+  lg: { fontSize: 25, lineHeight: 31 },
+} as const;
 
 type ScreenIntroProps = {
   screen: LessonScreen;
   // Consigne sous la question (« Plusieurs réponses possibles »)
   hint?: string;
+  size?: keyof typeof QUESTION;
 };
 
-// Haut de chaque écran : Val et sa réplique, puis la question.
-export default function ScreenIntro({ screen, hint }: ScreenIntroProps) {
+// La question de l'écran, sous Val (posé par le lecteur), avec sa
+// précision et sa consigne éventuelles.
+export default function ScreenIntro({ screen, hint, size = 'lg' }: ScreenIntroProps) {
   const { question, subtitle } = screen;
-  const intro = screen.val.intro;
+  if (!question && !hint) return null;
+  const type = QUESTION[size];
 
   return (
-    <View style={styles.wrap}>
-      {intro ? <ValBubble mood={intro.mood} text={intro.line} diameter={VAL_DIAMETER} /> : null}
-
+    <View style={styles.block}>
       {question ? (
-        <View style={styles.questionBlock}>
-          <AppText accessibilityRole="header" style={styles.question}>
-            {question}
-          </AppText>
-          {subtitle ? (
-            <AppText variant="callout" tone="subtitle">
-              {subtitle}
-            </AppText>
-          ) : null}
-          {hint ? (
-            <AppText variant="callout" tone="subtitle">
-              {hint}
-            </AppText>
-          ) : null}
-        </View>
+        <AppText
+          accessibilityRole="header"
+          maxFontSizeMultiplier={1.3}
+          style={[styles.question, type, { letterSpacing: titleLetterSpacing(type.fontSize) }]}
+        >
+          {question}
+        </AppText>
+      ) : null}
+      {subtitle ? (
+        <AppText variant="callout" tone="subtitle">
+          {subtitle}
+        </AppText>
+      ) : null}
+      {hint ? (
+        <AppText variant="callout" tone="subtitle">
+          {hint}
+        </AppText>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    gap: space[6],
-  },
-  questionBlock: {
+  block: {
     gap: space[2],
   },
   question: {
     fontFamily: fonts.title,
-    fontSize: QUESTION_SIZE,
-    lineHeight: QUESTION_LINE_HEIGHT,
-    letterSpacing: titleLetterSpacing(QUESTION_SIZE),
   },
 });
