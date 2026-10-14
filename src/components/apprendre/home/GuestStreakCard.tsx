@@ -13,6 +13,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { formatInteger } from '@/src/utils/format';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
+import { SOUND_LENGTH } from '@/src/utils/soundRules';
 import { daysLabel, freezesLabel, medalProgress } from '@/src/utils/streakRewards';
 import { useReliefPress } from '@/src/hooks/useReliefPress';
 
@@ -53,10 +54,12 @@ export default function GuestStreakCard({ streak, xp, freezes, savedYesterday, i
     fill.set(reduced ? progress.ratio : withSpring(progress.ratio, springs.screen));
   }, [reduced, progress.ratio, fill]);
   // Gel qui a sauvé la série : son « freeze », une fois, à la première
-  // apparition du jour (avec l'allumage de la flamme)
+  // apparition du jour, après celui de l'allumage de la flamme
   useEffect(() => {
-    if (savedYesterday && ignite === true) feedback.freeze();
-  }, [savedYesterday, ignite]);
+    if (!savedYesterday || ignite !== true) return;
+    const timer = setTimeout(feedback.freeze, lit ? SOUND_LENGTH.streak : 0);
+    return () => clearTimeout(timer);
+  }, [savedYesterday, ignite, lit]);
 
   const fillStyle = useAnimatedStyle(() => ({ width: `${Math.round(fill.get() * 1000) / 10}%` }));
 

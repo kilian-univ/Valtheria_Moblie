@@ -4,6 +4,7 @@ import {
   chestStepRate,
   COUNT_TICK_MIN_GAP,
   SOFT_GAIN,
+  SOUND_LENGTH,
   TICK_BLOCKED_RATE,
   TICK_COUNT_RATE,
   TICK_MIN_GAP,
@@ -41,13 +42,15 @@ export const feedback = {
     haptics.tap();
     playSound('drop');
   },
-  right() {
+  // gain < 1 : verdict adouci (feuille finale du vrai ou faux et d'associer,
+  // chaque carte ou paire ayant déjà eu le sien)
+  right(gain = 1) {
     haptics.success();
-    playSound('correct');
+    playSound('correct', { gain });
   },
-  wrong() {
+  wrong(gain = 1) {
     haptics.error();
-    playSound('wrong');
+    playSound('wrong', { gain });
   },
   // Associer : paire trouvée, mauvaise paire
   match() {
@@ -65,6 +68,10 @@ export const feedback = {
   // Écran suivant sans verdict (la vibration est celle du bouton)
   advance() {
     playSound('advance');
+  },
+  // Leçon ouverte depuis le chemin ou la grande carte de l'accueil : doux
+  openLesson() {
+    playSound('advance', { gain: SOFT_GAIN });
   },
   // Carte de vrai ou faux qui part (la vibration vient avec le verdict)
   swipe() {
@@ -101,6 +108,10 @@ export const feedback = {
   streakUp() {
     playSound('streak');
   },
+  // Flamme qui s'allume à la première apparition du jour : très doux
+  ignite() {
+    playSound('streak', { gain: SOFT_GAIN });
+  },
   // Gel de série qui sauve la série
   freeze() {
     haptics.success();
@@ -122,8 +133,10 @@ export const feedback = {
   unlock() {
     playSound('unlock');
   },
-  // Nouvelle médaille : « medal » (unlock puis combo tant qu'il n'existe pas)
-  medal() {
+  // Nouvelle médaille : « medal » (unlock puis combo tant qu'il n'existe
+  // pas) ; un gel gagné en même temps : « freeze » juste après
+  medal({ freeze = false }: { freeze?: boolean } = {}): ReturnType<typeof setTimeout> | null {
     playSound('medal');
+    return freeze ? setTimeout(() => feedback.freeze(), SOUND_LENGTH.medal) : null;
   },
 };

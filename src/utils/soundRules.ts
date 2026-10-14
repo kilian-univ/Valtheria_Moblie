@@ -197,8 +197,19 @@ export function tickRate(ratio: number): number {
 // Curseur qui bute : cran plus grave ; chiffres du bilan : cran plus aigu
 export const TICK_BLOCKED_RATE = Math.pow(2, -7 / 12);
 export const TICK_COUNT_RATE = Math.pow(2, 5 / 12);
-// Sons « très doux » : carte qui arrive, leçon verrouillée
+// Sons adoucis (45 % de leur niveau) : carte qui arrive, leçon verrouillée,
+// feuille finale du vrai ou faux et d'associer, allumage de la flamme,
+// ouverture d'une leçon
 export const SOFT_GAIN = 0.45;
+
+// Durée des fichiers (ms) dont un autre son doit attendre la fin : ticks du
+// bilan après lesson-complete, gel après la médaille (remplaçant compris :
+// unlock, puis combo à 300 ms qui dure 700 ms), gel après l'allumage
+export const SOUND_LENGTH = {
+  'lesson-complete': 1000,
+  medal: 1000,
+  streak: 750,
+} as const;
 
 // Coffre : chaque palier un peu plus aigu (deux demi-tons de plus à chaque
 // fois), par la vitesse de lecture sans correction de hauteur : le son

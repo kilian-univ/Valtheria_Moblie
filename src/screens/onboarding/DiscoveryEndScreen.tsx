@@ -31,6 +31,7 @@ import {
 import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { getReminderSettings } from '@/src/state/reminder';
+import { useCountTicks } from '@/src/hooks/useCountTicks';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { discoveryStreak, endActions, topicDots } from '@/src/utils/discoveryHome';
 import { REFERENCE_SCREEN_HEIGHT } from '@/src/utils/fit';
@@ -176,6 +177,8 @@ function EndContent() {
   const before = Number(params.serie);
   const streakFrom = Number.isInteger(before) && before >= 0 && before < streak ? before : streak;
   const shownStreak = Math.round(useCountUp(streak, { from: streakFrom, delay: FLAME_LIT }));
+  // Les jours qui défilent : un cran aigu, comme au bilan
+  useCountTicks(shownStreak, streakFrom);
   const week = weekDays(state.lessonDays);
   const [reminderOn, setReminderOn] = useState(false);
   useEffect(() => {

@@ -136,6 +136,12 @@ export default function ModulePath({
 
   if (width <= 0) return null;
 
+  // Leçon ouverte : advance doux
+  const open = (view: LessonView, rect: Rect) => {
+    feedback.openLesson();
+    onOpen(view, rect);
+  };
+
   // Leçon verrouillée touchée : elle tremble, refus très doux
   const shake = (key: number) => {
     warning();
@@ -221,7 +227,7 @@ export default function ModulePath({
                 litDelay={justUnlocked ? UNLOCK_DELAY : undefined}
                 popSignal={justDone ? 1 : 0}
                 shakeSignal={(shakes[view.lesson.id] ?? 0) + (justUnlocked ? 1 : 0)}
-                onPress={() => (isLit ? onOpen(view, rect) : shake(view.lesson.id))}
+                onPress={() => (isLit ? open(view, rect) : shake(view.lesson.id))}
                 accessibilityLabel={label}
                 accessibilityHint={isLit ? 'Ouvre la carte de la leçon' : 'Termine l’étape précédente pour la débloquer'}
                 behind={
@@ -262,7 +268,7 @@ export default function ModulePath({
         <View style={[styles.abs, rectPos(bubbleRect(current, width, currentShape))]}>
           <StartBubble
             textColor={colors.deep}
-            onPress={() => onOpen(views[current], nodeRect(current, width, currentShape))}
+            onPress={() => open(views[current], nodeRect(current, width, currentShape))}
             appearDelay={unlockingCurrent ? UNLOCK_DELAY : undefined}
           />
         </View>

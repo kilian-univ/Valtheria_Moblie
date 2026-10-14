@@ -40,7 +40,7 @@ import { learningStore } from '@/src/state/learningStore';
 import { feedback } from '@/src/utils/feedback';
 import { error as errorHaptic } from '@/src/utils/haptics';
 import { preloadSounds } from '@/src/utils/sound';
-import { comboReached } from '@/src/utils/soundRules';
+import { comboReached, SOFT_GAIN } from '@/src/utils/soundRules';
 import {
   buildResponses,
   canContinue,
@@ -455,10 +455,13 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     // Réponse validée seule (dernière carte, dernière paire, réplique) :
     // l'écran vient de jouer son propre son, celui du verdict vient avec la
     // feuille.
+    // Vrai ou faux et associer : chaque carte ou paire a eu son verdict, celui
+    // de la feuille finale est adouci
+    const gain = current.kind === 'true_false' || current.kind === 'match' ? SOFT_GAIN : 1;
     const signal = () => {
       flashEdges(nextVerdict.correct);
-      if (nextVerdict.correct) feedback.right();
-      else feedback.wrong();
+      if (nextVerdict.correct) feedback.right(gain);
+      else feedback.wrong(gain);
       if (combo) comboTimer.current = setTimeout(feedback.combo, COMBO_AFTER);
     };
     if (!draft.autoSubmit) signal();

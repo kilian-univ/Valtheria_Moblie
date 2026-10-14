@@ -16,6 +16,7 @@ import {
   showAccountCard,
 } from '@/src/utils/discoveryHome';
 import { frozenYesterday, type StreakHistory, weekDays } from '@/src/utils/streakRewards';
+import { feedback } from '@/src/utils/feedback';
 import { track } from '@/src/utils/track';
 import { universeTint } from '@/src/utils/universeTint';
 import GuestLessonCard from './GuestLessonCard';
@@ -88,7 +89,11 @@ export default function GuestHome({
   const onAction = (action: HomeCardAction) => {
     if (action === 'autre-sujet' || action === 'rejouer') openSheet();
     else if (action === 'creer-compte') onRegister();
-    else onPlay(card.objective);
+    else {
+      // La leçon s'ouvre : advance doux
+      feedback.openLesson();
+      onPlay(card.objective);
+    }
   };
 
   return (

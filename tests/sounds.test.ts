@@ -15,7 +15,9 @@ import {
   parseSoundSetting,
   reminderSound,
   SOUND_LEVEL,
+  SOUND_LENGTH,
   SOUND_LEVELS,
+  SOFT_GAIN,
   SOUND_NAMES,
   soundAllowed,
   soundForEvent,
@@ -355,9 +357,9 @@ test('chaque événement joue son son, au moment du geste', () => {
     ['messageOut', "playSound('message-out')"],
     ['moduleComplete', "playSound('module-complete')"],
     ['freeze', "playSound('freeze')"],
-    ['medal', "playSound('medal')"],
   ];
   for (const [event, call] of calls) assert.match(fb, new RegExp(`${event}\\([^)]*\\) \\{[^}]*${call.replace(/[()]/g, '\\$&')}`), event);
+  assert.ok(fb.includes("playSound('medal')"));
   assert.ok(!fb.includes('await'));
   // Branchements
   assert.ok(read('src/components/apprendre/screens/OrderScreen.tsx').includes('feedback.pickup()'));
@@ -369,12 +371,12 @@ test('chaque événement joue son son, au moment du geste', () => {
   assert.ok(dialogue.includes('feedback.messageIn()') && dialogue.includes('feedback.messageOut()'));
   assert.ok(read('src/components/apprendre/screens/RevealScreen.tsx').includes('feedback.reveal()'));
   assert.ok(read('src/components/apprendre/end/LessonEndFlow.tsx').includes('feedback.moduleComplete()'));
-  assert.ok(read('src/components/common/MedalCelebration.tsx').includes('feedback.medal()'));
-  assert.ok(read('src/components/apprendre/home/GuestStreakCard.tsx').includes('feedback.freeze()'));
+  assert.ok(read('src/components/common/MedalCelebration.tsx').includes('feedback.medal('));
+  assert.ok(read('src/components/apprendre/home/GuestStreakCard.tsx').includes('feedback.freeze'));
   assert.ok(read('src/components/apprendre/home/StreakSheet.tsx').includes('feedback.freeze()'));
   assert.ok(read('src/components/apprendre/module/path/ModulePath.tsx').includes('feedback.refuse()'));
   assert.ok(read('src/screens/dictionary/TermScreen.tsx').includes('feedback.pick()'));
-  assert.ok(read('src/components/apprendre/end/LessonRecap.tsx').includes('feedback.countTick()'));
+  assert.ok(read('src/components/apprendre/end/LessonRecap.tsx').includes('useCountTicks(counted, 0, !fast)'));
   const tf = read('src/components/apprendre/screens/TrueFalseScreen.tsx');
   assert.ok(tf.includes('feedback.cardIn()'));
   // Vrai ou faux : verdict au geste (decide), pas après le vol de la carte
@@ -398,4 +400,52 @@ test('réglage Sons : même mémoire au profil, dans « Quitter la leçon ? » e
   const toggle = read('src/components/common/SoundToggle.tsx');
   assert.ok(toggle.includes('soundSettings.set(next)'));
   assert.match(toggle, /select\(\);\s*soundSettings\.set\(next\);\s*if \(next\) playSound\('select'\);/);
+});
+
+// Durée d'un fichier .m4a, lue dans son en-tête (boîte mvhd), sans les
+// 2 112 échantillons d'amorce de l'encodeur AAC
+function m4aSeconds(name: string): number {
+  const buf = readFileSync(new URL(`assets/sounds/${name}.m4a`, root));
+  const i = buf.indexOf('mvhd');
+  const v1 = buf[i + 4] === 1;
+  const scale = buf.readUInt32BE(i + (v1 ? 24 : 16));
+  const length = v1 ? Number(buf.readBigUInt64BE(i + 28)) : buf.readUInt32BE(i + 20);
+  return (length - 2112) / scale;
+}
+
+test('durées attendues : celles des fichiers', () => {
+  const close = (ms: number, s: number) => Math.abs(ms / 1000 - s) < 0.06;
+  assert.ok(close(SOUND_LENGTH['lesson-complete'], m4aSeconds('lesson-complete')));
+  assert.ok(close(SOUND_LENGTH.streak, m4aSeconds('streak')));
+  // Médaille (remplaçant) : combo part à 300 ms et dure jusqu'à la fin annoncée
+  const last = soundSteps('medal').at(-1)!;
+  assert.ok(close(SOUND_LENGTH.medal - last.at, m4aSeconds(last.name)));
+});
+
+test('ajustements validés de l’audit', () => {
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
+  assert.equal(SOFT_GAIN, 0.45);
+  // 1. Feuille finale adoucie pour le vrai ou faux et associer
+  const player = read('src/screens/ApprendreDetailScreen.tsx');
+  assert.ok(player.includes("current.kind === 'true_false' || current.kind === 'match' ? SOFT_GAIN : 1"));
+  assert.ok(player.includes('feedback.right(gain)') && player.includes('feedback.wrong(gain)'));
+  // 2. Bilan : les chiffres comptent après lesson-complete
+  assert.ok(read('src/components/apprendre/end/LessonRecap.tsx').includes("delay={SOUND_LENGTH['lesson-complete'] + i * motion.stagger}"));
+  // 3. Allumage de la flamme : streak très doux, une fois
+  const flame = read('src/components/common/StreakFlame.tsx');
+  assert.ok(flame.includes('feedback.ignite()') && flame.includes('ignited.current = true'));
+  assert.match(read('src/utils/feedback.ts'), /ignite\(\) \{\s*playSound\('streak', \{ gain: SOFT_GAIN \}\)/);
+  // Le gel de la carte attend la fin de l'allumage
+  assert.ok(read('src/components/apprendre/home/GuestStreakCard.tsx').includes('SOUND_LENGTH.streak'));
+  // 4. Leçon ouverte depuis le chemin ou la grande carte : advance doux
+  assert.match(read('src/utils/feedback.ts'), /openLesson\(\) \{\s*playSound\('advance', \{ gain: SOFT_GAIN \}\)/);
+  assert.ok(read('src/components/apprendre/module/path/ModulePath.tsx').includes('feedback.openLesson()'));
+  assert.ok(read('src/components/apprendre/home/GuestHome.tsx').includes('feedback.openLesson()'));
+  assert.ok(read('src/screens/apprendre/ApprendreHomeScreen.tsx').includes('feedback.openLesson()'));
+  // 5. Écran « Série » : un tick aigu par jour qui défile
+  assert.ok(read('src/components/apprendre/end/LessonEndFlow.tsx').includes('useCountTicks(shown, from)'));
+  assert.ok(read('src/screens/onboarding/DiscoveryEndScreen.tsx').includes('useCountTicks(shownStreak, streakFrom)'));
+  // 6. Médaille et gel gagné : freeze après la médaille
+  assert.ok(read('src/components/common/MedalCelebration.tsx').includes('feedback.medal({ freeze: freezeGained })'));
+  assert.match(read('src/utils/feedback.ts'), /setTimeout\(\(\) => feedback\.freeze\(\), SOUND_LENGTH\.medal\)/);
 });

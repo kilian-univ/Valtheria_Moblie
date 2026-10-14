@@ -34,11 +34,16 @@ export default function MedalCelebration({ medal, freezeGained = false }: MedalC
 
   useEffect(() => {
     celebrate();
-    feedback.medal();
-    if (reduced) return;
-    scale.set(withDelay(ARRIVE_DELAY, withSpring(1, springs.celebrate)));
-    rotation.set(withDelay(ARRIVE_DELAY, withSpring(0, springs.celebrate)));
-  }, [reduced, scale, rotation]);
+    // Gel gagné en même temps : « freeze » après le son de la médaille
+    const freezeTimer = feedback.medal({ freeze: freezeGained });
+    if (!reduced) {
+      scale.set(withDelay(ARRIVE_DELAY, withSpring(1, springs.celebrate)));
+      rotation.set(withDelay(ARRIVE_DELAY, withSpring(0, springs.celebrate)));
+    }
+    return () => {
+      if (freezeTimer) clearTimeout(freezeTimer);
+    };
+  }, [reduced, scale, rotation, freezeGained]);
 
   const medalStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.get() }, { rotate: `${rotation.get()}deg` }],

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -19,6 +19,7 @@ import { springs } from '@/src/constants/motion';
 import { palette } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { flameTier } from '@/src/utils/discoveryHome';
+import { feedback } from '@/src/utils/feedback';
 import { celebrate } from '@/src/utils/haptics';
 import GoldHalo from './GoldHalo';
 
@@ -73,6 +74,8 @@ export default function StreakFlame({ days, size, ignite = false, growFrom }: St
     burst.set(withTiming(1, { duration: BURST_DURATION, easing: Easing.out(Easing.cubic) }));
   };
 
+  const ignited = useRef(false);
+
   // Allumage, ou flamme qui grossit quand la série augmente
   useEffect(() => {
     if (ignite === null) {
@@ -89,6 +92,11 @@ export default function StreakFlame({ days, size, ignite = false, growFrom }: St
       }, GROW_DELAY);
       pop.set(1);
       return () => clearTimeout(timer);
+    }
+    // Allumage : streak très doux (une fois, même animations réduites)
+    if (ignite && lit && !ignited.current) {
+      ignited.current = true;
+      feedback.ignite();
     }
     if (ignite && lit && !reduced) {
       pop.set(0);

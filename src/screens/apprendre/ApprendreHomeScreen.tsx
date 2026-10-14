@@ -34,6 +34,7 @@ import {
   guestTitle,
   homeCard,
 } from '@/src/utils/discoveryHome';
+import { feedback } from '@/src/utils/feedback';
 import { inProgressModules, pickUpNext, resolveHomeSituation } from '@/src/utils/learning';
 import { isSignupClosed } from '@/src/utils/onboarding';
 import { simulateStreak } from '@/src/utils/streakRewards';
@@ -89,7 +90,9 @@ export default function ApprendreHomeScreen() {
   const openUniverse = (universeId: number) =>
     router.push({ pathname: '/apprendre/univers/[universeId]', params: { universeId } });
 
+  // Grande carte « À suivre » : advance doux
   const startLesson = (module: Module, lesson: Lesson) => {
+    feedback.openLesson();
     markOpened(module.id);
     launch(lesson);
   };

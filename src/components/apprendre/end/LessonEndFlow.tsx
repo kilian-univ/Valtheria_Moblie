@@ -11,6 +11,7 @@ import LessonRecap from './LessonRecap';
 import ValFullBody, { ValFitContext } from '@/src/components/common/ValFullBody';
 import { durations, springs } from '@/src/constants/motion';
 import { fonts, space, titleLetterSpacing } from '@/src/constants/style/Style';
+import { useCountTicks } from '@/src/hooks/useCountTicks';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { formatInteger } from '@/src/utils/format';
 import { nextExcess } from '@/src/utils/fit';
@@ -223,6 +224,8 @@ function StreakStep({ from, to, onNext }: { from: number; to: number; onNext: ()
   const reduced = useReducedMotion();
   const scale = useSharedValue(reduced ? 1 : FIRE_FROM_SCALE);
   const shown = Math.round(useCountUp(to, { from, delay: COUNT_START }));
+  // Les jours qui défilent : un cran aigu, comme au bilan
+  useCountTicks(shown, from);
 
   useEffect(() => {
     // La série augmente : la flamme grandit, avec son son

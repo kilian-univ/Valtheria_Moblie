@@ -8,10 +8,12 @@ import GoldConfetti from '@/src/components/common/GoldConfetti';
 import { motion } from '@/src/constants/motion';
 import { fonts, palette, radius, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useCountTicks } from '@/src/hooks/useCountTicks';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { REFERENCE_SCREEN_HEIGHT } from '@/src/utils/fit';
 import { formatInteger } from '@/src/utils/format';
 import { feedback } from '@/src/utils/feedback';
+import { SOUND_LENGTH } from '@/src/utils/soundRules';
 import { precisionCaption, precisionPercent, streakDaysCaption } from '@/src/utils/lessonPlayer';
 import Cascade from '../player/Cascade';
 import CelebrationScene from './CelebrationScene';
@@ -143,7 +145,12 @@ export default function LessonRecap({
               <View style={styles.tiles}>
                 {tiles.map((tile, i) => (
                   <Cascade key={tile.label} index={TILES_RANK + i} skip={fast} style={styles.tileSlot}>
-                    <Tile {...tile} delay={(TILES_RANK + i) * motion.stagger + motion.sheet} fast={fast} />
+                    <Tile
+                      {...tile}
+                      // Les chiffres défilent (et tiquent) une fois lesson-complete fini
+                      delay={SOUND_LENGTH['lesson-complete'] + i * motion.stagger}
+                      fast={fast}
+                    />
                   </Cascade>
                 ))}
               </View>
@@ -199,10 +206,8 @@ function Tile({ label, ink, icon, to, format, caption, a11y, delay, fast }: Tile
   const colors = palette[colorScheme];
   const counted = Math.round(useCountUp(to, { delay }));
   const shown = fast ? to : counted;
-  // Chaque chiffre qui défile : un cran aigu, espacé (voir feedback.countTick)
-  useEffect(() => {
-    if (!fast && counted > 0) feedback.countTick();
-  }, [counted, fast]);
+  // Chaque chiffre qui défile : un cran aigu, espacé
+  useCountTicks(counted, 0, !fast);
 
   return (
     <View style={styles.tile} accessible accessibilityLabel={a11y}>
