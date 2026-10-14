@@ -16,7 +16,7 @@ import { motion, springs, timing } from '@/src/constants/motion';
 import { palette, radius, reliefDepth, size as sizes, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { safeGesture } from '@/src/utils/gestureSafety';
-import { select } from '@/src/utils/haptics';
+import { feedback } from '@/src/utils/feedback';
 import { useScrollLock } from './ScrollLock';
 
 // lg : pari et simulateur (piste de 10, bouton de 36) ; md : lignes
@@ -58,7 +58,9 @@ type TrackSliderProps = {
 };
 
 // Curseur en relief du lecteur (pari, simulateur, répartir). On glisse le
-// bouton ou on touche la piste pour y sauter ; un cran franchi = select().
+// bouton ou on touche la piste pour y sauter ; un cran franchi = vibration
+// select() et son « tick » (plus aigu vers la droite, 60 ms d'écart au
+// moins) ; la butée = « tick » plus grave.
 // Le geste ne prend que les mouvements horizontaux : un glissement
 // clairement vertical fait défiler la page ; pendant le glissement, la page
 // ne défile pas (verrou du lecteur). VoiceOver : gestes d'ajustement.
@@ -130,6 +132,7 @@ export default function TrackSlider({
     const next = clamp ? clamp(wanted) : wanted;
     if (next !== wanted && !blocked.get()) {
       blocked.set(true);
+      feedback.tickBlocked();
       onBlocked?.();
       // Petite résistance : le bouton pousse contre la butée et revient
       if (!reduced) {
@@ -140,7 +143,7 @@ export default function TrackSlider({
     if (next === wanted) blocked.set(false);
     if (next === last.get()) return;
     last.set(next);
-    select();
+    feedback.tick(max > min ? (next - min) / (max - min) : 0);
     onChange(next);
   };
 

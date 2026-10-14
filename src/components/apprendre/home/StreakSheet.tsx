@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
@@ -8,6 +9,7 @@ import StreakFlame from '@/src/components/common/StreakFlame';
 import StreakMedal from '@/src/components/common/StreakMedal';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import { feedback } from '@/src/utils/feedback';
 import { formatInteger } from '@/src/utils/format';
 import { daysLabel, freezesLabel, MEDALS, type WeekDay } from '@/src/utils/streakRewards';
 import StreakWeek from './StreakWeek';
@@ -27,6 +29,8 @@ type StreakSheetProps = {
   freezes: number | null;
   // Semaine en cours (sans compte : l'historique est sur le téléphone)
   week?: WeekDay[];
+  // Un gel a sauvé la série hier : son « freeze » à l'ouverture
+  saved?: boolean;
   open: boolean;
   onRequestClose: () => void;
   onClosed: () => void;
@@ -44,6 +48,7 @@ export default function StreakSheet({
   best,
   freezes,
   week,
+  saved = false,
   open,
   onRequestClose,
   onClosed,
@@ -54,6 +59,9 @@ export default function StreakSheet({
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { height } = useWindowDimensions();
+  useEffect(() => {
+    if (open && saved) feedback.freeze();
+  }, [open, saved]);
   const days = `${formatInteger(streak)}${NBSP}${streak > 1 ? 'jours' : 'jour'}`;
 
   return (

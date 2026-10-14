@@ -63,8 +63,12 @@ export default function DialogueScreen({ screen, answered, onDraftChange, enterD
 
   useEffect(() => {
     if (reduced) return;
+    // Chaque message qui arrive : son « message-in »
     const timers = messages.map((_, i) =>
-      setTimeout(() => setShown(i + 1), enterDelay + (i + 1) * motion.typing + i * motion.state)
+      setTimeout(() => {
+        setShown(i + 1);
+        feedback.messageIn();
+      }, enterDelay + (i + 1) * motion.typing + i * motion.state)
     );
     return () => timers.forEach(clearTimeout);
   }, [messages, enterDelay, reduced]);
@@ -73,7 +77,10 @@ export default function DialogueScreen({ screen, answered, onDraftChange, enterD
   useEffect(() => {
     if (!chosen) return;
     const typed = reduced ? 0 : motion.sheet + motion.typing;
-    const react = setTimeout(() => setReacted(true), typed);
+    const react = setTimeout(() => {
+      setReacted(true);
+      if (!reduced) feedback.messageIn();
+    }, typed);
     const sheet = setTimeout(() => {
       onDraftChange({
         raw: chosen,
@@ -90,7 +97,7 @@ export default function DialogueScreen({ screen, answered, onDraftChange, enterD
 
   const send = (id: string) => {
     if (chosen || answered || !ready) return;
-    feedback.pick();
+    feedback.messageOut();
     setChosen(id);
   };
 

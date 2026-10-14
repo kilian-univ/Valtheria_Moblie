@@ -199,6 +199,10 @@ function Tile({ label, ink, icon, to, format, caption, a11y, delay, fast }: Tile
   const colors = palette[colorScheme];
   const counted = Math.round(useCountUp(to, { delay }));
   const shown = fast ? to : counted;
+  // Chaque chiffre qui défile : un cran aigu, espacé (voir feedback.countTick)
+  useEffect(() => {
+    if (!fast && counted > 0) feedback.countTick();
+  }, [counted, fast]);
 
   return (
     <View style={styles.tile} accessible accessibilityLabel={a11y}>

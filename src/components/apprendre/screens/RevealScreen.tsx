@@ -16,8 +16,9 @@ import { easeOut, motion, timing } from '@/src/constants/motion';
 import { fonts, palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { RevealScreen as RevealModel } from '@/src/lesson/model';
-import { windowFitHeight } from '@/src/utils/fit';
+import { widestText, windowFitHeight } from '@/src/utils/fit';
 import { formatNumber, withUnit } from '@/src/utils/format';
+import { feedback } from '@/src/utils/feedback';
 import { select, success, warning } from '@/src/utils/haptics';
 import { estimateVerdict, revealExtraLines } from '@/src/utils/lessonPlayer';
 import ScreenIntro from '../player/ScreenIntro';
@@ -80,10 +81,11 @@ export default function RevealScreen({ screen, estimate, enterDelay, setVal }: L
   const fills = [fill0, fill1, fill2];
   const pill = useSharedValue(reduced ? 1 : 0);
 
-  // Le chiffre est posé : vibration selon l'écart, Val réagit
+  // Le chiffre est posé : son « reveal », vibration selon l'écart, Val réagit
   const land = useCallback(() => {
     if (landed.current) return;
     landed.current = true;
+    feedback.reveal();
     if (!verdict) select();
     else if (verdict.close) success();
     else warning();
@@ -186,7 +188,7 @@ export default function RevealScreen({ screen, estimate, enterDelay, setVal }: L
           <AppText variant="sectionLabel" style={styles.heading}>
             {heading}
           </AppText>
-          <BigNumber text={valueText(rounded)} size={valueSize} />
+          <BigNumber text={valueText(rounded)} sizingText={widestText([valueText(from), valueText(value)])} size={valueSize} />
           {verdict ? (
             <Animated.View style={[styles.pillWrap, pillStyle]}>
               <Pill

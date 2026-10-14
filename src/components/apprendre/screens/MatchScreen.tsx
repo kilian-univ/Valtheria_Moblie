@@ -76,10 +76,10 @@ export default function MatchScreen({ screen, answered, onDraftChange }: LessonS
     const right = side === 'right' ? id : picked.id;
     setPicked(null);
     if (isMatch(left, right)) {
-      feedback.right();
+      feedback.match();
       setFound((prev) => [...prev, left]);
     } else {
-      feedback.wrong();
+      feedback.mismatch();
       setErrors((n) => n + 1);
       setWrong({ left, right });
       timer.current = setTimeout(() => setWrong(null), WRONG_SHOWN);

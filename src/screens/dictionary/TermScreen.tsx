@@ -25,6 +25,7 @@ import { OFFLINE_BANNER } from '@/src/hooks/useLearningData';
 import { learningStore } from '@/src/state/learningStore';
 import { DictionaryLesson, findEntry, neighbors, sameFamily, shareMessage } from '@/src/utils/dictionary';
 import { dictionaryTermHref, termHref } from '@/src/utils/dictionaryLinks';
+import { feedback } from '@/src/utils/feedback';
 import { select, tap } from '@/src/utils/haptics';
 import IconButton from '@/src/components/common/IconButton';
 
@@ -72,7 +73,9 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
 
   const toggleStar = () => {
     if (!entry) return;
-    select();
+    // Ajouté à « Mes mots » : vibration et son ; retiré : la vibration seule
+    if (starred) select();
+    else feedback.pick();
     favorites.toggle(entry.term);
   };
 

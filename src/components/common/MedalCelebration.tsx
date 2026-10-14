@@ -34,7 +34,7 @@ export default function MedalCelebration({ medal, freezeGained = false }: MedalC
 
   useEffect(() => {
     celebrate();
-    feedback.unlock();
+    feedback.medal();
     if (reduced) return;
     scale.set(withDelay(ARRIVE_DELAY, withSpring(1, springs.celebrate)));
     rotation.set(withDelay(ARRIVE_DELAY, withSpring(0, springs.celebrate)));

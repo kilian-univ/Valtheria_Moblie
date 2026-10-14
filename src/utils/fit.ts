@@ -51,6 +51,13 @@ export function textWidthEm(text: string): number {
   return em;
 }
 
+// Le plus large de plusieurs textes (à taille égale) : un grand chiffre qui
+// varie en direct prend sa taille sur la valeur la plus longue possible,
+// une fois pour toutes, et ne rapetisse pas pendant qu'on glisse
+export function widestText(texts: string[]): string {
+  return texts.reduce((a, b) => (textWidthEm(b) > textWidthEm(a) ? b : a), '');
+}
+
 // Taille qui fait tenir le texte dans `width` px : `max` si possible, jamais
 // sous `min`. Sans largeur connue (premier rendu) : `max`.
 export function fitFontSize(text: string, max: number, min: number, width: number): number {

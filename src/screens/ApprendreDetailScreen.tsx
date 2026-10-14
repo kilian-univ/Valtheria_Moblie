@@ -153,12 +153,14 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const comboTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Sons préchargés à l'ouverture du lecteur : aucun décalage au premier
   useEffect(() => {
     preloadSounds();
   }, []);
   useEffect(() => () => {
     if (sheetTimer.current) clearTimeout(sheetTimer.current);
+    if (comboTimer.current) clearTimeout(comboTimer.current);
   }, []);
 
   // Réplique de Val qui remplace celle de l'arrivée (réaction, tranche du
@@ -445,19 +447,27 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       explanation: (draft.explanation !== undefined ? draft.explanation : current.explanation) ?? undefined,
       val: reaction,
     };
-    // Puis la feuille monte, en même temps que la vibration (montée
-    // directement ouverte : une feuille montée fermée se démonterait)
     // Pastille d'affilée qui apparaît ou monte d'un palier : son « combo »
     // juste après celui de la bonne réponse (premières tentatives seulement)
     const combo = !retrying && comboReached(firstTryRun(answers, screens), firstTryRun(nextAnswers, screens), RUN_MIN);
-    sheetTimer.current = setTimeout(() => {
-      setVerdict(nextVerdict);
-      setSheetOpen(true);
-      // Premier signal : as-tu eu bon ? Bords de l'écran, vibration, son
+    // Premier signal : as-tu eu bon ? Bords de l'écran, vibration, son, au
+    // toucher de « Valider » même, avant la correction animée de l'écran.
+    // Réponse validée seule (dernière carte, dernière paire, réplique) :
+    // l'écran vient de jouer son propre son, celui du verdict vient avec la
+    // feuille.
+    const signal = () => {
       flashEdges(nextVerdict.correct);
       if (nextVerdict.correct) feedback.right();
       else feedback.wrong();
-      if (combo) sheetTimer.current = setTimeout(feedback.combo, COMBO_AFTER);
+      if (combo) comboTimer.current = setTimeout(feedback.combo, COMBO_AFTER);
+    };
+    if (!draft.autoSubmit) signal();
+    // Puis la feuille monte (montée directement ouverte : une feuille montée
+    // fermée se démonterait)
+    sheetTimer.current = setTimeout(() => {
+      setVerdict(nextVerdict);
+      setSheetOpen(true);
+      if (draft.autoSubmit) signal();
     }, draft.sheetDelay ?? SHEET_AFTER_VERDICT);
   };
 
@@ -485,6 +495,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   // « Continuer » des écrans non notés
   const handleContinue = () => {
     if (!current) return;
+    // Écran suivant sans verdict : son « advance », au toucher
+    feedback.advance();
     // Écran non noté : on trace quand même le passage (jamais envoyé, voir
     // buildResponses). Le curseur d'estimation garde sa valeur : une
     // révélation suivante peut la rappeler (from_screen).

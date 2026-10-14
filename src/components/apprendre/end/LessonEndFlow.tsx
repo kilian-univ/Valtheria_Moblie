@@ -295,6 +295,9 @@ function ChestStep({ result, surprise, onNext }: { result: LessonResult; surpris
 // d. Module terminé
 // ---------------------------------------------------------------------------
 function ModuleStep({ title, onNext }: { title: string | null; onNext: () => void }) {
+  useEffect(() => {
+    feedback.moduleComplete();
+  }, []);
   return (
     <StepFrame button={<Button label="Voir la suite" onPress={onNext} />}>
       <ValFullBody pose="fier" height={VAL_FULL_HEIGHT} />

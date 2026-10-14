@@ -15,6 +15,10 @@ type BigNumberProps = {
   text: string;
   // Taille voulue, réduite si le texte ne tient pas sur une ligne
   size: number;
+  // Texte sur lequel la taille se calcule, s'il varie en direct (pari,
+  // simulateur, révélation) : la valeur la plus longue possible, unité
+  // comprise (voir widestText). La taille reste alors fixe.
+  sizingText?: string;
   tone?: TextTone;
   style?: StyleProp<TextStyle>;
 };
@@ -22,9 +26,9 @@ type BigNumberProps = {
 // Grand chiffre en Fraunces, toujours sur UNE ligne : la taille se réduit
 // d'elle-même quand la largeur manque (« 300 000 € » sur iPhone SE).
 // Décoratif pour le lecteur d'écran : le parent porte le libellé lu.
-export default function BigNumber({ text, size, tone = 'gold', style }: BigNumberProps) {
+export default function BigNumber({ text, size, sizingText, tone = 'gold', style }: BigNumberProps) {
   const [width, setWidth] = useState(0);
-  const fontSize = fitFontSize(text, size, MIN_SIZE, width);
+  const fontSize = fitFontSize(sizingText ?? text, size, MIN_SIZE, width);
 
   return (
     <View style={styles.wrap} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>

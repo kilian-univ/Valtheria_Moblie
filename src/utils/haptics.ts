@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 // le même sens : select() une sélection ou un cran, success() une bonne
 // réponse, error() une mauvaise, warning() une butée ou un refus,
 // celebrate() les grands moments. Jamais à chaque pixel d'un glissement.
-// Chaque vibration joue aussi son son (utils/sound.ts).
+// Vibration et son ensemble : utils/feedback.ts.
 // Chaque appel échoue en silence : une vibration ratée ne doit rien casser.
 
 // En développement, un échec est signalé une fois dans la console (sinon il

@@ -136,8 +136,10 @@ export default function ModulePath({
 
   if (width <= 0) return null;
 
+  // Leçon verrouillée touchée : elle tremble, refus très doux
   const shake = (key: number) => {
     warning();
+    feedback.refuse();
     setShakes((s) => ({ ...s, [key]: (s[key] ?? 0) + 1 }));
   };
 

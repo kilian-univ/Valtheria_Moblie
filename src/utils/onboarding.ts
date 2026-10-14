@@ -185,6 +185,21 @@ export function pseudoFromFirstName(firstName: string): string {
 // Inscription
 // ---------------------------------------------------------------------------
 
+export type SignupStep = 'pseudo' | 'compte' | 'rappel';
+
+// Étapes de l'inscription. Prénom déjà donné à Val (et qui donne un pseudo) :
+// pas d'étape du pseudo, on commence au compte, le pseudo y est prérempli
+// et modifiable. Sinon : pseudo, compte, rappel.
+export function signupSteps(firstName: string | null | undefined): SignupStep[] {
+  return firstName && pseudoFromFirstName(firstName) ? ['compte', 'rappel'] : ['pseudo', 'compte', 'rappel'];
+}
+
+// Étape d'arrivée : celle mémorisée (compte, rappel), sinon la première
+export function signupStartStep(saved: string | null | undefined, firstName: string | null | undefined): SignupStep {
+  if (saved === 'compte' || saved === 'rappel') return saved;
+  return signupSteps(firstName)[0];
+}
+
 // Règles réellement exigées par POST /api/auth/register (AuthController :
 // pseudo 3 à 20 caractères [a-zA-Z0-9-_], mot de passe 8 caractères au moins)
 export const PSEUDO_RULE = /^[a-zA-Z0-9_-]{3,20}$/;

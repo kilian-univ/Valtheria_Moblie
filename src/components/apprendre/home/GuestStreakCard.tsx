@@ -11,6 +11,7 @@ import { springs } from '@/src/constants/motion';
 import { fonts, palette, radius, softShadow, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { formatInteger } from '@/src/utils/format';
+import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
 import { daysLabel, freezesLabel, medalProgress } from '@/src/utils/streakRewards';
 import { useReliefPress } from '@/src/hooks/useReliefPress';
@@ -51,6 +52,12 @@ export default function GuestStreakCard({ streak, xp, freezes, savedYesterday, i
   useEffect(() => {
     fill.set(reduced ? progress.ratio : withSpring(progress.ratio, springs.screen));
   }, [reduced, progress.ratio, fill]);
+  // Gel qui a sauvé la série : son « freeze », une fois, à la première
+  // apparition du jour (avec l'allumage de la flamme)
+  useEffect(() => {
+    if (savedYesterday && ignite === true) feedback.freeze();
+  }, [savedYesterday, ignite]);
+
   const fillStyle = useAnimatedStyle(() => ({ width: `${Math.round(fill.get() * 1000) / 10}%` }));
 
   return (

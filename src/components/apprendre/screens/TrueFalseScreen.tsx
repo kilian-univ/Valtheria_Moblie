@@ -109,9 +109,16 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   const bump = useSharedValue(0);
   const shake = useSharedValue(0);
 
+  // Carte jouée (bouton ou balayage) : son verdict part au geste même,
+  // sans attendre que la carte ait fini de partir
+  const decided = useSharedValue(false);
+
   // Carte suivante, ou fin de la pile : le lecteur ouvre la feuille
   const advance = (given: boolean[]) => {
     if (given.length < cards.length) {
+      decided.set(false);
+      // La carte suivante arrive, avec un glissement très doux
+      feedback.cardIn();
       setPhase('ask');
       x.set(0);
       live.set(1);
@@ -134,7 +141,20 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
     });
   };
 
-  // La carte est jouée : verdict sur place, Val réagit, vibration
+  // Premier signal, au geste : la carte part (swipe) et as-tu eu bon ?
+  // Bords de l'écran, vibration, son. Une seule fois par carte.
+  const decide = (value: boolean) => {
+    if (phase !== 'ask' || decided.get() || answers.length >= cards.length) return false;
+    decided.set(true);
+    const ok = value === cards[answers.length].answer;
+    feedback.swipe();
+    flashEdges(ok);
+    if (ok) feedback.right();
+    else feedback.wrong();
+    return true;
+  };
+
+  // La carte est jouée : verdict sur place, Val réagit
   const record = (value: boolean) => {
     if (phase !== 'ask' || answers.length >= cards.length) return;
     const i = answers.length;
@@ -142,10 +162,6 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
     const ok = value === cards[i].answer;
     setAnswers(given);
     setPhase('verdict');
-    // Premier signal : as-tu eu bon ? Bords de l'écran, vibration, son
-    flashEdges(ok);
-    if (ok) feedback.right();
-    else feedback.wrong();
     setVal(trueFalseReaction(ok, i));
     if (!reduced) {
       // Une fois la carte revenue au centre
@@ -179,8 +195,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
 
   // Bouton : la carte part du bon côté, comme balayée
   const send = (value: boolean) => {
-    if (phase !== 'ask' || answered) return;
-    feedback.swipe();
+    if (answered || !decide(value)) return;
     if (reduced) {
       record(value);
       return;
@@ -192,8 +207,6 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
       })
     );
   };
-
-  const playSwipe = () => feedback.swipe();
 
   const skip = () => {
     if (phase === 'verdict') advance(answers);
@@ -237,7 +250,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
           x.set(reduced ? 0 : withSpring(0, springs.press));
           return;
         }
-        scheduleOnRN(playSwipe);
+        scheduleOnRN(decide, toRight);
         if (reduced) {
           scheduleOnRN(record, toRight);
           return;

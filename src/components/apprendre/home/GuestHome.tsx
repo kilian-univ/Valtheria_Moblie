@@ -144,6 +144,7 @@ export default function GuestHome({
           best={Math.max(bestStreak, history.best)}
           freezes={history.freezes}
           week={weekDays(lessonDays)}
+          saved={frozenYesterday(history)}
           open={streakOpen}
           onRequestClose={closeStreakSheet}
           onClosed={unmountStreakSheet}

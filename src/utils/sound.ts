@@ -1,39 +1,57 @@
-import { type AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { type AudioPlayer, type AudioStatus, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Platform } from 'react-native';
 
 import { soundSettings } from '@/src/state/soundSettings';
-import { SOUND_NAMES, type SoundName, soundAllowed } from './soundRules';
+import { createSoundBank, type VoicePlayer } from './soundBank';
+import {
+  type AnySoundName,
+  SOUND_NAMES,
+  type SoundName,
+  soundAllowed,
+  soundSteps,
+  soundVoices,
+  soundVolume,
+} from './soundRules';
 
-export type { SoundName };
+export type { AnySoundName, SoundName };
 
 // Sons de l'app (assets/sounds, AAC .m4a : iOS, Android et web). Lus avec
 // expo-audio :
 // - sur iPhone, le bouton silencieux est respecté (aucun son en mode
 //   silencieux) et la musique de la personne n'est jamais coupée : les sons
-//   s'y mélangent, à volume réduit ;
+//   s'y mélangent ;
 // - réglage « Sons » du profil respecté (state/soundSettings.ts) ;
 // - sur le web, rien n'est tenté avant une première interaction ;
 // - un son qui ne se charge pas ou ne se joue pas : rien ne plante, rien ne
 //   s'affiche.
+// Lecteurs préchargés et rembobinés d'avance (utils/soundBank.ts) ; volumes
+// dans soundRules.ts (SOUND_LEVEL).
 const SOURCES: Record<SoundName, number> = {
+  tick: require('@/assets/sounds/tick.m4a'),
   select: require('@/assets/sounds/select.m4a'),
+  pickup: require('@/assets/sounds/pickup.m4a'),
+  drop: require('@/assets/sounds/drop.m4a'),
   correct: require('@/assets/sounds/correct.m4a'),
   wrong: require('@/assets/sounds/wrong.m4a'),
+  match: require('@/assets/sounds/match.m4a'),
+  mismatch: require('@/assets/sounds/mismatch.m4a'),
+  advance: require('@/assets/sounds/advance.m4a'),
   swipe: require('@/assets/sounds/swipe.m4a'),
-  combo: require('@/assets/sounds/combo.m4a'),
-  'lesson-complete': require('@/assets/sounds/lesson-complete.m4a'),
-  streak: require('@/assets/sounds/streak.m4a'),
-  'chest-step': require('@/assets/sounds/chest-step.m4a'),
-  'chest-open': require('@/assets/sounds/chest-open.m4a'),
-  coins: require('@/assets/sounds/coins.m4a'),
+  reveal: require('@/assets/sounds/reveal.m4a'),
   unlock: require('@/assets/sounds/unlock.m4a'),
+  'message-in': require('@/assets/sounds/message-in.m4a'),
+  'message-out': require('@/assets/sounds/message-out.m4a'),
+  'chest-step': require('@/assets/sounds/chest-step.m4a'),
+  coins: require('@/assets/sounds/coins.m4a'),
+  'lesson-complete': require('@/assets/sounds/lesson-complete.m4a'),
+  'module-complete': require('@/assets/sounds/module-complete.m4a'),
+  streak: require('@/assets/sounds/streak.m4a'),
+  'chest-open': require('@/assets/sounds/chest-open.m4a'),
+  combo: require('@/assets/sounds/combo.m4a'),
+  freeze: require('@/assets/sounds/freeze.m4a'),
 };
 
-// Par-dessus la musique, à volume réduit
-const VOLUME = 0.8;
-
 const web = Platform.OS === 'web';
-const players: Partial<Record<SoundName, AudioPlayer>> = {};
 let modeReady = false;
 // Web : la page a-t-elle déjà reçu un toucher, un clic ou une touche ?
 let interacted = !web;
@@ -66,47 +84,82 @@ function prepareMode(): void {
   }
 }
 
-function playerFor(name: SoundName): AudioPlayer | null {
-  const existing = players[name];
-  if (existing) return existing;
-  try {
-    const player = createAudioPlayer(SOURCES[name]);
-    player.volume = VOLUME;
-    players[name] = player;
-    return player;
-  } catch (err) {
-    note(err);
-    return null;
-  }
+type Listenable = {
+  addListener(event: 'playbackStatusUpdate', listener: (status: AudioStatus) => void): unknown;
+};
+
+// Un lecteur expo-audio vu par la banque
+function voiceFor(name: SoundName): VoicePlayer {
+  // Session audio gardée active entre deux sons (iPhone) : sans cela, elle
+  // se coupe 100 ms après chaque son et chaque lecture doit la relancer
+  const player: AudioPlayer = createAudioPlayer(SOURCES[name], { keepAudioSessionActive: true });
+  player.shouldCorrectPitch = false;
+  return {
+    play: () => player.play(),
+    pause: () => player.pause(),
+    // Web : le retour au début est immédiat ; ailleurs, il faut l'attendre
+    rewind: () => {
+      const done = player.seekTo(0);
+      if (!web) return done;
+      done.catch(note);
+    },
+    setVolume: (volume) => {
+      player.volume = volume;
+    },
+    setRate: (rate) => player.setPlaybackRate(rate),
+    onFinish: (listener) => {
+      // Les types d'expo-modules-core (écouteurs) ne sont pas vus depuis
+      // expo-audio dans ce projet : on décrit la méthode ici
+      const events = player as unknown as Listenable;
+      events.addListener('playbackStatusUpdate', (status) => {
+        if (status.didJustFinish) listener();
+      });
+    },
+  };
 }
 
-// Préchargement à l'ouverture du lecteur et de la cérémonie de fin : aucun
-// décalage au premier son. Sur le web, les fichiers se chargent quand même
-// (sans rien jouer avant une interaction).
+const bank = createSoundBank<SoundName>({
+  create: voiceFor,
+  voices: soundVoices,
+  now: () => Date.now(),
+  onError: note,
+});
+
+// Préchargement à l'ouverture du lecteur, de la cérémonie de fin et des
+// écrans qui jouent un son : aucun décalage au premier son. Sur le web, les
+// fichiers se chargent quand même (sans rien jouer avant une interaction).
 export function preloadSounds(): void {
   try {
     soundSettings.load().catch(note);
     prepareMode();
-    SOUND_NAMES.forEach((name) => playerFor(name));
+    SOUND_NAMES.forEach((name) => bank.preload(name));
   } catch (err) {
     note(err);
   }
 }
 
-// Joue un son depuis le début. rate : vitesse de lecture, sans correction
-// de hauteur (le son monte avec elle : paliers du coffre).
-export function playSound(name: SoundName, { rate = 1 }: { rate?: number } = {}): void {
+export type SoundOptions = {
+  // Vitesse de lecture, sans correction de hauteur (le son monte avec elle)
+  rate?: number;
+  // Adoucissement par rapport au niveau du son (SOUND_LEVEL), 1 par défaut
+  gain?: number;
+  // Écart minimal entre deux départs de ce son (ms)
+  minGap?: number;
+};
+
+// Joue un son depuis le début, tout de suite, à chaque appel. Un son prévu
+// mais pas encore livré (medal) joue son remplaçant (soundRules.ts).
+export function playSound(name: AnySoundName, { rate = 1, gain = 1, minGap = 0 }: SoundOptions = {}): void {
   try {
     if (!soundAllowed(soundSettings.isEnabled(), web, interacted)) return;
     prepareMode();
-    const player = playerFor(name);
-    if (!player) return;
-    if (player.playbackRate !== rate) {
-      player.shouldCorrectPitch = false;
-      player.setPlaybackRate(rate);
+    for (const step of soundSteps(name)) {
+      const go = () => {
+        bank.play(step.name, { rate, volume: soundVolume(step.name, gain), minGap });
+      };
+      if (step.at > 0) setTimeout(go, step.at);
+      else go();
     }
-    player.seekTo(0).catch(note);
-    player.play();
   } catch (err) {
     note(err);
   }

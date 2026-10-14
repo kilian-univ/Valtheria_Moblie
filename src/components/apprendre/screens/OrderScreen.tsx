@@ -17,7 +17,7 @@ import AppText from '@/src/components/common/AppText';
 import { motion, springs, timing } from '@/src/constants/motion';
 import { fonts, palette, radius, size, space, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { moveItem, orderCorrect, orderResults } from '@/src/lesson/interactive';
+import { dropRank, moveItem, orderCorrect, orderResults } from '@/src/lesson/interactive';
 import type { OrderScreen as OrderModel } from '@/src/lesson/model';
 import { safeGesture } from '@/src/utils/gestureSafety';
 import { feedback } from '@/src/utils/feedback';
@@ -82,7 +82,9 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
   const [drag, setDrag] = useState<{ id: string; from: number } | null>(null);
   const [target, setTarget] = useState<number | null>(null);
   // Ligne qu'on vient de lâcher : elle rejoint sa place avec un rebond
-  const [landing, setLanding] = useState<string | null>(null);
+  // (key change à chaque dépôt : même posée à sa place de départ, elle y
+  // retourne)
+  const [landing, setLanding] = useState<{ id: string; key: number } | null>(null);
   // Correction : lignes colorées, puis rangées dans l'ordre juste
   const [colored, setColored] = useState(0);
   const [settled, setSettled] = useState(false);
@@ -106,7 +108,8 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
     .map((sl) => `${sl.y}:${sl.h}`)
     .join(',');
 
-  useEffect(() => {
+  // Avant l'image suivante : un geste lit toujours les places de l'ordre actuel
+  useLayoutEffect(() => {
     layout.set(slotsFor(order, heights));
     // slotsKey : les places, pas l'identité du tableau
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -142,11 +145,11 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
     setOrder(next);
   };
 
-  // Attrapée : soulevée, un cran ; la page ne défile plus
+  // Attrapée : soulevée, son « pickup » ; la page ne défile plus
   const grab = (id: string, index: number) => {
     if (answered) return;
     lockScroll(true);
-    feedback.pick();
+    feedback.pickup();
     setLanding(null);
     setDrag({ id, from: index });
     setTarget(index);
@@ -157,18 +160,16 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
     select();
   };
 
-  // Lâchée : le nouvel ordre ; la ligne est déjà à l'endroit du dépôt (fil
-  // d'interface) et rejoint sa place
-  const drop = (id: string, index: number) => {
+  // Lâchée : la ligne est encore à l'endroit du dépôt (fil d'interface) ;
+  // elle rejoint toujours le rang calculé au lâcher (to, voir dropRank),
+  // avec un rebond, son « drop »
+  const drop = (id: string, to: number) => {
     lockScroll(false);
-    const to = target ?? index;
     setDrag(null);
     setTarget(null);
-    setLanding(id);
-    if (to !== index) {
-      select();
-      setOrder(moveItem(order, index, to));
-    }
+    setLanding((prev) => ({ id, key: (prev?.key ?? 0) + 1 }));
+    feedback.drop();
+    setOrder((prev) => moveItem(prev, prev.indexOf(id), to));
   };
 
   const draggedId = drag?.id ?? null;
@@ -212,7 +213,7 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
                   lifted={draggedId === id}
                   offset={ready ? topIn(displayed, heights, id) - topIn(natural, heights, id) : 0}
                   slow={isSettled}
-                  landing={landing === id}
+                  landKey={landing?.id === id ? landing.key : 0}
                   dragY={dragY}
                   dragSlot={dragSlot}
                   aimed={aimed}
@@ -288,15 +289,16 @@ type OrderRowProps = {
   offset: number;
   // Rangement final : glissement plus long
   slow: boolean;
-  // Vient d'être lâchée : rejoint sa place avec un petit rebond
-  landing: boolean;
+  // Numéro du dernier dépôt de cette ligne (0 : aucun) : à chaque nouveau
+  // dépôt, elle rejoint sa place avec un petit rebond
+  landKey: number;
   dragY: SharedValue<number>;
   dragSlot: SharedValue<number>;
   aimed: SharedValue<number>;
   layout: SharedValue<Slot[]>;
   onGrab: (id: string, index: number) => void;
   onAim: (rank: number) => void;
-  onDrop: (id: string, index: number) => void;
+  onDrop: (id: string, to: number) => void;
   onRelease: () => void;
   onLayout: (height: number) => void;
   onMove: (to: number) => void;
@@ -314,7 +316,7 @@ function OrderRow({
   lifted,
   offset,
   slow,
-  landing,
+  landKey,
   dragY,
   dragSlot,
   aimed,
@@ -333,17 +335,22 @@ function OrderRow({
   const shift = useSharedValue(offset);
   const lift = useSharedValue(0);
   const lastOffset = useRef(offset);
+  const lastLand = useRef(landKey);
 
   // Vers sa place : en douceur quand une autre ligne passe, avec un rebond
-  // quand on vient de la lâcher, en 300 ms au rangement final. Pendant son
-  // propre glissement, elle suit le doigt (rien à animer).
+  // quand on vient de la lâcher (même si sa place n'a pas changé), en
+  // 300 ms au rangement final. Pendant son propre glissement, elle suit le
+  // doigt (rien à animer).
   useLayoutEffect(() => {
-    if (lifted || offset === lastOffset.current) return;
+    if (lifted) return;
+    const landed = landKey !== 0 && landKey !== lastLand.current;
+    if (!landed && offset === lastOffset.current) return;
     lastOffset.current = offset;
+    lastLand.current = landKey;
     if (reduced) shift.set(offset);
-    else if (landing) shift.set(withSpring(offset, springs.press));
+    else if (landed) shift.set(withSpring(offset, springs.press));
     else shift.set(withTiming(offset, timing(slow ? motion.screen : motion.state)));
-  }, [offset, lifted, landing, slow, reduced, shift]);
+  }, [offset, lifted, landKey, slow, reduced, shift]);
 
   useEffect(() => {
     lift.set(reduced ? (lifted ? 1 : 0) : withTiming(lifted ? 1 : 0, timing(motion.tap)));
@@ -366,14 +373,8 @@ function OrderRow({
         safeGesture((e: { translationY: number }) => {
           'worklet';
           dragY.set(e.translationY);
-          const rows = layout.get();
-          const me = rows[index];
-          if (!me) return;
-          const center = me.y + me.h / 2 + e.translationY;
-          let rank = 0;
-          for (let k = 0; k < rows.length; k++) {
-            if (k !== index && rows[k].y + rows[k].h / 2 < center) rank += 1;
-          }
+          // Emplacement visé, en continu, d'après le centre de la ligne
+          const rank = dropRank(layout.get(), index, e.translationY);
           if (rank !== aimed.get()) {
             aimed.set(rank);
             scheduleOnRN(onAim, rank);
@@ -381,14 +382,16 @@ function OrderRow({
         })
       )
       .onEnd(
-        safeGesture(() => {
+        safeGesture((e: { translationY: number }) => {
           'worklet';
-          // Dans la même image : la ligne garde l'endroit du dépôt, puis le
-          // nouvel ordre la fait rejoindre sa place (aucun retour en arrière)
+          // Rang final calculé ici, au lâcher même (jamais une valeur d'un
+          // rendu précédent). Dans la même image : la ligne garde l'endroit
+          // du dépôt, puis rejoint ce rang (aucun retour en arrière)
+          const to = dropRank(layout.get(), index, e.translationY);
           shift.set(shift.get() + dragY.get());
           dragY.set(0);
           dragSlot.set(-1);
-          scheduleOnRN(onDrop, id, index);
+          scheduleOnRN(onDrop, id, to);
         })
       )
       .onFinalize(

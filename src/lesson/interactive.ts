@@ -71,6 +71,25 @@ export function moveItem<T>(list: T[], from: number, to: number): T[] {
   return next;
 }
 
+// Tri : rang où se pose la ligne attrapée, d'après son centre. slots : les
+// places (haut, hauteur) dans l'ordre actuel ; from : son rang de départ ;
+// dy : déplacement du doigt. Le rang est le nombre d'autres lignes dont le
+// centre est au-dessus du sien : toujours une vraie place (0 à n − 1),
+// jamais par-dessus une autre ; au-delà de la liste, la place la plus
+// proche (tout en haut ou tout en bas). Appelée aussi pendant le geste
+// (fil d'interface).
+export function dropRank(slots: { y: number; h: number }[], from: number, dy: number): number {
+  'worklet';
+  const me = slots[from];
+  if (!me) return Math.max(0, Math.min(slots.length - 1, from));
+  const center = me.y + me.h / 2 + (Number.isFinite(dy) ? dy : 0);
+  let rank = 0;
+  for (let k = 0; k < slots.length; k++) {
+    if (k !== from && slots[k].y + slots[k].h / 2 < center) rank += 1;
+  }
+  return rank;
+}
+
 // ---------------------------------------------------------------------------
 // Associer
 // ---------------------------------------------------------------------------

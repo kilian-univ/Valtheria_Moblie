@@ -3,6 +3,7 @@
 // Correction locale des écrans interactifs (lesson/interactive.ts)
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { computeFormula } from '../src/lesson/formulas';
@@ -10,6 +11,7 @@ import {
   allocationAmount,
   allocationMax,
   allocationTemplateValues,
+  dropRank,
   fillTemplate,
   gradeAllocation,
   initialAllocation,
@@ -267,4 +269,65 @@ test('répartir en pourcentages : épargne d’au moins 10 %, besoins d’au moi
   assert.equal(gradeAllocation(PART, { besoins: 70, envies: 25, epargne: 5 }).passed, false);
   assert.equal(gradeAllocation(PART, { besoins: 45, envies: 35, epargne: 20 }).failed?.val?.line, 'Besoins trop bas');
   assert.equal(gradeAllocation(PART, { besoins: 50, envies: 40, epargne: 10 }).passed, true);
+});
+
+// ---------------------------------------------------------------------------
+// Tri : emplacement de dépôt
+// ---------------------------------------------------------------------------
+
+// Quatre lignes de 60 px espacées de 12 : centres à 30, 102, 174, 246
+const SLOTS = [0, 72, 144, 216].map((y) => ({ y, h: 60 }));
+
+test('tri : sans bouger, la ligne reste à sa place', () => {
+  for (let i = 0; i < SLOTS.length; i++) assert.equal(dropRank(SLOTS, i, 0), i);
+});
+
+test('tri : lâchée au milieu d’une autre ligne, elle prend une vraie place', () => {
+  // Première ligne posée pile sur le centre de la troisième : juste avant elle
+  assert.equal(dropRank(SLOTS, 0, 144), 1);
+  // Un pixel plus bas : juste après elle
+  assert.equal(dropRank(SLOTS, 0, 145), 2);
+  // Dernière ligne remontée pile sur le centre de la deuxième : juste avant elle
+  assert.equal(dropRank(SLOTS, 3, -144), 1);
+  assert.equal(dropRank(SLOTS, 3, -143), 2);
+});
+
+test('tri : tout en haut, tout en bas, hors de la liste : la place la plus proche', () => {
+  assert.equal(dropRank(SLOTS, 3, -217), 0);
+  assert.equal(dropRank(SLOTS, 0, 217), 3);
+  assert.equal(dropRank(SLOTS, 2, -5000), 0);
+  assert.equal(dropRank(SLOTS, 1, 5000), 3);
+  // Mesure absente ou déplacement illisible : sa place de départ
+  assert.equal(dropRank(SLOTS, 2, Number.NaN), 2);
+  assert.equal(dropRank([], 0, 40), 0);
+});
+
+test('tri : quel que soit le geste (même très rapide), un rang valable et une liste complète', () => {
+  for (let from = 0; from < SLOTS.length; from++) {
+    for (let dy = -600; dy <= 600; dy += 7) {
+      const rank = dropRank(SLOTS, from, dy);
+      assert.ok(Number.isInteger(rank) && rank >= 0 && rank < SLOTS.length);
+      const next = moveItem(['a', 'b', 'c', 'd'], from, rank);
+      assert.deepEqual([...next].sort(), ['a', 'b', 'c', 'd']);
+    }
+  }
+});
+
+test('tri : deux glissements d’affilée', () => {
+  let order = ['a', 'b', 'c', 'd'];
+  // a descend tout en bas, puis d remonte en tête
+  order = moveItem(order, 0, dropRank(SLOTS, 0, 230));
+  assert.deepEqual(order, ['b', 'c', 'd', 'a']);
+  order = moveItem(order, 2, dropRank(SLOTS, 2, -150));
+  assert.deepEqual(order, ['d', 'b', 'c', 'a']);
+});
+
+test('tri : le rang est calculé au lâcher, et la ligne rejoint toujours sa place', () => {
+  const src = readFileSync(new URL('../src/components/apprendre/screens/OrderScreen.tsx', import.meta.url), 'utf8');
+  // Au lâcher : rang calculé dans le geste, transmis tel quel
+  assert.match(src, /const to = dropRank\(layout\.get\(\), index, e\.translationY\);/);
+  assert.match(src, /scheduleOnRN\(onDrop, id, to\)/);
+  assert.ok(!src.includes('target ?? index'), 'plus de rang lu dans un rendu précédent');
+  // Même posée à sa place de départ, elle y retourne (nouveau dépôt = nouvelle clé)
+  assert.match(src, /const landed = landKey !== 0 && landKey !== lastLand\.current;/);
 });

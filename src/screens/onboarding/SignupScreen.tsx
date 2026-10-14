@@ -21,6 +21,7 @@ import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { enableReminder } from '@/src/state/reminder';
 import {
+  cleanFirstName,
   emailValid,
   passwordValid,
   PASSWORD_RULES,
@@ -29,6 +30,9 @@ import {
   sendDiscoveryCredit,
   signupError,
   signupErrorFrom,
+  signupStartStep,
+  type SignupStep,
+  signupSteps,
 } from '@/src/utils/onboarding';
 import { isNetworkMessage, isRegistrationClosed } from '@/src/utils/authErrors';
 import { postAuth } from '@/src/utils/authProbe';
@@ -40,12 +44,24 @@ const TERMS_URL = 'https://valtheria.fr/cgu';
 const PRIVACY_URL = 'https://valtheria.fr/politique-confidentialite';
 const VAL_DIAMETER = 64;
 
-type Step = 'pseudo' | 'compte' | 'rappel';
-const STEP_NUMBER: Record<Step, number> = { pseudo: 1, compte: 2, rappel: 3 };
+type Step = SignupStep;
 
 // Inscription en trois étapes : pseudo, compte, rappel. Reprend à l'étape
 // mémorisée ; ouverte d'ailleurs (« Créer mon compte »), elle part du pseudo.
+// Prénom déjà donné à Val : deux étapes seulement (compte, rappel), le
+// pseudo est prérempli et modifiable dans l'étape du compte.
+// La mémoire du téléphone (prénom, pseudo, étape) est lue avant tout : les
+// étapes en dépendent (ouverture directe de l'inscription au démarrage)
 export default function SignupScreen() {
+  const { loaded } = useOnboarding();
+  useEffect(() => {
+    if (!loaded) onboardingStore.load();
+  }, [loaded]);
+  if (!loaded) return <View style={styles.screen} />;
+  return <SignupFlow />;
+}
+
+function SignupFlow() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { register, login, post, isAuthenticated } = useApi();
@@ -54,9 +70,10 @@ export default function SignupScreen() {
   // Univers déjà chargés (compte connecté auparavant) : leur nom réel
   const { universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
 
-  const [step, setStep] = useState<Step>(() =>
-    state.step === 'compte' || state.step === 'rappel' ? state.step : 'pseudo'
-  );
+  // Étapes fixées à l'arrivée (le prénom ne change pas pendant l'inscription)
+  const [steps] = useState(() => signupSteps(state.firstName));
+  const pseudoInAccount = !steps.includes('pseudo');
+  const [step, setStep] = useState<Step>(() => signupStartStep(state.step, state.firstName));
   // Pseudo déjà choisi, sinon proposé d'après le prénom donné à Val
   const [pseudo, setPseudo] = useState(state.pseudo || pseudoFromFirstName(state.firstName));
   const [pseudoTouched, setPseudoTouched] = useState(false);
@@ -69,6 +86,7 @@ export default function SignupScreen() {
   // Le serveur n'accepte pas encore d'inscription depuis l'app (403)
   const [closed, setClosed] = useState(false);
   const passwordRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
 
   useEffect(() => {
     track('inscription_commencee', { objectif: state.objective });
@@ -96,7 +114,7 @@ export default function SignupScreen() {
   };
 
   const back = () => {
-    if (step === 'compte') goTo('pseudo');
+    if (step === 'compte' && !pseudoInAccount) goTo('pseudo');
     else if (router.canGoBack()) router.back();
     // Parcours repris directement sur l'inscription : retour à la fin de leçon
     else router.replace(state.status === 'en-cours' && state.objective ? '/bienvenue/fin' : '/apprendre');
@@ -124,7 +142,9 @@ export default function SignupScreen() {
   // ---------------------------------------------------------------------------
   // Étape 2 : compte
   // ---------------------------------------------------------------------------
-  const canCreate = emailValid(email) && passwordValid(password) && !submitting;
+  // Pseudo saisi dans cette étape (prénom connu) : il doit être valable aussi
+  const canCreate =
+    emailValid(email) && passwordValid(password) && !submitting && (!pseudoInAccount || !pseudoProblem);
 
   // Compte créé (le jeton est enregistré par ApiContext)
   const accountCreated = () => {
@@ -137,7 +157,9 @@ export default function SignupScreen() {
   };
 
   const createAccount = async () => {
+    if (pseudoInAccount) setPseudoTouched(true);
     if (!canCreate) return;
+    if (pseudoInAccount) onboardingStore.update({ pseudo: cleanPseudo });
     setSubmitting(true);
     setError(null);
     const body = { name: cleanPseudo, email: email.trim(), password, password_confirmation: password };
@@ -205,6 +227,32 @@ export default function SignupScreen() {
   let body: ReactNode;
   let footer: ReactNode;
 
+  // Champ du pseudo : son étape, ou l'étape du compte quand le prénom est
+  // connu (« suivant » passe alors à l'adresse e-mail)
+  const focusEmail = () => emailRef.current?.focus();
+  const pseudoField = (
+    <TextField
+      label="Ton pseudo"
+      value={pseudo}
+      onChangeText={(t) => {
+        setPseudo(t);
+        setError(null);
+      }}
+      onBlur={() => setPseudoTouched(true)}
+      autoCapitalize="none"
+      autoCorrect={false}
+      textContentType="nickname"
+      autoComplete="username-new"
+      returnKeyType="next"
+      onSubmitEditing={pseudoInAccount ? focusEmail : submitPseudo}
+      submitBehavior={pseudoInAccount ? 'submit' : undefined}
+      maxLength={20}
+      // Prérempli dans l'étape du compte : un pseudo à corriger se signale tout de suite
+      error={(pseudoTouched || pseudoInAccount) && cleanPseudo ? pseudoProblem : null}
+      hint="Visible seulement si tu partages ta progression."
+    />
+  );
+
   if (closed) {
     // Inscription fermée pour le moment : pas d'erreur rouge, une porte ouverte
     body = (
@@ -236,21 +284,7 @@ export default function SignupScreen() {
         <AppText variant="title2" accessibilityRole="header" style={styles.title}>
           Comment Val doit t’appeler ?
         </AppText>
-        <TextField
-          label="Ton pseudo"
-          value={pseudo}
-          onChangeText={setPseudo}
-          onBlur={() => setPseudoTouched(true)}
-          autoCapitalize="none"
-          autoCorrect={false}
-          textContentType="nickname"
-          autoComplete="username-new"
-          returnKeyType="next"
-          onSubmitEditing={submitPseudo}
-          maxLength={20}
-          error={pseudoTouched && cleanPseudo ? pseudoProblem : null}
-          hint="Visible seulement si tu partages ta progression."
-        />
+        {pseudoField}
       </>
     );
     footer = <Button label="Continuer" onPress={submitPseudo} disabled={!cleanPseudo} />;
@@ -258,13 +292,15 @@ export default function SignupScreen() {
     body = (
       <>
         <AppText variant="title2" accessibilityRole="header">
-          {`Dernière étape, ${cleanPseudo}`}
+          {`Dernière étape, ${pseudoInAccount ? cleanFirstName(state.firstName) : cleanPseudo}`}
         </AppText>
         <AppText variant="callout" tone="subtitle">
           Pour garder ta série sur tous tes appareils.
         </AppText>
         <SocialButtons />
+        {pseudoInAccount ? pseudoField : null}
         <TextField
+          ref={emailRef}
           label="Adresse e-mail"
           value={email}
           onChangeText={(t) => {
@@ -359,8 +395,8 @@ export default function SignupScreen() {
       <View style={styles.header}>
         <StepHeader
           onBack={step === 'rappel' ? undefined : closed ? () => setClosed(false) : back}
-          step={STEP_NUMBER[step]}
-          total={3}
+          step={steps.indexOf(step) + 1}
+          total={steps.length}
         />
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

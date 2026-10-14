@@ -2,6 +2,7 @@
 // Lancer : npm test
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import {
@@ -16,6 +17,8 @@ import {
   pseudoError,
   pseudoFromFirstName,
   routeForStep,
+  signupStartStep,
+  signupSteps,
   sendDiscoveryCredit,
   shouldShowOnboarding,
   signupError,
@@ -204,4 +207,36 @@ test('le texte du rappel parle comme Val et change d’un jour à l’autre', ()
   const week = Array.from({ length: 7 }, (_, i) => reminderMessageFor(new Date(2026, 9, 10 + i)).body);
   assert.equal(new Set(week).size, REMINDER_MESSAGES.length);
   assert.deepEqual(reminderMessageFor(new Date(2026, 9, 10, 8)), reminderMessageFor(new Date(2026, 9, 10, 22)));
+});
+
+test('inscription : prénom connu, pas d’étape du pseudo', () => {
+  assert.deepEqual(signupSteps('Kantin'), ['compte', 'rappel']);
+  assert.deepEqual(signupSteps('  Élise '), ['compte', 'rappel']);
+  // Sans prénom, ou un prénom qui ne donne aucun pseudo : l'étape reste
+  assert.deepEqual(signupSteps(''), ['pseudo', 'compte', 'rappel']);
+  assert.deepEqual(signupSteps(null), ['pseudo', 'compte', 'rappel']);
+  assert.deepEqual(signupSteps(undefined), ['pseudo', 'compte', 'rappel']);
+  assert.deepEqual(signupSteps('!!!'), ['pseudo', 'compte', 'rappel']);
+});
+
+test('inscription : étape d’arrivée', () => {
+  // Fin de la leçon découverte (step « pseudo ») avec un prénom : le compte
+  assert.equal(signupStartStep('pseudo', 'Kantin'), 'compte');
+  assert.equal(signupStartStep('pseudo', ''), 'pseudo');
+  // « Créer mon compte » ailleurs (step quelconque)
+  assert.equal(signupStartStep('termine', 'Kantin'), 'compte');
+  assert.equal(signupStartStep(undefined, ''), 'pseudo');
+  // Étape mémorisée reprise telle quelle
+  assert.equal(signupStartStep('compte', ''), 'compte');
+  assert.equal(signupStartStep('rappel', 'Kantin'), 'rappel');
+});
+
+test('inscription : le pseudo prérempli suit les règles du serveur', () => {
+  const src = readFileSync(new URL('../src/screens/onboarding/SignupScreen.tsx', import.meta.url), 'utf8');
+  // Barre de progression sur les étapes réelles
+  assert.ok(src.includes('step={steps.indexOf(step) + 1}') && src.includes('total={steps.length}'));
+  // Champ « Ton pseudo » dans l'étape du compte, création bloquée si invalide
+  assert.ok(src.includes('{pseudoInAccount ? pseudoField : null}'));
+  assert.ok(src.includes('(!pseudoInAccount || !pseudoProblem)'));
+  assert.equal(pseudoError(pseudoFromFirstName('Kantin')), null);
 });

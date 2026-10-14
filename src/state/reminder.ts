@@ -3,6 +3,7 @@ import type * as NotificationsModule from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { DEFAULT_REMINDER, ReminderTime, reminderMessageFor, upcomingReminders } from '@/src/utils/reminder';
+import { REMINDER_SOUND_FILE, reminderSound } from '@/src/utils/soundRules';
 
 // Rappel quotidien en notifications LOCALES (rien côté serveur). Un seul
 // rappel par jour, jamais plus. Pour que le texte change chaque jour, on
@@ -69,12 +70,14 @@ async function schedule(Notifications: typeof NotificationsModule, time: Reminde
     await Notifications.setNotificationChannelAsync(CHANNEL, {
       name: 'Rappel quotidien',
       importance: Notifications.AndroidImportance.DEFAULT,
+      // Son personnalisé du rappel, s'il est livré (voir soundRules.ts)
+      ...(REMINDER_SOUND_FILE ? { sound: REMINDER_SOUND_FILE } : {}),
     });
   }
   for (const date of upcomingReminders(new Date(), time, DAYS_AHEAD)) {
     const { title, body } = reminderMessageFor(date);
     await Notifications.scheduleNotificationAsync({
-      content: { title, body },
+      content: { title, body, sound: reminderSound() },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: CHANNEL },
     });
   }

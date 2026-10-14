@@ -10,6 +10,7 @@ import { useRollingNumber } from '@/src/hooks/useRollingNumber';
 import { computeFormula, formulaSeries, seriesScale } from '@/src/lesson/formulas';
 import { rangeLine } from '@/src/lesson/interactive';
 import type { SimulatorOutput, SimulatorScreen as SimulatorModel } from '@/src/lesson/model';
+import { widestText } from '@/src/utils/fit';
 import { formatNumber, withUnit } from '@/src/utils/format';
 import ScreenIntro from '../player/ScreenIntro';
 import SimChart from '../player/SimChart';
@@ -17,6 +18,8 @@ import TrackSlider from '../player/TrackSlider';
 import { LessonScreenProps } from '../types';
 
 const BIG_SIZE = 56;
+// Valeurs du curseur essayées pour trouver le résultat le plus long
+const SIZING_SAMPLES = 40;
 const LEGEND_LINE = 14;
 
 // Résultat arrondi à l'unité, avec son unité
@@ -43,6 +46,16 @@ export default function SimulatorScreen({ screen, onDraftChange, setVal, enterDe
   const big = outputs.find((o) => o.big) ?? outputs[0];
   const others = outputs.filter((o) => o !== big);
   const rolling = useRollingNumber(results[big.key] ?? 0);
+  // Taille fixe du gros chiffre : celle du résultat le plus long sur toute
+  // la course du curseur (bornes comprises)
+  const longest = useMemo(() => {
+    const texts: string[] = [];
+    for (let i = 0; i <= SIZING_SAMPLES; i++) {
+      const v = i === SIZING_SAMPLES ? max : min + ((max - min) * i) / SIZING_SAMPLES;
+      texts.push(outputText(big, computeFormula(formula, v, params)[big.key] ?? 0));
+    }
+    return widestText(texts);
+  }, [big, formula, params, min, max]);
   const sliderText = withUnit(formatNumber(value), unit);
 
   useEffect(() => {
@@ -73,7 +86,7 @@ export default function SimulatorScreen({ screen, onDraftChange, setVal, enterDe
           <AppText variant="sectionLabel" tone="subtitle" style={styles.label}>
             {big.label}
           </AppText>
-          <BigNumber text={outputText(big, rolling)} size={BIG_SIZE} />
+          <BigNumber text={outputText(big, rolling)} sizingText={longest} size={BIG_SIZE} />
           {others.map((o) => (
             <AppText key={o.key} variant="callout" tone="subtitle" style={styles.centerText}>
               {o.caption ? o.caption.replace('{}', outputText(o, results[o.key] ?? 0)) : `${o.label} : ${outputText(o, results[o.key] ?? 0)}`}

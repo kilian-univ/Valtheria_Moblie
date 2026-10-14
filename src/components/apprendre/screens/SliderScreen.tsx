@@ -6,7 +6,7 @@ import BigNumber from '@/src/components/common/BigNumber';
 import { motion } from '@/src/constants/motion';
 import { space } from '@/src/constants/style/Style';
 import type { SliderScreen as SliderModel } from '@/src/lesson/model';
-import { windowFitHeight } from '@/src/utils/fit';
+import { widestText, windowFitHeight } from '@/src/utils/fit';
 import { formatNumber, withUnit } from '@/src/utils/format';
 import { grade } from '@/src/utils/grade';
 import ScreenIntro from '../player/ScreenIntro';
@@ -48,13 +48,15 @@ export default function SliderScreen({ screen, answered, onDraftChange, enterDel
   };
 
   const shown = withUnit(formatNumber(value), unit);
+  // Taille fixe : celle de la valeur la plus longue du curseur
+  const longest = widestText([withUnit(formatNumber(min), unit), withUnit(formatNumber(max), unit)]);
 
   return (
     <View style={styles.wrap}>
       <ScreenIntro screen={screen} size="md" />
 
       <View style={styles.center}>
-        <BigNumber text={shown} size={valueSize} />
+        <BigNumber text={shown} sizingText={longest} size={valueSize} />
 
         <View style={styles.slider}>
           <TrackSlider
