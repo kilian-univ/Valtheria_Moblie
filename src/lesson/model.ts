@@ -221,6 +221,8 @@ export type LessonScreen =
 
 export type LessonModel = {
   title: string | null;
+  // La phrase clé de la leçon (carte « À RETENIR » de la fin), si elle existe
+  takeaway: string | null;
   screens: LessonScreen[];
 };
 

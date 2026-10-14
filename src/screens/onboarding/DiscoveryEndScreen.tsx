@@ -15,7 +15,8 @@ import StreakFlame from '@/src/components/common/StreakFlame';
 import ValFullBody from '@/src/components/common/ValFullBody';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { discoveryPlan, nextLessonTitle, toObjective, universeName } from '@/src/lesson/discovery';
+import LessonRecap from '@/src/components/apprendre/end/LessonRecap';
+import { discoveryLesson, discoveryPlan, nextLessonTitle, toObjective, universeName } from '@/src/lesson/discovery';
 import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { getReminderSettings } from '@/src/state/reminder';
@@ -44,13 +45,26 @@ const COUNT_DELAY = 450;
 // rappel), ou « Plus tard » vers l'accueil. La leçon qui complète les six
 // passe d'abord par la célébration (une seule fois).
 export default function DiscoveryEndScreen() {
-  const params = useLocalSearchParams<{ six?: string; medaille?: string; gel?: string }>();
+  const params = useLocalSearchParams<{
+    six?: string;
+    medaille?: string;
+    gel?: string;
+    justes?: string;
+    total?: string;
+    rattrapees?: string;
+  }>();
   const medal = MEDALS.find((m) => String(m.days) === params.medaille) ?? null;
-  // Célébrations, dans l'ordre : les six sujets, puis le palier de série
-  const [steps, setSteps] = useState<('six' | 'medal')[]>(() =>
-    [params.six === '1' ? ('six' as const) : null, medal ? ('medal' as const) : null].filter((x) => x !== null)
+  // Dans l'ordre : le bilan de la leçon (s'il est transmis), les six sujets,
+  // puis le palier de série
+  const [steps, setSteps] = useState<('recap' | 'six' | 'medal')[]>(() =>
+    [
+      params.total !== undefined ? ('recap' as const) : null,
+      params.six === '1' ? ('six' as const) : null,
+      medal ? ('medal' as const) : null,
+    ].filter((x) => x !== null)
   );
   const next = () => setSteps((list) => list.slice(1));
+  if (steps[0] === 'recap') return <RecapStep onDone={next} />;
   if (steps[0] === 'six') return <SixCelebration onDone={next} />;
   if (steps[0] === 'medal' && medal) return <MedalStep medal={medal} freezeGained={params.gel === '1'} onDone={next} />;
   return <EndContent />;
@@ -69,6 +83,36 @@ function MedalStep({ medal, freezeGained, onDone }: { medal: Medal; freezeGained
         <Button label="Continuer" onPress={onDone} />
       </View>
       <GoldConfetti />
+      <StatusBarShade tab="apprendre" />
+    </View>
+  );
+}
+
+// Bilan de la leçon découverte : justes (et rattrapées), série, la phrase à
+// retenir (le déclic du document). Pas d'XP : rien n'est envoyé au serveur.
+function RecapStep({ onDone }: { onDone: () => void }) {
+  const insets = useSafeAreaInsets();
+  const { state } = useOnboarding();
+  const params = useLocalSearchParams<{ objectif?: string; depuis?: string; justes?: string; total?: string; rattrapees?: string }>();
+  const fromHome = params.depuis === 'accueil';
+  const lesson = discoveryLesson((fromHome ? toObjective(params.objectif) : null) ?? state.objective);
+  const count = (raw: string | undefined) => {
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 0 ? n : 0;
+  };
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <LessonRecap
+        firstName={state.firstName}
+        lessonTitle={lesson.title}
+        xp={null}
+        correct={count(params.justes)}
+        total={count(params.total)}
+        recovered={count(params.rattrapees)}
+        streak={Math.max(1, discoveryStreak(state.lessonDays))}
+        takeaway={lesson.takeaway}
+        onContinue={onDone}
+      />
       <StatusBarShade tab="apprendre" />
     </View>
   );

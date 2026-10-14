@@ -22,18 +22,20 @@ type CascadeProps = {
   style?: StyleProp<ViewStyle>;
   // Montée plus grande (bulle envoyée qui remonte)
   rise?: number;
+  // true : tout de suite à sa place (un toucher accélère la cascade)
+  skip?: boolean;
 };
 
 // Un élément d'une cascade du lecteur : fondu et montée de 8 px en 250 ms
 // (ease-out), décalé de 40 ms par rang. Animations réduites : affiché
 // directement, sans cascade.
-export default function Cascade({ index, delay = 0, children, style, rise: from = RISE }: CascadeProps) {
+export default function Cascade({ index, delay = 0, children, style, rise: from = RISE, skip = false }: CascadeProps) {
   const reduced = useReducedMotion();
   const opacity = useSharedValue(reduced ? 1 : 0);
   const rise = useSharedValue(reduced ? 0 : from);
 
   useEffect(() => {
-    if (reduced) {
+    if (reduced || skip) {
       opacity.set(1);
       rise.set(0);
       return;
@@ -41,7 +43,7 @@ export default function Cascade({ index, delay = 0, children, style, rise: from 
     const at = delay + index * motion.stagger;
     opacity.set(withDelay(at, withTiming(1, timing(motion.sheet))));
     rise.set(withDelay(at, withTiming(0, timing(motion.sheet))));
-  }, [index, delay, reduced, opacity, rise]);
+  }, [index, delay, reduced, skip, opacity, rise]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.get(),

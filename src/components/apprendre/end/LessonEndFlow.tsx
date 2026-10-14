@@ -1,43 +1,36 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import Stagger from '@/src/components/common/Stagger';
-import ValsCoin from '@/src/components/common/ValsCoin';
-import ChestReveal, { CHEST_IMAGES, COIN_LG } from './ChestReveal';
-import ValBubble from '@/src/components/common/ValBubble';
+import ChestReveal from './ChestReveal';
+import LessonRecap from './LessonRecap';
 import ValFullBody, { ValFitContext } from '@/src/components/common/ValFullBody';
 import { durations, springs } from '@/src/constants/motion';
-import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
-import { useTheme } from '@/src/context/ThemeContext';
+import { fonts, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { formatInteger } from '@/src/utils/format';
 import { nextExcess } from '@/src/utils/fit';
-import { celebrate } from '@/src/utils/haptics';
 import GoldConfetti from '@/src/components/common/GoldConfetti';
 import MedalCelebration from '@/src/components/common/MedalCelebration';
 import StreakFlame from '@/src/components/common/StreakFlame';
 import { useApi } from '@/src/context/ApiContext';
+import { useOnboarding } from '@/src/state/onboarding';
 import { streakRewardsStore } from '@/src/state/streakRewards';
 import { type Medal, medalToCelebrate } from '@/src/utils/streakRewards';
 import {
-  END_BUTTON_LABELS,
-  endSentence,
   endSteps,
   EndStep,
   LessonResult,
+  LessonSummary,
   chestAmount,
   chestRarity,
-  pickLabel,
   streakDaysLabel,
   streakGain,
-  totalVals,
 } from '@/src/utils/lessonPlayer';
-
-const NBSP = ' '; // espace insécable
 
 // Étapes affichées : celles du serveur, plus la médaille si un palier est franchi
 type FlowStep = EndStep | 'medal';
@@ -52,10 +45,6 @@ const FIRE_SIZE = 120;
 // Carré de la flamme vivante : emoji de 120 au palier le plus haut
 const FIRE_FLAME_BOX = FIRE_SIZE / 0.8;
 const FIRE_FROM_SCALE = 0.3;
-const SURPRISE_CHEST = 160;
-// Pièce à côté du chiffre « Vals »
-const COIN_STAT = 22;
-const VAL_SURPRISE = 64;
 // Val en pied (saut, fier) : réduit sur petit écran, 160 au minimum
 const VAL_FULL_HEIGHT = 260;
 // Les chiffres défilent l'un après l'autre, une fois l'écran apparu
@@ -63,6 +52,10 @@ const COUNT_START = durations.enterOpacity;
 
 type LessonEndFlowProps = {
   result: LessonResult;
+  // Bilan compté par l'app (questions rattrapées comprises)
+  summary: LessonSummary;
+  lessonTitle: string | null;
+  takeaway: string | null;
   // Série de jours avant la leçon (null : inconnue)
   streakBefore: number | null;
   moduleTitle: string | null;
@@ -71,7 +64,15 @@ type LessonEndFlowProps = {
 };
 
 // Suite d'écrans de fin, en sautant ceux qui ne s'appliquent pas.
-export default function LessonEndFlow({ result, streakBefore, moduleTitle, onDone }: LessonEndFlowProps) {
+export default function LessonEndFlow({
+  result,
+  summary,
+  lessonTitle,
+  takeaway,
+  streakBefore,
+  moduleTitle,
+  onDone,
+}: LessonEndFlowProps) {
   const { user } = useApi();
   const [baseSteps] = useState<EndStep[]>(() => endSteps(result, streakBefore));
   const [index, setIndex] = useState(0);
@@ -113,11 +114,13 @@ export default function LessonEndFlow({ result, streakBefore, moduleTitle, onDon
 
   return (
     <EndLayout key={step}>
-      {step === 'done' ? <DoneStep result={result} onNext={next} /> : null}
+      {step === 'done' ? (
+        <DoneStep result={result} summary={summary} lessonTitle={lessonTitle} takeaway={takeaway} onNext={next} />
+      ) : null}
       {step === 'streak' && gain ? <StreakStep from={gain.from} to={gain.to} onNext={next} /> : null}
       {step === 'medal' && medal ? <MedalStep medal={medal} onNext={next} /> : null}
       {step === 'chest' ? <ChestStep result={result} onNext={next} /> : null}
-      {step === 'surprise' ? <SurpriseStep result={result} onNext={next} /> : null}
+      {step === 'surprise' ? <ChestStep result={result} surprise onNext={next} /> : null}
       {step === 'module' ? <ModuleStep title={moduleTitle} onNext={next} /> : null}
     </EndLayout>
   );
@@ -172,76 +175,36 @@ function Title({ children }: { children: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// a. Leçon terminée
+// a. Bilan de la leçon
 // ---------------------------------------------------------------------------
-function DoneStep({ result, onNext }: { result: LessonResult; onNext: () => void }) {
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
-  const [label] = useState(() => pickLabel(END_BUTTON_LABELS));
-
-  const xp = result.xp_gained ?? 0;
-  const firstTry = result.first_try_correct ?? 0;
-  const total = result.scored_total ?? 0;
-  const vals = totalVals(result);
-  const showFirstTry = total > 0;
-
-  const xpShown = useCountUp(xp, { delay: COUNT_START });
-  const firstTryShown = useCountUp(firstTry, { delay: COUNT_START + durations.counter });
-  const valsShown = useCountUp(vals, { delay: COUNT_START + durations.counter * (showFirstTry ? 2 : 1) });
-
-  useEffect(() => {
-    celebrate();
-  }, []);
-
+function DoneStep({
+  result,
+  summary,
+  lessonTitle,
+  takeaway,
+  onNext,
+}: {
+  result: LessonResult;
+  summary: LessonSummary;
+  lessonTitle: string | null;
+  takeaway: string | null;
+  onNext: () => void;
+}) {
+  const { state } = useOnboarding();
+  // Justes : le compte du serveur s'il est donné, sinon celui de l'app
+  const serverCount = typeof result.first_try_correct === 'number' && typeof result.scored_total === 'number';
   return (
-    <StepFrame button={<Button label={label} onPress={onNext} />}>
-      <ValFullBody pose="saut" height={VAL_FULL_HEIGHT} bounce halo />
-
-      <View style={styles.texts}>
-        <Title>Leçon terminée !</Title>
-        <AppText variant="body" tone="subtitle" style={styles.centerText}>
-          {endSentence(firstTry, total)}
-        </AppText>
-      </View>
-
-      <View
-        style={styles.stats}
-        accessible
-        accessibilityLabel={[
-          `${xp} XP gagnés`,
-          showFirstTry ? `${firstTry} sur ${total} du premier coup` : null,
-          `${vals} Vals gagnés`,
-        ]
-          .filter(Boolean)
-          .join(', ')}
-      >
-        <Stat value={`+${NBSP}${formatInteger(Math.round(xpShown))}`} label="XP" gold />
-        {showFirstTry ? (
-          <>
-            <View style={[styles.statRule, { backgroundColor: colors.border }]} />
-            <Stat value={`${Math.round(firstTryShown)}/${total}`} label="Premier coup" />
-          </>
-        ) : null}
-        <View style={[styles.statRule, { backgroundColor: colors.border }]} />
-        <Stat value={`+${NBSP}${formatInteger(Math.round(valsShown))}`} label="Vals" coin />
-      </View>
-    </StepFrame>
-  );
-}
-
-function Stat({ value, label, gold, coin }: { value: string; label: string; gold?: boolean; coin?: boolean }) {
-  return (
-    <View style={styles.stat}>
-      <View style={styles.statValueRow}>
-        {coin ? <ValsCoin size={COIN_STAT} /> : null}
-        <AppText variant="title2" tone={gold ? 'gold' : 'text'} style={styles.tabular}>
-          {value}
-        </AppText>
-      </View>
-      <AppText variant="caption" tone="subtitle">
-        {label}
-      </AppText>
-    </View>
+    <LessonRecap
+      firstName={state.firstName}
+      lessonTitle={lessonTitle}
+      xp={typeof result.xp_gained === 'number' ? result.xp_gained : null}
+      correct={serverCount ? (result.first_try_correct as number) : summary.correct}
+      total={serverCount ? (result.scored_total as number) : summary.total}
+      recovered={summary.recovered}
+      streak={typeof result.user?.streak === 'number' ? result.user.streak : null}
+      takeaway={takeaway}
+      onContinue={onNext}
+    />
   );
 }
 
@@ -297,39 +260,23 @@ function MedalStep({ medal, onNext }: { medal: Medal; onNext: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
-// c. Coffre
+// c. Coffre, et c bis. coffre surprise (bonus occasionnel du serveur)
 // ---------------------------------------------------------------------------
-function ChestStep({ result, onNext }: { result: LessonResult; onNext: () => void }) {
+function ChestStep({ result, surprise, onNext }: { result: LessonResult; surprise?: boolean; onNext: () => void }) {
+  const { state } = useOnboarding();
+  // Total des Vals : sur le dernier coffre seulement (le surprise suit le
+  // coffre quand il y en a un)
+  const last = surprise || chestAmount(result.surprise_chest) === 0;
+  const total = last && typeof result.user?.vals === 'number' ? result.user.vals : null;
   return (
-    <StepFrame button={<Button label="Super" onPress={onNext} />}>
-      <ChestReveal rarity={chestRarity(result.chest?.rarity)} amount={chestAmount(result.chest)} />
-    </StepFrame>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// c bis. Coffre surprise (bonus occasionnel du serveur)
-// ---------------------------------------------------------------------------
-function SurpriseStep({ result, onNext }: { result: LessonResult; onNext: () => void }) {
-  const amount = chestAmount(result.surprise_chest);
-  const shown = Math.round(useCountUp(amount, { delay: COUNT_START }));
-
-  return (
-    <StepFrame button={<Button label="Génial" onPress={onNext} />}>
-      <View style={styles.texts} accessible accessibilityLabel={`Coffre surprise : ${amount} Vals`}>
-        <View style={styles.centered} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Image source={CHEST_IMAGES.legendaire} resizeMode="contain" style={styles.surpriseChest} />
-        </View>
-        <Title>Coffre surprise !</Title>
-        <View style={styles.amountRow}>
-          <ValsCoin size={COIN_LG} />
-          <AppText variant="hero" tone="gold" style={styles.centerText}>
-            {`+${NBSP}${formatInteger(shown)}${NBSP}Vals`}
-          </AppText>
-        </View>
-      </View>
-      <ValBubble mood="complice" text="Celui-là, tu ne l’attendais pas." diameter={VAL_SURPRISE} />
-    </StepFrame>
+    <ChestReveal
+      rarity={surprise ? 'legendaire' : chestRarity(result.chest?.rarity)}
+      amount={chestAmount(surprise ? result.surprise_chest : result.chest)}
+      total={total}
+      firstName={state.firstName}
+      surprise={surprise}
+      onDone={onNext}
+    />
   );
 }
 
@@ -390,38 +337,6 @@ const styles = StyleSheet.create({
   },
   centered: {
     alignItems: 'center',
-  },
-  surpriseChest: {
-    width: SURPRISE_CHEST,
-    height: SURPRISE_CHEST,
-  },
-  stats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: space[1],
-  },
-  statValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[1],
-  },
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space[2],
-    flexWrap: 'wrap',
-  },
-  statRule: {
-    width: 1,
-    alignSelf: 'stretch',
-  },
-  tabular: {
-    fontVariant: ['tabular-nums'],
   },
   streakNumber: {
     fontFamily: fonts.title,

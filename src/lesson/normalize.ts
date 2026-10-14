@@ -380,6 +380,8 @@ export function normalizeLesson(data: unknown): LessonModel {
   const rawScreens: unknown[] = Array.isArray(data) ? data : Array.isArray(d.screens) ? d.screens : [];
   return {
     title: plainText(d.title),
+    // Phrase clé facultative (le serveur ne l'envoie pas encore)
+    takeaway: plainText(d.takeaway),
     screens: rawScreens.map((s, i) => normalizeScreen(s, i)),
   };
 }

@@ -148,6 +148,12 @@ export function shouldShowOnboarding(state: OnboardingState, isAuthenticated: bo
   return !isAuthenticated && state.status === 'en-cours';
 }
 
+// Adresse déjà dans le parcours de première ouverture (/bienvenue…) : pas de
+// renvoi vers l'étape mémorisée
+export function isOnboardingPath(pathname: string | null | undefined): boolean {
+  return typeof pathname === 'string' && (pathname === '/bienvenue' || pathname.startsWith('/bienvenue/'));
+}
+
 // ---------------------------------------------------------------------------
 // Prénom
 // ---------------------------------------------------------------------------

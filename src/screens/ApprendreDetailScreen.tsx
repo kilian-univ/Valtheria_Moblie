@@ -12,6 +12,7 @@ import AnswerSheet, { Verdict } from '@/src/components/apprendre/player/AnswerSh
 import Cascade from '@/src/components/apprendre/player/Cascade';
 import LessonTopBar from '@/src/components/apprendre/player/LessonTopBar';
 import QuitSheet from '@/src/components/apprendre/player/QuitSheet';
+import RetryIntro from '@/src/components/apprendre/player/RetryIntro';
 import ValSays from '@/src/components/apprendre/player/ValSays';
 import ScreenRenderer from '@/src/components/apprendre/ScreenRenderer';
 import { AnswerDraft, CollectedAnswer } from '@/src/components/apprendre/types';
@@ -42,6 +43,10 @@ import {
   isFirstTryCorrect,
   isGradable,
   LessonResult,
+  LessonSummary,
+  lessonSummary,
+  missedLabel,
+  missedScreens,
   primaryLabel,
   showsVal,
   validateHint,
@@ -96,10 +101,10 @@ function introLine(screen: LessonScreen, discovery: boolean, isLast: boolean): V
 
 // Leçon découverte de la première ouverture : leçon fournie (pas de
 // chargement), corrigée sur le téléphone, rien n'est envoyé au serveur ; à la
-// fin, onFinished prend la main (écran de fin du parcours).
+// fin, onFinished prend la main (bilan, puis écran de fin du parcours).
 export type DiscoveryMode = {
   lesson: LessonModel;
-  onFinished: () => void;
+  onFinished: (summary: LessonSummary) => void;
 };
 
 export default function ApprendreDetailScreen({ discovery }: { discovery?: DiscoveryMode } = {}) {
@@ -111,7 +116,17 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const { getLesson, completeLesson, getModules, getProgress } = useApi();
 
   const [screens, setScreens] = useState<LessonScreen[]>(() => discovery?.lesson.screens ?? []);
+  // Titre et phrase clé de la leçon (bilan de fin)
+  const [lessonInfo, setLessonInfo] = useState<{ title: string | null; takeaway: string | null }>(() => ({
+    title: discovery?.lesson.title ?? null,
+    takeaway: discovery?.lesson.takeaway ?? null,
+  }));
   const [index, setIndex] = useState(0);
+  // Rattrapage : questions ratées rejouées après la leçon (at null :
+  // l'écran d'annonce), et celles réussies cette fois. Jamais envoyé au
+  // serveur : /complete reçoit les premières tentatives.
+  const [retry, setRetry] = useState<{ queue: number[]; at: number | null } | null>(null);
+  const [recovered, setRecovered] = useState<number[]>([]);
   const [answers, setAnswers] = useState<CollectedAnswer[]>([]);
   const [isLoading, setIsLoading] = useState(!discovery && Boolean(id));
   // Leçon découverte terminée : la protection de sortie est levée, puis onFinished
@@ -175,6 +190,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
           });
 
         setScreens(lesson.screens);
+        setLessonInfo({ title: lesson.title, takeaway: lesson.takeaway });
       })
       .catch((err: any) => {
         console.log('ERREUR LEÇON:', err?.message);
@@ -193,18 +209,27 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     fetchLesson();
   };
 
-  const current = screens[index];
-  const isLast = index === screens.length - 1;
+  // Écran joué : celui de la leçon, ou la question ratée en cours de rattrapage
+  const retrying = retry !== null && retry.at !== null;
+  const screenIndex = retry !== null && retry.at !== null ? retry.queue[retry.at] : index;
+  const current = screens[screenIndex];
+  const isLast = retry !== null && retry.at !== null ? retry.at === retry.queue.length - 1 : index === screens.length - 1;
   const gradable = isGradable(current);
-  // Part de 0 et avance d'une case par écran terminé (après « Continuer »)
-  const progress = screens.length > 0 ? (finishing ? screens.length : index) / screens.length : 0;
-  const estimate = estimateFor(screens, answers, index);
+  // Part de 0 et avance d'une case par écran terminé (après « Continuer ») ;
+  // pleine au rattrapage
+  const progress = screens.length > 0 ? (finishing || retry ? screens.length : index) / screens.length : 0;
+  const estimate = estimateFor(screens, answers, screenIndex);
+  const summary = lessonSummary(answers, screens, recovered.length);
+  // Dernière question notée de la leçon (« Question finale » au rattrapage)
+  const finalScored = screens.reduce((last, s, i) => (s.scored ? i : last), -1);
   const run = firstTryRun(answers, screens);
 
   // Val en haut de l'écran : sa réaction, sinon sa réplique d'arrivée
   const valLine = current ? (valOverride ?? introLine(current, !!discovery, isLast)) : null;
   // Cascade de l'écran, et moment où son contenu a fini d'arriver
-  const cascadeAt = index > 0 ? CASCADE_AFTER_SLIDE : 0;
+  const cascadeAt = index > 0 || retrying ? CASCADE_AFTER_SLIDE : 0;
+  // Page : une par écran de la leçon, une par question rattrapée
+  const pageKey = retrying ? `r${retry?.at}` : `l${index}`;
   const enterDelay = cascadeAt + RANK_CONTENT * motion.stagger + motion.sheet;
 
   // ---------------------------------------------------------------------------
@@ -265,18 +290,51 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   // ---------------------------------------------------------------------------
   // Enchaînement des écrans
   // ---------------------------------------------------------------------------
-  const goNext = () => {
-    if (index >= screens.length - 1) return;
-    setIndex((i) => i + 1);
+  const resetScreen = () => {
     setDraft(null);
     setAnswered(false);
     setValOverride(null);
   };
 
-  // Leçon découverte : rien à envoyer, l'écran de fin du parcours prend la main
+  const goNext = () => {
+    if (retry !== null && retry.at !== null) {
+      if (retry.at >= retry.queue.length - 1) return;
+      setRetry({ ...retry, at: retry.at + 1 });
+      resetScreen();
+      return;
+    }
+    if (index >= screens.length - 1) return;
+    setIndex((i) => i + 1);
+    resetScreen();
+  };
+
+  // Fin du dernier écran : d'abord les questions ratées (une seule fois),
+  // puis la fin de leçon
+  const endOfLesson = () => {
+    const missed = missedScreens(answers, screens);
+    if (retry === null && missed.length > 0) {
+      setSheetOpen(false);
+      setRetry({ queue: missed, at: null });
+      return;
+    }
+    handleFinish();
+  };
+
+  const startRetry = () => {
+    if (!retry) return;
+    setRetry({ ...retry, at: 0 });
+    resetScreen();
+  };
+
+  // Leçon découverte : rien à envoyer, le bilan puis l'écran de fin du
+  // parcours prennent la main
   const onDiscoveryFinished = discovery?.onFinished;
+  const summaryRef = useRef(summary);
   useEffect(() => {
-    if (discoveryDone) onDiscoveryFinished?.();
+    summaryRef.current = summary;
+  });
+  useEffect(() => {
+    if (discoveryDone) onDiscoveryFinished?.(summaryRef.current);
   }, [discoveryDone, onDiscoveryFinished]);
 
   const handleFinish = async () => {
@@ -332,15 +390,20 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const handleValidate = () => {
     if (!current || !draft || answered) return;
     const answer: CollectedAnswer = {
-      screenIndex: index,
+      screenIndex,
       type: typeOf(current),
       notion: current.notion ?? undefined,
       correct: draft.correct,
       raw: draft.raw,
     };
-    const nextAnswers = [...answers, answer];
     const reaction = (draft.val !== undefined ? draft.val : draft.correct ? current.val.correct : current.val.wrong) ?? undefined;
-    setAnswers(nextAnswers);
+    // Rattrapage : la réponse ne part pas au serveur ; juste, elle est « rattrapée »
+    const nextAnswers = retrying ? answers : [...answers, answer];
+    if (retrying) {
+      if (draft.correct) setRecovered((prev) => (prev.includes(screenIndex) ? prev : [...prev, screenIndex]));
+    } else {
+      setAnswers(nextAnswers);
+    }
     // L'écran montre aussitôt sa correction, Val réagit (sans réplique
     // prévue : la sienne d'arrivée, avec l'humeur du verdict)
     setAnswered(true);
@@ -348,7 +411,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     setValOverride(reaction ?? { line: arrival.line, mood: draft.correct ? 'celebrant' : 'rassurant' });
     const nextVerdict: Verdict = {
       correct: draft.correct,
-      firstTry: isFirstTryCorrect(nextAnswers, screens, index),
+      firstTry: !retrying && isFirstTryCorrect(nextAnswers, screens, screenIndex),
       correctText: draft.correctText,
       explanation: (draft.explanation !== undefined ? draft.explanation : current.explanation) ?? undefined,
       val: reaction,
@@ -376,7 +439,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   // « Continuer » de la feuille de réponse
   const continueFromSheet = () => {
     if (isLast) {
-      handleFinish();
+      if (retrying) handleFinish();
+      else endOfLesson();
       return;
     }
     setSheetOpen(false);
@@ -389,13 +453,13 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     // Écran non noté : on trace quand même le passage (jamais envoyé, voir
     // buildResponses). Le curseur d'estimation garde sa valeur : une
     // révélation suivante peut la rappeler (from_screen).
-    if (!answers.some((a) => a.screenIndex === index)) {
+    if (!answers.some((a) => a.screenIndex === screenIndex)) {
       const raw = current.kind === 'reveal' ? { type: 'reveal', seen: true } : draft?.raw;
       if (raw !== undefined) {
-        setAnswers((prev) => [...prev, { screenIndex: index, type: typeOf(current), correct: true, raw }]);
+        setAnswers((prev) => [...prev, { screenIndex, type: typeOf(current), correct: true, raw }]);
       }
     }
-    if (isLast) handleFinish();
+    if (isLast) endOfLesson();
     else goNext();
   };
 
@@ -411,6 +475,9 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       <EndFlowBoundary onDone={() => router.back()}>
         <LessonEndFlow
           result={result}
+          summary={summary}
+          lessonTitle={lessonInfo.title}
+          takeaway={lessonInfo.takeaway}
           streakBefore={streakBefore}
           moduleTitle={moduleTitle}
           onDone={() => router.back()}
@@ -449,13 +516,22 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
         <SkeletonGroup>
           <LessonSkeleton />
         </SkeletonGroup>
+      ) : retry !== null && retry.at === null ? (
+        // Avant la fin : on revoit ce qui a coincé
+        <RetryIntro
+          labels={retry.queue.map((i) => missedLabel(screens[i], i === finalScored))}
+          onStart={startRetry}
+          onSkip={handleFinish}
+          loading={isSubmitting}
+          errorText={submitError}
+        />
       ) : (
         <>
           <View style={styles.stage}>
             {/* key : chaque écran est remonté (état neuf, entrée rejouée) */}
             <Animated.View
-              key={index}
-              entering={index > 0 ? SLIDE_IN : undefined}
+              key={pageKey}
+              entering={index > 0 || retrying ? SLIDE_IN : undefined}
               exiting={SLIDE_OUT}
               style={StyleSheet.absoluteFill}
             >
@@ -468,7 +544,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                 keyboardShouldPersistTaps="handled"
               >
                 {/* Pastille seulement sur le premier écran d'une leçon découverte */}
-                {discovery && index === 0 ? (
+                {discovery && index === 0 && !retrying ? (
                   <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.discoveryHead}>
                     <Pill size="badge" label="LEÇON DÉCOUVERTE" accessibilityLabel="Leçon découverte" background={colors.goldSoft} color={colors.gold} />
                   </Cascade>

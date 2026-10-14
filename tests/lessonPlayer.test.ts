@@ -5,22 +5,31 @@
 // lesson/formulas.ts)
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { discoveryLesson } from '../src/lesson/discovery';
 import { computeFormula, formulaSeries, seriesScale } from '../src/lesson/formulas';
 import { trueFalseReaction } from '../src/lesson/interactive';
 import type { LessonScreen, RevealScreen } from '../src/lesson/model';
-import { normalizeScreen } from '../src/lesson/normalize';
+import { normalizeLesson, normalizeScreen } from '../src/lesson/normalize';
 import { fitFontSize, textWidthEm } from '../src/utils/fit';
+import { isOnboardingPath } from '../src/utils/onboarding';
 import {
+  buildResponses,
   canContinue,
+  catchUpText,
   estimateVerdict,
   hasPrimaryButton,
+  lessonSummary,
+  missedLabel,
+  missedScreens,
   primaryLabel,
+  recoveredLabel,
   RUN_MIN,
   revealExtraLines,
   runBadge,
+  scoreLabel,
   showsVal,
 } from '../src/utils/lessonPlayer';
 
@@ -182,4 +191,76 @@ test('simulateur : phrase sous le grand chiffre', () => {
   assert.ok(sim && sim.kind === 'simulator');
   assert.equal(sim.outputs.find((o) => o.key === 'paid')?.caption, 'dont {} versés');
   assert.equal(sim.outputs.find((o) => o.key === 'capital')?.caption, null);
+});
+
+// ---------------------------------------------------------------------------
+// Lot 3 : rattrapage, bilan, garde du parcours
+// ---------------------------------------------------------------------------
+type Answer = { screenIndex: number; type: string; correct: boolean; raw: unknown };
+
+function answersFor(screens: LessonScreen[], wrong: number[]): Answer[] {
+  return screens.map((s, i) => ({
+    screenIndex: i,
+    type: s.kind,
+    correct: !wrong.includes(i),
+    raw: s.kind === 'reveal' ? { type: 'reveal', seen: true } : `r${i}`,
+  }));
+}
+
+test('rattrapage : les questions notées ratées au premier essai, dans l’ordre de la leçon', () => {
+  const screens = discoveryLesson('epargner').screens; // pari, révélation, répartir, vrai ou faux, choix
+  const answers = answersFor(screens, [4, 2]);
+  assert.deepEqual(missedScreens(answers, screens), [2, 4]);
+  // Aucune erreur : pas de rattrapage
+  assert.deepEqual(missedScreens(answersFor(screens, []), screens), []);
+  // Les écrans non notés ne reviennent jamais
+  assert.deepEqual(missedScreens(answersFor(screens, [0, 1]), screens), []);
+});
+
+test('rattrapage : les réponses envoyées au serveur restent celles de la première tentative', () => {
+  const screens = discoveryLesson('epargner').screens.map((s) => ({ ...s, scored: s.scored }));
+  const answers = answersFor(screens, [2, 4]);
+  const sent = buildResponses(answers, screens);
+  // Le rattrapage ne touche pas aux réponses : même envoi, mêmes clés
+  assert.deepEqual(Object.keys(sent), ['2', '3', '4']);
+  assert.deepEqual(sent['2'], ['r2']);
+  assert.deepEqual(sent['4'], ['r4']);
+});
+
+test('bilan : justes du premier coup sur les questions notées, et rattrapées à part', () => {
+  const screens = discoveryLesson('epargner').screens;
+  assert.deepEqual(lessonSummary(answersFor(screens, [2, 4]), screens, 1), { correct: 1, total: 3, recovered: 1 });
+  assert.deepEqual(lessonSummary(answersFor(screens, []), screens, 0), { correct: 3, total: 3, recovered: 0 });
+  assert.equal(scoreLabel(4, 5), '4 sur 5');
+  assert.equal(recoveredLabel(0), null);
+  assert.equal(recoveredLabel(1), '+ 1 rattrapée');
+  assert.equal(recoveredLabel(2), '+ 2 rattrapées');
+  assert.equal(catchUpText(1), '1 question à rattraper. Une bonne réponse maintenant compte aussi dans ton bilan.');
+  assert.equal(catchUpText(2), '2 questions à rattraper. Une bonne réponse maintenant compte aussi dans ton bilan.');
+  const choice = screens.find((s) => s.kind === 'choice');
+  assert.equal(missedLabel(choice, true), 'Question finale');
+  assert.equal(missedLabel(choice, false), 'Question à choix');
+});
+
+test('bilan : la phrase à retenir des leçons découvertes est le déclic du document', () => {
+  const plainText = (t: string) => t.replace(/[’‘]/g, "'").replace(/[  ]/g, ' ').toLowerCase();
+  const doc = plainText(readFileSync(new URL('../src/lesson/discovery/lecons-decouvertes.md', import.meta.url), 'utf8'));
+  for (const objective of ['epargner', 'investir', 'crypto', 'logement', 'impots', 'decouvrir'] as const) {
+    const takeaway = discoveryLesson(objective).takeaway;
+    assert.ok(takeaway, objective);
+    assert.ok(doc.includes(`déclic : ${plainText(takeaway!).replace(/\.$/, '')}`), objective);
+  }
+});
+
+test('garde du parcours : une page du parcours ouverte directement n’est pas remplacée', () => {
+  assert.equal(isOnboardingPath('/bienvenue'), true);
+  assert.equal(isOnboardingPath('/bienvenue/lecon'), true);
+  assert.equal(isOnboardingPath('/apprendre/12'), false);
+  assert.equal(isOnboardingPath('/bienvenues'), false);
+  assert.equal(isOnboardingPath(null), false);
+});
+
+test('bilan : une leçon du serveur sans phrase clé n’a pas de carte « À RETENIR »', () => {
+  assert.equal(normalizeLesson({ title: 'T', screens: [] }).takeaway, null);
+  assert.equal(normalizeLesson({ title: 'T', takeaway: 'Payer d’abord.', screens: [] }).takeaway, 'Payer d’abord.');
 });

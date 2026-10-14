@@ -8,6 +8,8 @@ import { PARI_INTRO } from './shared';
 
 export const decouvrir = {
   title: 'Ton vrai salaire',
+  // Déclic du document : carte « À RETENIR » de la fin de leçon
+  takeaway: 'Tu touches 1 660 € net, tu coûtes 3 055 € à ton employeur ; l’écart finance ta protection sociale.',
   // Phrase d'accroche : carte de l'accueil sans compte
   hook: 'Ce que tu coûtes à ton employeur',
   screens: [

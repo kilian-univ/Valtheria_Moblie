@@ -170,6 +170,67 @@ export function firstTryRun(answers: CollectedAnswer[], screens: Screen[]): numb
   return run;
 }
 
+// ---------------------------------------------------------------------------
+// Rattrapage et bilan
+// ---------------------------------------------------------------------------
+
+// Questions ratées au premier essai, dans l'ordre de la leçon : seulement
+// les écrans notés que le lecteur sait rejouer (Valider ou réponse seule)
+export function missedScreens(answers: CollectedAnswer[], screens: Screen[]): number[] {
+  return firstAttempts(answers, screens)
+    .filter((a) => !a.correct && isGradable(screens[a.screenIndex]))
+    .map((a) => a.screenIndex)
+    .sort((x, y) => x - y);
+}
+
+export type LessonSummary = {
+  // Bonnes réponses du premier coup, sur les questions notées
+  correct: number;
+  total: number;
+  // Questions ratées puis réussies au rattrapage (compté seulement dans l'app)
+  recovered: number;
+};
+
+export function lessonSummary(answers: CollectedAnswer[], screens: Screen[], recovered: number): LessonSummary {
+  const firsts = firstAttempts(answers, screens);
+  return { correct: firsts.filter((a) => a.correct).length, total: firsts.length, recovered: Math.max(0, recovered) };
+}
+
+// « 2 questions à rattraper. Une bonne réponse maintenant compte aussi dans ton bilan. »
+export function catchUpText(count: number): string {
+  const what = count >= 2 ? `${count} questions à rattraper` : '1 question à rattraper';
+  return `${what}. Une bonne réponse maintenant compte aussi dans ton bilan.`;
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  choice: 'Question à choix',
+  true_false: 'Vrai ou faux',
+  order: 'Remettre dans l’ordre',
+  match: 'Associer',
+  allocate: 'Répartir',
+  dialogue: 'Dialogue',
+  slider: 'Estimation',
+  document: 'Document',
+};
+
+// Pastille d'une question ratée : son type ; la dernière de la leçon,
+// « Question finale »
+export function missedLabel(screen: Screen | undefined, isFinal: boolean): string {
+  if (isFinal) return 'Question finale';
+  return TYPE_LABELS[screen?.kind ?? ''] ?? 'Question';
+}
+
+// « 4 sur 5 »
+export function scoreLabel(correct: number, total: number): string {
+  return `${correct} sur ${total}`;
+}
+
+// « + 1 rattrapée », « + 2 rattrapées » ; rien sans rattrapage
+export function recoveredLabel(count: number): string | null {
+  if (!(count > 0)) return null;
+  return `+\u00A0${count} ${count >= 2 ? 'rattrapées' : 'rattrapée'}`;
+}
+
 // La pastille d'affilée (éclair et nombre) s'affiche à partir de 3
 export const RUN_MIN = 3;
 
@@ -193,7 +254,7 @@ export type LessonResult = {
   daily_streak_bonus?: number;
   first_try_correct?: number;
   scored_total?: number;
-  user?: { xp?: number; streak?: number };
+  user?: { xp?: number; streak?: number; vals?: number };
   chest?: { rarity?: string; amount?: number } | null;
   surprise_chest?: { amount?: number } | null;
   module_just_completed?: boolean;
@@ -224,27 +285,9 @@ export function endSteps(result: LessonResult, streakBefore: number | null): End
   return steps;
 }
 
-export function totalVals(result: LessonResult): number {
-  return (result.vals_gained ?? 0) + (result.daily_streak_bonus ?? 0);
-}
 
-// Phrase sous « Leçon terminée ! »
-export function endSentence(firstTry: number, total: number): string {
-  // Nombre absent ou invalide : comme une leçon sans question notée
-  if (!Number.isFinite(total) || total <= 0) return 'Bien joué, tu as fait le tour.';
-  if (!Number.isFinite(firstTry)) firstTry = 0;
-  if (firstTry >= total) return 'Tout bon du premier coup. Chapeau.';
-  if (firstTry === 0) return 'Pas facile, celle-là. Tu feras mieux la prochaine fois.';
-  return `${firstTry} ${firstTry >= 2 ? 'bonnes réponses' : 'bonne réponse'} du premier coup sur ${total}.`;
-}
 
-export const END_BUTTON_LABELS = ['Je suis trop fort', 'Facile', 'On continue', 'Trop simple', 'Suivant !'] as const;
 
-// rand : nombre dans [0, 1[ (Math.random par défaut)
-export function pickLabel(labels: readonly string[], rand: number = Math.random()): string {
-  const index = Math.min(labels.length - 1, Math.max(0, Math.floor(rand * labels.length)));
-  return labels[index];
-}
 
 // "1 jour de série !", "2 jours de série !"
 export function streakDaysLabel(days: number): string {

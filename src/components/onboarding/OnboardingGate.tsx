@@ -1,20 +1,24 @@
-import { useRootNavigationState, useRouter } from 'expo-router';
+import { usePathname, useRootNavigationState, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { useApi } from '@/src/context/ApiContext';
 import { onboardingStore } from '@/src/state/onboarding';
 import { refreshReminder } from '@/src/state/reminder';
-import { routeForStep, shouldShowOnboarding } from '@/src/utils/onboarding';
+import { isOnboardingPath, routeForStep, shouldShowOnboarding } from '@/src/utils/onboarding';
 import { runSafely } from '@/src/utils/safe';
 import { track } from '@/src/utils/track';
 
 // Au lancement, une fois la session lue : une personne sans compte dont la
 // première ouverture n'est ni terminée ni remise à plus tard est envoyée à
 // l'étape où elle en était. Une personne connectée ne voit jamais le parcours.
+// Page du parcours ouverte directement (adresse sur le web) : on y reste ;
+// la remplacer déclencherait la feuille « Quitter la leçon ? ».
 export default function OnboardingGate() {
   const { isAuthenticated, isLoading } = useApi();
   const router = useRouter();
   const navigation = useRootNavigationState();
+  // Adresse au moment de la décision (prise une seule fois, voir decided)
+  const pathname = usePathname();
   const decided = useRef(false);
 
   // Tâches secondaires : leur échec ne bloque jamais l'ouverture
@@ -36,10 +40,12 @@ export default function OnboardingGate() {
           if (state.status !== 'termine') onboardingStore.update({ status: 'termine' });
           return;
         }
-        if (shouldShowOnboarding(state, false)) router.replace(routeForStep(state.step));
+        if (shouldShowOnboarding(state, false) && !isOnboardingPath(pathname)) {
+          router.replace(routeForStep(state.step));
+        }
       })
     );
-  }, [navigation?.key, isAuthenticated, isLoading, router]);
+  }, [navigation?.key, isAuthenticated, isLoading, router, pathname]);
 
   return null;
 }

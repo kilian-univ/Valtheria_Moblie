@@ -8,6 +8,8 @@ import { PARI_INTRO, TRUE_FALSE_QUESTION } from './shared';
 
 export const impots = {
   title: 'Le mythe de la tranche',
+  // Déclic du document : carte « À RETENIR » de la fin de leçon
+  takeaway: 'Changer de tranche ne fait jamais perdre d’argent ; seule la partie au-dessus du seuil est taxée plus.',
   // Phrase d'accroche : carte de l'accueil sans compte
   hook: 'Pourquoi une prime ne fait jamais perdre d’argent',
   screens: [
