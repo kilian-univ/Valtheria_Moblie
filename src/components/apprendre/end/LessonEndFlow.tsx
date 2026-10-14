@@ -26,6 +26,7 @@ import {
   EndStep,
   LessonResult,
   LessonSummary,
+  celebrationName,
   chestAmount,
   chestRarity,
   streakDaysLabel,
@@ -191,11 +192,12 @@ function DoneStep({
   onNext: () => void;
 }) {
   const { state } = useOnboarding();
+  const { user } = useApi();
   // Justes : le compte du serveur s'il est donné, sinon celui de l'app
   const serverCount = typeof result.first_try_correct === 'number' && typeof result.scored_total === 'number';
   return (
     <LessonRecap
-      firstName={state.firstName}
+      firstName={celebrationName(user?.pseudo, state.firstName)}
       lessonTitle={lessonTitle}
       xp={typeof result.xp_gained === 'number' ? result.xp_gained : null}
       correct={serverCount ? (result.first_try_correct as number) : summary.correct}
@@ -264,6 +266,7 @@ function MedalStep({ medal, onNext }: { medal: Medal; onNext: () => void }) {
 // ---------------------------------------------------------------------------
 function ChestStep({ result, surprise, onNext }: { result: LessonResult; surprise?: boolean; onNext: () => void }) {
   const { state } = useOnboarding();
+  const { user } = useApi();
   // Total des Vals : sur le dernier coffre seulement (le surprise suit le
   // coffre quand il y en a un)
   const last = surprise || chestAmount(result.surprise_chest) === 0;
@@ -273,7 +276,7 @@ function ChestStep({ result, surprise, onNext }: { result: LessonResult; surpris
       rarity={surprise ? 'legendaire' : chestRarity(result.chest?.rarity)}
       amount={chestAmount(surprise ? result.surprise_chest : result.chest)}
       total={total}
-      firstName={state.firstName}
+      firstName={celebrationName(user?.pseudo, state.firstName)}
       surprise={surprise}
       onDone={onNext}
     />

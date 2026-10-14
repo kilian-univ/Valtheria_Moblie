@@ -220,6 +220,15 @@ export function missedLabel(screen: Screen | undefined, isFinal: boolean): strin
   return TYPE_LABELS[screen?.kind ?? ''] ?? 'Question';
 }
 
+// Nom fêté au bilan et au coffre : le pseudo du compte d'abord, puis le
+// prénom mémorisé sur le téléphone ; null : titre neutre
+export function celebrationName(pseudo: unknown, firstName: unknown): string | null {
+  for (const raw of [pseudo, firstName]) {
+    if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  }
+  return null;
+}
+
 // « 4 sur 5 »
 export function scoreLabel(correct: number, total: number): string {
   return `${correct} sur ${total}`;

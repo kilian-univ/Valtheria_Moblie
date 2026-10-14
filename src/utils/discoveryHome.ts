@@ -198,6 +198,11 @@ export function discoveryXp(played: readonly Objective[]): number {
   return played.length * DISCOVERY_XP;
 }
 
+// XP gagnés par cette leçon : 20 la première fois, 0 en la rejouant
+export function discoveryXpGain(played: readonly Objective[], objective: Objective | null): number {
+  return objective && !played.includes(objective) ? DISCOVERY_XP : 0;
+}
+
 
 // ---------------------------------------------------------------------------
 // Flamme de série
@@ -247,6 +252,8 @@ export type LessonDone = {
   medal: Medal | null;
   // Cette leçon fait gagner un gel de série
   freezeGained: boolean;
+  // XP gagnés par cette leçon (bilan de fin)
+  xpGained: number;
 };
 
 export function recordLessonDone(
@@ -273,6 +280,7 @@ export function recordLessonDone(
     celebrateSix,
     medal,
     freezeGained: after.freezeGainDays.includes(localDay(now)) && !before.freezeGainDays.includes(localDay(now)),
+    xpGained: discoveryXpGain(state.played, objective),
   };
 }
 

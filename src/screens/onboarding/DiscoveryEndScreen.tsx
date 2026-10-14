@@ -16,6 +16,8 @@ import ValFullBody from '@/src/components/common/ValFullBody';
 import { palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import LessonRecap from '@/src/components/apprendre/end/LessonRecap';
+import { useApi } from '@/src/context/ApiContext';
+import { celebrationName } from '@/src/utils/lessonPlayer';
 import { discoveryLesson, discoveryPlan, nextLessonTitle, toObjective, universeName } from '@/src/lesson/discovery';
 import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
@@ -88,12 +90,21 @@ function MedalStep({ medal, freezeGained, onDone }: { medal: Medal; freezeGained
   );
 }
 
-// Bilan de la leçon découverte : justes (et rattrapées), série, la phrase à
-// retenir (le déclic du document). Pas d'XP : rien n'est envoyé au serveur.
+// Bilan de la leçon découverte : XP comptés sur le téléphone (20 la première
+// fois, 0 en la rejouant), justes (et rattrapées), série, la phrase à
+// retenir (le déclic du document)
 function RecapStep({ onDone }: { onDone: () => void }) {
   const insets = useSafeAreaInsets();
   const { state } = useOnboarding();
-  const params = useLocalSearchParams<{ objectif?: string; depuis?: string; justes?: string; total?: string; rattrapees?: string }>();
+  const { user } = useApi();
+  const params = useLocalSearchParams<{
+    objectif?: string;
+    depuis?: string;
+    justes?: string;
+    total?: string;
+    rattrapees?: string;
+    xp?: string;
+  }>();
   const fromHome = params.depuis === 'accueil';
   const lesson = discoveryLesson((fromHome ? toObjective(params.objectif) : null) ?? state.objective);
   const count = (raw: string | undefined) => {
@@ -103,9 +114,9 @@ function RecapStep({ onDone }: { onDone: () => void }) {
   return (
     <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <LessonRecap
-        firstName={state.firstName}
+        firstName={celebrationName(user?.pseudo, state.firstName)}
         lessonTitle={lesson.title}
-        xp={null}
+        xp={count(params.xp)}
         correct={count(params.justes)}
         total={count(params.total)}
         recovered={count(params.rattrapees)}

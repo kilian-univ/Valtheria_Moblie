@@ -38,6 +38,7 @@ export default function DiscoveryLessonScreen() {
       justes: String(summary.correct),
       total: String(summary.total),
       rattrapees: String(summary.recovered),
+      xp: String(done.xpGained),
       ...(done.celebrateSix ? { six: '1' } : {}),
       ...(done.medal ? { medaille: String(done.medal.days) } : {}),
       ...(done.freezeGained ? { gel: '1' } : {}),

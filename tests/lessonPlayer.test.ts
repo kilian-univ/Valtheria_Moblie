@@ -14,11 +14,13 @@ import { trueFalseReaction } from '../src/lesson/interactive';
 import type { LessonScreen, RevealScreen } from '../src/lesson/model';
 import { normalizeLesson, normalizeScreen } from '../src/lesson/normalize';
 import { fitFontSize, textWidthEm } from '../src/utils/fit';
+import { discoveryXpGain, recordLessonDone } from '../src/utils/discoveryHome';
 import { isOnboardingPath } from '../src/utils/onboarding';
 import {
   buildResponses,
   canContinue,
   catchUpText,
+  celebrationName,
   estimateVerdict,
   hasPrimaryButton,
   lessonSummary,
@@ -263,4 +265,21 @@ test('garde du parcours : une page du parcours ouverte directement n’est pas r
 test('bilan : une leçon du serveur sans phrase clé n’a pas de carte « À RETENIR »', () => {
   assert.equal(normalizeLesson({ title: 'T', screens: [] }).takeaway, null);
   assert.equal(normalizeLesson({ title: 'T', takeaway: 'Payer d’abord.', screens: [] }).takeaway, 'Payer d’abord.');
+});
+
+test('bilan d’une leçon découverte : + 20 XP la première fois, + 0 en la rejouant', () => {
+  assert.equal(discoveryXpGain([], 'epargner'), 20);
+  assert.equal(discoveryXpGain(['investir'], 'epargner'), 20);
+  assert.equal(discoveryXpGain(['epargner'], 'epargner'), 0);
+  assert.equal(discoveryXpGain([], null), 0);
+  const base = { lessonDays: [], sixCelebrated: false, bestStreak: 0, celebratedMedals: [] };
+  assert.equal(recordLessonDone({ ...base, played: [] }, 'crypto').xpGained, 20);
+  assert.equal(recordLessonDone({ ...base, played: ['crypto'] }, 'crypto').xpGained, 0);
+});
+
+test('nom fêté au bilan et au coffre : pseudo du compte, puis prénom, sinon titre neutre', () => {
+  assert.equal(celebrationName('quentin_42', 'Quentin'), 'quentin_42');
+  assert.equal(celebrationName(undefined, 'Quentin'), 'Quentin');
+  assert.equal(celebrationName('  ', ' Quentin '), 'Quentin');
+  assert.equal(celebrationName(null, ''), null);
 });
