@@ -89,3 +89,14 @@ test('pas de son à chaque cran de curseur : la vibration seule', () => {
   const slider = readFileSync(new URL('src/components/apprendre/player/TrackSlider.tsx', root), 'utf8');
   assert.ok(!slider.includes('feedback') && !slider.includes('playSound'));
 });
+
+test('réglage Sons : même mémoire au profil, dans « Quitter la leçon ? » et à la connexion', () => {
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
+  assert.ok(read('src/components/common/SoundSettingRow.tsx').includes('useSoundToggle'));
+  assert.ok(read('src/components/apprendre/player/QuitSheet.tsx').includes('<SoundToggle'));
+  assert.ok(read('src/screens/header/LoginScreen.tsx').includes('<SoundToggle'));
+  // Une seule mémoire : soundSettings ; un cran au changement, un son seulement à la réactivation
+  const toggle = read('src/components/common/SoundToggle.tsx');
+  assert.ok(toggle.includes('soundSettings.set(next)'));
+  assert.match(toggle, /select\(\);\s*soundSettings\.set\(next\);\s*if \(next\) playSound\('select'\);/);
+});

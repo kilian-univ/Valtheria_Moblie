@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BackButton from '@/src/components/common/BackButton';
 import AppText from '@/src/components/common/AppText';
+import SoundToggle from '@/src/components/common/SoundToggle';
 import Button from '@/src/components/common/Button';
 import TextField from '@/src/components/common/TextField';
 import ValBubble from '@/src/components/common/ValBubble';
@@ -145,6 +146,14 @@ export default function LoginScreen() {
           </AppText>
         ) : null}
 
+        {/* Réglages, aussi pour les personnes sans compte */}
+        <View style={styles.settings}>
+          <AppText variant="sectionLabel" tone="subtitle">
+            Réglages
+          </AppText>
+          <SoundToggle variant="card" />
+        </View>
+
         {/* Développement seulement. « Rejouer la première ouverture » :
             le parcours repart de la bienvenue, progression gardée. « Tout
             réinitialiser » : toute la progression sans compte est effacée
@@ -206,6 +215,10 @@ const DEV_STREAKS = [
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  settings: {
+    gap: space[2],
+    marginTop: space[2],
   },
   devRow: {
     flexDirection: 'row',

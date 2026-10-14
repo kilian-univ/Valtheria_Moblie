@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import AppText from '@/src/components/common/AppText';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
+import SoundToggle from '@/src/components/common/SoundToggle';
 import { ValAvatar } from '@/src/components/common/ValBubble';
 import { space } from '@/src/constants/style/Style';
 import { VAL_DIAMETER } from './ScreenIntro';
@@ -32,6 +33,8 @@ export default function QuitSheet({ open, onStay, onQuit, onClosed }: QuitSheetP
           <Button label="Continuer la leçon" onPress={onStay} />
           <Button label="Quitter" variant="textDanger" onPress={onQuit} />
         </View>
+        {/* Réglage accessible à tous, même sans compte */}
+        <SoundToggle style={styles.sound} />
       </View>
     </BottomSheet>
   );
@@ -48,6 +51,9 @@ const styles = StyleSheet.create({
   },
   center: {
     textAlign: 'center',
+  },
+  sound: {
+    alignSelf: 'stretch',
   },
   actions: {
     alignSelf: 'stretch',
