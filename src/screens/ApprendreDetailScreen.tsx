@@ -1,7 +1,10 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { BackHandler, Platform, StyleSheet, View } from 'react-native';
+// Défilement du gestionnaire de gestes : un curseur ou une carte qui prend
+// le geste l'interrompt, au lieu de défiler en même temps
+import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
 import Animated, { SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,6 +16,8 @@ import Cascade from '@/src/components/apprendre/player/Cascade';
 import LessonTopBar from '@/src/components/apprendre/player/LessonTopBar';
 import QuitSheet from '@/src/components/apprendre/player/QuitSheet';
 import RetryIntro from '@/src/components/apprendre/player/RetryIntro';
+import ScreenBoundary from '@/src/components/apprendre/player/ScreenBoundary';
+import { ScrollLockContext } from '@/src/components/apprendre/player/ScrollLock';
 import ValSays from '@/src/components/apprendre/player/ValSays';
 import ScreenRenderer from '@/src/components/apprendre/ScreenRenderer';
 import { AnswerDraft, CollectedAnswer } from '@/src/components/apprendre/types';
@@ -45,7 +50,7 @@ import {
   LessonResult,
   LessonSummary,
   lessonSummary,
-  missedLabel,
+  missedItem,
   missedScreens,
   primaryLabel,
   showsVal,
@@ -168,6 +173,9 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
 
   const scrollRef = useRef<ScrollView>(null);
   const screenY = useRef(0);
+  // Défilement coupé pendant un geste (curseur, carte, ligne déplacée)
+  const [scrollLocked, setScrollLocked] = useState(false);
+  const lockScroll = useCallback((locked: boolean) => setScrollLocked(locked), []);
 
   const fetchLesson = useCallback(() => {
     if (!id || discovery) return;
@@ -220,8 +228,6 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const progress = screens.length > 0 ? (finishing || retry ? screens.length : index) / screens.length : 0;
   const estimate = estimateFor(screens, answers, screenIndex);
   const summary = lessonSummary(answers, screens, recovered.length);
-  // Dernière question notée de la leçon (« Question finale » au rattrapage)
-  const finalScored = screens.reduce((last, s, i) => (s.scored ? i : last), -1);
   const run = firstTryRun(answers, screens);
 
   // Val en haut de l'écran : sa réaction, sinon sa réplique d'arrivée
@@ -318,6 +324,15 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       return;
     }
     handleFinish();
+  };
+
+  // Un écran qui a planté : on passe à la suite
+  const skipBrokenScreen = () => {
+    setSheetOpen(false);
+    if (isLast) {
+      if (retrying) handleFinish();
+      else endOfLesson();
+    } else goNext();
   };
 
   const startRetry = () => {
@@ -489,154 +504,161 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const notFound = !isLoading && !loadError && !current;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <LessonTopBar progress={progress} run={run} onClose={handleClose} />
+    <GestureHandlerRootView style={styles.safeArea}>
+      <ScrollLockContext.Provider value={lockScroll}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+          <LessonTopBar progress={progress} run={run} onClose={handleClose} />
 
-      {loadError || notFound ? (
-        <View style={styles.state}>
-          {loadError ? (
-            <PageState
-              variant="error"
-              title="Leçon indisponible"
-              message={LOAD_ERROR_MESSAGE[loadError]}
-              onRetry={retryLoad}
-            />
-          ) : (
-            <PageState
-              variant="empty"
-              mood="preoccupe"
-              text="Je ne trouve pas cette leçon."
-              actionLabel="Retour"
-              onAction={() => router.back()}
-            />
-          )}
-        </View>
-      ) : isLoading || !current ? (
-        // Chargement : la barre du haut est réelle, le reste en squelette
-        <SkeletonGroup>
-          <LessonSkeleton />
-        </SkeletonGroup>
-      ) : retry !== null && retry.at === null ? (
-        // Avant la fin : on revoit ce qui a coincé
-        <RetryIntro
-          labels={retry.queue.map((i) => missedLabel(screens[i], i === finalScored))}
-          onStart={startRetry}
-          onSkip={handleFinish}
-          loading={isSubmitting}
-          errorText={submitError}
-        />
-      ) : (
-        <>
-          <View style={styles.stage}>
-            {/* key : chaque écran est remonté (état neuf, entrée rejouée) */}
-            <Animated.View
-              key={pageKey}
-              entering={index > 0 || retrying ? SLIDE_IN : undefined}
-              exiting={SLIDE_OUT}
-              style={StyleSheet.absoluteFill}
-            >
-              <ScrollView
-                ref={scrollRef}
-                style={styles.scroll}
-                // Après validation, de la place sous le contenu : feuille
-                // repliée, les dernières options restent visibles au-dessus
-                contentContainerStyle={[styles.scrollContent, answered && styles.scrollContentAnswered]}
-                keyboardShouldPersistTaps="handled"
-              >
-                {/* Pastille seulement sur le premier écran d'une leçon découverte */}
-                {discovery && index === 0 && !retrying ? (
-                  <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.discoveryHead}>
-                    <Pill size="badge" label="LEÇON DÉCOUVERTE" accessibilityLabel="Leçon découverte" background={colors.goldSoft} color={colors.gold} />
-                  </Cascade>
-                ) : null}
-                {valLine && showsVal(current) ? (
-                  <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.val}>
-                    <ValSays
-                      line={valLine}
-                      // Réaction : tout de suite ; arrivée : dans la cascade
-                      bubbleDelay={valOverride ? 0 : cascadeAt + RANK_BUBBLE * motion.stagger}
-                      typing={current.kind !== 'simulator' || !valOverride}
-                    />
-                  </Cascade>
-                ) : null}
-                <Cascade index={RANK_CONTENT} delay={cascadeAt} style={styles.content}>
-                  <View style={styles.content} onLayout={(e) => (screenY.current = e.nativeEvent.layout.y)}>
-                    <ScreenRenderer
-                      screen={current}
-                      answered={answered}
-                      onDraftChange={setDraft}
-                      scrollToY={scrollToY}
-                      estimate={estimate}
-                      enterDelay={enterDelay}
-                      setVal={setValOverride}
-                    />
-                  </View>
-                </Cascade>
-              </ScrollView>
-            </Animated.View>
-          </View>
-
-          {/* Vrai ou faux, associer, dialogue : la réponse part d'elle-même */}
-          {hasPrimaryButton(current) ? (
-            <View style={styles.footer}>
-              {submitError && !verdict ? (
-                <AppText variant="callout" tone="error" accessibilityRole="alert" style={styles.footerError}>
-                  {submitError}
-                </AppText>
-              ) : null}
-              {gradable ? (
-                <Button
-                  label={primaryLabel(current)}
-                  onPress={handleValidate}
-                  disabled={!draft || answered}
-                  disabledReason={!draft ? validateHint(current) : undefined}
-                  silent
+          {loadError || notFound ? (
+            <View style={styles.state}>
+              {loadError ? (
+                <PageState
+                  variant="error"
+                  title="Leçon indisponible"
+                  message={LOAD_ERROR_MESSAGE[loadError]}
+                  onRetry={retryLoad}
                 />
               ) : (
-                <Button
-                  label={submitError ? 'Réessayer' : primaryLabel(current)}
-                  onPress={handleContinue}
-                  loading={isLast && isSubmitting}
-                  disabled={!canContinue(current, draft !== null)}
-                  // Pari et simulateur : Val et l'écran disent déjà de
-                  // faire glisser le curseur
+                <PageState
+                  variant="empty"
+                  mood="preoccupe"
+                  text="Je ne trouve pas cette leçon."
+                  actionLabel="Retour"
+                  onAction={() => router.back()}
                 />
               )}
             </View>
+          ) : isLoading || !current ? (
+            // Chargement : la barre du haut est réelle, le reste en squelette
+            <SkeletonGroup>
+              <LessonSkeleton />
+            </SkeletonGroup>
+          ) : retry !== null && retry.at === null ? (
+            // Avant la fin : on revoit ce qui a coincé
+            <RetryIntro
+              items={retry.queue.map((i) => missedItem(screens[i]))}
+              onStart={startRetry}
+              onSkip={handleFinish}
+              loading={isSubmitting}
+              errorText={submitError}
+            />
+          ) : (
+            <>
+              <View style={styles.stage}>
+                {/* key : chaque écran est remonté (état neuf, entrée rejouée) */}
+                <Animated.View
+                  key={pageKey}
+                  entering={index > 0 || retrying ? SLIDE_IN : undefined}
+                  exiting={SLIDE_OUT}
+                  style={StyleSheet.absoluteFill}
+                >
+                  <ScrollView
+                    ref={scrollRef}
+                    style={styles.scroll}
+                    scrollEnabled={!scrollLocked}
+                    // Après validation, de la place sous le contenu : feuille
+                    // repliée, les dernières options restent visibles au-dessus
+                    contentContainerStyle={[styles.scrollContent, answered && styles.scrollContentAnswered]}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {/* Pastille seulement sur le premier écran d'une leçon découverte */}
+                    {discovery && index === 0 && !retrying ? (
+                      <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.discoveryHead}>
+                        <Pill size="badge" label="LEÇON DÉCOUVERTE" accessibilityLabel="Leçon découverte" background={colors.goldSoft} color={colors.gold} />
+                      </Cascade>
+                    ) : null}
+                    {valLine && showsVal(current) ? (
+                      <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.val}>
+                        <ValSays
+                          line={valLine}
+                          // Réaction : tout de suite ; arrivée : dans la cascade
+                          bubbleDelay={valOverride ? 0 : cascadeAt + RANK_BUBBLE * motion.stagger}
+                          typing={current.kind !== 'simulator' || !valOverride}
+                        />
+                      </Cascade>
+                    ) : null}
+                    <Cascade index={RANK_CONTENT} delay={cascadeAt} style={styles.content}>
+                      <View style={styles.content} onLayout={(e) => (screenY.current = e.nativeEvent.layout.y)}>
+                        <ScreenBoundary onSkip={skipBrokenScreen}>
+                          <ScreenRenderer
+                            screen={current}
+                            answered={answered}
+                            onDraftChange={setDraft}
+                            scrollToY={scrollToY}
+                            estimate={estimate}
+                            enterDelay={enterDelay}
+                            setVal={setValOverride}
+                          />
+                        </ScreenBoundary>
+                      </View>
+                    </Cascade>
+                  </ScrollView>
+                </Animated.View>
+              </View>
+
+              {/* Vrai ou faux, associer, dialogue : la réponse part d'elle-même */}
+              {hasPrimaryButton(current) ? (
+                <View style={styles.footer}>
+                  {submitError && !verdict ? (
+                    <AppText variant="callout" tone="error" accessibilityRole="alert" style={styles.footerError}>
+                      {submitError}
+                    </AppText>
+                  ) : null}
+                  {gradable ? (
+                    <Button
+                      label={primaryLabel(current)}
+                      onPress={handleValidate}
+                      disabled={!draft || answered}
+                      disabledReason={!draft ? validateHint(current) : undefined}
+                      silent
+                    />
+                  ) : (
+                    <Button
+                      label={submitError ? 'Réessayer' : primaryLabel(current)}
+                      onPress={handleContinue}
+                      loading={isLast && isSubmitting}
+                      disabled={!canContinue(current, draft !== null)}
+                      // Pari et simulateur : Val et l'écran disent déjà de
+                      // faire glisser le curseur
+                    />
+                  )}
+                </View>
+              ) : null}
+            </>
+          )}
+
+          {verdict ? (
+            <AnswerSheet
+              open={sheetOpen}
+              verdict={verdict}
+              // Dialogue : Val n'est pas en haut de l'écran, il réagit ici
+              showVal={!showsVal(current)}
+              onContinue={continueFromSheet}
+              onRequestClose={askQuit}
+              onClosed={() => setVerdict(null)}
+              onCollapsedChange={(collapsed) => {
+                // Laisse la feuille finir de se replier, puis montre tout l'écran corrigé
+                if (collapsed) setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), COLLAPSE_SCROLL_DELAY);
+              }}
+              loading={isSubmitting}
+              errorText={submitError}
+            />
           ) : null}
-        </>
-      )}
 
-      {verdict ? (
-        <AnswerSheet
-          open={sheetOpen}
-          verdict={verdict}
-          // Dialogue : Val n'est pas en haut de l'écran, il réagit ici
-          showVal={!showsVal(current)}
-          onContinue={continueFromSheet}
-          onRequestClose={askQuit}
-          onClosed={() => setVerdict(null)}
-          onCollapsedChange={(collapsed) => {
-            // Laisse la feuille finir de se replier, puis montre tout l'écran corrigé
-            if (collapsed) setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), COLLAPSE_SCROLL_DELAY);
-          }}
-          loading={isSubmitting}
-          errorText={submitError}
-        />
-      ) : null}
-
-      {quitMounted ? (
-        <QuitSheet
-          open={quitOpen}
-          onStay={() => {
-            pendingLeave.current = null;
-            setQuitOpen(false);
-          }}
-          onQuit={confirmQuit}
-          onClosed={() => setQuitMounted(false)}
-        />
-      ) : null}
-    </SafeAreaView>
+          {quitMounted ? (
+            <QuitSheet
+              open={quitOpen}
+              onStay={() => {
+                pendingLeave.current = null;
+                setQuitOpen(false);
+              }}
+              onQuit={confirmQuit}
+              onClosed={() => setQuitMounted(false)}
+            />
+          ) : null}
+        </SafeAreaView>
+      </ScrollLockContext.Provider>
+    </GestureHandlerRootView>
   );
 }
 

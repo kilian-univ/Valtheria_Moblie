@@ -1,45 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ComponentProps, useEffect, useState, useSyncExternalStore } from 'react';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import { StatusBarShade } from '@/src/components/common/AppBackground';
 import GoldConfetti from '@/src/components/common/GoldConfetti';
-import ProgressDots from '@/src/components/common/ProgressDots';
+import GoldHalo from '@/src/components/common/GoldHalo';
 import MedalCelebration from '@/src/components/common/MedalCelebration';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import StreakFlame from '@/src/components/common/StreakFlame';
 import ValFullBody from '@/src/components/common/ValFullBody';
-import { palette, radius, space } from '@/src/constants/style/Style';
+import { motion, springs } from '@/src/constants/motion';
+import { fonts, palette, radius, space, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import LessonRecap from '@/src/components/apprendre/end/LessonRecap';
 import { useApi } from '@/src/context/ApiContext';
-import { celebrationName } from '@/src/utils/lessonPlayer';
-import { discoveryLesson, discoveryPlan, nextLessonTitle, toObjective, universeName } from '@/src/lesson/discovery';
+import { celebrationName, streakDaysCaption } from '@/src/utils/lessonPlayer';
+import {
+  DISCOVERY,
+  discoveryLesson,
+  discoveryPlan,
+  OBJECTIVE_OPTIONS,
+  toObjective,
+  universeName,
+} from '@/src/lesson/discovery';
 import { learningStore } from '@/src/state/learningStore';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { getReminderSettings } from '@/src/state/reminder';
 import { useCountUp } from '@/src/hooks/useCountUp';
-import {
-  discoveryStreak,
-  endActions,
-  endTitle,
-  remainingLabel,
-  remainingTopics,
-  topicDots,
-} from '@/src/utils/discoveryHome';
+import { discoveryStreak, endActions, topicDots } from '@/src/utils/discoveryHome';
+import { windowFitHeight } from '@/src/utils/fit';
+import { formatInteger } from '@/src/utils/format';
 import { celebrate } from '@/src/utils/haptics';
-import { type Medal, MEDALS } from '@/src/utils/streakRewards';
+import { type Medal, MEDALS, weekDays, type WeekDay } from '@/src/utils/streakRewards';
 import { isSignupClosed } from '@/src/utils/onboarding';
+import { universeTint } from '@/src/utils/universeTint';
+import { universeIcon } from '@/src/utils/universes';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
 
 const VAL_HEIGHT = 170;
-const LOCK = 44;
-const PILL_FLAME = 24;
-// Le nombre de jours défile une fois la flamme lancée
-const COUNT_DELAY = 450;
+// Grosse flamme de la série, sous une lueur orange ; plus petite sur un
+// écran bas (iPhone SE), jamais sous FLAME_BOX_MIN
+const FLAME_BOX = 200;
+const FLAME_BOX_MIN = 130;
+const FLAME_SHARE = 0.75;
+const DAYS_SIZE = 64;
+const DAY_DOT = 30;
+const TOPIC = 44;
+const SUITE_BADGE = 42;
+const QUIET_DAY = 0.6;
+// Le nombre défile une fois la flamme allumée
+const FLAME_LIT = 450;
 
 // Fin de la leçon découverte : Val fier (« Bravo, <prénom> ! »), la série,
 // la prochaine leçon (verrouillée tant qu'il n'y a pas de compte). Inscription
@@ -129,25 +145,29 @@ function RecapStep({ onDone }: { onDone: () => void }) {
   );
 }
 
+// Série et suite, sans compte (dernier écran de la leçon découverte) : la
+// grosse flamme qui s'allume puis grossit, le nombre de jours qui défile, la
+// semaine (le jour s'allume), les six sujets en médaillons, la suite dans
+// l'univers conseillé. Inscription ouverte : « Garder ma série » ; fermée :
+// « Me rappeler demain » (ou l'accueil si le rappel est déjà réglé).
 function EndContent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
+  const reduced = useReducedMotion();
+  const { height } = useWindowDimensions();
+  const flameBox = windowFitHeight(FLAME_BOX, FLAME_BOX_MIN, height);
   const { state } = useOnboarding();
-  // Jouée depuis l'accueil sans compte : la leçon de la tuile, retour à l'accueil
   const params = useLocalSearchParams<{ objectif?: string; depuis?: string; serie?: string }>();
   const fromHome = params.depuis === 'accueil';
   const plan = discoveryPlan((fromHome ? toObjective(params.objectif) : null) ?? state.objective);
   const closed = isSignupClosed(state.signupClosedAt);
   const streak = Math.max(1, discoveryStreak(state.lessonDays));
-  // Série d'avant cette leçon : si elle a augmenté, la flamme grandit et le
-  // nombre défile de l'ancien au nouveau total
   const before = Number(params.serie);
   const streakFrom = Number.isInteger(before) && before >= 0 && before < streak ? before : streak;
-  const shownStreak = Math.round(useCountUp(streak, { from: streakFrom, delay: COUNT_DELAY }));
-  const remaining = remainingTopics(state.played);
-  // Rappel déjà actif : pas de « Me rappeler demain »
+  const shownStreak = Math.round(useCountUp(streak, { from: streakFrom, delay: FLAME_LIT }));
+  const week = weekDays(state.lessonDays);
   const [reminderOn, setReminderOn] = useState(false);
   useEffect(() => {
     let active = true;
@@ -158,10 +178,21 @@ function EndContent() {
       active = false;
     };
   }, []);
+  useEffect(() => {
+    celebrate();
+  }, []);
   const actions = endActions(closed, reminderOn);
-  // Sans compte, rien n'est chargé en général : la carte nomme alors l'univers
-  const { modules, universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
-  const nextTitle = nextLessonTitle(plan, universes, modules) ?? `Première leçon de l’univers ${universeName(plan, universes)}`;
+  const { universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
+  const suite = universeName(plan, universes);
+  const suiteTint = universeTint(plan.universe.slug, universes);
+
+  // Le jour s'allume une fois le nombre posé
+  const todayLit = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    if (reduced) return;
+    todayLit.set(withDelay(FLAME_LIT + motion.roll, withSpring(1, springs.celebrate)));
+  }, [reduced, todayLit]);
+  const todayStyle = useAnimatedStyle(() => ({ transform: [{ scale: 0.6 + 0.4 * todayLit.get() }], opacity: todayLit.get() }));
 
   const signUp = () => {
     if (fromHome) {
@@ -172,87 +203,132 @@ function EndContent() {
     router.push('/bienvenue/inscription');
   };
 
-  // « Plus tard » : l'accueil sans compte ; le parcours ne revient plus
   const later = () => {
     if (state.status === 'en-cours') onboardingStore.update({ status: 'plus-tard' });
     router.replace('/apprendre');
   };
 
+  const played = topicDots(state.played).filter(Boolean).length;
+
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6] }]} bounces={false}>
-        <ValFullBody pose="fier" height={VAL_HEIGHT} halo />
-        <StaggerItem index={0}>
-          <AppText variant="title1" accessibilityRole="header" style={styles.center}>
-            {endTitle(state.firstName, state.played.length <= 1)}
-          </AppText>
-        </StaggerItem>
-        <StaggerItem index={1}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space[4] }]} bounces={false}>
+        {/* La flamme et le nombre de jours */}
+        <View style={styles.flameBlock} accessible accessibilityLabel={`${streak} ${streakDaysCaption(streak)}`}>
           <View
-            style={[styles.streak, { backgroundColor: colors.goldSoft }]}
-            accessible
-            accessibilityLabel={streak === 1 ? 'Jour 1 : ta série commence' : `Jour ${streak} : ta série continue`}
+            style={[styles.flameBox, { width: flameBox, height: flameBox }]}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
           >
-            <StreakFlame days={streak} size={PILL_FLAME} growFrom={streakFrom} />
-            <AppText variant="bodyMedium" tone="gold" style={styles.tabular}>
-              {streak === 1 ? 'Jour 1 : ta série commence' : `Jour ${shownStreak} : ta série continue`}
+            <GoldHalo color={colors.streakGlow} />
+            <StreakFlame days={streak} size={Math.round(flameBox * FLAME_SHARE)} ignite growFrom={streakFrom} />
+          </View>
+          <AppText maxFontSizeMultiplier={1.2} style={styles.days}>
+            {formatInteger(shownStreak)}
+          </AppText>
+          <AppText style={[styles.daysLabel, { color: colors.streak }]}>{streakDaysCaption(streak)}</AppText>
+        </View>
+
+        {/* La semaine : jours de série, aujourd'hui entouré d'or */}
+        <View style={styles.week} accessible accessibilityLabel={weekA11y(week)}>
+          {week.map((d, i) => {
+            const done = d.state === 'done';
+            const dot = (
+              <View
+                style={[
+                  styles.dayDot,
+                  done
+                    ? { backgroundColor: colors.streakGlow, borderColor: colors.streak, borderWidth: 2 }
+                    : { borderColor: colors.controlBorder, borderWidth: 1, opacity: QUIET_DAY },
+                  d.isToday && { borderColor: colors.gold, borderWidth: 2, opacity: 1 },
+                ]}
+              >
+                {done ? (
+                  <AppText allowFontScaling={false} style={styles.dayFlame}>
+                    🔥
+                  </AppText>
+                ) : null}
+              </View>
+            );
+            return (
+              <View key={i} style={styles.day}>
+                {d.isToday && done ? <Animated.View style={todayStyle}>{dot}</Animated.View> : dot}
+                <AppText variant="caption" style={[styles.dayLetter, { color: d.isToday ? colors.gold : colors.subtitle }]}>
+                  {d.letter}
+                </AppText>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Les six sujets */}
+        <View style={[styles.card, { backgroundColor: colors.panel }]} accessible accessibilityLabel={`Sujets découverts : ${played} sur 6`}>
+          <View style={styles.cardHead}>
+            <AppText style={[styles.kicker, { color: colors.gold }]}>SUJETS DÉCOUVERTS</AppText>
+            <AppText style={styles.count}>{`${played} sur 6`}</AppText>
+          </View>
+          <View style={styles.topics}>
+            {OBJECTIVE_OPTIONS.map((o) => {
+              const done = state.played.includes(o.value);
+              const tint = universeTint(DISCOVERY[o.value].universe.slug, universes);
+              return (
+                <View
+                  key={o.value}
+                  style={[
+                    styles.topic,
+                    done
+                      ? { backgroundColor: tint.face, boxShadow: [{ offsetX: 0, offsetY: 4, blurRadius: 0, color: withOpacity(colors.groundShadow, 0.35) }] }
+                      : { borderColor: colors.controlBorder, borderWidth: 2, borderStyle: 'dashed' },
+                  ]}
+                >
+                  <Ionicons name={o.icon as IconName} size={20} color={done ? tint.onFace : colors.subtitle} />
+                  {done ? (
+                    <View style={[styles.topicCheck, { backgroundColor: colors.gold, borderColor: colors.background }]}>
+                      <Ionicons name="checkmark" size={10} color={colors.onGold} />
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* La suite : l'univers conseillé, verrouillé sans compte */}
+        <View
+          style={[styles.suite, { borderColor: withOpacity(suiteTint.face, 0.5), backgroundColor: withOpacity(suiteTint.face, 0.08) }]}
+          accessible
+          accessibilityLabel={`La suite : univers ${suite}. Des vraies leçons t’y attendent. Verrouillé.`}
+        >
+          <View style={[styles.suiteBadge, { backgroundColor: suiteTint.face }]}>
+            <Ionicons name={universeIcon(plan.universe.slug)} size={20} color={suiteTint.onFace} />
+          </View>
+          <View style={styles.suiteTexts}>
+            <AppText style={[styles.kicker, { color: suiteTint.face }]} numberOfLines={2}>
+              {`LA SUITE : UNIVERS ${suite.toUpperCase()}`}
+            </AppText>
+            <AppText variant="bodyMedium" style={styles.suiteLine}>
+              Des vraies leçons t’y attendent
             </AppText>
           </View>
-        </StaggerItem>
-        {remaining > 0 ? (
-          <StaggerItem index={2}>
-            <View style={styles.topics} accessible accessibilityLabel={remainingLabel(remaining)}>
-              <AppText variant="callout" tone="subtitle">
-                {remainingLabel(remaining)}
-              </AppText>
-              <ProgressDots dots={topicDots(state.played)} doneColor={colors.gold} emptyBorder={colors.controlBorder} />
-            </View>
-          </StaggerItem>
-        ) : null}
-        <StaggerItem index={3}>
-          <View
-            style={[styles.next, { backgroundColor: colors.surface, borderColor: colors.controlBorder }]}
-            accessible
-            accessibilityLabel={`Prochaine leçon, verrouillée : ${nextTitle}`}
-          >
-            <View style={[styles.lock, { backgroundColor: colors.pathLockedFace }]}>
-              <Ionicons name="lock-closed-outline" size={20} color={colors.subtitle} />
-            </View>
-            <View style={styles.nextTexts}>
-              <AppText variant="sectionLabel" tone="subtitle">
-                Prochaine leçon
-              </AppText>
-              <AppText variant="bodyMedium">{nextTitle}</AppText>
-            </View>
-          </View>
-        </StaggerItem>
+          <Ionicons name="lock-closed-outline" size={20} color={colors.subtitle} />
+        </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
-        {/* Même règle que l'accueil : inscription fermée, pas de « Créer mon compte » */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space[2] }]}>
+        {/* Même règle que l'accueil : inscription fermée, pas de compte à créer */}
         {actions.kind === 'register' ? (
           <>
-            <Button label="Créer mon compte pour continuer" onPress={signUp} />
+            <Button label="Garder ma série" onPress={signUp} />
             <AppText variant="caption" tone="subtitle" style={styles.center}>
-              Gratuit. Ta série et ta progression sont gardées.
+              Crée ton compte gratuitement pour la garder.
             </AppText>
-            <Button variant="text" label={fromHome ? 'Retour à l’accueil' : 'Plus tard'} onPress={later} />
           </>
+        ) : actions.kind === 'reminder' ? (
+          <Button label="Me rappeler demain" onPress={() => router.push('/bienvenue/rappel')} />
         ) : (
-          <>
-            <AppText variant="caption" tone="subtitle" style={styles.center}>
-              Les inscriptions ouvrent très bientôt. Ta progression est gardée sur ton téléphone.
-            </AppText>
-            {actions.kind === 'reminder' ? (
-              <>
-                <Button label="Me rappeler demain" onPress={() => router.push('/bienvenue/rappel')} />
-                <Button variant="text" label="Plus tard" onPress={later} />
-              </>
-            ) : (
-              <Button label="Retour à l’accueil" onPress={later} />
-            )}
-          </>
+          <Button label="Retour à l’accueil" onPress={later} />
         )}
+        {actions.kind !== 'home' ? <Button variant="text" label="Plus tard" onPress={later} /> : null}
       </View>
       {/* Rien ne passe sous la barre d'état en défilant */}
       <StatusBarShade tab="apprendre" />
@@ -260,8 +336,12 @@ function EndContent() {
   );
 }
 
-// Fin de la sixième leçon découverte, quel que soit l'ordre : Val fier, gerbe
-// de confettis dorés, vibration. Animations réduites : sans confettis.
+// « Cette semaine : lundi, série ; mardi… »
+function weekA11y(week: WeekDay[]): string {
+  const done = week.filter((d) => d.state === 'done').map((d) => d.name);
+  return done.length > 0 ? `Cette semaine, jours de série : ${done.join(', ')}` : 'Cette semaine, aucun jour de série pour l’instant';
+}
+
 function SixCelebration({ onDone }: { onDone: () => void }) {
   const insets = useSafeAreaInsets();
 
@@ -300,54 +380,134 @@ const styles = StyleSheet.create({
   celebration: {
     justifyContent: 'center',
   },
-  tabular: {
-    fontVariant: ['tabular-nums'],
-  },
-  topics: {
-    alignItems: 'center',
-    gap: space[2],
-  },
   content: {
     flexGrow: 1,
-    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: space[5],
+    paddingBottom: space[4],
     gap: space[4],
   },
   center: {
     textAlign: 'center',
   },
-  streak: {
-    flexDirection: 'row',
+  flameBlock: {
     alignItems: 'center',
-    gap: space[2],
-    minHeight: 38,
-    paddingHorizontal: space[4] - 2,
-    borderRadius: radius.pill,
   },
-  next: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[4] - 2,
-    padding: space[4] - 2,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    marginTop: space[2],
-  },
-  lock: {
-    width: LOCK,
-    height: LOCK,
-    borderRadius: LOCK / 2,
+  flameBox: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nextTexts: {
-    flex: 1,
+  days: {
+    fontFamily: fonts.title,
+    fontSize: DAYS_SIZE,
+    lineHeight: DAYS_SIZE + 4,
+    fontVariant: ['tabular-nums'],
+    marginTop: -space[2],
+  },
+  daysLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  week: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: space[2],
+  },
+  day: {
+    alignItems: 'center',
+    gap: space[1] + 2,
+  },
+  dayDot: {
+    width: DAY_DOT,
+    height: DAY_DOT,
+    borderRadius: DAY_DOT / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayFlame: {
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  dayLetter: {
+    fontFamily: fonts.bodySemibold,
+  },
+  card: {
+    gap: space[3],
+    paddingVertical: space[3] + 2,
+    paddingHorizontal: space[4],
+    borderRadius: radius.card,
+    borderCurve: 'continuous',
+  },
+  cardHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  kicker: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.3,
+  },
+  count: {
+    fontFamily: fonts.title,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  topics: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  topic: {
+    width: TOPIC,
+    height: TOPIC,
+    borderRadius: TOPIC / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topicCheck: {
+    position: 'absolute',
+    right: -4,
+    top: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suite: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3],
+    paddingVertical: space[3],
+    paddingHorizontal: space[3] + 2,
+    borderRadius: radius.card,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+  },
+  suiteBadge: {
+    width: SUITE_BADGE,
+    height: SUITE_BADGE,
+    borderRadius: SUITE_BADGE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Largeur donnée par la rangée : flexShrink et flexGrow, pas flex: 1 seul
+  // (dans un parent qui se règle sur son contenu, flex: 1 vaut 0 sur
+  // téléphone et le texte disparaît)
+  suiteTexts: {
+    flexGrow: 1,
+    flexShrink: 1,
     gap: 2,
+  },
+  suiteLine: {
+    fontFamily: fonts.bodySemibold,
   },
   footer: {
     paddingHorizontal: space[5],
     paddingTop: space[3],
-    gap: space[2],
+    gap: space[1],
   },
 });

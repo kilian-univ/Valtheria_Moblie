@@ -196,10 +196,9 @@ export function lessonSummary(answers: CollectedAnswer[], screens: Screen[], rec
   return { correct: firsts.filter((a) => a.correct).length, total: firsts.length, recovered: Math.max(0, recovered) };
 }
 
-// « 2 questions à rattraper. Une bonne réponse maintenant compte aussi dans ton bilan. »
-export function catchUpText(count: number): string {
-  const what = count >= 2 ? `${count} questions à rattraper` : '1 question à rattraper';
-  return `${what}. Une bonne réponse maintenant compte aussi dans ton bilan.`;
+// Bouton de l'écran des questions ratées : « Rattraper 2 questions »
+export function catchUpButton(count: number): string {
+  return count >= 2 ? `Rattraper ${count} questions` : 'Rattraper 1 question';
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -213,11 +212,35 @@ const TYPE_LABELS: Record<string, string> = {
   document: 'Document',
 };
 
-// Pastille d'une question ratée : son type ; la dernière de la leçon,
-// « Question finale »
-export function missedLabel(screen: Screen | undefined, isFinal: boolean): string {
-  if (isFinal) return 'Question finale';
-  return TYPE_LABELS[screen?.kind ?? ''] ?? 'Question';
+// Icône (Ionicons) de chaque type de question
+const TYPE_ICONS: Record<string, string> = {
+  choice: 'radio-button-on',
+  true_false: 'checkmark-done',
+  order: 'list',
+  match: 'git-compare',
+  allocate: 'pie-chart',
+  dialogue: 'chatbubbles',
+  slider: 'options',
+  document: 'document-text',
+};
+
+const PREVIEW_MAX = 90;
+
+export type MissedItem = { label: string; icon: string; text: string };
+
+// Carte d'une question ratée : son type, son icône, le début de la question
+// (à défaut : la première carte, le premier message)
+export function missedItem(screen: Screen | undefined): MissedItem {
+  const kind = screen?.kind ?? '';
+  // « Vrai ou faux ? » ne dit rien de la question : la première affirmation
+  const generic = !!screen?.question && /^vrai ou faux\s*\??$/i.test(screen.question.trim());
+  const raw =
+    (generic ? null : screen?.question) ??
+    (screen?.kind === 'true_false' ? screen.cards[0]?.statement : null) ??
+    (screen?.kind === 'dialogue' ? screen.messages[0] : null) ??
+    '';
+  const text = raw.length > PREVIEW_MAX ? `${raw.slice(0, PREVIEW_MAX - 1).trimEnd()}…` : raw;
+  return { label: TYPE_LABELS[kind] ?? 'Question', icon: TYPE_ICONS[kind] ?? 'help-circle', text };
 }
 
 // Nom fêté au bilan et au coffre : le pseudo du compte d'abord, puis le
@@ -229,16 +252,24 @@ export function celebrationName(pseudo: unknown, firstName: unknown): string | n
   return null;
 }
 
-// « 4 sur 5 »
-export function scoreLabel(correct: number, total: number): string {
-  return `${correct} sur ${total}`;
+// Précision du bilan : part des bonnes réponses du premier coup, arrondie
+export function precisionPercent(correct: number, total: number): number {
+  if (!(total > 0)) return 0;
+  return Math.round((Math.max(0, Math.min(correct, total)) / total) * 100);
 }
 
-// « + 1 rattrapée », « + 2 rattrapées » ; rien sans rattrapage
-export function recoveredLabel(count: number): string | null {
-  if (!(count > 0)) return null;
-  return `+\u00A0${count} ${count >= 2 ? 'rattrapées' : 'rattrapée'}`;
+// « 4 sur 5 », « 4 sur 5, 1 rattrapée »
+export function precisionCaption(correct: number, total: number, recovered: number): string {
+  const extra = recovered > 0 ? `, ${recovered} ${recovered >= 2 ? 'rattrapées' : 'rattrapée'}` : '';
+  return `${correct} sur ${total}${extra}`;
 }
+
+// « jour d'affilée », « jours d'affilée »
+export function streakDaysCaption(days: number): string {
+  return days >= 2 ? 'jours d’affilée' : 'jour d’affilée';
+}
+
+
 
 // La pastille d'affilée (éclair et nombre) s'affiche à partir de 3
 export const RUN_MIN = 3;

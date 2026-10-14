@@ -23,7 +23,6 @@ import {
   discoveryXp,
   doneToday,
   endActions,
-  endTitle,
   guestSubtitle,
   guestTitle,
   homeCard,
@@ -185,8 +184,6 @@ test('prénom présent : accueil, objectif et fin de leçon le citent', () => {
   assert.equal(guestTitle('Quentin', new Date(2026, 9, 10, 17, 59)), 'Bonjour, Quentin');
   assert.equal(guestTitle('Quentin', new Date(2026, 9, 10, 18, 0)), 'Bonsoir, Quentin');
   assert.equal(objectiveValLine('Quentin'), 'Enchanté, Quentin ! Qu’est-ce qui t’amène ?');
-  assert.equal(endTitle('Quentin', true), 'Bravo, Quentin !');
-  assert.equal(endTitle('Quentin', false), 'Bravo, Quentin !');
 });
 
 test('prénom absent : aucune virgule ni espace orphelin', () => {
@@ -194,8 +191,6 @@ test('prénom absent : aucune virgule ni espace orphelin', () => {
   assert.equal(guestTitle('', evening), 'Bonsoir');
   assert.equal(guestTitle('   ', new Date(2026, 9, 10, 9, 0)), 'Bonjour');
   assert.equal(objectiveValLine(''), 'Enchanté ! Qu’est-ce qui t’amène ?');
-  assert.equal(endTitle('', true), 'Première leçon terminée !');
-  assert.equal(endTitle('', false), 'Leçon terminée !');
 });
 
 test('sous-titre de l’accueil : six sujets, leçon du jour faite, sinon l’invitation', () => {

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AccessibilityActionEvent, StyleSheet, View } from 'react-native';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -19,8 +19,10 @@ import { fonts, palette, radius, size, space, withOpacity } from '@/src/constant
 import { useTheme } from '@/src/context/ThemeContext';
 import { moveItem, orderCorrect, orderResults } from '@/src/lesson/interactive';
 import type { OrderScreen as OrderModel } from '@/src/lesson/model';
+import { safeGesture } from '@/src/utils/gestureSafety';
 import { select } from '@/src/utils/haptics';
 import ScreenIntro from '../player/ScreenIntro';
+import { useScrollLock } from '../player/ScrollLock';
 import { LessonScreenProps } from '../types';
 
 const ROW_GAP = space[3];
@@ -39,8 +41,7 @@ const PLACEHOLDER_OPACITY = 0.4;
 
 type Slot = { y: number; h: number };
 
-// Places des lignes dans l'ordre donné : positions calculées à partir des
-// seules hauteurs mesurées (plus fiable que la position mesurée sur le web)
+// Places des lignes dans un ordre donné, à partir des hauteurs mesurées
 function slotsFor(order: string[], heights: Record<string, number>): Slot[] {
   let y = 0;
   return order.map((id) => {
@@ -50,10 +51,18 @@ function slotsFor(order: string[], heights: Record<string, number>): Slot[] {
   });
 }
 
+function topIn(order: string[], heights: Record<string, number>, id: string): number {
+  const i = order.indexOf(id);
+  return i < 0 ? 0 : slotsFor(order, heights)[i].y;
+}
+
 // order — remettre dans l'ordre. On attrape une ligne par sa poignée, ou
 // par un appui long : elle se soulève, sa place vide reste en pointillés, les
 // autres s'écartent, un cran à chaque rang franchi ; lâchée, elle se pose
-// avec un petit rebond. Lecteur d'écran : actions « Monter » et
+// directement sur sa nouvelle place avec un petit rebond. Les lignes gardent
+// toujours la même place dans la mise en page (ordre de départ) et ne
+// bougent que par décalage : au lâcher, la ligne reste où le doigt l'a
+// posée, rien ne saute. Lecteur d'écran : actions « Monter » et
 // « Descendre ». Valider : les lignes se colorent une à une de haut en bas,
 // puis les mal placées glissent jusqu'à leur bonne place. Réponse : la liste
 // des ids dans l'ordre choisi.
@@ -61,32 +70,40 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
+  const lockScroll = useScrollLock();
   const { items, axis } = screen;
+  // Ordre de la mise en page : celui de départ, il ne change jamais
+  const [natural] = useState<string[]>(screen.start);
 
   const [order, setOrder] = useState<string[]>(screen.start);
   const [heights, setHeights] = useState<Record<string, number>>({});
-  // Ligne attrapée (rang de départ) et rang visé
-  const [from, setFrom] = useState<number | null>(null);
+  // Ligne attrapée (id, rang de départ) et rang visé
+  const [drag, setDrag] = useState<{ id: string; from: number } | null>(null);
   const [target, setTarget] = useState<number | null>(null);
-  // Pose : décalage de départ du rebond de la ligne lâchée
-  const [landing, setLanding] = useState<{ id: string; offset: number } | null>(null);
+  // Ligne qu'on vient de lâcher : elle rejoint sa place avec un rebond
+  const [landing, setLanding] = useState<string | null>(null);
   // Correction : lignes colorées, puis rangées dans l'ordre juste
   const [colored, setColored] = useState(0);
   const [settled, setSettled] = useState(false);
 
   const dragY = useSharedValue(0);
-  const dragFrom = useSharedValue(-1);
+  const dragSlot = useSharedValue(-1);
   const aimed = useSharedValue(-1);
   const layout = useSharedValue<Slot[]>([]);
 
-  const shownColored = answered && reduced ? order.length : colored;
+  const n = order.length;
+  const shownColored = answered && reduced ? n : colored;
   const isSettled = settled || (answered && reduced);
-  const textOf = (id: string) => items.find((it) => it.id === id)?.text ?? '';
+  const correctIds = items.map((it) => it.id);
   const results = orderResults(screen, order);
   const ready = order.every((id) => heights[id]);
-  const n = order.length;
-  const slots = slotsFor(order, heights);
-  const slotsKey = slots.map((sl) => `${sl.y}:${sl.h}`).join(',');
+  const textOf = (id: string) => items.find((it) => it.id === id)?.text ?? '';
+
+  // Ordre affiché : juste après correction, aperçu pendant un glissement
+  const displayed = isSettled ? correctIds : drag && target !== null ? moveItem(order, drag.from, target) : order;
+  const slotsKey = slotsFor(order, heights)
+    .map((sl) => `${sl.y}:${sl.h}`)
+    .join(',');
 
   useEffect(() => {
     layout.set(slotsFor(order, heights));
@@ -124,91 +141,36 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
     setOrder(next);
   };
 
-  // Attrapée : soulevée, un cran
-  const grab = (index: number) => {
+  // Attrapée : soulevée, un cran ; la page ne défile plus
+  const grab = (id: string, index: number) => {
     if (answered) return;
+    lockScroll(true);
     select();
-    setFrom(index);
+    setLanding(null);
+    setDrag({ id, from: index });
     setTarget(index);
   };
 
-  const aim = (index: number) => {
-    setTarget(index);
+  const aim = (rank: number) => {
+    setTarget(rank);
     select();
   };
 
-  // Place du rang visé, pour la ligne attrapée
-  const slotTop = (a: number, b: number) => {
-    if (!slots[a] || !slots[b]) return 0;
-    return b > a ? slots[b].y + slots[b].h - slots[a].h : slots[b].y;
-  };
-
-  // Lâchée : l'ordre change, elle se pose sur sa nouvelle place
-  const drop = (index: number, dy: number) => {
-    const to = aimed.get() < 0 ? index : aimed.get();
-    const offset = slots[index] ? slots[index].y + dy - slotTop(index, to) : 0;
-    const id = order[index];
-    setFrom(null);
+  // Lâchée : le nouvel ordre ; la ligne est déjà à l'endroit du dépôt (fil
+  // d'interface) et rejoint sa place
+  const drop = (id: string, index: number) => {
+    lockScroll(false);
+    const to = target ?? index;
+    setDrag(null);
     setTarget(null);
-    dragFrom.set(-1);
-    aimed.set(-1);
+    setLanding(id);
     if (to !== index) {
       select();
       setOrder(moveItem(order, index, to));
     }
-    setLanding({ id, offset });
   };
 
-  // Un même geste pour la poignée (tout de suite) et la ligne (appui long)
-  const dragGesture = (index: number, longPress: boolean) => {
-    const g = Gesture.Pan()
-      .enabled(!answered)
-      .onStart(() => {
-        dragFrom.set(index);
-        aimed.set(index);
-        dragY.set(0);
-        scheduleOnRN(grab, index);
-      })
-      .onUpdate((e) => {
-        dragY.set(e.translationY);
-        const rows = layout.get();
-        const me = rows[index];
-        if (!me) return;
-        const center = me.y + me.h / 2 + e.translationY;
-        let rank = 0;
-        for (let k = 0; k < rows.length; k++) {
-          if (k !== index && rows[k].y + rows[k].h / 2 < center) rank += 1;
-        }
-        if (rank !== aimed.get()) {
-          aimed.set(rank);
-          scheduleOnRN(aim, rank);
-        }
-      })
-      .onEnd((e) => {
-        scheduleOnRN(drop, index, e.translationY);
-      });
-    return longPress ? g.activateAfterLongPress(LONG_PRESS) : g.minDistance(0);
-  };
-
-  // Décalage d'une ligne pendant qu'une autre est déplacée, ou au rangement
-  const shiftOf = (index: number, id: string): number => {
-    if (isSettled) {
-      // Place dans l'ordre juste, avec les hauteurs réelles
-      const correct = slotsFor(
-        items.map((it) => it.id),
-        heights
-      );
-      const rank = items.findIndex((it) => it.id === id);
-      return (correct[rank]?.y ?? 0) - (slots[index]?.y ?? 0);
-    }
-    if (from === null || target === null || index === from || !slots[from]) return 0;
-    const room = slots[from].h + ROW_GAP;
-    if (from < target && index > from && index <= target) return -room;
-    if (from > target && index >= target && index < from) return room;
-    return 0;
-  };
-
-  const correctRank = (id: string) => items.findIndex((it) => it.id === id);
+  const draggedId = drag?.id ?? null;
 
   return (
     <View style={styles.wrap}>
@@ -218,48 +180,53 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
         <View style={styles.body}>
           <Axis start={axis.start} end={axis.end} risk={axis.risk} />
 
-          <GestureHandlerRootView style={styles.list}>
+          <View style={styles.list}>
             {/* Place vide de la ligne attrapée */}
-            {from !== null && target !== null && ready ? (
+            {draggedId && ready ? (
               <View
                 pointerEvents="none"
                 style={[
                   styles.placeholder,
                   {
-                    top: slotTop(from, target),
-                    height: (slots[from]?.h ?? 0) - DEPTH,
+                    top: topIn(displayed, heights, draggedId),
+                    height: (heights[draggedId] ?? 0) - DEPTH,
                     borderColor: withOpacity(colors.gold, PLACEHOLDER_OPACITY),
                   },
                 ]}
               />
             ) : null}
 
-            {order.map((id, i) => (
-              <OrderRow
-                key={id}
-                text={textOf(id)}
-                rank={isSettled ? correctRank(id) + 1 : i + 1}
-                index={i}
-                count={n}
-                state={answered && i < shownColored ? (results[i] ? 'right' : 'wrong') : 'idle'}
-                lifted={from === i}
-                shift={shiftOf(i, id)}
-                slow={isSettled}
-                // Hors glissement et hors rangement : le décalage tombe à 0
-                // parce que l'ordre vient d'être posé
-                instant={from === null && !isSettled}
-                landing={landing?.id === id ? landing.offset : null}
-                onLanded={() => setLanding(null)}
-                dragY={dragY}
-                dragFrom={dragFrom}
-                handleGesture={dragGesture(i, false)}
-                rowGesture={dragGesture(i, true)}
-                onLayout={(h) => setHeights((prev) => (prev[id] === h ? prev : { ...prev, [id]: h }))}
-                onMove={(to) => move(i, to)}
-                answered={answered}
-              />
-            ))}
-          </GestureHandlerRootView>
+            {natural.map((id, slot) => {
+              const index = order.indexOf(id);
+              return (
+                <OrderRow
+                  key={id}
+                  id={id}
+                  slot={slot}
+                  index={index}
+                  count={n}
+                  text={textOf(id)}
+                  rank={displayed.indexOf(id) + 1}
+                  state={answered && index < shownColored ? (results[index] ? 'right' : 'wrong') : 'idle'}
+                  lifted={draggedId === id}
+                  offset={ready ? topIn(displayed, heights, id) - topIn(natural, heights, id) : 0}
+                  slow={isSettled}
+                  landing={landing === id}
+                  dragY={dragY}
+                  dragSlot={dragSlot}
+                  aimed={aimed}
+                  layout={layout}
+                  onGrab={grab}
+                  onAim={aim}
+                  onDrop={drop}
+                  onRelease={() => lockScroll(false)}
+                  onLayout={(h) => setHeights((prev) => (prev[id] === h ? prev : { ...prev, [id]: h }))}
+                  onMove={(to) => move(index, to)}
+                  answered={answered}
+                />
+              );
+            })}
+          </View>
         </View>
       </View>
     </View>
@@ -306,46 +273,55 @@ function VerticalLabel({ text, color }: { text: string; color: string }) {
 }
 
 type OrderRowProps = {
-  text: string;
-  rank: number;
+  id: string;
+  // Place dans la mise en page (ordre de départ, fixe)
+  slot: number;
+  // Rang dans l'ordre choisi
   index: number;
   count: number;
+  text: string;
+  rank: number;
   state: 'idle' | 'right' | 'wrong';
   lifted: boolean;
-  // Décalage voulu (autre ligne déplacée, rangement final)
-  shift: number;
+  // Décalage voulu depuis sa place dans la mise en page
+  offset: number;
   // Rangement final : glissement plus long
   slow: boolean;
-  // Nouvel ordre posé : la ligne est déjà à sa place, sans glissement
-  instant: boolean;
-  // Ligne qu'on vient de lâcher : d'où part son rebond
-  landing: number | null;
-  onLanded: () => void;
+  // Vient d'être lâchée : rejoint sa place avec un petit rebond
+  landing: boolean;
   dragY: SharedValue<number>;
-  dragFrom: SharedValue<number>;
-  handleGesture: ReturnType<typeof Gesture.Pan>;
-  rowGesture: ReturnType<typeof Gesture.Pan>;
+  dragSlot: SharedValue<number>;
+  aimed: SharedValue<number>;
+  layout: SharedValue<Slot[]>;
+  onGrab: (id: string, index: number) => void;
+  onAim: (rank: number) => void;
+  onDrop: (id: string, index: number) => void;
+  onRelease: () => void;
   onLayout: (height: number) => void;
   onMove: (to: number) => void;
   answered: boolean;
 };
 
 function OrderRow({
-  text,
-  rank,
+  id,
+  slot,
   index,
   count,
+  text,
+  rank,
   state,
   lifted,
-  shift,
+  offset,
   slow,
-  instant,
   landing,
-  onLanded,
   dragY,
-  dragFrom,
-  handleGesture,
-  rowGesture,
+  dragSlot,
+  aimed,
+  layout,
+  onGrab,
+  onAim,
+  onDrop,
+  onRelease,
   onLayout,
   onMove,
   answered,
@@ -353,37 +329,83 @@ function OrderRow({
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
-  const offset = useSharedValue(0);
+  const shift = useSharedValue(offset);
   const lift = useSharedValue(0);
-  const lastShift = useRef(shift);
+  const lastOffset = useRef(offset);
 
-  // Les autres s'écartent en douceur ; au rangement, glissement de 300 ms.
-  // Avant l'affichage : au lâcher, la ligne passe sans saut à sa nouvelle place
+  // Vers sa place : en douceur quand une autre ligne passe, avec un rebond
+  // quand on vient de la lâcher, en 300 ms au rangement final. Pendant son
+  // propre glissement, elle suit le doigt (rien à animer).
   useLayoutEffect(() => {
-    if (shift === lastShift.current) return;
-    lastShift.current = shift;
-    offset.set(reduced || instant ? shift : withTiming(shift, timing(slow ? motion.screen : motion.state)));
-  }, [shift, slow, instant, reduced, offset]);
-
-  // Lâchée : elle part d'où était le doigt et se pose avec un petit rebond
-  useLayoutEffect(() => {
-    if (landing === null) return;
-    offset.set(landing);
-    offset.set(reduced ? 0 : withSpring(0, springs.press));
-    onLanded();
-  }, [landing, reduced, offset, onLanded]);
+    if (lifted || offset === lastOffset.current) return;
+    lastOffset.current = offset;
+    if (reduced) shift.set(offset);
+    else if (landing) shift.set(withSpring(offset, springs.press));
+    else shift.set(withTiming(offset, timing(slow ? motion.screen : motion.state)));
+  }, [offset, lifted, landing, slow, reduced, shift]);
 
   useEffect(() => {
     lift.set(reduced ? (lifted ? 1 : 0) : withTiming(lifted ? 1 : 0, timing(motion.tap)));
   }, [lifted, reduced, lift]);
 
+  // Un même geste pour la poignée (tout de suite) et la ligne (appui long)
+  const dragGesture = (longPress: boolean) => {
+    const g = Gesture.Pan()
+      .enabled(!answered)
+      .onStart(
+        safeGesture(() => {
+          'worklet';
+          dragSlot.set(slot);
+          aimed.set(index);
+          dragY.set(0);
+          scheduleOnRN(onGrab, id, index);
+        })
+      )
+      .onUpdate(
+        safeGesture((e: { translationY: number }) => {
+          'worklet';
+          dragY.set(e.translationY);
+          const rows = layout.get();
+          const me = rows[index];
+          if (!me) return;
+          const center = me.y + me.h / 2 + e.translationY;
+          let rank = 0;
+          for (let k = 0; k < rows.length; k++) {
+            if (k !== index && rows[k].y + rows[k].h / 2 < center) rank += 1;
+          }
+          if (rank !== aimed.get()) {
+            aimed.set(rank);
+            scheduleOnRN(onAim, rank);
+          }
+        })
+      )
+      .onEnd(
+        safeGesture(() => {
+          'worklet';
+          // Dans la même image : la ligne garde l'endroit du dépôt, puis le
+          // nouvel ordre la fait rejoindre sa place (aucun retour en arrière)
+          shift.set(shift.get() + dragY.get());
+          dragY.set(0);
+          dragSlot.set(-1);
+          scheduleOnRN(onDrop, id, index);
+        })
+      )
+      .onFinalize(
+        safeGesture(() => {
+          'worklet';
+          scheduleOnRN(onRelease);
+        })
+      );
+    return longPress ? g.activateAfterLongPress(LONG_PRESS) : g.minDistance(0);
+  };
+
   const rowStyle = useAnimatedStyle(() => {
-    const dragged = dragFrom.get() === index;
+    const dragged = dragSlot.get() === slot;
     const tilt = reduced ? 0 : LIFT_TILT * lift.get();
     return {
-      zIndex: dragged ? 10 : 0,
+      zIndex: dragged || lift.get() > 0 ? 10 : 0,
       transform: [
-        { translateY: dragged ? dragY.get() : offset.get() },
+        { translateY: dragged ? shift.get() + dragY.get() : shift.get() },
         { scale: 1 + (LIFT_SCALE - 1) * lift.get() },
         { rotate: `${tilt}deg` },
       ],
@@ -402,9 +424,13 @@ function OrderRow({
   };
 
   return (
-    <GestureDetector gesture={rowGesture}>
+    <GestureDetector gesture={dragGesture(true)}>
       <Animated.View
-        style={[styles.rowWrap, lifted && { boxShadow: [{ offsetX: 0, offsetY: 16, blurRadius: 26, color: withOpacity(colors.groundShadow, 0.6) }] }, rowStyle]}
+        style={[
+          styles.rowWrap,
+          lifted && { boxShadow: [{ offsetX: 0, offsetY: 16, blurRadius: 26, color: withOpacity(colors.groundShadow, 0.6) }] },
+          rowStyle,
+        ]}
         onLayout={(e) => onLayout(e.nativeEvent.layout.height)}
         accessible
         accessibilityLabel={`${rank}. ${text}${state === 'right' ? ', bien placé' : state === 'wrong' ? ', mal placé' : ''}`}
@@ -432,7 +458,7 @@ function OrderRow({
               color={state === 'right' ? colors.success : colors.error}
             />
           ) : (
-            <GestureDetector gesture={handleGesture}>
+            <GestureDetector gesture={dragGesture(false)} touchAction="none">
               <View style={styles.handle} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
                 <Ionicons name="reorder-two" size={24} color={colors.subtitle} />
               </View>

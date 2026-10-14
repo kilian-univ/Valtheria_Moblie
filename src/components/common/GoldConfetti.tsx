@@ -24,8 +24,9 @@ function seeded(i: number, salt: number): number {
 }
 
 // Gerbe de confettis dorés, une seule fois, par-dessus l'écran (ne capte
-// aucun toucher). Animations réduites : rien.
-export default function GoldConfetti() {
+// aucun toucher). colors : teintes des confettis (or par défaut ; le bilan
+// de fin y ajoute des couleurs). Animations réduites : rien.
+export default function GoldConfetti({ colors: custom }: { colors?: string[] } = {}) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
@@ -36,7 +37,7 @@ export default function GoldConfetti() {
     if (!reduced) progress.set(withTiming(1, { duration: DURATION, easing: Easing.out(Easing.quad) }));
   }, [reduced, progress]);
 
-  const tones = [colors.gold, colors.goldDeep, colors.ivory];
+  const tones = custom && custom.length > 0 ? custom : [colors.gold, colors.goldDeep, colors.ivory];
   const pieces = useMemo(
     () =>
       Array.from({ length: PIECES }, (_, i) => ({
@@ -47,9 +48,9 @@ export default function GoldConfetti() {
         spin: (seeded(i, 5) - 0.5) * 900,
         w: 6 + Math.round(seeded(i, 6) * 5),
         delay: Math.round(seeded(i, 7) * SPREAD_DELAY),
-        tone: i % 3,
+        tone: i % tones.length,
       })),
-    [width, height]
+    [width, height, tones.length]
   );
 
   if (reduced) return null;

@@ -1,6 +1,5 @@
-import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useId, useMemo, useState } from 'react';
 import {
-  Image,
   ImageSourcePropType,
   ImageStyle,
   Pressable,
@@ -21,7 +20,16 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Polygon } from 'react-native-svg';
+import Svg, {
+  Defs,
+  G,
+  Image as SvgImage,
+  LinearGradient as SvgLinearGradient,
+  Mask,
+  Polygon,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 
 import { loops, springs } from '@/src/constants/motion';
 import { bubble, bubbleShadow, fonts, palette, size, space, titleLetterSpacing } from '@/src/constants/style/Style';
@@ -131,9 +139,16 @@ export function valSources(mood: ValMood, frame: ValFrame): { open: ImageSourceP
   return { open: VAL_IMAGES[frame][safeMood], closed: VAL_CLOSED[frame][safeMood] };
 }
 
+// Fondu du bas des bustes : opaque jusqu'à 60 % de la hauteur, transparent
+// en bas (l'image ne s'arrête jamais sur un bord net)
+const FADE_FROM = 0.6;
+const MASK_WHITE = '#FFFFFF';
+
 // Image de Val, qui cligne des yeux quand son humeur le permet (pas avec les
-// animations réduites). L'image yeux fermés est posée par-dessus, toujours
-// chargée : aucun trou pendant le clignement.
+// animations réduites), le bas fondu dans le fond. Dessinée en SVG sous un
+// masque en dégradé (même rendu sur le web et le téléphone). L'image yeux
+// fermés est posée par-dessus, toujours chargée : aucun trou pendant le
+// clignement. style : taille (largeur et hauteur en nombres) et position.
 export function ValPicture({
   mood,
   frame,
@@ -144,17 +159,50 @@ export function ValPicture({
   style: StyleProp<ImageStyle>;
 }) {
   const reduced = useReducedMotion();
+  const id = `vb${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const safeMood: ValMood = VAL_IMAGES[frame][mood] ? mood : 'neutre';
   const closedSource = VAL_CLOSED[frame][safeMood];
   const closed = useBlink(!!closedSource && !reduced);
+  const flat = StyleSheet.flatten(style) ?? {};
+  const width = typeof flat.width === 'number' ? flat.width : size.valSm;
+  const height = typeof flat.height === 'number' ? flat.height : width;
 
   return (
-    <>
-      <Image source={VAL_IMAGES[frame][safeMood]} resizeMode="cover" style={style} />
-      {closedSource ? (
-        <Image source={closedSource} resizeMode="cover" style={[style, !closed && styles.hiddenImage]} />
-      ) : null}
-    </>
+    <View style={style as StyleProp<ViewStyle>} pointerEvents="none">
+      <Svg width={width} height={height}>
+        <Defs>
+          <SvgLinearGradient id={`${id}g`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset={0} stopColor={MASK_WHITE} stopOpacity={1} />
+            <Stop offset={FADE_FROM} stopColor={MASK_WHITE} stopOpacity={1} />
+            <Stop offset={1} stopColor={MASK_WHITE} stopOpacity={0} />
+          </SvgLinearGradient>
+          <Mask id={`${id}m`}>
+            <Rect x={0} y={0} width={width} height={height} fill={`url(#${id}g)`} />
+          </Mask>
+        </Defs>
+        <G mask={`url(#${id}m)`}>
+          <SvgImage
+            href={VAL_IMAGES[frame][safeMood]}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
+            preserveAspectRatio="xMidYMid slice"
+          />
+          {closedSource ? (
+            <SvgImage
+              href={closedSource}
+              x={0}
+              y={0}
+              width={width}
+              height={height}
+              preserveAspectRatio="xMidYMid slice"
+              opacity={closed ? 1 : 0}
+            />
+          ) : null}
+        </G>
+      </Svg>
+    </View>
   );
 }
 
@@ -467,9 +515,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-  },
-  hiddenImage: {
-    opacity: 0,
   },
   // Mot pas encore écrit : garde sa place sans être visible
   hidden: {

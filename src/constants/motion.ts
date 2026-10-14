@@ -41,8 +41,11 @@ export const counterEasing = Easing.out(Easing.cubic);
 // Courbe par défaut du lecteur de leçon (jetons motion de Style.ts)
 export const easeOut = Easing.out(Easing.cubic);
 
-// withTiming d'une durée du lecteur, en ease-out
+// withTiming d'une durée du lecteur, en ease-out. Worklet : appelable aussi
+// dans un geste (fil d'interface) ; une fonction ordinaire y ferait planter
+// l'app sur téléphone.
 export function timing(duration: number) {
+  'worklet';
   return { duration, easing: easeOut };
 }
 

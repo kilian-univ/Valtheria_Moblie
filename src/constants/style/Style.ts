@@ -91,6 +91,8 @@ export const palette = {
     pileBack: '#18181D',                 // cartes sous la pile du vrai ou faux
     pileBackDeep: '#141418',             // la plus basse
     chatBubble: '#23232A',               // bulle d'un personnage (dialogue)
+    streak: '#E08A4A',                   // série de jours : flamme, tuile SÉRIE, « jours d'affilée »
+    streakGlow: 'rgba(224,138,74,0.35)', // lueur orange sous la grande flamme
     scrim: 'rgba(0,0,0,0.6)',            // voile sous les feuilles et modales
     focusRing: '#C9A84C',                // = gold
     skeletonShine: 'rgba(255,255,255,0.06)', // reflet des squelettes de chargement
@@ -163,6 +165,8 @@ export const palette = {
     pileBack: '#EEEDF2',
     pileBackDeep: '#E4E3E8',
     chatBubble: '#ECEBF0',
+    streak: '#D9752F',
+    streakGlow: 'rgba(217,117,47,0.25)',
     scrim: 'rgba(0,0,0,0.4)',
     focusRing: '#E8B23D',                // = gold
     skeletonShine: 'rgba(0,0,0,0.05)',

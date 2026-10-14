@@ -19,19 +19,20 @@ import { isOnboardingPath } from '../src/utils/onboarding';
 import {
   buildResponses,
   canContinue,
-  catchUpText,
+  catchUpButton,
   celebrationName,
   estimateVerdict,
   hasPrimaryButton,
   lessonSummary,
-  missedLabel,
+  missedItem,
   missedScreens,
   primaryLabel,
-  recoveredLabel,
   RUN_MIN,
   revealExtraLines,
   runBadge,
-  scoreLabel,
+  precisionCaption,
+  precisionPercent,
+  streakDaysCaption,
   showsVal,
 } from '../src/utils/lessonPlayer';
 
@@ -233,15 +234,26 @@ test('bilan : justes du premier coup sur les questions notées, et rattrapées �
   const screens = discoveryLesson('epargner').screens;
   assert.deepEqual(lessonSummary(answersFor(screens, [2, 4]), screens, 1), { correct: 1, total: 3, recovered: 1 });
   assert.deepEqual(lessonSummary(answersFor(screens, []), screens, 0), { correct: 3, total: 3, recovered: 0 });
-  assert.equal(scoreLabel(4, 5), '4 sur 5');
-  assert.equal(recoveredLabel(0), null);
-  assert.equal(recoveredLabel(1), '+ 1 rattrapée');
-  assert.equal(recoveredLabel(2), '+ 2 rattrapées');
-  assert.equal(catchUpText(1), '1 question à rattraper. Une bonne réponse maintenant compte aussi dans ton bilan.');
-  assert.equal(catchUpText(2), '2 questions à rattraper. Une bonne réponse maintenant compte aussi dans ton bilan.');
+  assert.equal(precisionPercent(4, 5), 80);
+  assert.equal(precisionPercent(1, 3), 33);
+  assert.equal(precisionPercent(0, 0), 0);
+  assert.equal(precisionCaption(4, 5, 0), '4 sur 5');
+  assert.equal(precisionCaption(4, 5, 1), '4 sur 5, 1 rattrapée');
+  assert.equal(precisionCaption(1, 3, 2), '1 sur 3, 2 rattrapées');
+  assert.equal(streakDaysCaption(1), 'jour d’affilée');
+  assert.equal(streakDaysCaption(2), 'jours d’affilée');
+  assert.equal(catchUpButton(1), 'Rattraper 1 question');
+  assert.equal(catchUpButton(2), 'Rattraper 2 questions');
   const choice = screens.find((s) => s.kind === 'choice');
-  assert.equal(missedLabel(choice, true), 'Question finale');
-  assert.equal(missedLabel(choice, false), 'Question à choix');
+  assert.deepEqual(missedItem(choice), {
+    label: 'Question à choix',
+    icon: 'radio-button-on',
+    text: 'Pour mettre de côté sans y penser, le plus efficace ?',
+  });
+  // Vrai ou faux sans question propre : la première affirmation
+  const tf = discoveryLesson('crypto').screens.find((s) => s.kind === 'true_false');
+  assert.equal(missedItem(tf).label, 'Vrai ou faux');
+  assert.ok(missedItem(tf).text.length > 0);
 });
 
 test('bilan : la phrase à retenir des leçons découvertes est le déclic du document', () => {

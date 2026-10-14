@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -28,9 +28,11 @@ import {
 import { useTheme } from '@/src/context/ThemeContext';
 import { trueFalsePassed, trueFalseReaction, trueFalseResults, trueFalseScore } from '@/src/lesson/interactive';
 import type { TrueFalseScreen as TrueFalseModel } from '@/src/lesson/model';
+import { safeGesture } from '@/src/utils/gestureSafety';
 import { error as errorHaptic, success as successHaptic } from '@/src/utils/haptics';
 import RoundChoice from '../player/RoundChoice';
 import ScreenIntro from '../player/ScreenIntro';
+import { useScrollLock } from '../player/ScrollLock';
 import StepDots, { StepState } from '../player/StepDots';
 import { LessonScreenProps } from '../types';
 
@@ -39,8 +41,10 @@ const SWIPE_RATIO = 1 / 3;
 const SWIPE_VELOCITY = 800;
 const MAX_TILT = 12; // degrés
 const REST_TILT = -1.5;
-// La carte sort de l'écran avant de revenir montrer son verdict
+// La carte sort de l'écran avant de revenir montrer son verdict (300 ms) ;
+// réglage calculé une fois, hors du geste
 const FLY_OUT = 1.2;
+const FLY = timing(motion.screen);
 const CARD_HEIGHT = 236;
 const CARD_DEPTH = 8;
 const STATEMENT_SIZE = 27;
@@ -75,6 +79,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
   const { width } = useWindowDimensions();
+  const lockScroll = useScrollLock();
   const { cards } = screen;
 
   const [answers, setAnswers] = useState<boolean[]>([]);
@@ -152,7 +157,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
       return;
     }
     x.set(
-      withTiming((value ? 1 : -1) * width * FLY_OUT, timing(motion.screen), (finished) => {
+      withTiming((value ? 1 : -1) * width * FLY_OUT, FLY, (finished) => {
         'worklet';
         if (finished) scheduleOnRN(record, value);
       })
@@ -163,36 +168,64 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
     if (phase === 'verdict') advance(answers);
   };
 
+  // Carte remise au centre si un geste échoue
+  const recover = () => {
+    'worklet';
+    x.set(0);
+  };
+
   const pan = Gesture.Pan()
     .enabled(phase === 'ask' && !answered)
     .activeOffsetX([-12, 12])
     .failOffsetY([-14, 14])
-    .onUpdate((e) => {
-      x.set(e.translationX);
-    })
-    .onEnd((e) => {
-      const toRight = e.translationX > threshold || e.velocityX > SWIPE_VELOCITY;
-      const toLeft = e.translationX < -threshold || e.velocityX < -SWIPE_VELOCITY;
-      if (!toRight && !toLeft) {
-        x.set(reduced ? 0 : withSpring(0, springs.press));
-        return;
-      }
-      if (reduced) {
-        scheduleOnRN(record, toRight);
-        return;
-      }
-      x.set(
-        withTiming((toRight ? 1 : -1) * width * FLY_OUT, timing(motion.screen), (finished) => {
-          'worklet';
-          if (finished) scheduleOnRN(record, toRight);
-        })
-      );
-    });
+    // Pendant le balayage, la page ne défile pas
+    .onStart(
+      safeGesture(() => {
+        'worklet';
+        scheduleOnRN(lockScroll, true);
+      })
+    )
+    .onFinalize(
+      safeGesture(() => {
+        'worklet';
+        scheduleOnRN(lockScroll, false);
+      })
+    )
+    .onUpdate(
+      safeGesture((e: { translationX: number }) => {
+        'worklet';
+        x.set(e.translationX);
+      }, recover)
+    )
+    .onEnd(
+      safeGesture((e: { translationX: number; velocityX: number }) => {
+        'worklet';
+        const toRight = e.translationX > threshold || e.velocityX > SWIPE_VELOCITY;
+        const toLeft = e.translationX < -threshold || e.velocityX < -SWIPE_VELOCITY;
+        if (!toRight && !toLeft) {
+          x.set(reduced ? 0 : withSpring(0, springs.press));
+          return;
+        }
+        if (reduced) {
+          scheduleOnRN(record, toRight);
+          return;
+        }
+        x.set(
+          withTiming((toRight ? 1 : -1) * width * FLY_OUT, FLY, (finished) => {
+            'worklet';
+            if (finished) scheduleOnRN(record, toRight);
+          })
+        );
+      }, recover)
+    );
   const tap = Gesture.Tap()
     .enabled(phase === 'verdict')
-    .onEnd(() => {
-      scheduleOnRN(skip);
-    });
+    .onEnd(
+      safeGesture(() => {
+        'worklet';
+        scheduleOnRN(skip);
+      })
+    );
   const gesture = Gesture.Race(pan, tap);
 
   const cardStyle = useAnimatedStyle(() => {
@@ -227,7 +260,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
             <AppText style={[styles.hintText, { color: colors.error }]}>FAUX</AppText>
           </View>
 
-          <GestureHandlerRootView style={styles.pile}>
+          <View style={styles.pile}>
             {/* Cartes du dessous, plus sombres */}
             {BACK_TILTS.slice(0, behind).map((deg, i) => (
               <View
@@ -245,7 +278,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
               />
             ))}
 
-            <GestureDetector gesture={gesture}>
+            <GestureDetector gesture={gesture} touchAction="pan-y">
               <Animated.View
                 style={cardStyle}
                 accessible
@@ -306,7 +339,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
                 </View>
               </Animated.View>
             </GestureDetector>
-          </GestureHandlerRootView>
+          </View>
 
           <View style={styles.hint} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
             <Ionicons name="chevron-forward" size={18} color={colors.success} />

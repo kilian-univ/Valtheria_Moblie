@@ -304,12 +304,6 @@ export function guestSubtitle(input: { allDone: boolean; doneToday: boolean }): 
   return input.doneToday ? 'Reviens demain pour garder ta série.' : 'Une minute pour comprendre l’argent.';
 }
 
-// Titre de la fin de leçon : le prénom s'il existe
-export function endTitle(firstName: string, firstLesson: boolean): string {
-  const name = firstName.trim();
-  if (name) return `Bravo, ${name} !`;
-  return firstLesson ? 'Première leçon terminée !' : 'Leçon terminée !';
-}
 
 // Bulle de Val à l'étape de l'objectif
 export function objectiveValLine(firstName: string): string {
