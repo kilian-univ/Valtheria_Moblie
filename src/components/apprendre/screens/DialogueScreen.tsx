@@ -18,7 +18,7 @@ import { fonts, moduleColors, palette, radius, space, titleLetterSpacing, withOp
 import { useTheme } from '@/src/context/ThemeContext';
 import type { DialogueScreen as DialogueModel } from '@/src/lesson/model';
 import { grade } from '@/src/utils/grade';
-import { select } from '@/src/utils/haptics';
+import { feedback } from '@/src/utils/feedback';
 import Cascade from '../player/Cascade';
 import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
@@ -90,7 +90,7 @@ export default function DialogueScreen({ screen, answered, onDraftChange, enterD
 
   const send = (id: string) => {
     if (chosen || answered || !ready) return;
-    select();
+    feedback.pick();
     setChosen(id);
   };
 

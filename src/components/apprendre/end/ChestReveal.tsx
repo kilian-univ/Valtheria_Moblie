@@ -23,7 +23,7 @@ import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constan
 import { useTheme } from '@/src/context/ThemeContext';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { formatInteger } from '@/src/utils/format';
-import { celebrate, select } from '@/src/utils/haptics';
+import { feedback } from '@/src/utils/feedback';
 import { CHEST_RARITIES, ChestRarity, chestEvolution, chestLabel } from '@/src/utils/lessonPlayer';
 
 export const CHEST_IMAGES: Record<ChestRarity, ImageSourcePropType> = {
@@ -117,7 +117,8 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
     const timers = steps.slice(1).map((_, i) =>
       setTimeout(() => {
         setStage(i + 1);
-        select();
+        // Un peu plus aigu à chaque palier
+        feedback.chestStep(i + 1);
         const quarter = timing(motion.tap / 2);
         tilt.set(
           withSequence(
@@ -144,7 +145,7 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
     if (phase === 'open') return;
     setStage(steps.length - 1);
     setPhase('open');
-    celebrate();
+    feedback.chestOpen();
     breath.set(withTiming(1, timing(motion.state)));
     tilt.set(withTiming(0, timing(motion.state)));
     opened.set(withTiming(1, timing(motion.state)));
@@ -152,6 +153,20 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
     flash.set(withSequence(withTiming(FLASH_PEAK, timing(motion.state)), withTiming(0, timing(motion.max))));
     rays.set(withTiming(1, timing(motion.max)));
   };
+
+  // Animations réduites : coffre déjà ouvert, son de l'ouverture à l'arrivée
+  useEffect(() => {
+    if (reduced) feedback.chestOpen();
+    // Une seule fois, à l'arrivée
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Les Vals défilent (et tintent) une fois le coffre ouvert
+  useEffect(() => {
+    if (phase !== 'open' || amount <= 0) return;
+    const timer = setTimeout(feedback.coins, reduced ? 0 : motion.sheet);
+    return () => clearTimeout(timer);
+  }, [phase, amount, reduced]);
 
   // Le montant défile une fois le coffre ouvert
   const shownAmount = Math.round(useCountUp(phase === 'open' ? amount : 0, { delay: reduced ? 0 : motion.sheet }));

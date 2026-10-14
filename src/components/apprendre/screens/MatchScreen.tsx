@@ -15,7 +15,7 @@ import { fonts, palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { isMatch, matchPassed } from '@/src/lesson/interactive';
 import type { MatchScreen as MatchModel } from '@/src/lesson/model';
-import { error as errorHaptic, select, success as successHaptic } from '@/src/utils/haptics';
+import { feedback } from '@/src/utils/feedback';
 import ScreenIntro from '../player/ScreenIntro';
 import StepDots from '../player/StepDots';
 import { LessonScreenProps } from '../types';
@@ -68,7 +68,7 @@ export default function MatchScreen({ screen, answered, onDraftChange }: LessonS
   const tap = (side: Side, id: string) => {
     if (answered || found.includes(id) || wrong) return;
     if (!picked || picked.side === side) {
-      select();
+      feedback.pick();
       setPicked(picked?.side === side && picked.id === id ? null : { side, id });
       return;
     }
@@ -76,10 +76,10 @@ export default function MatchScreen({ screen, answered, onDraftChange }: LessonS
     const right = side === 'right' ? id : picked.id;
     setPicked(null);
     if (isMatch(left, right)) {
-      successHaptic();
+      feedback.right();
       setFound((prev) => [...prev, left]);
     } else {
-      errorHaptic();
+      feedback.wrong();
       setErrors((n) => n + 1);
       setWrong({ left, right });
       timer.current = setTimeout(() => setWrong(null), WRONG_SHOWN);

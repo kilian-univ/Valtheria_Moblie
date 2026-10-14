@@ -26,6 +26,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { clearLastProfile } from '@/src/state/lastProfile';
 import { ProfileSkeleton } from '@/src/components/common/ScreenSkeletons';
 import ReminderSettingRow from '@/src/components/onboarding/ReminderSettingRow';
+import SoundSettingRow from '@/src/components/common/SoundSettingRow';
 
 export default function ProfileScreen() {
   const { user, isLoading, logout, exportUser, deleteAccount, updateUser } = useApi();
@@ -312,6 +313,11 @@ export default function ProfileScreen() {
           <Text style={profile_styles.sectionTitle}>Préférences</Text>
           <View style={profile_styles.card}>
             <ReminderSettingRow
+              rowStyle={profile_styles.row}
+              leftStyle={profile_styles.rowLeft}
+              labelStyle={profile_styles.rowLabel}
+            />
+            <SoundSettingRow
               rowStyle={profile_styles.row}
               leftStyle={profile_styles.rowLeft}
               labelStyle={profile_styles.rowLabel}

@@ -10,6 +10,7 @@ import ValFullBody from '@/src/components/common/ValFullBody';
 import { DECOR_IMAGES } from '@/src/constants/decorImages';
 import { ModuleColors, palette, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import { feedback } from '@/src/utils/feedback';
 import { celebrate, success, warning } from '@/src/utils/haptics';
 import { LessonView } from '@/src/utils/learning';
 import {
@@ -126,7 +127,10 @@ export default function ModulePath({
   useEffect(() => {
     if (!unlock) return;
     success();
-    const timer = setTimeout(celebrate, UNLOCK_DELAY);
+    const timer = setTimeout(() => {
+      celebrate();
+      feedback.unlock();
+    }, UNLOCK_DELAY);
     return () => clearTimeout(timer);
   }, [unlock]);
 

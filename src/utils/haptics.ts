@@ -1,6 +1,5 @@
 import * as Haptics from 'expo-haptics';
 
-import { playSound } from './sound';
 
 // Vibrations de l'app. Une seule par action de l'utilisateur, toujours en plus
 // d'un retour visuel (beaucoup d'appareils ont la vibration coupée). Toujours
@@ -31,33 +30,27 @@ function safely(run: () => Promise<void>): void {
 
 // Appui sur une action principale
 export function tap(): void {
-  playSound('tap');
   safely(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 }
 
 // Changement de sélection (onglet segmenté, option, cran de curseur)
 export function select(): void {
-  playSound('select');
   safely(() => Haptics.selectionAsync());
 }
 
 export function success(): void {
-  playSound('success');
   safely(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
 }
 
 export function error(): void {
-  playSound('error');
   safely(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
 }
 
 export function warning(): void {
-  playSound('warning');
   safely(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
 }
 
 // Moment rare : leçon terminée, objectif atteint
 export function celebrate(): void {
-  playSound('celebrate');
   safely(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
 }

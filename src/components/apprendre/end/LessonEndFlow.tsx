@@ -19,6 +19,8 @@ import MedalCelebration from '@/src/components/common/MedalCelebration';
 import StreakFlame from '@/src/components/common/StreakFlame';
 import { useApi } from '@/src/context/ApiContext';
 import { useOnboarding } from '@/src/state/onboarding';
+import { feedback } from '@/src/utils/feedback';
+import { preloadSounds } from '@/src/utils/sound';
 import { streakRewardsStore } from '@/src/state/streakRewards';
 import { type Medal, medalToCelebrate } from '@/src/utils/streakRewards';
 import {
@@ -76,6 +78,10 @@ export default function LessonEndFlow({
 }: LessonEndFlowProps) {
   const { user } = useApi();
   const [baseSteps] = useState<EndStep[]>(() => endSteps(result, streakBefore));
+  // Sons préchargés à l'ouverture de la cérémonie de fin
+  useEffect(() => {
+    preloadSounds();
+  }, []);
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
   const gain = streakGain(streakBefore, result.user?.streak);
@@ -219,6 +225,8 @@ function StreakStep({ from, to, onNext }: { from: number; to: number; onNext: ()
   const shown = Math.round(useCountUp(to, { from, delay: COUNT_START }));
 
   useEffect(() => {
+    // La série augmente : la flamme grandit, avec son son
+    feedback.streakUp();
     if (!reduced) scale.set(withSpring(1, springs.celebrate));
   }, [reduced, scale]);
 

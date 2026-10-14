@@ -6,6 +6,8 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withDelay,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -29,9 +31,10 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { trueFalsePassed, trueFalseReaction, trueFalseResults, trueFalseScore } from '@/src/lesson/interactive';
 import type { TrueFalseScreen as TrueFalseModel } from '@/src/lesson/model';
 import { safeGesture } from '@/src/utils/gestureSafety';
-import { error as errorHaptic, success as successHaptic } from '@/src/utils/haptics';
+import { feedback } from '@/src/utils/feedback';
 import RoundChoice from '../player/RoundChoice';
 import ScreenIntro from '../player/ScreenIntro';
+import { useEdgeFlash } from '../player/EdgeFlash';
 import { useScrollLock } from '../player/ScrollLock';
 import StepDots, { StepState } from '../player/StepDots';
 import { LessonScreenProps } from '../types';
@@ -48,7 +51,12 @@ const FLY = timing(motion.screen);
 const CARD_HEIGHT = 236;
 const CARD_DEPTH = 8;
 const STATEMENT_SIZE = 27;
-const VERDICT_STATEMENT_SIZE = 21;
+// Verdict : grande icône dans un cercle, « Bien vu ! » ou « Raté ! »
+const VERDICT_ICON = 64;
+const VERDICT_BADGE = 84;
+const VERDICT_TITLE = 30;
+const BUMP = 14;
+const SHAKE = 8;
 const TINT_MAX = 0.18;
 const STAMP_TILT = 12;
 const ARRIVE_FROM = 0.94;
@@ -80,6 +88,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   const reduced = useReducedMotion();
   const { width } = useWindowDimensions();
   const lockScroll = useScrollLock();
+  const flashEdges = useEdgeFlash();
   const { cards } = screen;
 
   const [answers, setAnswers] = useState<boolean[]>([]);
@@ -96,6 +105,9 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   const tilt = useSharedValue(reduced ? 0 : REST_TILT);
   const arrive = useSharedValue(1);
   const choices = useSharedValue(1);
+  // Verdict : petit saut si c'est juste, tremblement si c'est faux
+  const bump = useSharedValue(0);
+  const shake = useSharedValue(0);
 
   // Carte suivante, ou fin de la pile : le lecteur ouvre la feuille
   const advance = (given: boolean[]) => {
@@ -130,9 +142,25 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
     const ok = value === cards[i].answer;
     setAnswers(given);
     setPhase('verdict');
-    if (ok) successHaptic();
-    else errorHaptic();
+    // Premier signal : as-tu eu bon ? Bords de l'écran, vibration, son
+    flashEdges(ok);
+    if (ok) feedback.right();
+    else feedback.wrong();
     setVal(trueFalseReaction(ok, i));
+    if (!reduced) {
+      // Une fois la carte revenue au centre
+      if (ok) {
+        bump.set(withDelay(motion.screen, withSequence(withTiming(-BUMP, timing(motion.tap)), withSpring(0, springs.celebrate))));
+      } else {
+        const quarter = timing(motion.shake / 4);
+        shake.set(
+          withDelay(
+            motion.screen,
+            withSequence(withTiming(SHAKE, quarter), withTiming(-SHAKE, quarter), withTiming(SHAKE / 2, quarter), withTiming(0, quarter))
+          )
+        );
+      }
+    }
     live.set(0);
     choices.set(reduced ? opacityDisabled : withTiming(opacityDisabled, timing(motion.state)));
     // Elle revient au centre, droite, pour montrer son verdict
@@ -152,6 +180,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   // Bouton : la carte part du bon côté, comme balayée
   const send = (value: boolean) => {
     if (phase !== 'ask' || answered) return;
+    feedback.swipe();
     if (reduced) {
       record(value);
       return;
@@ -163,6 +192,8 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
       })
     );
   };
+
+  const playSwipe = () => feedback.swipe();
 
   const skip = () => {
     if (phase === 'verdict') advance(answers);
@@ -206,6 +237,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
           x.set(reduced ? 0 : withSpring(0, springs.press));
           return;
         }
+        scheduleOnRN(playSwipe);
         if (reduced) {
           scheduleOnRN(record, toRight);
           return;
@@ -231,7 +263,14 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   const cardStyle = useAnimatedStyle(() => {
     const p = Math.max(-1, Math.min(1, x.get() / threshold));
     const rotate = reduced ? 0 : Math.max(-MAX_TILT, Math.min(MAX_TILT, tilt.get() + p * MAX_TILT));
-    return { transform: [{ translateX: x.get() }, { rotate: `${rotate}deg` }, { scale: arrive.get() }] };
+    return {
+      transform: [
+        { translateX: x.get() + shake.get() },
+        { translateY: bump.get() },
+        { rotate: `${rotate}deg` },
+        { scale: arrive.get() },
+      ],
+    };
   });
   const trueTint = useAnimatedStyle(() => ({ opacity: live.get() * Math.max(0, Math.min(1, x.get() / threshold)) * TINT_MAX }));
   const falseTint = useAnimatedStyle(() => ({ opacity: live.get() * Math.max(0, Math.min(1, -x.get() / threshold)) * TINT_MAX }));
@@ -243,8 +282,11 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   const steps: StepState[] = cards.map((_, i) =>
     i < answers.length ? (results[i] ? 'right' : 'wrong') : i === answers.length ? 'current' : 'todo'
   );
+  // Verdict : toute la carte prend la couleur de TA réussite (fond plein
+  // assombri, texte lisible) ; la vérité de l'affirmation vient en texte
   const verdictInk = right === null ? colors.goldRing : right ? colors.success : colors.error;
-  const verdictTint = right === null ? 'transparent' : right ? colors.successSoft : colors.dangerSoft;
+  const verdictFace = right === null ? colors.optionFace : right ? colors.successSheet : colors.dangerSheet;
+  const truth = `${card.answer ? 'C’est vrai' : 'C’est faux'}${card.explanation ? ` : ${card.explanation}` : '.'}`;
   const behind = Math.min(BACK_TILTS.length, cards.length - 1 - Math.max(index, 0));
 
   return (
@@ -283,9 +325,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
                 style={cardStyle}
                 accessible
                 accessibilityLabel={
-                  right === null
-                    ? card.statement
-                    : `${card.answer ? 'C’est vrai' : 'C’est faux'}. ${card.statement}. ${card.explanation ?? ''}`
+                  right === null ? card.statement : `${right ? 'Bien vu !' : 'Raté !'} ${truth}`
                 }
                 accessibilityLiveRegion="polite"
               >
@@ -298,9 +338,8 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
                     },
                   ]}
                 />
-                <View style={[styles.card, { backgroundColor: colors.optionFace, borderColor: verdictInk }]}>
+                <View style={[styles.card, { backgroundColor: verdictFace, borderColor: verdictInk }]}>
                   <Sheen spots={[{ cx: 0.3, cy: 0, r: 0.55, color: colors.nodeHighlight, opacity: 0.08 }]} />
-                  <View style={[StyleSheet.absoluteFill, { backgroundColor: verdictTint }]} />
                   <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.success }, trueTint]} />
                   <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.error }, falseTint]} />
 
@@ -318,22 +357,15 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
                     </>
                   ) : (
                     <View style={styles.verdict}>
-                      {/* La pastille dit la vérité (vert : vrai, rouge : faux) ;
-                          le bord de la carte, ta réussite */}
-                      <View style={[styles.verdictPill, { backgroundColor: card.answer ? colors.success : colors.error }]}>
-                        <Ionicons name={card.answer ? 'checkmark' : 'close'} size={14} color={colors.onGold} />
-                        <AppText style={[styles.verdictPillText, { color: colors.onGold }]}>
-                          {card.answer ? 'C’EST VRAI' : 'C’EST FAUX'}
-                        </AppText>
+                      <View style={[styles.verdictBadge, { backgroundColor: verdictInk }]}>
+                        <Ionicons name={right ? 'checkmark' : 'close'} size={VERDICT_ICON} color={colors.onGold} />
                       </View>
-                      <AppText maxFontSizeMultiplier={1.3} style={[styles.statementDim, { color: colors.subtitle }]}>
-                        {card.statement}
+                      <AppText maxFontSizeMultiplier={1.3} style={styles.verdictTitle}>
+                        {right ? 'Bien vu\u00A0!' : 'Raté\u00A0!'}
                       </AppText>
-                      {card.explanation ? (
-                        <AppText variant="bodyMedium" style={styles.explanation}>
-                          {card.explanation}
-                        </AppText>
-                      ) : null}
+                      <AppText variant="body" maxFontSizeMultiplier={1.4} numberOfLines={3} style={styles.truth}>
+                        {truth}
+                      </AppText>
                     </View>
                   )}
                 </View>
@@ -499,33 +531,23 @@ const styles = StyleSheet.create({
   },
   verdict: {
     alignItems: 'center',
-    gap: space[3],
+    gap: space[2],
   },
-  verdictPill: {
-    flexDirection: 'row',
+  verdictBadge: {
+    width: VERDICT_BADGE,
+    height: VERDICT_BADGE,
+    borderRadius: VERDICT_BADGE / 2,
     alignItems: 'center',
-    gap: space[1] + 2,
-    height: 30,
-    paddingHorizontal: space[3],
-    borderRadius: radius.pill,
+    justifyContent: 'center',
   },
-  verdictPillText: {
-    fontFamily: fonts.bodyExtraBold,
-    fontSize: 13,
-    lineHeight: 16,
-    letterSpacing: 1,
-  },
-  statementDim: {
+  verdictTitle: {
     fontFamily: fonts.title,
-    fontSize: VERDICT_STATEMENT_SIZE,
-    lineHeight: VERDICT_STATEMENT_SIZE + 6,
-    letterSpacing: titleLetterSpacing(VERDICT_STATEMENT_SIZE),
+    fontSize: VERDICT_TITLE,
+    lineHeight: VERDICT_TITLE + 6,
+    letterSpacing: titleLetterSpacing(VERDICT_TITLE),
     textAlign: 'center',
   },
-  explanation: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 17,
-    lineHeight: 24,
+  truth: {
     textAlign: 'center',
   },
   choices: {

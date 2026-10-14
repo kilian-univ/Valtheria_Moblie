@@ -28,7 +28,7 @@ export function trueFalseScore(screen: Pick<TrueFalseScreen, 'cards'>, answers: 
 
 // Réaction de Val après une carte (le verdict de la carte suit sur elle)
 const TRUE_FALSE_RIGHT: ValLine[] = [
-  { line: 'Bien vu !', mood: 'celebrant' },
+  { line: 'Excellent !', mood: 'celebrant' },
   { line: 'Exactement.', mood: 'fier' },
   { line: 'Tout juste, la suivante.', mood: 'complice' },
 ];

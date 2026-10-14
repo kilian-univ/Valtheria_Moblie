@@ -7,7 +7,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { formatAmount, formatVariation } from '@/src/utils/format';
 import type { DocumentLine, DocumentScreen as DocumentModel } from '@/src/lesson/model';
 import { grade } from '@/src/utils/grade';
-import { select } from '@/src/utils/haptics';
+import { feedback } from '@/src/utils/feedback';
 import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
 
@@ -75,7 +75,7 @@ export default function DocumentScreen({
 
   const toggle = (id: string) => {
     if (answered) return;
-    select();
+    feedback.pick();
     if (mode === 'pick') {
       setSelected([id]);
       return;

@@ -20,6 +20,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { moveItem, orderCorrect, orderResults } from '@/src/lesson/interactive';
 import type { OrderScreen as OrderModel } from '@/src/lesson/model';
 import { safeGesture } from '@/src/utils/gestureSafety';
+import { feedback } from '@/src/utils/feedback';
 import { select } from '@/src/utils/haptics';
 import ScreenIntro from '../player/ScreenIntro';
 import { useScrollLock } from '../player/ScrollLock';
@@ -145,7 +146,7 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
   const grab = (id: string, index: number) => {
     if (answered) return;
     lockScroll(true);
-    select();
+    feedback.pick();
     setLanding(null);
     setDrag({ id, from: index });
     setTarget(index);

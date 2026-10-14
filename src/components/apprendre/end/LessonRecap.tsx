@@ -11,7 +11,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { REFERENCE_SCREEN_HEIGHT } from '@/src/utils/fit';
 import { formatInteger } from '@/src/utils/format';
-import { celebrate } from '@/src/utils/haptics';
+import { feedback } from '@/src/utils/feedback';
 import { precisionCaption, precisionPercent, streakDaysCaption } from '@/src/utils/lessonPlayer';
 import Cascade from '../player/Cascade';
 import CelebrationScene from './CelebrationScene';
@@ -80,7 +80,7 @@ export default function LessonRecap({
   const sceneHeight = Math.round(Math.min(SCENE_MAX, Math.max(SCENE_MIN, height * share)));
 
   useEffect(() => {
-    celebrate();
+    feedback.lessonComplete();
   }, []);
 
   const tiles: TileProps[] = [];

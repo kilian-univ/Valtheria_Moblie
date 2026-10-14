@@ -35,7 +35,9 @@ import { useCountUp } from '@/src/hooks/useCountUp';
 import { discoveryStreak, endActions, topicDots } from '@/src/utils/discoveryHome';
 import { REFERENCE_SCREEN_HEIGHT } from '@/src/utils/fit';
 import { formatInteger } from '@/src/utils/format';
+import { feedback } from '@/src/utils/feedback';
 import { celebrate } from '@/src/utils/haptics';
+import { preloadSounds } from '@/src/utils/sound';
 import { type Medal, MEDALS, weekDays, type WeekDay } from '@/src/utils/streakRewards';
 import { isSignupClosed } from '@/src/utils/onboarding';
 import { universeTint } from '@/src/utils/universeTint';
@@ -84,6 +86,10 @@ export default function DiscoveryEndScreen() {
     ].filter((x) => x !== null)
   );
   const next = () => setSteps((list) => list.slice(1));
+  // Sons préchargés à l'ouverture de la cérémonie de fin
+  useEffect(() => {
+    preloadSounds();
+  }, []);
   if (steps[0] === 'recap') return <RecapStep onDone={next} />;
   if (steps[0] === 'six') return <SixCelebration onDone={next} />;
   if (steps[0] === 'medal' && medal) return <MedalStep medal={medal} freezeGained={params.gel === '1'} onDone={next} />;
@@ -183,6 +189,10 @@ function EndContent() {
   }, []);
   useEffect(() => {
     celebrate();
+    // La série augmente : la flamme grandit, avec son son
+    if (streakFrom < streak) feedback.streakUp();
+    // Une seule fois, à l'arrivée
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const actions = endActions(closed, reminderOn);
   const { universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);

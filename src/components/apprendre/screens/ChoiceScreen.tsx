@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { space } from '@/src/constants/style/Style';
 import type { ChoiceScreen as ChoiceModel } from '@/src/lesson/model';
 import { grade } from '@/src/utils/grade';
-import { select } from '@/src/utils/haptics';
+import { feedback } from '@/src/utils/feedback';
 import ReliefOption, { OptionState } from '../player/ReliefOption';
 import ScreenIntro from '../player/ScreenIntro';
 import { LessonScreenProps } from '../types';
@@ -36,7 +36,7 @@ export default function ChoiceScreen({ screen, answered, onDraftChange }: Lesson
 
   const toggle = (optionId: string) => {
     if (answered) return;
-    select();
+    feedback.pick();
     if (multiple) {
       setSelectedIds((prev) => (prev.includes(optionId) ? prev.filter((id) => id !== optionId) : [...prev, optionId]));
     } else {

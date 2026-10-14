@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay
 
 import { springs } from '@/src/constants/motion';
 import { space } from '@/src/constants/style/Style';
+import { feedback } from '@/src/utils/feedback';
 import { celebrate } from '@/src/utils/haptics';
 import type { Medal } from '@/src/utils/streakRewards';
 import AppText from './AppText';
@@ -33,6 +34,7 @@ export default function MedalCelebration({ medal, freezeGained = false }: MedalC
 
   useEffect(() => {
     celebrate();
+    feedback.unlock();
     if (reduced) return;
     scale.set(withDelay(ARRIVE_DELAY, withSpring(1, springs.celebrate)));
     rotation.set(withDelay(ARRIVE_DELAY, withSpring(0, springs.celebrate)));

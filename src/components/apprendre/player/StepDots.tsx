@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
 import { palette, radius } from '@/src/constants/style/Style';
@@ -5,6 +6,10 @@ import { useTheme } from '@/src/context/ThemeContext';
 
 const DOT = 8;
 const CURRENT_WIDTH = 22;
+// Répondu : plus grand, avec une coche ou une croix (la couleur n'est
+// jamais le seul signal)
+const DONE = 14;
+const DONE_ICON = 10;
 
 // todo : à venir ; current : en cours (or, plus large) ; right / wrong :
 // répondue (vert ou rouge)
@@ -30,7 +35,19 @@ export default function StepDots({ steps, accessibilityLabel }: StepDotsProps) {
   return (
     <View style={styles.row} accessible accessibilityLabel={accessibilityLabel}>
       {steps.map((state, i) => (
-        <View key={i} style={[styles.dot, state === 'current' && styles.current, { backgroundColor: fill[state] }]} />
+        <View
+          key={i}
+          style={[
+            styles.dot,
+            state === 'current' && styles.current,
+            (state === 'right' || state === 'wrong') && styles.done,
+            { backgroundColor: fill[state] },
+          ]}
+        >
+          {state === 'right' || state === 'wrong' ? (
+            <Ionicons name={state === 'right' ? 'checkmark' : 'close'} size={DONE_ICON} color={colors.onGold} />
+          ) : null}
+        </View>
       ))}
     </View>
   );
@@ -40,6 +57,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: 6,
   },
   dot: {
@@ -49,5 +67,11 @@ const styles = StyleSheet.create({
   },
   current: {
     width: CURRENT_WIDTH,
+  },
+  done: {
+    width: DONE,
+    height: DONE,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
