@@ -33,7 +33,7 @@ import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { getReminderSettings } from '@/src/state/reminder';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { discoveryStreak, endActions, topicDots } from '@/src/utils/discoveryHome';
-import { windowFitHeight } from '@/src/utils/fit';
+import { REFERENCE_SCREEN_HEIGHT } from '@/src/utils/fit';
 import { formatInteger } from '@/src/utils/format';
 import { celebrate } from '@/src/utils/haptics';
 import { type Medal, MEDALS, weekDays, type WeekDay } from '@/src/utils/streakRewards';
@@ -45,9 +45,11 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 
 const VAL_HEIGHT = 170;
 // Grosse flamme de la série, sous une lueur orange ; plus petite sur un
-// écran bas (iPhone SE), jamais sous FLAME_BOX_MIN
+// écran bas (iPhone SE), avec le nombre de jours et des espacements plus
+// serrés : tout tient sans défiler, les boutons ne recouvrent rien
 const FLAME_BOX = 200;
-const FLAME_BOX_MIN = 130;
+const FLAME_BOX_SHORT = 120;
+const DAYS_SIZE_SHORT = 52;
 const FLAME_SHARE = 0.75;
 const DAYS_SIZE = 64;
 const DAY_DOT = 30;
@@ -157,7 +159,8 @@ function EndContent() {
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
   const { height } = useWindowDimensions();
-  const flameBox = windowFitHeight(FLAME_BOX, FLAME_BOX_MIN, height);
+  const short = height < REFERENCE_SCREEN_HEIGHT;
+  const flameBox = short ? FLAME_BOX_SHORT : FLAME_BOX;
   const { state } = useOnboarding();
   const params = useLocalSearchParams<{ objectif?: string; depuis?: string; serie?: string }>();
   const fromHome = params.depuis === 'accueil';
@@ -212,7 +215,10 @@ function EndContent() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space[4] }]} bounces={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, short && styles.contentShort, { paddingTop: insets.top + (short ? space[2] : space[4]) }]}
+        bounces={false}
+      >
         {/* La flamme et le nombre de jours */}
         <View style={styles.flameBlock} accessible accessibilityLabel={`${streak} ${streakDaysCaption(streak)}`}>
           <View
@@ -223,7 +229,7 @@ function EndContent() {
             <GoldHalo color={colors.streakGlow} />
             <StreakFlame days={streak} size={Math.round(flameBox * FLAME_SHARE)} ignite growFrom={streakFrom} />
           </View>
-          <AppText maxFontSizeMultiplier={1.2} style={styles.days}>
+          <AppText maxFontSizeMultiplier={1.2} style={[styles.days, short && styles.daysShort]}>
             {formatInteger(shownStreak)}
           </AppText>
           <AppText style={[styles.daysLabel, { color: colors.streak }]}>{streakDaysCaption(streak)}</AppText>
@@ -392,6 +398,15 @@ const styles = StyleSheet.create({
   },
   flameBlock: {
     alignItems: 'center',
+  },
+  // Écran bas : espacements resserrés
+  contentShort: {
+    gap: space[3],
+    paddingBottom: space[2],
+  },
+  daysShort: {
+    fontSize: DAYS_SIZE_SHORT,
+    lineHeight: DAYS_SIZE_SHORT + 4,
   },
   flameBox: {
     alignItems: 'center',
