@@ -6,10 +6,12 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import AppText from '@/src/components/common/AppText';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
+import ValBubble from '@/src/components/common/ValBubble';
 import { durations } from '@/src/constants/motion';
 import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { ValLine } from '@/src/lesson/model';
+import { VAL_DIAMETER } from './ScreenIntro';
 
 const ICON_SIZE = 28;
 // Au-delà, le contenu de la feuille défile (le bouton reste visible)
@@ -28,6 +30,8 @@ export type Verdict = {
 type AnswerSheetProps = {
   open: boolean;
   verdict: Verdict;
+  // Val n'est pas affiché en haut de l'écran (dialogue) : sa réplique ici
+  showVal?: boolean;
   onContinue: () => void;
   // Retour Android : le lecteur propose de quitter
   onRequestClose: () => void;
@@ -47,6 +51,7 @@ type AnswerSheetProps = {
 export default function AnswerSheet({
   open,
   verdict,
+  showVal = false,
   onContinue,
   onRequestClose,
   onClosed,
@@ -97,6 +102,9 @@ export default function AnswerSheet({
         {collapsed ? null : (
           <Animated.View entering={FadeIn.duration(durations.fade)} exiting={FadeOut.duration(durations.fade)}>
             <ScrollView style={{ maxHeight: height * MAX_CONTENT_RATIO }} contentContainerStyle={styles.body}>
+              {showVal && verdict.val?.line ? (
+                <ValBubble mood={verdict.val.mood} text={verdict.val.line} diameter={VAL_DIAMETER} />
+              ) : null}
               {!correct && verdict.correctText ? (
                 <AppText variant="bodyMedium">
                   {verdict.correctText.includes(', ') ? 'Les bonnes réponses : ' : 'La bonne réponse : '}

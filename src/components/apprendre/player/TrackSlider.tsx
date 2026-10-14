@@ -27,6 +27,8 @@ const DRAG_SCALE = 1.15;
 // Aller-retour d'invitation, à l'arrivée (px)
 const INVITE_OUT = 14;
 const INVITE_BACK = -6;
+// Butée : le bouton force un peu contre elle, puis revient
+const RESIST = 6;
 
 type TrackSliderProps = {
   value: number;
@@ -47,6 +49,8 @@ type TrackSliderProps = {
   clamp?: (value: number) => number;
   // La butée vient d'être atteinte (une fois par glissement)
   onBlocked?: () => void;
+  // Couleur du remplissage et du bouton (or par défaut)
+  color?: string;
 };
 
 // Curseur en relief du lecteur (pari, simulateur, répartir). On glisse le
@@ -66,12 +70,14 @@ export default function TrackSlider({
   inviteDelay,
   clamp,
   onBlocked,
+  color,
 }: TrackSliderProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
   const { track, thumb } = SIZES[size];
-  const touchHeight = Math.max(thumb + reliefDepth + space[3], sizes.tapMin);
+  // Piste seule (réservoir) : rien à toucher, juste la place de la piste
+  const touchHeight = readOnly ? track + 2 * space[2] : Math.max(thumb + reliefDepth + space[3], sizes.tapMin);
 
   const [trackWidth, setTrackWidth] = useState(0);
   const trackRef = useRef<View>(null);
@@ -117,6 +123,11 @@ export default function TrackSlider({
     if (next !== wanted && !blocked.current) {
       blocked.current = true;
       onBlocked?.();
+      // Petite résistance : le bouton pousse contre la butée et revient
+      if (!reduced) {
+        const push = Math.sign(wanted - next) * RESIST;
+        nudge.set(withSequence(withTiming(push, timing(motion.tap)), withSpring(0, springs.press)));
+      }
     }
     if (next === wanted) blocked.current = false;
     if (next === last.current) return;
@@ -155,6 +166,7 @@ export default function TrackSlider({
     if (e.nativeEvent.actionName === 'decrement') commit(clampToStep(last.current - step));
   };
 
+  const ink = color ?? colors.gold;
   const ratio = max > min ? Math.min(1, Math.max(0, (value - min) / (max - min))) : 0;
   const fillWidth = ratio * trackWidth;
 
@@ -188,7 +200,7 @@ export default function TrackSlider({
     >
       {/* Une piste à 0 % reste visible */}
       <View style={[styles.track, { height: track, backgroundColor: colors.surface }]} pointerEvents="none">
-        <View style={[styles.fill, { width: fillWidth, backgroundColor: readOnly ? colors.subtitle : colors.gold }]} />
+        <View style={[styles.fill, { width: fillWidth, backgroundColor: ink }, readOnly && styles.passive]} />
       </View>
       {readOnly ? null : (
         <Animated.View
@@ -209,7 +221,7 @@ export default function TrackSlider({
             style={[
               styles.round,
               styles.face,
-              { width: thumb, height: thumb, backgroundColor: colors.gold, borderColor: colors.background },
+              { width: thumb, height: thumb, backgroundColor: ink, borderColor: colors.background },
             ]}
           />
         </Animated.View>
@@ -230,6 +242,10 @@ const styles = StyleSheet.create({
   fill: {
     height: '100%',
     borderRadius: radius.pill,
+  },
+  // Pot réservoir : il suit les autres, sans bouton
+  passive: {
+    opacity: 0.6,
   },
   thumb: {
     position: 'absolute',

@@ -1,22 +1,27 @@
 /// <reference types="node" />
 // Lancer : npm test
 // Lecteur de leçon : pastille d'affilée, grands chiffres, révélation, bouton
-// principal (utils/lessonPlayer.ts, utils/fit.ts)
+// principal, écrans interactifs (utils/lessonPlayer.ts, utils/fit.ts,
+// lesson/formulas.ts)
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { discoveryLesson } from '../src/lesson/discovery';
+import { computeFormula, formulaSeries, seriesScale } from '../src/lesson/formulas';
+import { trueFalseReaction } from '../src/lesson/interactive';
 import type { LessonScreen, RevealScreen } from '../src/lesson/model';
 import { normalizeScreen } from '../src/lesson/normalize';
 import { fitFontSize, textWidthEm } from '../src/utils/fit';
 import {
   canContinue,
   estimateVerdict,
+  hasPrimaryButton,
   primaryLabel,
   RUN_MIN,
   revealExtraLines,
   runBadge,
+  showsVal,
 } from '../src/utils/lessonPlayer';
 
 const NBSP = '\u00A0';
@@ -106,4 +111,75 @@ test('pari : « Je parie », inactif tant que le curseur n’a pas bougé', () =
   const choice = discoveryLesson('epargner').screens.find((s) => s.kind === 'choice');
   assert.equal(primaryLabel(choice), 'Valider');
   assert.equal(primaryLabel(reveal('epargner')), 'Continuer');
+});
+
+// ---------------------------------------------------------------------------
+// Lot 2 : vrai ou faux, ordre, associer, répartir, simulateur, dialogue
+// ---------------------------------------------------------------------------
+test('vrai ou faux, associer, dialogue : pas de bouton du bas ; Val absent du dialogue', () => {
+  const kinds = (objective: Parameters<typeof discoveryLesson>[0]) => discoveryLesson(objective).screens;
+  const all = [...kinds('epargner'), ...kinds('crypto'), ...kinds('investir')];
+  for (const s of all) {
+    const auto = s.kind === 'true_false' || s.kind === 'match' || s.kind === 'dialogue';
+    assert.equal(hasPrimaryButton(s), !auto, s.kind);
+    assert.equal(showsVal(s), s.kind !== 'dialogue', s.kind);
+  }
+});
+
+test('vrai ou faux : une réaction courte de Val par carte, toujours la même', () => {
+  assert.equal(trueFalseReaction(true, 0).mood, 'celebrant');
+  assert.equal(trueFalseReaction(false, 1).mood, 'rassurant');
+  assert.deepEqual(trueFalseReaction(true, 4), trueFalseReaction(true, 4));
+});
+
+test('ordre : libellés de l’axe lus dans les données, « Premier » et « Dernier » par défaut', () => {
+  const placements = discoveryLesson('investir').screens.find((s) => s.kind === 'order');
+  assert.ok(placements && placements.kind === 'order');
+  assert.deepEqual(placements.axis, { start: 'Moins risqué', end: 'Plus risqué', risk: true });
+  const plain = normalizeScreen({ type: 'order', payload: { items: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }] } }, 0);
+  assert.ok(plain.kind === 'order');
+  assert.deepEqual(plain.axis, { start: 'Premier', end: 'Dernier', risk: false });
+});
+
+test('dialogue : la ligne de présentation des personnages', () => {
+  const role = (objective: Parameters<typeof discoveryLesson>[0]) => {
+    const s = discoveryLesson(objective).screens.find((x) => x.kind === 'dialogue');
+    return s && s.kind === 'dialogue' ? s.character.role : null;
+  };
+  assert.equal(role('crypto'), 'ton pote, très enthousiaste');
+  assert.equal(role('decouvrir'), 'ton collègue');
+});
+
+test('simulateur : la courbe va du départ au résultat affiché, échelle commune', () => {
+  const params = { monthly: 100, rate: 0.05, end_age: 65 };
+  const at30 = formulaSeries('savings_from_age', 30, params);
+  assert.ok(at30);
+  assert.equal(at30.main.length, 24);
+  assert.equal(at30.main[0], 0);
+  // Dernier point : le capital et le total versé du grand chiffre
+  const result = computeFormula('savings_from_age', 30, params);
+  assert.ok(Math.abs(at30.main[23] - result.capital) < 1e-6);
+  assert.ok(Math.abs(at30.base[23] - result.paid) < 1e-6);
+  // L'argent grossit plus vite que les versements
+  assert.ok(at30.main.every((v, i) => v >= at30.base[i] - 1e-6));
+  assert.equal(at30.from, '30 ans');
+  assert.equal(at30.to, '65 ans');
+  // Échelle : la plus grande valeur sur toute la plage (départ à 20 ans)
+  const scale = seriesScale('savings_from_age', 20, 50, params);
+  assert.ok(Math.abs(scale - computeFormula('savings_from_age', 20, params).capital) < 1e-6);
+
+  // Logement : intérêts cumulés selon la durée
+  const loan = formulaSeries('loan_over_years', 25, { capital: 200000, rate: 0.035 });
+  assert.ok(loan);
+  assert.equal(loan.main[0], 0);
+  assert.ok(Math.abs(loan.main[23] - computeFormula('loan_over_years', 25, { capital: 200000, rate: 0.035 }).interest) < 1);
+  assert.ok(Math.abs(loan.base[23] - 200000) < 1);
+  assert.equal(formulaSeries('inconnue', 1, {}), null);
+});
+
+test('simulateur : phrase sous le grand chiffre', () => {
+  const sim = discoveryLesson('investir').screens.find((s) => s.kind === 'simulator');
+  assert.ok(sim && sim.kind === 'simulator');
+  assert.equal(sim.outputs.find((o) => o.key === 'paid')?.caption, 'dont {} versés');
+  assert.equal(sim.outputs.find((o) => o.key === 'capital')?.caption, null);
 });

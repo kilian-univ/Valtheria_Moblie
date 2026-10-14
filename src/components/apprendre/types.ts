@@ -23,6 +23,9 @@ export type AnswerDraft = {
   // Réponse complète sans bouton Valider (dernière carte, dernière paire,
   // réplique choisie) : le lecteur valide aussitôt
   autoSubmit?: boolean;
+  // Temps que l'écran prend pour montrer sa correction (ordre qui se
+  // colore puis se range…) avant que la feuille ne monte ; 200 ms sinon
+  sheetDelay?: number;
 };
 
 // Le lecteur porte le bouton du bas et la feuille de réponse ; l'écran

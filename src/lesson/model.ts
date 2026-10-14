@@ -113,12 +113,17 @@ export type TrueFalseScreen = ScreenBase & {
 
 export type OrderItem = { id: string; text: string };
 
+// Axe vertical à gauche de la liste : libellé du haut, du bas ; risk :
+// vert en haut, rouge en bas (du moins au plus risqué)
+export type OrderAxis = { start: string; end: string; risk: boolean };
+
 // order — remettre dans l'ordre. items : dans l'ordre juste ; start : ordre
 // présenté (ids).
 export type OrderScreen = ScreenBase & {
   kind: 'order';
   items: OrderItem[];
   start: string[];
+  axis: OrderAxis;
 };
 
 export type MatchPair = { id: string; left: string; right: string };
@@ -161,7 +166,9 @@ export type AllocateScreen = ScreenBase & {
   rules: AllocateRule[];
 };
 
-export type SimulatorOutput = { key: string; label: string; unit: string | null; big: boolean };
+// caption : phrase sous le grand chiffre, {} remplacé par la valeur et son
+// unité (« dont {} versés »)
+export type SimulatorOutput = { key: string; label: string; unit: string | null; big: boolean; caption: string | null };
 export type SimulatorRange = { min: number | null; max: number | null; val: ValLine };
 
 // simulator — un curseur et des résultats calculés en direct par une formule

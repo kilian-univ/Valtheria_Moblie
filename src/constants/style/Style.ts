@@ -88,6 +88,9 @@ export const palette = {
     disabledEdge: '#1F1F25',             // sa tranche
     disabledText: 'rgba(242,239,232,0.38)', // son libellé (ivoire à 38 %)
     panel: 'rgba(255,255,255,0.04)',     // encart posé sur le fond (barres d'une révélation)
+    pileBack: '#18181D',                 // cartes sous la pile du vrai ou faux
+    pileBackDeep: '#141418',             // la plus basse
+    chatBubble: '#23232A',               // bulle d'un personnage (dialogue)
     scrim: 'rgba(0,0,0,0.6)',            // voile sous les feuilles et modales
     focusRing: '#C9A84C',                // = gold
     skeletonShine: 'rgba(255,255,255,0.06)', // reflet des squelettes de chargement
@@ -157,6 +160,9 @@ export const palette = {
     disabledEdge: '#CFCED6',
     disabledText: 'rgba(13,13,15,0.38)',
     panel: 'rgba(0,0,0,0.04)',
+    pileBack: '#EEEDF2',
+    pileBackDeep: '#E4E3E8',
+    chatBubble: '#ECEBF0',
     scrim: 'rgba(0,0,0,0.4)',
     focusRing: '#E8B23D',                // = gold
     skeletonShine: 'rgba(0,0,0,0.05)',
@@ -254,6 +260,11 @@ export const motion = {
   max: 500,
   roll: 1000,       // chiffre de révélation qui défile
   stagger: 40,      // décalage entre deux éléments d'une cascade
+  // Attentes (pas des animations)
+  reveal: 80,       // une ligne corrigée de plus (ordre), toutes les 80 ms
+  typing: 600,      // un personnage « écrit » avant chaque message
+  nextCard: 1500,   // la carte suivante du vrai ou faux arrive seule
+  chestStep: 450,   // le coffre monte d'une rareté
 } as const;
 
 // ---------------------------------------------------------------------------

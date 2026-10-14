@@ -41,6 +41,18 @@ export function canContinue(screen: Screen | undefined, hasDraft: boolean): bool
   return screen?.kind === 'simulator' || screen?.kind === 'slider' ? hasDraft : true;
 }
 
+// Écrans sans bouton principal : la réponse part d'elle-même (dernière
+// carte, dernière paire, réplique envoyée)
+export function hasPrimaryButton(screen: Screen | undefined): boolean {
+  return screen?.kind !== 'true_false' && screen?.kind !== 'match' && screen?.kind !== 'dialogue';
+}
+
+// Val pose la question en haut de l'écran, sauf dans un dialogue (le
+// personnage y prend la parole ; Val réagit dans la feuille de réponse)
+export function showsVal(screen: Screen | undefined): boolean {
+  return screen?.kind !== 'dialogue';
+}
+
 // Libellé du bouton principal : « Je parie » sous un pari, « Valider » sous
 // une question notée, « Continuer » ailleurs
 export function primaryLabel(screen: Screen | undefined): string {

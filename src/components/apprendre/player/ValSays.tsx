@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -12,9 +12,12 @@ import Animated, {
 import { AVATAR_FACE, ValBeside, ValPicture } from '@/src/components/common/ValBubble';
 import { motion, springs, timing } from '@/src/constants/motion';
 import type { ValLine, ValMood } from '@/src/lesson/model';
+import { windowFitHeight } from '@/src/utils/fit';
 
-// Buste de Val (cadrage md, fond transparent) à gauche de sa bulle
+// Buste de Val (cadrage md, fond transparent) à gauche de sa bulle ; réduit
+// sur un écran bas (iPhone SE), jamais sous VAL_BUST_MIN
 export const VAL_BUST = 100;
+const VAL_BUST_MIN = 80;
 // Petit bond quand son humeur change
 const BOUNCE_SCALE = 1.06;
 
@@ -31,11 +34,13 @@ type ValSaysProps = {
 // toucher l'affiche d'un coup) ; une nouvelle humeur passe en fondu de
 // 150 ms avec un petit bond.
 export default function ValSays({ line, bubbleDelay, typing }: ValSaysProps) {
+  const { height } = useWindowDimensions();
+  const bust = windowFitHeight(VAL_BUST, VAL_BUST_MIN, height);
   return (
     <ValBeside
-      figure={<ValBust mood={line.mood} />}
-      width={VAL_BUST}
-      height={VAL_BUST}
+      figure={<ValBust mood={line.mood} size={bust} />}
+      width={bust}
+      height={bust}
       face={AVATAR_FACE}
       text={line.line}
       delay={bubbleDelay}
@@ -44,7 +49,7 @@ export default function ValSays({ line, bubbleDelay, typing }: ValSaysProps) {
   );
 }
 
-function ValBust({ mood }: { mood: ValMood }) {
+function ValBust({ mood, size }: { mood: ValMood; size: number }) {
   const reduced = useReducedMotion();
   // Humeur affichée et précédente (fondu de l'une sur l'autre)
   const [shown, setShown] = useState(mood);
@@ -65,10 +70,10 @@ function ValBust({ mood }: { mood: ValMood }) {
   const bounceStyle = useAnimatedStyle(() => ({ transform: [{ scale: bounce.get() }] }));
 
   return (
-    <Animated.View style={[styles.bust, bounceStyle]}>
-      {previous ? <ValPicture mood={previous} frame="md" style={styles.picture} /> : null}
+    <Animated.View style={[{ width: size, height: size }, bounceStyle]}>
+      {previous ? <ValPicture mood={previous} frame="md" style={[styles.picture, { width: size, height: size }]} /> : null}
       <FadeIn key={shown} active={previous !== null}>
-        <ValPicture mood={shown} frame="md" style={styles.picture} />
+        <ValPicture mood={shown} frame="md" style={[styles.picture, { width: size, height: size }]} />
       </FadeIn>
     </Animated.View>
   );
@@ -86,15 +91,9 @@ function FadeIn({ active, children }: { active: boolean; children: ReactNode }) 
 }
 
 const styles = StyleSheet.create({
-  bust: {
-    width: VAL_BUST,
-    height: VAL_BUST,
-  },
   picture: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: VAL_BUST,
-    height: VAL_BUST,
   },
 });

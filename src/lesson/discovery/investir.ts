@@ -61,7 +61,7 @@ export const investir = {
         params: { monthly: 100, rate: 0.05, end_age: 65 },
         outputs: [
           { key: 'capital', label: 'Ton capital à 65 ans', unit: '€', big: true },
-          { key: 'paid', label: 'Total versé', unit: '€' },
+          { key: 'paid', label: 'Total versé', unit: '€', caption: 'dont {} versés' },
         ],
         ranges: [
           { max: 29, line: 'Commencer tôt, c’est le meilleur cadeau à te faire.', mood: 'complice' },
@@ -81,6 +81,7 @@ export const investir = {
         'Le Livret A est garanti par l’État. Le fonds en euros protège ton capital. Un ETF Monde répartit ton argent sur des milliers d’entreprises. Une seule action, c’est tout miser sur un seul nom.',
       payload: {
         question: 'Classe ces placements, du moins risqué au plus risqué.',
+        axis: { start: 'Moins risqué', end: 'Plus risqué', risk: true },
         // Dans l'ordre juste ; start : l'ordre présenté
         items: [
           { id: 'livret', text: 'Livret A' },

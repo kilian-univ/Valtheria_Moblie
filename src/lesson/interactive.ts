@@ -26,6 +26,22 @@ export function trueFalseScore(screen: Pick<TrueFalseScreen, 'cards'>, answers: 
   return trueFalseResults(screen, answers).filter(Boolean).length;
 }
 
+// Réaction de Val après une carte (le verdict de la carte suit sur elle)
+const TRUE_FALSE_RIGHT: ValLine[] = [
+  { line: 'Bien vu !', mood: 'celebrant' },
+  { line: 'Exactement.', mood: 'fier' },
+  { line: 'Tout juste, la suivante.', mood: 'complice' },
+];
+const TRUE_FALSE_WRONG: ValLine[] = [
+  { line: 'Pas grave, retiens bien celle-là.', mood: 'rassurant' },
+  { line: 'Raté, mais maintenant tu sais.', mood: 'rassurant' },
+];
+
+export function trueFalseReaction(correct: boolean, cardIndex: number): ValLine {
+  const lines = correct ? TRUE_FALSE_RIGHT : TRUE_FALSE_WRONG;
+  return lines[Math.abs(cardIndex) % lines.length];
+}
+
 // Réussi : toutes les cartes jouées, et au moins pass bonnes réponses
 export function trueFalsePassed(screen: Pick<TrueFalseScreen, 'cards' | 'pass'>, answers: boolean[]): boolean {
   return answers.length === screen.cards.length && trueFalseScore(screen, answers) >= screen.pass;

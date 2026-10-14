@@ -1,7 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { ReactNode, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
+import { motion, timing } from '@/src/constants/motion';
 import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import {
@@ -14,141 +24,283 @@ import {
   moveAllocation,
 } from '@/src/lesson/interactive';
 import type { AllocateScreen as AllocateModel, ValLine } from '@/src/lesson/model';
-import { formatNumber } from '@/src/utils/format';
+import { formatNumber, withUnit } from '@/src/utils/format';
+import { warning } from '@/src/utils/haptics';
 import ScreenIntro from '../player/ScreenIntro';
 import TrackSlider from '../player/TrackSlider';
 import { LessonScreenProps } from '../types';
 
+const PAY_BAR_HEIGHT = 40;
+const DOT = 10;
+const PERCENT_SIZE = 22;
+// Pourcentage écrit dans un segment de la barre s'il a au moins cette largeur
+const SEGMENT_TEXT_MIN = 40;
+// Pot en cause après « Valider » : deux clignotements doux
+const BLINKS = 2;
+const BLINK_OPACITY = 0.35;
+
 // allocate — répartir un total fixe entre des pots, un curseur chacun. Le pot
-// réservoir absorbe les changements des autres, sans passer sous zéro.
-// Valider : règles de la leçon (screen.rules), réplique de Val du cas.
-// En pourcentages d'une somme (screen.base) : pourcentage en grand, montant
-// en petit dessous. Réponse : { clé du pot: valeur }.
+// réservoir absorbe les changements des autres, sans passer sous zéro : le
+// curseur bute alors (résistance et vibration d'avertissement). En haut, la
+// paie découpée en segments qui bougent en direct. Valider : règles de la
+// leçon (screen.rules) ; le pot en cause clignote, puis la feuille.
+// Réponse : { clé du pot: valeur }.
 export default function AllocateScreen({ screen, answered, onDraftChange }: LessonScreenProps<AllocateModel>) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const { buckets, total, step } = screen;
-  const unit = screen.unit ?? '';
+  const { buckets, total, step, unit } = screen;
   const [values, setValues] = useState(() => initialAllocation(buckets));
+  const [barWidth, setBarWidth] = useState(0);
 
-  const withUnit = useMemo(() => (n: number) => `${formatNumber(n)}${unit ? ` ${unit}` : ''}`, [unit]);
-  const baseUnit = screen.baseUnit ?? '';
-  const amountText = (n: number) => `${formatNumber(allocationAmount(screen, n))}${baseUnit ? ` ${baseUnit}` : ''}`;
+  // Couleurs de la palette des graphiques, une par pot
+  const inks = [colors.chart3, colors.chart4, colors.chart1, colors.chart2, colors.chart5];
+  const inkOf = (i: number) => inks[i % inks.length];
+
   const percent = screen.base !== null;
+  const amountText = (n: number) => withUnit(formatNumber(allocationAmount(screen, n)), screen.baseUnit);
   const templateValues = allocationTemplateValues(screen, values);
+  const { passed, failed } = gradeAllocation(screen, values);
 
   useEffect(() => {
-    const { passed, failed } = gradeAllocation(screen, values);
+    const verdict = gradeAllocation(screen, values);
     const success = screen.val.correct;
-    const val: ValLine | null = passed
+    const val: ValLine | null = verdict.passed
       ? success && { ...success, line: fillTemplate(success.line, allocationTemplateValues(screen, values), (n) => formatNumber(n)) }
-      : (failed?.val ?? screen.val.wrong);
-    onDraftChange({ raw: values, correct: passed, correctText: null, val, explanation: null });
+      : (verdict.failed?.val ?? screen.val.wrong);
+    onDraftChange({
+      raw: values,
+      correct: verdict.passed,
+      correctText: null,
+      val,
+      explanation: null,
+      // Le pot en cause clignote avant la feuille
+      sheetDelay: verdict.passed ? undefined : BLINKS * 2 * motion.state,
+    });
   }, [values, screen, onDraftChange]);
 
   return (
     <View style={styles.wrap}>
-      <ScreenIntro screen={screen} />
+      <ScreenIntro screen={screen} size="md" />
 
-      <View style={styles.buckets}>
-        {buckets.map((b) => {
-          const value = values[b.key] ?? 0;
-          return (
-            <View key={b.key} style={[styles.bucket, { backgroundColor: colors.surface, borderColor: colors.controlBorder }]}>
-              <View style={styles.head}>
-                <View style={styles.titles}>
-                  <AppText variant="bodyMedium">{b.label}</AppText>
-                  {b.hint ? (
-                    <AppText variant="caption" tone="subtitle">
-                      {b.hint}
+      <View style={styles.center}>
+        {/* La paie (ou le total), découpée en un segment par pot */}
+        <View
+          accessible
+          accessibilityLabel={`${percent ? 'Ta paie' : 'Total'} : ${buckets
+            .map((b) => `${b.label} ${withUnit(formatNumber(values[b.key] ?? 0), unit)}`)
+            .join(', ')}`}
+        >
+          <View style={styles.payHead}>
+            <AppText variant="caption" tone="subtitle">
+              {percent ? 'Ta paie' : 'Total'}
+            </AppText>
+            <AppText variant="caption" tone="subtitle" style={styles.tabular}>
+              {percent ? amountText(total) : withUnit(formatNumber(total), unit)}
+            </AppText>
+          </View>
+          <View style={[styles.payBar, { backgroundColor: colors.surface }]} onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}>
+            {buckets.map((b, i) => {
+              const share = (values[b.key] ?? 0) / total;
+              if (share <= 0) return null;
+              return (
+                <View key={b.key} style={[styles.segment, { flex: share, backgroundColor: inkOf(i) }]}>
+                  {share * barWidth >= SEGMENT_TEXT_MIN ? (
+                    <AppText style={[styles.segmentText, { color: colors.onGold }]}>
+                      {withUnit(formatNumber(values[b.key] ?? 0), unit)}
                     </AppText>
                   ) : null}
                 </View>
-                {percent ? (
-                  <View style={styles.percentBlock}>
-                    <AppText maxFontSizeMultiplier={1.4} style={[styles.percent, { color: colors.gold }]}>
-                      {withUnit(value)}
-                    </AppText>
-                    <AppText variant="caption" tone="subtitle" style={styles.amount}>
-                      {amountText(value)}
-                    </AppText>
-                  </View>
-                ) : (
-                  <AppText variant="bodyMedium" tone="gold" style={styles.amount}>
-                    {withUnit(value)}
-                  </AppText>
-                )}
-              </View>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.rows}>
+          {buckets.map((b, i) => (
+            <BucketRow
+              key={b.key}
+              label={b.label}
+              ink={inkOf(i)}
+              value={values[b.key] ?? 0}
+              valueText={withUnit(formatNumber(values[b.key] ?? 0), unit)}
+              amount={percent ? amountText(values[b.key] ?? 0) : null}
+              live={b.live ? fillTemplate(b.live, templateValues, (n) => formatNumber(n)) : null}
+              reservoir={b.reservoir}
+              blink={answered && !passed && failed?.bucket === b.key}
+            >
               <TrackSlider
-                value={value}
+                size="md"
+                color={inkOf(i)}
+                value={values[b.key] ?? 0}
                 min={0}
                 max={total}
                 step={step}
                 readOnly={b.reservoir}
                 disabled={answered}
+                clamp={(wanted) => Math.min(wanted, allocationMax(screen, values, b.key))}
+                onBlocked={warning}
                 onChange={(next) => setValues((prev) => moveAllocation(screen, prev, b.key, next))}
-                accessibilityLabel={b.reservoir ? `${b.label}, s’ajuste tout seul` : b.label}
-                valueText={`${withUnit(value)}${percent ? `, soit ${amountText(value)}` : ''}, au plus ${withUnit(allocationMax(screen, values, b.key))}`}
+                accessibilityLabel={b.reservoir ? `${b.label}, s’ajuste quand tu bouges les autres` : b.label}
+                valueText={`${withUnit(formatNumber(values[b.key] ?? 0), unit)}${
+                  percent ? `, soit ${amountText(values[b.key] ?? 0)}` : ''
+                }, au plus ${withUnit(formatNumber(allocationMax(screen, values, b.key)), unit)}`}
               />
-              {b.reservoir ? (
-                <AppText variant="caption" tone="subtitle">
-                  S’ajuste tout seul
-                </AppText>
-              ) : null}
-              {b.live ? (
-                <AppText variant="callout" tone="gold" accessibilityLiveRegion="polite">
-                  {fillTemplate(b.live, templateValues, (n) => formatNumber(n))}
-                </AppText>
-              ) : null}
-            </View>
-          );
-        })}
+            </BucketRow>
+          ))}
+        </View>
       </View>
-
-      <AppText variant="caption" tone="subtitle" style={styles.center}>
-        Total : {withUnit(total)}{percent ? `, soit ${amountText(total)}` : ''}
-      </AppText>
     </View>
+  );
+}
+
+type BucketRowProps = {
+  label: string;
+  ink: string;
+  value: number;
+  valueText: string;
+  amount: string | null;
+  live: string | null;
+  reservoir: boolean;
+  // Règle non respectée après « Valider »
+  blink: boolean;
+  children: ReactNode;
+};
+
+// Une ligne compacte : pastille de couleur, nom, montant en petit,
+// pourcentage dans la couleur du pot, puis son curseur
+function BucketRow({ label, ink, valueText, amount, live, reservoir, blink, children }: BucketRowProps) {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  const reduced = useReducedMotion();
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    if (!blink || reduced) return;
+    opacity.set(
+      withRepeat(withSequence(withTiming(BLINK_OPACITY, timing(motion.state)), withTiming(1, timing(motion.state))), BLINKS)
+    );
+  }, [blink, reduced, opacity]);
+
+  const blinkStyle = useAnimatedStyle(() => ({ opacity: opacity.get() }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.row,
+        { backgroundColor: colors.panel, borderColor: blink ? colors.error : 'transparent' },
+        blinkStyle,
+      ]}
+    >
+      <View style={styles.rowHead}>
+        <View style={styles.rowName}>
+          <View style={[styles.dot, { backgroundColor: ink }]} />
+          <AppText variant="bodyMedium" style={styles.name}>
+            {label}
+          </AppText>
+          {amount ? (
+            <AppText variant="caption" tone="subtitle" style={styles.tabular}>
+              {amount}
+            </AppText>
+          ) : null}
+          {/* La couleur n'est jamais le seul signal */}
+          {blink ? <Ionicons name="alert-circle" size={18} color={colors.error} accessibilityLabel="Règle non respectée" /> : null}
+        </View>
+        <AppText maxFontSizeMultiplier={1.3} style={[styles.percent, { color: ink }]}>
+          {valueText}
+        </AppText>
+      </View>
+      {children}
+      {reservoir ? (
+        <AppText variant="caption" tone="subtitle">
+          S’ajuste quand tu bouges les autres
+        </AppText>
+      ) : null}
+      {live ? (
+        <AppText variant="callout" tone="gold" style={styles.live} accessibilityLiveRegion="polite">
+          {live}
+        </AppText>
+      ) : null}
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: space[6],
-  },
-  buckets: {
-    gap: space[3],
-  },
-  bucket: {
-    gap: space[1],
-    padding: space[4],
-    borderWidth: 1,
-    borderRadius: radius.option,
-    borderCurve: 'continuous',
-  },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space[3],
-  },
-  titles: {
     flex: 1,
+    gap: space[5],
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: space[4],
+  },
+  payHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: space[1] + 2,
+  },
+  payBar: {
+    height: PAY_BAR_HEIGHT,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    flexDirection: 'row',
     gap: 2,
   },
-  amount: {
+  segment: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentText: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 12,
+    lineHeight: 16,
     fontVariant: ['tabular-nums'],
   },
-  percentBlock: {
-    alignItems: 'flex-end',
+  rows: {
+    gap: space[2] + 2,
+  },
+  row: {
+    paddingHorizontal: space[4],
+    paddingTop: space[2] + 2,
+    paddingBottom: space[1] + 2,
+    borderRadius: radius.card,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+  },
+  rowHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space[3],
+  },
+  rowName: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+  },
+  dot: {
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
+  },
+  name: {
+    fontFamily: fonts.bodySemibold,
+    flexShrink: 1,
   },
   percent: {
     fontFamily: fonts.title,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: titleLetterSpacing(28),
+    fontSize: PERCENT_SIZE,
+    lineHeight: PERCENT_SIZE + 6,
+    letterSpacing: titleLetterSpacing(PERCENT_SIZE),
     fontVariant: ['tabular-nums'],
   },
-  center: {
-    textAlign: 'center',
+  live: {
+    fontFamily: fonts.bodyBold,
+    marginTop: space[1],
+  },
+  tabular: {
+    fontVariant: ['tabular-nums'],
   },
 });

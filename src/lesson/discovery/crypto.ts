@@ -86,7 +86,7 @@ export const crypto = {
         wrong: { line: 'Personne ne sait ce qu’une crypto fera. Mets-y seulement ce que tu peux perdre.', mood: 'rassurant' },
       },
       payload: {
-        character: { name: 'Léo', role: 'un ami' },
+        character: { name: 'Léo', role: 'ton pote, très enthousiaste' },
         messages: ['J’ai trouvé une nouvelle crypto, elle va faire fois 10 cette année. Mets tout ton livret dessus !'],
         replies: [
           { id: 'tout', text: 'Grave, je mets tout.', reaction: 'Euh… et si ça fait comme en 2022 ?' },

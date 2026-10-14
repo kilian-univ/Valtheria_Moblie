@@ -56,6 +56,7 @@ export const decouvrir = {
         'Du coût employeur, on retire les cotisations patronales : c’est le brut. Puis les cotisations salariales : c’est le net à payer. Puis le prélèvement à la source : c’est ce qui te reste.',
       payload: {
         question: 'Classe ces montants, du plus petit au plus grand.',
+        axis: { start: 'Plus petit', end: 'Plus grand' },
         items: [
           { id: 'apres-impot', text: 'Ton net après impôt sur le revenu' },
           { id: 'net', text: 'Ton net à payer' },
@@ -73,7 +74,7 @@ export const decouvrir = {
         wrong: { line: 'C’est ce que beaucoup pensent. En réalité, elles financent ta protection sociale.', mood: 'rassurant' },
       },
       payload: {
-        character: { name: 'Sam', role: 'un collègue' },
+        character: { name: 'Sam', role: 'ton collègue' },
         messages: ['Les cotisations, franchement, c’est de l’argent perdu.'],
         replies: [
           {

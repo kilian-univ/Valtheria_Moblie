@@ -108,7 +108,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - « En France, les gains en crypto ne sont jamais imposés. » Faux : « Quand tu revends avec un gain, il est imposé. »
    - Val, réussi (célébrant) : « Tu en sais plus que la moitié des gens qui en achètent. » Pas réussi (rassurant) : « Rien de grave, la crypto est pleine d'idées reçues. »
 4. **Le dialogue** (nouveau, noté)
-   - Personnage : Léo, un ami.
+   - Personnage : Léo, ton pote, très enthousiaste.
    - Léo : « J'ai trouvé une nouvelle crypto, elle va faire fois 10 cette année. Mets tout ton livret dessus ! »
    - Tes réponses : « Grave, je mets tout. » ; « Je veux bien tenter, mais seulement une petite somme que je peux perdre. » (bonne) ; « Je vais faire un crédit pour en acheter encore plus. »
    - Léo répond, bonne réponse : « Pas bête. Comme ça, même si ça chute, tu dors tranquille. » Mauvaise réponse : « Euh… et si ça fait comme en 2022 ? »
@@ -201,7 +201,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - Explication : « Du coût employeur, on retire les cotisations patronales : c'est le brut. Puis les cotisations salariales : c'est le net à payer. Puis le prélèvement à la source : c'est ce qui te reste. »
    - Val, bonne réponse (fier) : « Tu viens de lire toute une fiche de paie, de haut en bas. » Erreur (rassurant) : « Presque. Pense à tout ce qu'on retire à chaque étape. »
 4. **Le dialogue** (nouveau, noté)
-   - Personnage : Sam, un collègue.
+   - Personnage : Sam, ton collègue.
    - Sam : « Les cotisations, franchement, c'est de l'argent perdu. »
    - Tes réponses : « Elles financent ma retraite, ma santé et le chômage. » (bonne) ; « Oui, ça part à l'État pour rien. » ; « C'est mon employeur qui les garde. »
    - Sam répond, bonne réponse : « Ah ouais, vu comme ça… L'arrêt maladie de l'an dernier, c'était ça ? » Mauvaise réponse : « Ah bon ? Pourtant, quand j'étais au chômage, j'ai bien été payé… »

@@ -57,7 +57,7 @@ export const logement = {
         params: { capital: 200000, rate: 0.035 },
         outputs: [
           { key: 'monthly', label: 'Ta mensualité', unit: '€ par mois', big: true },
-          { key: 'interest', label: 'Coût total des intérêts', unit: '€' },
+          { key: 'interest', label: 'Coût total des intérêts', unit: '€', caption: 'soit {} d’intérêts au total' },
         ],
         ranges: [{ line: 'Plus court, chaque mois pèse plus, mais tu paies beaucoup moins d’intérêts.', mood: 'complice' }],
       },

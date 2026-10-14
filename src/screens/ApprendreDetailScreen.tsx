@@ -35,6 +35,7 @@ import {
   buildResponses,
   canContinue,
   defaultValLine,
+  hasPrimaryButton,
   estimateFor,
   finishedModuleTitle,
   firstTryRun,
@@ -42,6 +43,7 @@ import {
   isGradable,
   LessonResult,
   primaryLabel,
+  showsVal,
   validateHint,
 } from '@/src/utils/lessonPlayer';
 
@@ -358,7 +360,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       setSheetOpen(true);
       if (nextVerdict.correct) successHaptic();
       else errorHaptic();
-    }, SHEET_AFTER_VERDICT);
+    }, draft.sheetDelay ?? SHEET_AFTER_VERDICT);
   };
 
   // Réponse complète sans bouton (dernière carte, dernière paire, réplique
@@ -471,7 +473,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                     <Pill size="badge" label="LEÇON DÉCOUVERTE" accessibilityLabel="Leçon découverte" background={colors.goldSoft} color={colors.gold} />
                   </Cascade>
                 ) : null}
-                {valLine ? (
+                {valLine && showsVal(current) ? (
                   <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.val}>
                     <ValSays
                       line={valLine}
@@ -498,35 +500,34 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
             </Animated.View>
           </View>
 
-          <View style={styles.footer}>
-            {submitError && !verdict ? (
-              <AppText variant="callout" tone="error" accessibilityRole="alert" style={styles.footerError}>
-                {submitError}
-              </AppText>
-            ) : null}
-            {gradable ? (
-              <Button
-                label={primaryLabel(current)}
-                onPress={handleValidate}
-                disabled={!draft || answered}
-                disabledReason={!draft ? validateHint(current) : undefined}
-                silent
-              />
-            ) : (
-              <Button
-                label={submitError ? 'Réessayer' : primaryLabel(current)}
-                onPress={handleContinue}
-                loading={isLast && isSubmitting}
-                disabled={!canContinue(current, draft !== null)}
-                // Le pari dit déjà « Fais glisser pour parier »
-                disabledReason={
-                  current.kind === 'simulator' && !canContinue(current, draft !== null)
-                    ? 'Bouge le curseur pour continuer.'
-                    : undefined
-                }
-              />
-            )}
-          </View>
+          {/* Vrai ou faux, associer, dialogue : la réponse part d'elle-même */}
+          {hasPrimaryButton(current) ? (
+            <View style={styles.footer}>
+              {submitError && !verdict ? (
+                <AppText variant="callout" tone="error" accessibilityRole="alert" style={styles.footerError}>
+                  {submitError}
+                </AppText>
+              ) : null}
+              {gradable ? (
+                <Button
+                  label={primaryLabel(current)}
+                  onPress={handleValidate}
+                  disabled={!draft || answered}
+                  disabledReason={!draft ? validateHint(current) : undefined}
+                  silent
+                />
+              ) : (
+                <Button
+                  label={submitError ? 'Réessayer' : primaryLabel(current)}
+                  onPress={handleContinue}
+                  loading={isLast && isSubmitting}
+                  disabled={!canContinue(current, draft !== null)}
+                  // Pari et simulateur : Val et l'écran disent déjà de
+                  // faire glisser le curseur
+                />
+              )}
+            </View>
+          ) : null}
         </>
       )}
 
@@ -534,6 +535,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
         <AnswerSheet
           open={sheetOpen}
           verdict={verdict}
+          // Dialogue : Val n'est pas en haut de l'écran, il réagit ici
+          showVal={!showsVal(current)}
           onContinue={continueFromSheet}
           onRequestClose={askQuit}
           onClosed={() => setVerdict(null)}

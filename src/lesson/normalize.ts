@@ -248,7 +248,19 @@ export function normalizeScreen(raw: unknown, index: number): LessonScreen {
         .filter((it) => plainText(it.text))
         .map((it, i) => ({ id: idOf(it.id, i), text: plainText(it.text)! }));
       if (items.length < 2) break;
-      return { ...base, kind: 'order', items, start: permutation(p.start, items.map((it) => it.id)) };
+      // Axe facultatif { start, end, risk } ; sans lui : « Premier », « Dernier »
+      const axis = isRecord(p.axis) ? p.axis : {};
+      return {
+        ...base,
+        kind: 'order',
+        items,
+        start: permutation(p.start, items.map((it) => it.id)),
+        axis: {
+          start: plainText(axis.start) ?? 'Premier',
+          end: plainText(axis.end) ?? 'Dernier',
+          risk: axis.risk === true,
+        },
+      };
     }
 
     // { pairs: [{ id, left, right }], right_order: [ids], max_errors }
@@ -315,7 +327,13 @@ export function normalizeScreen(raw: unknown, index: number): LessonScreen {
       }
       const outputs: SimulatorOutput[] = records(p.outputs)
         .filter((o) => typeof o.key === 'string' && plainText(o.label))
-        .map((o) => ({ key: o.key, label: plainText(o.label)!, unit: plainText(o.unit), big: o.big === true }));
+        .map((o) => ({
+          key: o.key,
+          label: plainText(o.label)!,
+          unit: plainText(o.unit),
+          big: o.big === true,
+          caption: plainText(o.caption),
+        }));
       if (outputs.length === 0) break;
       const ranges: SimulatorRange[] = records(p.ranges)
         .map((r) => ({ min: num(r.min), max: num(r.max), val: valLine(r) }))

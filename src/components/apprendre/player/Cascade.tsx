@@ -10,6 +10,7 @@ import Animated, {
 
 import { motion, timing } from '@/src/constants/motion';
 
+// Montée par défaut (px)
 const RISE = 8;
 
 type CascadeProps = {
@@ -19,15 +20,17 @@ type CascadeProps = {
   delay?: number;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  // Montée plus grande (bulle envoyée qui remonte)
+  rise?: number;
 };
 
 // Un élément d'une cascade du lecteur : fondu et montée de 8 px en 250 ms
 // (ease-out), décalé de 40 ms par rang. Animations réduites : affiché
 // directement, sans cascade.
-export default function Cascade({ index, delay = 0, children, style }: CascadeProps) {
+export default function Cascade({ index, delay = 0, children, style, rise: from = RISE }: CascadeProps) {
   const reduced = useReducedMotion();
   const opacity = useSharedValue(reduced ? 1 : 0);
-  const rise = useSharedValue(reduced ? 0 : RISE);
+  const rise = useSharedValue(reduced ? 0 : from);
 
   useEffect(() => {
     if (reduced) {

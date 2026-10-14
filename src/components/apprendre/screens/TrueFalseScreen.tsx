@@ -1,255 +1,514 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
-  FadeIn,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import AppText from '@/src/components/common/AppText';
-import Button from '@/src/components/common/Button';
-import { durations, springs } from '@/src/constants/motion';
-import { palette, radius, space } from '@/src/constants/style/Style';
+import Sheen from '@/src/components/common/Sheen';
+import { motion, springs, timing } from '@/src/constants/motion';
+import {
+  fonts,
+  opacityDisabled,
+  palette,
+  radius,
+  size,
+  space,
+  titleLetterSpacing,
+  withOpacity,
+} from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { trueFalsePassed, trueFalseResults, trueFalseScore } from '@/src/lesson/interactive';
+import { trueFalsePassed, trueFalseReaction, trueFalseResults, trueFalseScore } from '@/src/lesson/interactive';
 import type { TrueFalseScreen as TrueFalseModel } from '@/src/lesson/model';
 import { error as errorHaptic, success as successHaptic } from '@/src/utils/haptics';
-import ReliefOption from '../player/ReliefOption';
+import RoundChoice from '../player/RoundChoice';
 import ScreenIntro from '../player/ScreenIntro';
+import StepDots, { StepState } from '../player/StepDots';
 import { LessonScreenProps } from '../types';
 
-// Distance (ou vitesse) de balayage qui vaut réponse
-const SWIPE_DISTANCE = 110;
+// Balayage : au-delà d'un tiers de l'écran, ou d'un geste vif, la carte part
+const SWIPE_RATIO = 1 / 3;
 const SWIPE_VELOCITY = 800;
-const FLY_OUT = 500;
 const MAX_TILT = 12; // degrés
+const REST_TILT = -1.5;
+// La carte sort de l'écran avant de revenir montrer son verdict
+const FLY_OUT = 1.2;
+const CARD_HEIGHT = 236;
+const CARD_DEPTH = 8;
+const STATEMENT_SIZE = 27;
+const VERDICT_STATEMENT_SIZE = 21;
+const TINT_MAX = 0.18;
+const STAMP_TILT = 12;
+const ARRIVE_FROM = 0.94;
+// Cartes du dessous : inclinaison, décalage vers le bas, retrait sur les côtés
+const BACK_TILTS = [-3, 4];
+const BACK_DROP = 16;
+const BACK_INSET = 14;
+// Ombre de la carte du dessus, assez légère pour laisser voir la pile
+const CARD_SHADOW = { offsetX: 0, offsetY: 10, blurRadius: 18, opacity: 0.45 };
+const COUNTDOWN = 20;
+const COUNTDOWN_STROKE = 3;
+
+type Phase = 'ask' | 'verdict' | 'done';
+
+// La consigne générique est déjà dite par Val
+function isGenericQuestion(question: string | null): boolean {
+  return !question || /^vrai ou faux\s*\??$/i.test(question.trim());
+}
 
 // true_false — vrai ou faux en rafale. Une pile de cartes : balayer à droite
-// pour Vrai, à gauche pour Faux, ou les deux boutons en dessous. Après chaque
-// carte : verdict coloré, vibration, explication, puis la suivante. Réussi à
-// partir de screen.pass bonnes réponses. Réponse : { id de carte: bool }.
-export default function TrueFalseScreen({ screen, answered, onDraftChange }: LessonScreenProps<TrueFalseModel>) {
+// pour Vrai, à gauche pour Faux, ou les deux grands boutons ronds. La carte
+// part du bon côté, revient au centre et montre son verdict ; la suivante
+// arrive seule après 1,5 s (un toucher l'amène tout de suite). Après la
+// dernière, la feuille de réponse avec le score. Réussi à partir de
+// screen.pass bonnes réponses. Réponse : { id de carte: bool }.
+export default function TrueFalseScreen({ screen, answered, onDraftChange, setVal }: LessonScreenProps<TrueFalseModel>) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
+  const { width } = useWindowDimensions();
   const { cards } = screen;
 
   const [answers, setAnswers] = useState<boolean[]>([]);
-  // Carte jouée dont on montre le verdict, avant la suivante
-  const [shownVerdict, setShownVerdict] = useState(false);
-  const [finished, setFinished] = useState(false);
-
-  const index = shownVerdict ? answers.length - 1 : answers.length;
-  const card = cards[Math.min(index, cards.length - 1)];
+  const [phase, setPhase] = useState<Phase>('ask');
+  const index = phase === 'ask' ? answers.length : answers.length - 1;
+  const card = cards[Math.min(Math.max(index, 0), cards.length - 1)];
   const results = trueFalseResults(screen, answers);
-  const lastCorrect = shownVerdict ? results[answers.length - 1] : null;
+  const right = phase === 'ask' ? null : results[index];
+  const threshold = width * SWIPE_RATIO;
 
   const x = useSharedValue(0);
+  // 1 pendant la question : teinte et tampon suivent le doigt
+  const live = useSharedValue(1);
+  const tilt = useSharedValue(reduced ? 0 : REST_TILT);
+  const arrive = useSharedValue(1);
+  const choices = useSharedValue(1);
 
-  const answer = (value: boolean) => {
-    if (shownVerdict || finished || answers.length >= cards.length) return;
-    const next = [...answers, value];
-    setAnswers(next);
-    setShownVerdict(true);
-    if (next[next.length - 1] === cards[next.length - 1].answer) successHaptic();
-    else errorHaptic();
-    // La carte revient au centre pour montrer son verdict
-    x.set(reduced ? 0 : withSpring(0, springs.enter));
-  };
-
-  const nextCard = () => {
-    if (answers.length < cards.length) {
-      setShownVerdict(false);
+  // Carte suivante, ou fin de la pile : le lecteur ouvre la feuille
+  const advance = (given: boolean[]) => {
+    if (given.length < cards.length) {
+      setPhase('ask');
+      x.set(0);
+      live.set(1);
+      choices.set(reduced ? 1 : withTiming(1, timing(motion.state)));
+      tilt.set(reduced ? 0 : REST_TILT);
+      if (!reduced) {
+        arrive.set(ARRIVE_FROM);
+        arrive.set(withSpring(1, springs.enter));
+      }
       return;
     }
-    // Dernière carte : le lecteur ouvre la feuille de réponse
-    setFinished(true);
-    const score = trueFalseScore(screen, answers);
-    const raw = Object.fromEntries(cards.map((c, i) => [c.id, answers[i]]));
+    setPhase('done');
+    const score = trueFalseScore(screen, given);
     onDraftChange({
-      raw,
-      correct: trueFalsePassed(screen, answers),
+      raw: Object.fromEntries(cards.map((c, i) => [c.id, given[i]])),
+      correct: trueFalsePassed(screen, given),
       correctText: null,
       explanation: `${score} ${score >= 2 ? 'bonnes réponses' : 'bonne réponse'} sur ${cards.length}.`,
       autoSubmit: true,
     });
   };
 
-  const swipe = Gesture.Pan()
-    .enabled(!shownVerdict && !finished && !answered)
+  // La carte est jouée : verdict sur place, Val réagit, vibration
+  const record = (value: boolean) => {
+    if (phase !== 'ask' || answers.length >= cards.length) return;
+    const i = answers.length;
+    const given = [...answers, value];
+    const ok = value === cards[i].answer;
+    setAnswers(given);
+    setPhase('verdict');
+    if (ok) successHaptic();
+    else errorHaptic();
+    setVal(trueFalseReaction(ok, i));
+    live.set(0);
+    choices.set(reduced ? opacityDisabled : withTiming(opacityDisabled, timing(motion.state)));
+    // Elle revient au centre, droite, pour montrer son verdict
+    tilt.set(reduced ? 0 : withTiming(0, timing(motion.screen)));
+    x.set(reduced ? 0 : withTiming(0, timing(motion.screen)));
+  };
+
+  // Verdict affiché : la carte suivante arrive seule après 1,5 s
+  useEffect(() => {
+    if (phase !== 'verdict') return;
+    const timer = setTimeout(() => advance(answers), motion.nextCard);
+    return () => clearTimeout(timer);
+    // Une attente par verdict (advance lit les réponses données)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, answers]);
+
+  // Bouton : la carte part du bon côté, comme balayée
+  const send = (value: boolean) => {
+    if (phase !== 'ask' || answered) return;
+    if (reduced) {
+      record(value);
+      return;
+    }
+    x.set(
+      withTiming((value ? 1 : -1) * width * FLY_OUT, timing(motion.screen), (finished) => {
+        'worklet';
+        if (finished) scheduleOnRN(record, value);
+      })
+    );
+  };
+
+  const skip = () => {
+    if (phase === 'verdict') advance(answers);
+  };
+
+  const pan = Gesture.Pan()
+    .enabled(phase === 'ask' && !answered)
     .activeOffsetX([-12, 12])
     .failOffsetY([-14, 14])
     .onUpdate((e) => {
       x.set(e.translationX);
     })
     .onEnd((e) => {
-      const goRight = e.translationX > SWIPE_DISTANCE || e.velocityX > SWIPE_VELOCITY;
-      const goLeft = e.translationX < -SWIPE_DISTANCE || e.velocityX < -SWIPE_VELOCITY;
-      if (goRight || goLeft) {
-        x.set(withTiming(goRight ? FLY_OUT : -FLY_OUT, { duration: durations.fade }, () => {
-          scheduleOnRN(answer, goRight);
-        }));
-      } else {
-        x.set(withSpring(0, springs.press));
+      const toRight = e.translationX > threshold || e.velocityX > SWIPE_VELOCITY;
+      const toLeft = e.translationX < -threshold || e.velocityX < -SWIPE_VELOCITY;
+      if (!toRight && !toLeft) {
+        x.set(reduced ? 0 : withSpring(0, springs.press));
+        return;
       }
+      if (reduced) {
+        scheduleOnRN(record, toRight);
+        return;
+      }
+      x.set(
+        withTiming((toRight ? 1 : -1) * width * FLY_OUT, timing(motion.screen), (finished) => {
+          'worklet';
+          if (finished) scheduleOnRN(record, toRight);
+        })
+      );
     });
+  const tap = Gesture.Tap()
+    .enabled(phase === 'verdict')
+    .onEnd(() => {
+      scheduleOnRN(skip);
+    });
+  const gesture = Gesture.Race(pan, tap);
 
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: x.get() }, { rotate: `${(x.get() / FLY_OUT) * MAX_TILT}deg` }],
-  }));
+  const cardStyle = useAnimatedStyle(() => {
+    const p = Math.max(-1, Math.min(1, x.get() / threshold));
+    const rotate = reduced ? 0 : Math.max(-MAX_TILT, Math.min(MAX_TILT, tilt.get() + p * MAX_TILT));
+    return { transform: [{ translateX: x.get() }, { rotate: `${rotate}deg` }, { scale: arrive.get() }] };
+  });
+  const trueTint = useAnimatedStyle(() => ({ opacity: live.get() * Math.max(0, Math.min(1, x.get() / threshold)) * TINT_MAX }));
+  const falseTint = useAnimatedStyle(() => ({ opacity: live.get() * Math.max(0, Math.min(1, -x.get() / threshold)) * TINT_MAX }));
+  const trueStamp = useAnimatedStyle(() => ({ opacity: live.get() * Math.max(0, Math.min(1, x.get() / (threshold * 0.6))) }));
+  const falseStamp = useAnimatedStyle(() => ({ opacity: live.get() * Math.max(0, Math.min(1, -x.get() / (threshold * 0.6))) }));
+  const choicesStyle = useAnimatedStyle(() => ({ opacity: choices.get() }));
 
-  const verdictColor = lastCorrect === null ? colors.controlBorder : lastCorrect ? colors.success : colors.error;
-  const verdictTint = lastCorrect === null ? colors.surface : lastCorrect ? colors.successSoft : colors.dangerSoft;
-  const done = finished || answered;
+  // Cartes jouées en vert ou rouge, la prochaine en or
+  const steps: StepState[] = cards.map((_, i) =>
+    i < answers.length ? (results[i] ? 'right' : 'wrong') : i === answers.length ? 'current' : 'todo'
+  );
+  const verdictInk = right === null ? colors.goldRing : right ? colors.success : colors.error;
+  const verdictTint = right === null ? 'transparent' : right ? colors.successSoft : colors.dangerSoft;
+  const behind = Math.min(BACK_TILTS.length, cards.length - 1 - Math.max(index, 0));
 
   return (
     <View style={styles.wrap}>
-      <ScreenIntro screen={screen} hint="Balaie à droite pour Vrai, à gauche pour Faux." />
+      {isGenericQuestion(screen.question) ? null : <ScreenIntro screen={screen} />}
 
-      {done ? (
-        // Récapitulatif, visible au-dessus de la feuille repliée
-        <View style={styles.recap}>
-          {cards.map((c, i) => (
-            <View
-              key={c.id}
-              style={[styles.recapRow, { borderColor: results[i] ? colors.success : colors.error }]}
-              accessible
-              accessibilityLabel={`${c.statement} ${c.answer ? 'Vrai' : 'Faux'}. ${results[i] ? 'Bonne réponse' : 'Mauvaise réponse'}.`}
-            >
-              <Ionicons
-                name={results[i] ? 'checkmark-circle' : 'close-circle'}
-                size={22}
-                color={results[i] ? colors.success : colors.error}
+      <View style={styles.center}>
+        <StepDots steps={steps} accessibilityLabel={`Carte ${Math.max(index, 0) + 1} sur ${cards.length}`} />
+
+        <View style={styles.stage}>
+          <View style={styles.hint} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+            <Ionicons name="chevron-back" size={18} color={colors.error} />
+            <AppText style={[styles.hintText, { color: colors.error }]}>FAUX</AppText>
+          </View>
+
+          <GestureHandlerRootView style={styles.pile}>
+            {/* Cartes du dessous, plus sombres */}
+            {BACK_TILTS.slice(0, behind).map((deg, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.back,
+                  {
+                    backgroundColor: i === 0 ? colors.pileBack : colors.pileBackDeep,
+                    transform: [{ rotate: `${reduced ? 0 : deg}deg` }],
+                    top: BACK_DROP * (i + 1),
+                    left: BACK_INSET * (i + 1),
+                    right: BACK_INSET * (i + 1),
+                  },
+                ]}
               />
-              <View style={styles.recapTexts}>
-                <AppText variant="callout">{c.statement}</AppText>
-                <AppText variant="caption" tone={results[i] ? 'success' : 'error'}>
-                  {c.answer ? 'Vrai' : 'Faux'}
-                </AppText>
-              </View>
-            </View>
-          ))}
-        </View>
-      ) : (
-        <>
-          <AppText variant="caption" tone="subtitle" style={styles.center}>
-            Carte {index + 1} sur {cards.length}
-          </AppText>
+            ))}
 
-          <GestureHandlerRootView>
-            <View style={styles.pile}>
-              {/* La carte suivante, en dessous */}
-              {index + 1 < cards.length ? (
-                <View style={[styles.card, styles.under, { backgroundColor: colors.surface, borderColor: colors.controlBorder }]} />
-              ) : null}
-              <GestureDetector gesture={swipe}>
-                <Animated.View
-                  key={card.id}
-                  entering={reduced ? undefined : FadeIn.duration(durations.fade)}
-                  style={[styles.card, { backgroundColor: verdictTint, borderColor: verdictColor }, cardStyle]}
-                  accessible
-                  accessibilityLabel={card.statement}
-                  accessibilityLiveRegion="polite"
-                >
-                  <AppText variant="title3" style={styles.center}>
-                    {card.statement}
-                  </AppText>
-                  {lastCorrect !== null ? (
+            <GestureDetector gesture={gesture}>
+              <Animated.View
+                style={cardStyle}
+                accessible
+                accessibilityLabel={
+                  right === null
+                    ? card.statement
+                    : `${card.answer ? 'C’est vrai' : 'C’est faux'}. ${card.statement}. ${card.explanation ?? ''}`
+                }
+                accessibilityLiveRegion="polite"
+              >
+                <View
+                  style={[
+                    styles.cardEdge,
+                    {
+                      backgroundColor: colors.optionEdge,
+                      boxShadow: [{ ...CARD_SHADOW, color: withOpacity(colors.groundShadow, CARD_SHADOW.opacity) }],
+                    },
+                  ]}
+                />
+                <View style={[styles.card, { backgroundColor: colors.optionFace, borderColor: verdictInk }]}>
+                  <Sheen spots={[{ cx: 0.3, cy: 0, r: 0.55, color: colors.nodeHighlight, opacity: 0.08 }]} />
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: verdictTint }]} />
+                  <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.success }, trueTint]} />
+                  <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.error }, falseTint]} />
+
+                  {right === null ? (
+                    <>
+                      <Animated.View style={[styles.stamp, styles.stampTrue, { borderColor: colors.success }, trueStamp]}>
+                        <AppText style={[styles.stampText, { color: colors.success }]}>VRAI</AppText>
+                      </Animated.View>
+                      <Animated.View style={[styles.stamp, styles.stampFalse, { borderColor: colors.error }, falseStamp]}>
+                        <AppText style={[styles.stampText, { color: colors.error }]}>FAUX</AppText>
+                      </Animated.View>
+                      <AppText maxFontSizeMultiplier={1.3} style={styles.statement}>
+                        {card.statement}
+                      </AppText>
+                    </>
+                  ) : (
                     <View style={styles.verdict}>
-                      <AppText variant="bodyMedium" tone={lastCorrect ? 'success' : 'error'} style={styles.center}>
-                        {lastCorrect ? 'Bien vu' : 'Raté'} : c’est {card.answer ? 'vrai' : 'faux'}.
+                      {/* La pastille dit la vérité (vert : vrai, rouge : faux) ;
+                          le bord de la carte, ta réussite */}
+                      <View style={[styles.verdictPill, { backgroundColor: card.answer ? colors.success : colors.error }]}>
+                        <Ionicons name={card.answer ? 'checkmark' : 'close'} size={14} color={colors.onGold} />
+                        <AppText style={[styles.verdictPillText, { color: colors.onGold }]}>
+                          {card.answer ? 'C’EST VRAI' : 'C’EST FAUX'}
+                        </AppText>
+                      </View>
+                      <AppText maxFontSizeMultiplier={1.3} style={[styles.statementDim, { color: colors.subtitle }]}>
+                        {card.statement}
                       </AppText>
                       {card.explanation ? (
-                        <AppText variant="callout" style={styles.center}>
+                        <AppText variant="bodyMedium" style={styles.explanation}>
                           {card.explanation}
                         </AppText>
                       ) : null}
                     </View>
-                  ) : null}
-                </Animated.View>
-              </GestureDetector>
-            </View>
+                  )}
+                </View>
+              </Animated.View>
+            </GestureDetector>
           </GestureHandlerRootView>
 
-          {shownVerdict ? (
-            <Button
-              variant="secondary"
-              label={answers.length < cards.length ? 'Carte suivante' : 'Voir mon score'}
-              onPress={nextCard}
-            />
-          ) : (
-            <View style={styles.buttons}>
-              <View style={styles.button}>
-                <ReliefOption label="Faux" icon="close" state="idle" selected={false} onPress={() => answer(false)} />
-              </View>
-              <View style={styles.button}>
-                <ReliefOption label="Vrai" icon="checkmark" state="idle" selected={false} onPress={() => answer(true)} />
-              </View>
-            </View>
-          )}
-        </>
-      )}
+          <View style={styles.hint} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+            <Ionicons name="chevron-forward" size={18} color={colors.success} />
+            <AppText style={[styles.hintText, { color: colors.success }]}>VRAI</AppText>
+          </View>
+        </View>
+
+        <Animated.View style={[styles.choices, choicesStyle]}>
+          <RoundChoice kind="false" onPress={() => send(false)} disabled={phase !== 'ask' || answered} />
+          <RoundChoice kind="true" onPress={() => send(true)} disabled={phase !== 'ask' || answered} />
+        </Animated.View>
+
+        <View style={styles.countdownSlot}>
+          {phase === 'verdict' ? (
+            <Pressable
+              onPress={skip}
+              accessibilityRole="button"
+              accessibilityLabel={answers.length < cards.length ? 'Carte suivante' : 'Voir mon score'}
+              style={styles.countdown}
+            >
+              <Countdown key={answers.length} />
+              <AppText variant="callout" tone="subtitle">
+                {answers.length < cards.length ? 'Carte suivante… touche pour passer' : 'Ton score arrive… touche pour passer'}
+              </AppText>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
     </View>
+  );
+}
+
+// Petit anneau qui se remplit en 1,5 s (immobile avec les animations réduites)
+function Countdown() {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  const reduced = useReducedMotion();
+  const [progress, setProgress] = useState(reduced ? 1 : 0);
+
+  useEffect(() => {
+    if (reduced) return;
+    let frame = 0;
+    let begin: number | null = null;
+    const tick = (now: number) => {
+      if (begin === null) begin = now;
+      const p = Math.min(1, (now - begin) / motion.nextCard);
+      setProgress(p);
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [reduced]);
+
+  const r = (COUNTDOWN - COUNTDOWN_STROKE) / 2;
+  const length = 2 * Math.PI * r;
+  return (
+    <Svg width={COUNTDOWN} height={COUNTDOWN}>
+      <Circle cx={COUNTDOWN / 2} cy={COUNTDOWN / 2} r={r} stroke={colors.surface} strokeWidth={COUNTDOWN_STROKE} fill="none" />
+      <Circle
+        cx={COUNTDOWN / 2}
+        cy={COUNTDOWN / 2}
+        r={r}
+        stroke={colors.gold}
+        strokeWidth={COUNTDOWN_STROKE}
+        fill="none"
+        strokeDasharray={`${length}`}
+        strokeDashoffset={length * (1 - progress)}
+        transform={`rotate(-90 ${COUNTDOWN / 2} ${COUNTDOWN / 2})`}
+      />
+    </Svg>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
+    flex: 1,
     gap: space[5],
   },
   center: {
-    textAlign: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    gap: space[5],
+  },
+  stage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: -space[3],
+  },
+  hint: {
+    width: 36,
+    alignItems: 'center',
+    gap: 2,
+    opacity: 0.85,
+  },
+  hintText: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 1,
   },
   pile: {
-    paddingBottom: space[2],
+    flex: 1,
+    height: CARD_HEIGHT + 2 * BACK_DROP,
+  },
+  back: {
+    position: 'absolute',
+    height: CARD_HEIGHT - 4,
+    borderRadius: radius.lg + 2,
+    borderCurve: 'continuous',
+  },
+  cardEdge: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: CARD_DEPTH,
+    height: CARD_HEIGHT,
+    borderRadius: radius.lg + 2,
+    borderCurve: 'continuous',
   },
   card: {
-    minHeight: 200,
-    borderRadius: radius.lg,
+    height: CARD_HEIGHT,
+    borderRadius: radius.lg + 2,
     borderCurve: 'continuous',
-    borderWidth: 2,
+    borderWidth: 1.5,
     padding: space[5],
     justifyContent: 'center',
-    gap: space[4],
+    overflow: 'hidden',
   },
-  // Bord de la carte suivante, qui dépasse sous la pile
-  under: {
+  statement: {
+    fontFamily: fonts.title,
+    fontSize: STATEMENT_SIZE,
+    lineHeight: STATEMENT_SIZE + 7,
+    letterSpacing: titleLetterSpacing(STATEMENT_SIZE),
+    textAlign: 'center',
+  },
+  stamp: {
     position: 'absolute',
-    left: space[3],
-    right: space[3],
-    top: space[2],
-    bottom: 0,
+    top: space[4],
+    borderWidth: 3,
+    borderRadius: radius.md - 2,
+    paddingHorizontal: space[3],
+    paddingVertical: space[1],
+  },
+  stampTrue: {
+    left: space[4],
+    transform: [{ rotate: `-${STAMP_TILT}deg` }],
+  },
+  stampFalse: {
+    right: space[4],
+    transform: [{ rotate: `${STAMP_TILT}deg` }],
+  },
+  stampText: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: 2,
   },
   verdict: {
-    gap: space[2],
+    alignItems: 'center',
+    gap: space[3],
   },
-  buttons: {
+  verdictPill: {
     flexDirection: 'row',
-    gap: space[3],
+    alignItems: 'center',
+    gap: space[1] + 2,
+    height: 30,
+    paddingHorizontal: space[3],
+    borderRadius: radius.pill,
   },
-  button: {
-    flex: 1,
+  verdictPillText: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 13,
+    lineHeight: 16,
+    letterSpacing: 1,
   },
-  recap: {
-    gap: space[3],
+  statementDim: {
+    fontFamily: fonts.title,
+    fontSize: VERDICT_STATEMENT_SIZE,
+    lineHeight: VERDICT_STATEMENT_SIZE + 6,
+    letterSpacing: titleLetterSpacing(VERDICT_STATEMENT_SIZE),
+    textAlign: 'center',
   },
-  recapRow: {
+  explanation: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 17,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  choices: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space[3],
-    padding: space[4],
-    borderWidth: 2,
-    borderRadius: radius.option,
-    borderCurve: 'continuous',
+    justifyContent: 'center',
+    gap: space[10] + space[4],
   },
-  recapTexts: {
-    flex: 1,
-    gap: space[1],
+  countdownSlot: {
+    minHeight: size.tapMin,
+    justifyContent: 'center',
+  },
+  countdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space[2] + 2,
+    minHeight: size.tapMin,
   },
 });
