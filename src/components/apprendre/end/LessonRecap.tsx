@@ -81,8 +81,13 @@ export default function LessonRecap({
   const share = height < REFERENCE_SCREEN_HEIGHT ? SCENE_SHARE_SHORT : SCENE_SHARE;
   const sceneHeight = Math.round(Math.min(SCENE_MAX, Math.max(SCENE_MIN, height * share)));
 
+  // Ticks des chiffres : seulement une fois lesson-complete fini (ceux qui
+  // tomberaient pendant le son sont sautés, l'animation ne change pas)
+  const [ticksOn, setTicksOn] = useState(false);
   useEffect(() => {
     feedback.lessonComplete();
+    const timer = setTimeout(() => setTicksOn(true), SOUND_LENGTH['lesson-complete']);
+    return () => clearTimeout(timer);
   }, []);
 
   const tiles: TileProps[] = [];
@@ -147,9 +152,9 @@ export default function LessonRecap({
                   <Cascade key={tile.label} index={TILES_RANK + i} skip={fast} style={styles.tileSlot}>
                     <Tile
                       {...tile}
-                      // Les chiffres défilent (et tiquent) une fois lesson-complete fini
-                      delay={SOUND_LENGTH['lesson-complete'] + i * motion.stagger}
+                      delay={(TILES_RANK + i) * motion.stagger + motion.sheet}
                       fast={fast}
+                      ticks={ticksOn}
                     />
                   </Cascade>
                 ))}
@@ -201,13 +206,24 @@ type TileProps = {
 
 // Tuile en relief : bandeau coloré en haut, icône et nombre qui défile,
 // légende dessous
-function Tile({ label, ink, icon, to, format, caption, a11y, delay, fast }: TileProps & { delay: number; fast: boolean }) {
+function Tile({
+  label,
+  ink,
+  icon,
+  to,
+  format,
+  caption,
+  a11y,
+  delay,
+  fast,
+  ticks,
+}: TileProps & { delay: number; fast: boolean; ticks: boolean }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const counted = Math.round(useCountUp(to, { delay }));
   const shown = fast ? to : counted;
-  // Chaque chiffre qui défile : un cran aigu, espacé
-  useCountTicks(counted, 0, !fast);
+  // Chaque chiffre qui défile : un cran aigu, espacé, après lesson-complete
+  useCountTicks(counted, 0, !fast && ticks);
 
   return (
     <View style={styles.tile} accessible accessibilityLabel={a11y}>

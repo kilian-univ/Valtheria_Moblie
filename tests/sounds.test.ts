@@ -376,7 +376,7 @@ test('chaque événement joue son son, au moment du geste', () => {
   assert.ok(read('src/components/apprendre/home/StreakSheet.tsx').includes('feedback.freeze()'));
   assert.ok(read('src/components/apprendre/module/path/ModulePath.tsx').includes('feedback.refuse()'));
   assert.ok(read('src/screens/dictionary/TermScreen.tsx').includes('feedback.pick()'));
-  assert.ok(read('src/components/apprendre/end/LessonRecap.tsx').includes('useCountTicks(counted, 0, !fast)'));
+  assert.ok(read('src/components/apprendre/end/LessonRecap.tsx').includes('useCountTicks(counted, 0, !fast && ticks)'));
   const tf = read('src/components/apprendre/screens/TrueFalseScreen.tsx');
   assert.ok(tf.includes('feedback.cardIn()'));
   // Vrai ou faux : verdict au geste (decide), pas après le vol de la carte
@@ -430,7 +430,11 @@ test('ajustements validés de l’audit', () => {
   assert.ok(player.includes("current.kind === 'true_false' || current.kind === 'match' ? SOFT_GAIN : 1"));
   assert.ok(player.includes('feedback.right(gain)') && player.includes('feedback.wrong(gain)'));
   // 2. Bilan : les chiffres comptent après lesson-complete
-  assert.ok(read('src/components/apprendre/end/LessonRecap.tsx').includes("delay={SOUND_LENGTH['lesson-complete'] + i * motion.stagger}"));
+  // Les chiffres défilent dès leur apparition ; seuls les ticks attendent
+  const recap = read('src/components/apprendre/end/LessonRecap.tsx');
+  assert.ok(recap.includes('delay={(TILES_RANK + i) * motion.stagger + motion.sheet}'));
+  assert.ok(recap.includes("setTimeout(() => setTicksOn(true), SOUND_LENGTH['lesson-complete'])"));
+  assert.ok(recap.includes('useCountTicks(counted, 0, !fast && ticks)'));
   // 3. Allumage de la flamme : streak très doux, une fois
   const flame = read('src/components/common/StreakFlame.tsx');
   assert.ok(flame.includes('feedback.ignite()') && flame.includes('ignited.current = true'));
