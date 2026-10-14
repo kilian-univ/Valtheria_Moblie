@@ -17,7 +17,6 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { BackdropFade } from '@/src/components/common/AppBackground';
-import GoldHalo from '@/src/components/common/GoldHalo';
 import GroundShadow from '@/src/components/common/GroundShadow';
 import Sheen from '@/src/components/common/Sheen';
 import { SpeechBubble } from '@/src/components/common/ValBubble';
@@ -37,20 +36,27 @@ const IMAGE_RATIO = VAULT_RATIO;
 // Repères dans l'image, en fractions (relevés sur le dessin)
 const DOOR_LIGHT = { cx: 0.42, cy: 0.66, r: 0.3 }; // ouverture de la porte
 const POOL_LIGHT = { cx: 0.47, cy: 0.9, r: 0.38 }; // flaque de lumière au sol
-const FEET_Y = 0.95; // pieds de Val, dans la flaque
+const FEET_Y = 0.885; // pieds de Val, au cœur de la flaque
+// Le fondu vers le fond commence sous la flaque : les pieds restent nets
+const FADE_FROM = 0.9;
 
-// Val : 154 de large sur une scène de 470 de haut (maquette)
-const VAL_WIDTH = 154;
+// Val qui soulève son chapeau (« Salut ! »), 204 de haut sur une scène de 470
+// (même taille à l'écran que la maquette)
+const VAL_POSE = 'salut' as const;
+const VAL_HEIGHT = 204;
 const REFERENCE_HEIGHT = 470;
-const VAL_RATIO = valPose('saut').ratio;
-const FACE = VAL_FACES.saut;
+const VAL_RATIO = valPose(VAL_POSE).ratio;
+const FACE = VAL_FACES[VAL_POSE];
 const HEAD_TOP = 0.08; // haut du chapeau, en fraction de l'image de Val
 const BUBBLE_GAP = 10;
+// Bulle sur le côté de la tête : écart avec la tête, largeur minimale (sinon
+// elle passe au-dessus, décalée pour laisser voir l'arche)
+const SIDE_GAP = 14;
+const SIDE_MIN_WIDTH = 136;
 const BUBBLE_HEIGHT_GUESS = bubble.lineHeight + bubble.paddingY * 2;
 const LOGO_HEIGHT = 28;
 // Dégradés : sombre en haut (logo lisible), fondu vers le fond en bas
 const TOP_SHADE = 120;
-const BOTTOM_FADE = 140;
 // Profondeur : décalage maximal du décor selon l'inclinaison (Val : moitié)
 const PARALLAX = 6;
 const GRAVITY = 9.81;
@@ -84,8 +90,8 @@ type VaultSceneProps = {
 };
 
 // Scène de la bienvenue : le décor du coffre-fort entrouvert, sa lumière qui
-// pulse et ses poussières, le logo, Val debout dans la flaque de lumière, sa
-// bulle au-dessus de la tête. Décor décoratif pour le lecteur d'écran : on
+// pulse et ses poussières, le logo, Val qui soulève son chapeau, debout dans
+// la flaque de lumière avec un contre-jour doré, sa bulle à côté de la tête. Décor décoratif pour le lecteur d'écran : on
 // lit le logo, puis « Val : … ».
 export default function VaultScene({ width, height, topInset, tab, line }: VaultSceneProps) {
   const { colorScheme } = useTheme();
@@ -95,30 +101,57 @@ export default function VaultScene({ width, height, topInset, tab, line }: Vault
   const parallax = Platform.OS !== 'web' && !reduced;
 
   // Décor un peu plus large que l'écran et calé un peu sous la scène : en
-  // glissant (profondeur), il ne laisse jamais voir de bord
-  const imageWidth = width + PARALLAX * 2;
+  // glissant (profondeur), il ne laisse jamais voir de bord. Scène plus haute
+  // que l'image (grand écran) : l'image s'agrandit pour la couvrir, rognée
+  // également des deux côtés (porte et flaque restent au centre)
+  const imageWidth = Math.max(width + PARALLAX * 2, (height + PARALLAX * 2) * IMAGE_RATIO);
   const imageHeight = imageWidth / IMAGE_RATIO;
-  const imageLeft = -PARALLAX;
+  const imageLeft = (width - imageWidth) / 2;
   // Image calée en bas : sa position verticale dans la scène
   const imageTop = height - imageHeight + PARALLAX;
   const scale = Math.min(1.1, Math.max(0.55, height / REFERENCE_HEIGHT));
-  const valW = Math.round(VAL_WIDTH * scale);
-  const valH = Math.round(valW / VAL_RATIO);
+  const valH = Math.round(VAL_HEIGHT * scale);
+  const valW = Math.round(valH * VAL_RATIO);
   const feetY = imageTop + imageHeight * FEET_Y;
   const valTop = feetY - valH * 0.97;
   const valLeft = (width - valW) / 2;
 
-  // Bulle au-dessus de la tête, centrée sur la bouche, pointe vers elle
+  // Bas du décor : fondu continu de la flaque jusqu'au bas de la scène
+  const fadeTop = imageTop + imageHeight * FADE_FROM;
+
+  // Bulle sur le côté de la tête, à hauteur de bouche, pointe vers elle (elle
+  // ne cache pas l'arche) ; trop peu de place à droite : au-dessus de la
+  // tête, décalée vers la droite pour laisser voir le sommet de l'arche
   const [bubbleSize, setBubbleSize] = useState({ width: 0, height: BUBBLE_HEIGHT_GUESS });
   const mouth = { x: valLeft + valW * FACE.mouthX, y: valTop + valH * FACE.mouthY };
   const margin = space[4];
-  const bubbleLeft = bubbleSize.width
-    ? Math.min(width - margin - bubbleSize.width, Math.max(margin, mouth.x - bubbleSize.width / 2))
-    : margin;
-  const bubbleTop = valTop - BUBBLE_GAP - bubbleSize.height;
+  const headRight = valLeft + valW * FACE.headRight;
+  const sideLeft = headRight + SIDE_GAP;
+  const side = width - margin - sideLeft >= SIDE_MIN_WIDTH;
   const edge = bubble.radius + bubble.tailBase / 2;
-  const anchor = bubbleSize.width ? Math.min(bubbleSize.width - edge, Math.max(edge, mouth.x - bubbleLeft)) : edge;
-  const aim = { x: mouth.x - (bubbleLeft + anchor), y: mouth.y - (bubbleTop + bubbleSize.height) };
+  let bubbleLeft: number;
+  let bubbleTop: number;
+  let anchor: number;
+  let aim: { x: number; y: number };
+  let tail: number;
+  if (side) {
+    bubbleLeft = sideLeft;
+    // Pointe à mi-hauteur d'une ligne, au niveau de la bouche
+    anchor = Math.min(Math.max(edge, bubbleSize.height / 2), BUBBLE_HEIGHT_GUESS / 2);
+    bubbleTop = mouth.y - anchor;
+    aim = { x: mouth.x - bubbleLeft, y: 0 };
+    tail = tailLength(SIDE_GAP);
+  } else {
+    // Pointe près du bord gauche : la bulle s'étend vers la droite, le
+    // sommet de l'arche (à gauche de la bouche) reste visible
+    bubbleLeft = bubbleSize.width
+      ? Math.min(width - margin - bubbleSize.width, Math.max(margin, mouth.x - edge))
+      : margin;
+    bubbleTop = valTop - BUBBLE_GAP - bubbleSize.height;
+    anchor = bubbleSize.width ? Math.min(bubbleSize.width - edge, Math.max(edge, mouth.x - bubbleLeft)) : edge;
+    aim = { x: mouth.x - (bubbleLeft + anchor), y: mouth.y - (bubbleTop + bubbleSize.height) };
+    tail = tailLength(BUBBLE_GAP + valH * HEAD_TOP);
+  }
 
   // La porte s'éclaire, puis la lumière pulse lentement
   const light = useSharedValue(reduced ? 1 : 0);
@@ -144,7 +177,6 @@ export default function VaultScene({ width, height, topInset, tab, line }: Vault
   }, [reduced, jump, valOpacity]);
   const valStyle = useAnimatedStyle(() => ({ opacity: valOpacity.get(), transform: [{ translateY: jump.get() }] }));
 
-  const halo = Math.round(valH * 1.25);
 
   const decor = (
     <View style={[styles.abs, { left: imageLeft, top: imageTop, width: imageWidth, height: imageHeight }]}>
@@ -164,19 +196,17 @@ export default function VaultScene({ width, height, topInset, tab, line }: Vault
 
   const figure = (
     <Animated.View style={[styles.abs, { left: 0, top: 0, width, height }, valStyle]}>
-      {/* Lumière du coffre dans le dos de Val : il fait partie de la scène */}
-      <View style={[styles.abs, { left: width / 2 - halo / 2, top: valTop + valH * 0.45 - halo / 2, width: halo, height: halo }]}>
-        <GoldHalo color={withOpacity(colors.gold, 0.28)} />
-      </View>
+      {/* Ombre au sol, bien marquée dans la flaque claire */}
       <GroundShadow
-        width={150 * scale}
-        height={16 * scale}
-        opacity={0.55}
-        left={width / 2 - (150 * scale) / 2}
-        top={feetY - (8 * scale)}
+        width={valW * 1.15}
+        height={18 * scale}
+        opacity={0.75}
+        left={width / 2 - (valW * 1.15) / 2}
+        top={feetY - 10 * scale}
       />
+      {/* Contre-jour : la lumière du coffre épouse sa silhouette */}
       <View style={[styles.abs, { left: valLeft, top: valTop }]}>
-        <ValFullBody pose="saut" width={valW} height={0} breathe />
+        <ValFullBody pose={VAL_POSE} width={valW} height={0} breathe rimLight />
       </View>
     </Animated.View>
   );
@@ -190,7 +220,7 @@ export default function VaultScene({ width, height, topInset, tab, line }: Vault
           colors={[withOpacity(colors.background, 0.85), withOpacity(colors.background, 0)]}
           style={[styles.abs, { left: 0, right: 0, top: 0, height: TOP_SHADE }]}
         />
-        <BackdropFade tab={tab} top={height - BOTTOM_FADE} height={BOTTOM_FADE} direction="in" steps={28} />
+        <BackdropFade tab={tab} top={fadeTop} height={height - fadeTop} direction="in" />
         {parallax ? <ParallaxLayer depth={PARALLAX / 2}>{figure}</ParallaxLayer> : figure}
       </View>
 
@@ -206,12 +236,12 @@ export default function VaultScene({ width, height, topInset, tab, line }: Vault
       <View style={[styles.abs, { left: bubbleLeft, top: bubbleTop, opacity: bubbleSize.width ? 1 : 0 }]}>
         <SpeechBubble
           text={line}
-          side="bottom"
+          side={side ? 'left' : 'bottom'}
           anchor={anchor}
           aim={aim}
-          tailLength={tailLength(BUBBLE_GAP + valH * HEAD_TOP)}
+          tailLength={tail}
           delay={BUBBLE_DELAY}
-          maxWidth={width - margin * 2}
+          maxWidth={side ? width - margin - sideLeft : width - margin * 2}
           onLayout={(w, h) => {
             if (w !== bubbleSize.width || h !== bubbleSize.height) setBubbleSize({ width: w, height: h });
           }}

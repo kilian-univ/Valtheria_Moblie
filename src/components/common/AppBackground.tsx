@@ -1,8 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname } from 'expo-router';
-import { ReactNode, useEffect, useMemo } from 'react';
+import { ReactNode, useEffect, useId, useMemo } from 'react';
 import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, G, Image as SvgImage, LinearGradient as SvgLinearGradient, Mask, Pattern, Rect, Stop } from 'react-native-svg';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -27,6 +28,8 @@ const STOPS = [0, 0.4, 0.58, 1] as const;
 const MOVE_MS = 700;
 const FADE_MS = 160;
 const GRAIN_OPACITY = 0.05;
+// Masque SVG : le blanc laisse voir, la transparence efface (indépendant du thème)
+const MASK_WHITE = '#FFFFFF';
 
 const ease = Easing.inOut(Easing.cubic);
 
@@ -146,64 +149,94 @@ export function StaticBackground({ tab }: { tab: string }) {
   );
 }
 
-// Fondu fait de la matière du fond (même dégradé, même grain), pas d'une
-// couleur unie : des tranches de 2 à 4 px, chacune une copie exacte du fond
-// alignée sur l'écran, de plus en plus (ou de moins en moins) opaques, sur une
-// courbe adoucie aux deux bouts. Aucun bord ne se devine.
+// Fondu fait de la matière du fond (même dégradé tourné vers le même coin,
+// même grain), redessiné en SVG sous un masque en dégradé continu : aucune
+// tranche, donc aucune bande, sur le web comme sur le téléphone.
+const GRAIN_TILE = 128;
+// Courbe du masque, adoucie aux deux bouts (12 paliers interpolés en continu)
+const FADE_STEPS = 12;
 function smooth(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-// Tranche de la copie du fond, alignée sur l'écran (même dessin dessous) :
-// top est sa place dans son parent, screenTop sa hauteur réelle à l'écran
-function BackdropSlice({
-  tab,
-  top,
-  screenTop,
-  height,
-  opacity,
-}: {
-  tab: string;
-  top: number;
-  screenTop: number;
-  height: number;
-  opacity: number;
-}) {
-  const { width: w, height: h } = useWindowDimensions();
-  return (
-    <View style={[styles.clip, styles.slice, { top, height, opacity }]}>
-      <View style={[styles.abs, { top: -screenTop, left: 0, width: w, height: h }]}>
-        <StaticBackground tab={tab} />
-      </View>
-    </View>
-  );
-}
-
 type BackdropFadeProps = {
   tab: string;
-  // Position du fondu depuis le haut de l'écran, et sa hauteur
+  // Position du fondu dans son parent, posé en haut de l'écran (le dessin du
+  // fond s'aligne sur l'écran), et sa hauteur
   top: number;
   height: number;
   // 'in' : de transparent (en haut) au fond plein (en bas) ; 'out' : l'inverse
   direction: 'in' | 'out';
-  // Nombre de tranches (plus il y en a, plus le fondu est doux)
-  steps?: number;
+  // Partie pleine, avant le fondu ('out') ou après ('in')
+  solid?: number;
 };
 
 // Fondu vers le fond commun (bas d'un décor, bande de la barre d'état).
 // Posé en absolu ; ne capte aucun toucher.
-export function BackdropFade({ tab, top, height, direction, steps = 16 }: BackdropFadeProps) {
-  const slice = height / steps;
+export function BackdropFade({ tab, top, height, direction, solid = 0 }: BackdropFadeProps) {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  const { width: w, height: h } = useWindowDimensions();
+  const id = `bf${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+
+  // Dégradé du fond : tracé sur un carré de côté la diagonale, centré, tourné
+  // vers le coin de l'onglet ; ses extrémités, ramenées dans ce dessin
+  const angle = cornerAngle(cornerForPath(`/${tab}`, TABS), w, h);
+  const half = Math.ceil(Math.hypot(w, h)) / 2;
+  const cx = w / 2;
+  const cy = h / 2 - top;
+  const dx = -Math.sin(angle) * half;
+  const dy = Math.cos(angle) * half;
+
+  // Masque : opacité du fond selon la hauteur (1 : fond plein)
+  const solidPart = Math.min(1, Math.max(0, solid / height));
+  const masks = Array.from({ length: FADE_STEPS + 1 }, (_, i) => {
+    const t = i / FADE_STEPS;
+    return direction === 'in'
+      ? { offset: t * (1 - solidPart), opacity: smooth(t) }
+      : { offset: solidPart + t * (1 - solidPart), opacity: 1 - smooth(t) };
+  });
+  const stops = direction === 'in' ? [...masks, { offset: 1, opacity: 1 }] : [{ offset: 0, opacity: 1 }, ...masks];
+
   return (
-    <View pointerEvents="none" style={[styles.shade, { top, height }]}>
-      {Array.from({ length: steps }, (_, i) => {
-        const t = (i + 0.5) / steps;
-        const opacity = direction === 'in' ? smooth(t) : 1 - smooth(t);
-        return (
-          <BackdropSlice key={i} tab={tab} top={i * slice} screenTop={top + i * slice} height={slice + 0.5} opacity={opacity} />
-        );
-      })}
-    </View>
+    <Svg width={w} height={height} style={[styles.abs, { top, left: 0 }]} pointerEvents="none">
+      <Defs>
+        <SvgLinearGradient id={`${id}g`} gradientUnits="userSpaceOnUse" x1={cx - dx} y1={cy - dy} x2={cx + dx} y2={cy + dy}>
+          <Stop offset={STOPS[0]} stopColor={colors.backgroundNight} />
+          <Stop offset={STOPS[1]} stopColor={colors.background} />
+          <Stop offset={STOPS[2]} stopColor={colors.background} />
+          <Stop offset={STOPS[3]} stopColor={colors.backgroundGold} />
+        </SvgLinearGradient>
+        <Pattern
+          id={`${id}p`}
+          patternUnits="userSpaceOnUse"
+          x={0}
+          y={-top % GRAIN_TILE}
+          width={GRAIN_TILE}
+          height={GRAIN_TILE}
+        >
+          <SvgImage href={GRAIN} x={0} y={0} width={GRAIN_TILE} height={GRAIN_TILE} />
+        </Pattern>
+        <SvgLinearGradient id={`${id}f`} x1="0" y1="0" x2="0" y2="1">
+          {stops.map((st, i) => (
+            <Stop key={i} offset={st.offset} stopColor={MASK_WHITE} stopOpacity={st.opacity} />
+          ))}
+        </SvgLinearGradient>
+        <Mask id={`${id}m`}>
+          <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}f)`} />
+        </Mask>
+      </Defs>
+      <G mask={`url(#${id}m)`}>
+        {colorScheme === 'light' ? (
+          <Rect x={0} y={0} width={w} height={height} fill={colors.background} />
+        ) : (
+          <>
+            <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}g)`} />
+            <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}p)`} opacity={GRAIN_OPACITY} />
+          </>
+        )}
+      </G>
+    </Svg>
   );
 }
 
@@ -217,8 +250,7 @@ export function StatusBarShade({ tab }: { tab: string }) {
   const insets = useSafeAreaInsets();
   return (
     <View pointerEvents="none" style={[styles.shade, { height: insets.top + SHADE_FADE }]}>
-      <BackdropSlice tab={tab} top={0} screenTop={0} height={insets.top} opacity={1} />
-      <BackdropFade tab={tab} top={insets.top} height={SHADE_FADE} direction="out" />
+      <BackdropFade tab={tab} top={0} height={insets.top + SHADE_FADE} direction="out" solid={insets.top} />
     </View>
   );
 }
@@ -247,11 +279,6 @@ const styles = StyleSheet.create({
   },
   clip: {
     overflow: 'hidden',
-  },
-  slice: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
   },
   abs: {
     position: 'absolute',

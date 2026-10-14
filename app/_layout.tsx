@@ -18,7 +18,7 @@ import AppBackground from '@/src/components/common/AppBackground';
 import { SkeletonProvider } from '@/src/components/common/Skeleton';
 import OnboardingGate from '@/src/components/onboarding/OnboardingGate';
 import StartupGate from '@/src/components/splash/StartupGate';
-import { valPose } from '@/src/components/common/ValFullBody';
+import { VAL_SALUT_GLOW, valPose } from '@/src/components/common/ValFullBody';
 import { LOGO } from '@/src/constants/brand';
 import { VAULT_IMAGE } from '@/src/components/onboarding/VaultScene';
 import { usePreloadedImages } from '@/src/hooks/usePreloadedImages';
@@ -34,7 +34,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Images du tout premier écran (bienvenue : logo, Val, décor du coffre),
 // chargées avant de le montrer
-const STARTUP_IMAGES = [LOGO, valPose('saut').source, VAULT_IMAGE];
+const STARTUP_IMAGES = [LOGO, valPose('salut').source, VAL_SALUT_GLOW, VAULT_IMAGE];
 
 function RootLayoutContent() {
   const { colorScheme } = useTheme();

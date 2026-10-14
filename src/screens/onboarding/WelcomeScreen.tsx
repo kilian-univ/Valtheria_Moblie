@@ -32,7 +32,10 @@ const VAL_LINE = 'Salut ! Moi, c’est Val.';
 // reste une fois posés le texte et les boutons (iPhone SE compris), sans
 // dépasser l'image entière
 const SCENE_MIN = 280;
-const RESERVED = 380;
+// Ce que prennent le texte et les boutons sous la scène
+const RESERVED = 345;
+// La scène peut dépasser un peu la hauteur de l'image (elle s'agrandit alors)
+const SCENE_MAX_GROWTH = 1.15;
 const RESERVED_PER_FONT_SCALE = 200;
 
 // Cascade du texte et des boutons, après la lumière, Val et la bulle (1,2 s au
@@ -88,7 +91,7 @@ export default function WelcomeScreen() {
   };
 
   const reserved = RESERVED + insets.bottom + Math.max(0, fontScale - 1) * RESERVED_PER_FONT_SCALE;
-  const sceneHeight = Math.round(Math.min(width / VAULT_RATIO, Math.max(SCENE_MIN, height - reserved)));
+  const sceneHeight = Math.round(Math.min((width / VAULT_RATIO) * SCENE_MAX_GROWTH, Math.max(SCENE_MIN, height - reserved)));
 
   // Bande de la barre d'état, seulement une fois l'écran défilé
   const scrollY = useSharedValue(0);

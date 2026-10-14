@@ -52,6 +52,12 @@ const BOUNCE_START = 600; // une fois l'arrivée posée
 const BREATH_SCALE = 1.02;
 const BREATH_PERIOD = 3000;
 const SHADOW_BLUR = 8;
+// Contre-jour préparé (silhouette élargie, floutée, dorée) : marge en pixels
+// autour du dessin, dans l'image source de la pose (534 × 800)
+export const VAL_SALUT_GLOW: ImageSourcePropType = require('@/assets/images/val/val-pied-salut-lueur.webp');
+const RIMS: Partial<Record<ValPose, { source: ImageSourcePropType; margin: number; width: number; height: number }>> = {
+  salut: { source: VAL_SALUT_GLOW, margin: 64, width: 534, height: 800 },
+};
 const SHADOW_COLOR = '#000000';
 const SHADOW_OFFSET = { x: 6, y: 10 };
 const SHADOW_OPACITY = 0.32;
@@ -77,6 +83,10 @@ type ValFullBodyProps = {
   breathe?: boolean;
   // Ombre portée douce derrière Val (sur un fond clair ou doré)
   shadow?: boolean;
+  // Contre-jour : halo doré qui épouse la silhouette de Val, un peu plus
+  // large que lui (lumière dans son dos). Image préparée, sans filtre en
+  // direct : même rendu partout, rien à calculer. Poses qui en ont une.
+  rimLight?: boolean;
 };
 
 // Val en pied, jamais recadré (contain). Arrivée avec le ressort celebrate
@@ -91,6 +101,7 @@ export default function ValFullBody({
   width,
   breathe = false,
   shadow = false,
+  rimLight = false,
 }: ValFullBodyProps) {
   const reduced = useReducedMotion();
   const excess = useContext(ValFitContext);
@@ -128,8 +139,25 @@ export default function ValFullBody({
   }));
 
   const size = { width: Math.round(h * ratio), height: h };
+  const rim = rimLight ? RIMS[pose] : undefined;
   const image = (
     <Animated.View style={style}>
+      {rim ? (
+        // Silhouette dorée, élargie et adoucie, derrière Val
+        <Image
+          source={rim.source}
+          resizeMode="stretch"
+          style={[
+            styles.rim,
+            {
+              width: size.width * (1 + (2 * rim.margin) / rim.width),
+              height: size.height * (1 + (2 * rim.margin) / rim.height),
+              left: (-size.width * rim.margin) / rim.width,
+              top: (-size.height * rim.margin) / rim.height,
+            },
+          ]}
+        />
+      ) : null}
       {shadow ? (
         // Silhouette noire floue, décalée vers le bas et la droite
         <Image
@@ -158,6 +186,9 @@ export default function ValFullBody({
 }
 
 const styles = StyleSheet.create({
+  rim: {
+    position: 'absolute',
+  },
   shadow: {
     position: 'absolute',
     left: SHADOW_OFFSET.x,
