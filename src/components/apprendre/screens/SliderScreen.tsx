@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import BigNumber from '@/src/components/common/BigNumber';
 import { motion } from '@/src/constants/motion';
+import { Live, useLiveStore } from '@/src/hooks/useLiveValue';
 import { space } from '@/src/constants/style/Style';
 import type { SliderScreen as SliderModel } from '@/src/lesson/model';
 import { widestText, windowFitHeight } from '@/src/utils/fit';
@@ -26,28 +27,27 @@ export default function SliderScreen({ screen, answered, onDraftChange, enterDel
   const { height } = useWindowDimensions();
   const valueSize = windowFitHeight(VALUE_SIZE, VALUE_MIN, height);
 
+  // Valeur posée (au lâcher), et valeur vivante pendant le glissement : seul
+  // le grand chiffre la suit, l'écran ne se re-rend pas à chaque cran
   const [value, setValue] = useState(() =>
     Math.min(max, Math.max(min, min + Math.round((screen.start - min) / step) * step))
   );
-  const [moved, setMoved] = useState(false);
+  const live = useLiveStore(value);
+  const format = (n: number) => withUnit(formatNumber(n), unit);
 
-  // La valeur choisie remonte au lecteur une fois le curseur bougé : envoyée
-  // si l'écran est noté, gardée pour une révélation sinon
-  useEffect(() => {
-    if (!moved) return;
-    onDraftChange({
-      raw: value,
-      correct: screen.scored ? grade(screen.source, value) === true : true,
-      correctText: screen.answer !== null ? withUnit(formatNumber(screen.answer), unit) : null,
-    });
-  }, [moved, value, screen.scored, screen.source, screen.answer, unit, onDraftChange]);
-
-  const change = (next: number) => {
+  // La valeur choisie remonte au lecteur au lâcher (valeur finale exacte) :
+  // envoyée si l'écran est noté, gardée pour une révélation sinon
+  const commit = (next: number) => {
+    live.set(next);
     setValue(next);
-    setMoved(true);
+    onDraftChange({
+      raw: next,
+      correct: screen.scored ? grade(screen.source, next) === true : true,
+      correctText: screen.answer !== null ? format(screen.answer) : null,
+    });
   };
 
-  const shown = withUnit(formatNumber(value), unit);
+  const shown = format(value);
   // Taille fixe : celle de la valeur la plus longue du curseur
   const longest = widestText([withUnit(formatNumber(min), unit), withUnit(formatNumber(max), unit)]);
 
@@ -56,7 +56,7 @@ export default function SliderScreen({ screen, answered, onDraftChange, enterDel
       <ScreenIntro screen={screen} size="md" />
 
       <View style={styles.center}>
-        <BigNumber text={shown} sizingText={longest} size={valueSize} />
+        <Live store={live}>{(n) => <BigNumber text={format(n)} sizingText={longest} size={valueSize} />}</Live>
 
         <View style={styles.slider}>
           <TrackSlider
@@ -64,7 +64,8 @@ export default function SliderScreen({ screen, answered, onDraftChange, enterDel
             min={min}
             max={max}
             step={step}
-            onChange={change}
+            onChange={live.set}
+            onCommit={commit}
             disabled={answered}
             accessibilityLabel={screen.question ?? 'Ton pari'}
             valueText={shown}

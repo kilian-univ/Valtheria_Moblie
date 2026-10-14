@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -25,6 +25,7 @@ import {
 } from '@/src/lesson/interactive';
 import type { AllocateScreen as AllocateModel, ValLine } from '@/src/lesson/model';
 import { formatNumber, withUnit } from '@/src/utils/format';
+import { createFrameBatch, type FrameBatch } from '@/src/utils/frameBatch';
 import { warning } from '@/src/utils/haptics';
 import ScreenIntro from '../player/ScreenIntro';
 import TrackSlider from '../player/TrackSlider';
@@ -50,7 +51,32 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
   const colors = palette[colorScheme];
   const { buckets, total, step, unit } = screen;
   const [values, setValues] = useState(() => initialAllocation(buckets));
+  // Répartition posée (au lâcher) : c'est elle qui part au lecteur
+  const [settled, setSettled] = useState(values);
   const [barWidth, setBarWidth] = useState(0);
+
+  // Pendant un glissement, la barre de la paie, les montants et « Dans un
+  // an » suivent au plus une fois par image (dernière valeur de la rafale)
+  const latest = useRef(values);
+  const batch = useRef<FrameBatch<{ key: string; next: number }> | null>(null);
+  const apply = ({ key, next }: { key: string; next: number }) => {
+    const updated = moveAllocation(screen, latest.current, key, next);
+    if (updated === latest.current) return;
+    latest.current = updated;
+    setValues(updated);
+  };
+  const move = (key: string, next: number) => {
+    batch.current ??= createFrameBatch(apply, (run) => {
+      requestAnimationFrame(run);
+    });
+    batch.current.push({ key, next });
+  };
+  // Lâcher : la valeur finale tout de suite, puis la répartition posée
+  const settle = (key: string, next: number) => {
+    move(key, next);
+    batch.current?.flush();
+    setSettled(latest.current);
+  };
 
   // Couleurs de la palette des graphiques, une par pot
   const inks = [colors.chart3, colors.chart4, colors.chart1, colors.chart2, colors.chart5];
@@ -62,13 +88,13 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
   const { passed, failed } = gradeAllocation(screen, values);
 
   useEffect(() => {
-    const verdict = gradeAllocation(screen, values);
+    const verdict = gradeAllocation(screen, settled);
     const success = screen.val.correct;
     const val: ValLine | null = verdict.passed
-      ? success && { ...success, line: fillTemplate(success.line, allocationTemplateValues(screen, values), (n) => formatNumber(n)) }
+      ? success && { ...success, line: fillTemplate(success.line, allocationTemplateValues(screen, settled), (n) => formatNumber(n)) }
       : (verdict.failed?.val ?? screen.val.wrong);
     onDraftChange({
-      raw: values,
+      raw: settled,
       correct: verdict.passed,
       correctText: null,
       val,
@@ -76,7 +102,7 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
       // Le pot en cause clignote avant la feuille
       sheetDelay: verdict.passed ? undefined : BLINKS * 2 * motion.state,
     });
-  }, [values, screen, onDraftChange]);
+  }, [settled, screen, onDraftChange]);
 
   return (
     <View style={styles.wrap}>
@@ -137,9 +163,10 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
                 step={step}
                 readOnly={b.reservoir}
                 disabled={answered}
-                clamp={(wanted) => Math.min(wanted, allocationMax(screen, values, b.key))}
+                limit={allocationMax(screen, values, b.key)}
                 onBlocked={warning}
-                onChange={(next) => setValues((prev) => moveAllocation(screen, prev, b.key, next))}
+                onChange={(next) => move(b.key, next)}
+                onCommit={(next) => settle(b.key, next)}
                 accessibilityLabel={b.reservoir ? `${b.label}, s’ajuste quand tu bouges les autres` : b.label}
                 valueText={`${withUnit(formatNumber(values[b.key] ?? 0), unit)}${
                   percent ? `, soit ${amountText(values[b.key] ?? 0)}` : ''

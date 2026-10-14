@@ -35,11 +35,17 @@ const INVITE_BACK = -6;
 const RESIST = 6;
 
 type TrackSliderProps = {
+  // Valeur tenue par l'écran : position au repos (et pot réservoir)
   value: number;
   min: number;
   max: number;
   step: number;
+  // Chaque nouveau cran, pendant le glissement (JavaScript n'est prévenu
+  // qu'au changement de cran, jamais à chaque image)
   onChange: (value: number) => void;
+  // Valeur finale, exacte : fin du glissement, toucher de la piste, action
+  // du lecteur d'écran
+  onCommit?: (value: number) => void;
   disabled?: boolean;
   // Lecteur d'écran : nom du curseur et valeur lue (« 30 ans »)
   accessibilityLabel: string;
@@ -49,8 +55,9 @@ type TrackSliderProps = {
   size?: keyof typeof SIZES;
   // Petit aller-retour du bouton à l'arrivée, une seule fois, après ce délai
   inviteDelay?: number;
-  // Limite propre à l'écran (butée) : valeur permise pour une valeur voulue
-  clamp?: (value: number) => number;
+  // Butée propre à l'écran : plus haute valeur permise (le répartir : ce que
+  // le réservoir peut céder)
+  limit?: number;
   // La butée vient d'être atteinte (une fois par glissement)
   onBlocked?: () => void;
   // Couleur du remplissage et du bouton (or par défaut)
@@ -58,9 +65,13 @@ type TrackSliderProps = {
 };
 
 // Curseur en relief du lecteur (pari, simulateur, répartir). On glisse le
-// bouton ou on touche la piste pour y sauter ; un cran franchi = vibration
-// select() et son « tick » (plus aigu vers la droite, 60 ms d'écart au
-// moins) ; la butée = « tick » plus grave.
+// bouton ou on touche la piste pour y sauter. Tout le mouvement vit sur le
+// fil d'interface (Reanimated) : le bouton et le remplissage suivent le
+// doigt à chaque image sans attendre JavaScript ; le cran est calculé là
+// aussi, et JavaScript n'est prévenu qu'au changement de cran. Un cran =
+// vibration select() (40 ms d'écart au moins) et son « tick » (60 ms),
+// la butée = « tick » plus grave. Au lâcher, le bouton se pose sur son
+// cran et la valeur finale exacte part (onCommit).
 // Le geste ne prend que les mouvements horizontaux : un glissement
 // clairement vertical fait défiler la page ; pendant le glissement, la page
 // ne défile pas (verrou du lecteur). VoiceOver : gestes d'ajustement.
@@ -74,13 +85,14 @@ export default function TrackSlider({
   max,
   step,
   onChange,
+  onCommit,
   disabled,
   accessibilityLabel,
   valueText,
   readOnly,
   size = 'lg',
   inviteDelay,
-  clamp,
+  limit,
   onBlocked,
   color,
 }: TrackSliderProps) {
@@ -90,21 +102,28 @@ export default function TrackSlider({
   const { track, thumb } = SIZES[size];
   // Piste seule (réservoir) : rien à toucher, juste la place de la piste
   const touchHeight = readOnly ? track + 2 * space[2] : Math.max(thumb + reliefDepth + space[3], sizes.tapMin);
+  const interactive = !disabled && !readOnly;
+  const ceiling = limit === undefined ? max : Math.max(min, Math.min(max, limit));
 
   const lockScroll = useScrollLock();
-  const [trackWidth, setTrackWidth] = useState(0);
-  // Dernière valeur connue : celle du parent, ou celle qu'on vient d'envoyer
-  const last = useSharedValue(value);
-  // Butée déjà signalée pendant ce glissement (une seule fois)
+  // Fil d'interface : largeur de la piste, position du bouton (px), cran
+  // courant, glissement en cours, butée déjà signalée
+  const width = useSharedValue(0);
+  const pos = useSharedValue(0);
+  const current = useSharedValue(value);
+  const dragging = useSharedValue(false);
   const blocked = useSharedValue(false);
-  useEffect(() => {
-    last.set(value);
-  }, [value, last]);
-
   const grow = useSharedValue(1);
   const nudge = useSharedValue(0);
 
-  const interactive = !disabled && !readOnly;
+  // Au repos, le bouton suit la valeur de l'écran (pot réservoir, lecteur
+  // d'écran) ; pendant un glissement, il ne suit que le doigt
+  useEffect(() => {
+    if (dragging.get()) return;
+    current.set(value);
+    const w = width.get();
+    pos.set(max > min ? ((value - min) / (max - min)) * w : 0);
+  }, [value, min, max, dragging, current, width, pos]);
 
   // Invitation : le bouton fait un petit aller-retour, une seule fois
   const [invite] = useState(inviteDelay !== undefined && !reduced && interactive);
@@ -122,55 +141,59 @@ export default function TrackSlider({
     );
   }, [invite, inviteDelay, nudge]);
 
-  const clampToStep = (raw: number) => {
-    const stepped = min + Math.round((raw - min) / step) * step;
-    return Math.min(max, Math.max(min, stepped));
-  };
-
-  const commit = (wanted: number) => {
-    if (!interactive) return;
-    const next = clamp ? clamp(wanted) : wanted;
-    if (next !== wanted && !blocked.get()) {
-      blocked.set(true);
-      feedback.tickBlocked();
-      onBlocked?.();
-      // Petite résistance : le bouton pousse contre la butée et revient
-      if (!reduced) {
-        const push = Math.sign(wanted - next) * RESIST;
-        nudge.set(withSequence(withTiming(push, timing(motion.tap)), withSpring(0, springs.press)));
-      }
-    }
-    if (next === wanted) blocked.set(false);
-    if (next === last.get()) return;
-    last.set(next);
+  // JavaScript : un nouveau cran (vibration et son limités, voir feedback.tick)
+  const stepped = (next: number) => {
     feedback.tick(max > min ? (next - min) / (max - min) : 0);
     onChange(next);
   };
+  const hitLimit = () => {
+    feedback.tickBlocked();
+    onBlocked?.();
+  };
+  // Fin du glissement ou toucher : la valeur finale, exacte
+  const settle = (final: number) => {
+    lockScroll(false);
+    onChange(final);
+    onCommit?.(final);
+  };
+  const startDrag = () => lockScroll(true);
 
-  // x : position du doigt sur la piste (repère du geste)
-  const updateFromX = (x: number) => {
-    if (trackWidth <= 0) return;
-    const ratio = Math.min(1, Math.max(0, x / trackWidth));
-    commit(clampToStep(min + ratio * (max - min)));
+  // Fil d'interface : cran de la position x, butée comprise. Met à jour le
+  // bouton, prévient JavaScript au changement de cran seulement.
+  const follow = (x: number) => {
+    'worklet';
+    const w = width.get();
+    if (w <= 0 || max <= min) return;
+    const ratio = Math.min(1, Math.max(0, x / w));
+    const wanted = Math.min(max, Math.max(min, min + Math.round((ratio * (max - min)) / step) * step));
+    const allowed = Math.min(wanted, ceiling);
+    const ceilingX = ((ceiling - min) / (max - min)) * w;
+    pos.set(Math.min(ratio * w, ceilingX));
+    if (wanted > ceiling) {
+      if (!blocked.get()) {
+        blocked.set(true);
+        scheduleOnRN(hitLimit);
+        // Petite résistance : le bouton pousse contre la butée et revient
+        if (!reduced) nudge.set(withSequence(withTiming(RESIST, timing(motion.tap)), withSpring(0, springs.press)));
+      }
+    } else {
+      blocked.set(false);
+    }
+    if (allowed !== current.get()) {
+      current.set(allowed);
+      scheduleOnRN(stepped, allowed);
+    }
   };
 
-  const setDragging = (on: boolean) => {
-    lockScroll(on);
-    if (reduced) return;
-    grow.set(on ? withTiming(DRAG_SCALE, timing(motion.tap)) : withSpring(1, springs.press));
-  };
-
-  const begin = (x: number) => {
-    nudge.set(0);
-    blocked.set(false);
-    setDragging(true);
-    updateFromX(x);
-  };
-
-  const jump = (x: number) => {
-    nudge.set(0);
-    blocked.set(false);
-    updateFromX(x);
+  // Le bouton se pose sur son cran ; la valeur finale part
+  const land = () => {
+    'worklet';
+    dragging.set(false);
+    const w = width.get();
+    const x = max > min ? ((current.get() - min) / (max - min)) * w : 0;
+    pos.set(reduced ? x : withSpring(x, springs.press));
+    grow.set(reduced ? 1 : withSpring(1, springs.press));
+    scheduleOnRN(settle, current.get());
   };
 
   const pan = Gesture.Pan()
@@ -180,19 +203,24 @@ export default function TrackSlider({
     .onStart(
       safeGesture((e: { x: number }) => {
         'worklet';
-        scheduleOnRN(begin, e.x);
+        dragging.set(true);
+        blocked.set(false);
+        nudge.set(0);
+        if (!reduced) grow.set(withTiming(DRAG_SCALE, timing(motion.tap)));
+        scheduleOnRN(startDrag);
+        follow(e.x);
       })
     )
     .onUpdate(
       safeGesture((e: { x: number }) => {
         'worklet';
-        scheduleOnRN(updateFromX, e.x);
+        follow(e.x);
       })
     )
     .onFinalize(
       safeGesture(() => {
         'worklet';
-        scheduleOnRN(setDragging, false);
+        if (dragging.get()) land();
       })
     );
   // Toucher la piste : le bouton y saute
@@ -201,23 +229,35 @@ export default function TrackSlider({
     .onEnd(
       safeGesture((e: { x: number }) => {
         'worklet';
-        scheduleOnRN(jump, e.x);
+        nudge.set(0);
+        blocked.set(false);
+        dragging.set(true);
+        follow(e.x);
+        land();
       })
     );
   const gesture = Gesture.Race(pan, tap);
 
   const onAccessibilityAction = (e: AccessibilityActionEvent) => {
-    blocked.set(false);
-    if (e.nativeEvent.actionName === 'increment') commit(clampToStep(last.get() + step));
-    if (e.nativeEvent.actionName === 'decrement') commit(clampToStep(last.get() - step));
+    const base = current.get();
+    const delta = e.nativeEvent.actionName === 'increment' ? step : e.nativeEvent.actionName === 'decrement' ? -step : 0;
+    if (delta === 0 || !interactive) return;
+    const next = Math.min(ceiling, Math.max(min, base + delta));
+    if (next === base) {
+      if (base + delta > ceiling) hitLimit();
+      return;
+    }
+    current.set(next);
+    pos.set(max > min ? ((next - min) / (max - min)) * width.get() : 0);
+    stepped(next);
+    onCommit?.(next);
   };
 
   const ink = color ?? colors.gold;
-  const ratio = max > min ? Math.min(1, Math.max(0, (value - min) / (max - min))) : 0;
-  const fillWidth = ratio * trackWidth;
 
+  const fillStyle = useAnimatedStyle(() => ({ width: pos.get() }));
   const thumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: nudge.get() }, { scale: grow.get() }],
+    transform: [{ translateX: pos.get() - thumb / 2 + nudge.get() }, { scale: grow.get() }],
   }));
 
   return (
@@ -225,7 +265,11 @@ export default function TrackSlider({
     <GestureDetector gesture={gesture} touchAction="pan-y">
       <View
         style={[styles.touch, { height: touchHeight, marginHorizontal: thumb / 2 }]}
-        onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          width.set(w);
+          if (!dragging.get()) pos.set(max > min ? ((current.get() - min) / (max - min)) * w : 0);
+        }}
         accessible
         accessibilityRole={readOnly ? undefined : 'adjustable'}
         accessibilityLabel={accessibilityLabel}
@@ -239,14 +283,14 @@ export default function TrackSlider({
       >
         {/* Une piste à 0 % reste visible */}
         <View style={[styles.track, { height: track, backgroundColor: colors.surface }]} pointerEvents="none">
-          <View style={[styles.fill, { width: fillWidth, backgroundColor: ink }, readOnly && styles.passive]} />
+          <Animated.View style={[styles.fill, { backgroundColor: ink }, readOnly && styles.passive, fillStyle]} />
         </View>
         {readOnly ? null : (
           <Animated.View
             style={[
               styles.thumb,
               {
-                left: fillWidth - thumb / 2,
+                left: 0,
                 top: (touchHeight - thumb) / 2 - reliefDepth / 2,
                 width: thumb,
                 height: thumb + reliefDepth,

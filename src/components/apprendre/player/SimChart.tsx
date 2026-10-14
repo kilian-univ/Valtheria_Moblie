@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
@@ -20,7 +20,8 @@ const PAD = 4;
 const AREA_OPACITY = 0.18;
 
 // Courbes qui passent en 300 ms (ease-out) de l'ancienne forme à la nouvelle,
-// point par point. Animations réduites : la nouvelle tout de suite.
+// point par point, les deux ensemble (un seul rendu par image). Animations
+// réduites : la nouvelle tout de suite.
 function useTween(target: number[]): number[] {
   const reduced = useReducedMotion();
   const [shown, setShown] = useState(target);
@@ -61,22 +62,35 @@ type SimChartProps = {
   scale: number;
 };
 
-// Petite courbe du simulateur, décorative : les chiffres sont lus ailleurs
-export default function SimChart({ main, base, scale }: SimChartProps) {
+// Petite courbe du simulateur, décorative : les chiffres sont lus ailleurs.
+// Mémorisée : elle ne se redessine que quand ses courbes changent.
+export default memo(function SimChart({ main, base, scale }: SimChartProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const id = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [width, setWidth] = useState(0);
   const { height: windowHeight } = useWindowDimensions();
   const HEIGHT_NOW = windowHeight < REFERENCE_SCREEN_HEIGHT ? HEIGHT_MIN : HEIGHT;
-  const mainShown = useTween(main);
-  const baseShown = useTween(base);
+  // Les deux courbes bout à bout, animées d'un seul tenant
+  const both = useTween([...main, ...base]);
+  const mainShown = both.slice(0, main.length);
+  const baseShown = both.slice(main.length);
+  const bothKey = both.join(',');
 
-  const top = Math.max(scale, 1e-9);
-  const point = (v: number, i: number, n: number) =>
-    `${((i / Math.max(1, n - 1)) * width).toFixed(1)},${(PAD + (1 - Math.max(0, v) / top) * (HEIGHT_NOW - 2 * PAD)).toFixed(1)}`;
-  const line = (values: number[]) => values.map((v, i) => `${i === 0 ? 'M' : 'L'}${point(v, i, values.length)}`).join(' ');
-  const area = `${line(mainShown)} L${width},${HEIGHT_NOW} L0,${HEIGHT_NOW} Z`;
+  // Tracés recalculés seulement quand les points, la largeur ou l'échelle changent
+  const paths = useMemo(() => {
+    const top = Math.max(scale, 1e-9);
+    const point = (v: number, i: number, n: number) =>
+      `${((i / Math.max(1, n - 1)) * width).toFixed(1)},${(PAD + (1 - Math.max(0, v) / top) * (HEIGHT_NOW - 2 * PAD)).toFixed(1)}`;
+    const line = (values: number[]) => values.map((v, i) => `${i === 0 ? 'M' : 'L'}${point(v, i, values.length)}`).join(' ');
+    return {
+      main: line(mainShown),
+      base: line(baseShown),
+      area: `${line(mainShown)} L${width},${HEIGHT_NOW} L0,${HEIGHT_NOW} Z`,
+    };
+    // bothKey : les points, pas l'identité des tableaux
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bothKey, width, scale, HEIGHT_NOW]);
 
   return (
     <View
@@ -93,14 +107,14 @@ export default function SimChart({ main, base, scale }: SimChartProps) {
               <Stop offset="1" stopColor={colors.gold} stopOpacity={0} />
             </LinearGradient>
           </Defs>
-          <Path d={area} fill={`url(#area${id})`} />
-          <Path d={line(baseShown)} stroke={colors.subtitle} strokeWidth={BASE_WIDTH} strokeDasharray={DASH} fill="none" />
-          <Path d={line(mainShown)} stroke={colors.gold} strokeWidth={MAIN_WIDTH} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          <Path d={paths.area} fill={`url(#area${id})`} />
+          <Path d={paths.base} stroke={colors.subtitle} strokeWidth={BASE_WIDTH} strokeDasharray={DASH} fill="none" />
+          <Path d={paths.main} stroke={colors.gold} strokeWidth={MAIN_WIDTH} strokeLinecap="round" strokeLinejoin="round" fill="none" />
         </Svg>
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrap: {

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
@@ -22,7 +23,8 @@ type ScreenIntroProps = {
 
 // La question de l'écran, sous Val (posé par le lecteur), avec sa
 // précision et sa consigne éventuelles.
-export default function ScreenIntro({ screen, hint, size = 'lg' }: ScreenIntroProps) {
+// Mémorisée : un curseur qui bouge ne la redessine pas
+export default memo(function ScreenIntro({ screen, hint, size = 'lg' }: ScreenIntroProps) {
   const { question, subtitle } = screen;
   if (!question && !hint) return null;
   const type = QUESTION[size];
@@ -50,7 +52,7 @@ export default function ScreenIntro({ screen, hint, size = 'lg' }: ScreenIntroPr
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   block: {

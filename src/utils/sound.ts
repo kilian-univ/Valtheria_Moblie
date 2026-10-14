@@ -145,17 +145,19 @@ export type SoundOptions = {
   gain?: number;
   // Écart minimal entre deux départs de ce son (ms)
   minGap?: number;
+  // Un seul lecteur audible à la fois pour ce son
+  exclusive?: boolean;
 };
 
 // Joue un son depuis le début, tout de suite, à chaque appel. Un son prévu
 // mais pas encore livré (medal) joue son remplaçant (soundRules.ts).
-export function playSound(name: AnySoundName, { rate = 1, gain = 1, minGap = 0 }: SoundOptions = {}): void {
+export function playSound(name: AnySoundName, { rate = 1, gain = 1, minGap = 0, exclusive = false }: SoundOptions = {}): void {
   try {
     if (!soundAllowed(soundSettings.isEnabled(), web, interacted)) return;
     prepareMode();
     for (const step of soundSteps(name)) {
       const go = () => {
-        bank.play(step.name, { rate, volume: soundVolume(step.name, gain), minGap });
+        bank.play(step.name, { rate, volume: soundVolume(step.name, gain), minGap, exclusive });
       };
       if (step.at > 0) setTimeout(go, step.at);
       else go();

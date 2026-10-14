@@ -182,6 +182,8 @@ export function soundForEvent(event: SoundEvent): AnySoundName {
 // Cran de curseur : un son toutes les 60 ms au plus (un glissement rapide
 // ne crépite pas), un peu plus aigu vers la droite
 export const TICK_MIN_GAP = 60;
+// Vibration d'un cran : une toutes les 40 ms au plus
+export const SELECT_MIN_GAP = 40;
 // Chiffres du bilan qui défilent : plus espacés encore
 export const COUNT_TICK_MIN_GAP = 90;
 

@@ -24,6 +24,9 @@ export type PlayOptions = {
   volume?: number;
   // Écart minimal entre deux départs de ce son (ms) : en deçà, rien
   minGap?: number;
+  // Un seul lecteur audible à la fois pour ce son : les autres sont coupés
+  // et rembobinés (tick pendant un glissement rapide)
+  exclusive?: boolean;
 };
 
 type Voice = {
@@ -119,7 +122,7 @@ export function createSoundBank<N extends string>({
     preload(name) {
       pool(name);
     },
-    play(name, { rate = 1, volume = 1, minGap = 0 } = {}) {
+    play(name, { rate = 1, volume = 1, minGap = 0, exclusive = false } = {}) {
       try {
         const t = now();
         const last = lastAt.get(name);
@@ -127,6 +130,16 @@ export function createSoundBank<N extends string>({
         const list = pool(name);
         if (list.length === 0) return false;
         lastAt.set(name, t);
+        if (exclusive) {
+          for (const v of list) {
+            if (v.state !== 'playing') continue;
+            v.token++;
+            v.player.pause();
+            rewind(v, () => {
+              v.state = 'ready';
+            });
+          }
+        }
         const ready = list.find((v) => v.state === 'ready');
         if (ready) {
           start(ready, rate, volume);

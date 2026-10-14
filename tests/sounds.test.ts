@@ -173,7 +173,10 @@ test('curseur : un tick par cran (limité à un toutes les 60 ms), un tick grave
   assert.ok(slider.includes('feedback.tickBlocked()'));
   assert.equal(TICK_MIN_GAP, 60);
   const fb = readFileSync(new URL('src/utils/feedback.ts', root), 'utf8');
-  assert.match(fb, /playSound\('tick', \{ rate: tickRate\(ratio\), minGap: TICK_MIN_GAP \}\)/);
+  assert.match(fb, /playSound\('tick', \{ rate: tickRate\(ratio\), minGap: TICK_MIN_GAP, exclusive: true \}\)/);
+  // Vibration du cran : une toutes les 40 ms au plus
+  assert.match(fb, /createThrottle\(SELECT_MIN_GAP/);
+  assert.match(fb, /if \(tickHaptic\(\)\) haptics\.select\(\);/);
 });
 
 // ---------------------------------------------------------------------------
@@ -326,6 +329,16 @@ test('banque : tick limité à un toutes les 60 ms, vitesse appliquée', () => {
     tick(100);
     assert.equal(bank.play('tick', { minGap: TICK_MIN_GAP }), true);
   }
+});
+
+test('banque : tick à un seul lecteur audible pendant un glissement rapide', () => {
+  const { bank, fakes, tick } = makeBank({ sync: true });
+  for (let i = 0; i < 20; i++) {
+    bank.play('tick', { minGap: TICK_MIN_GAP, exclusive: true });
+    tick(61);
+    assert.ok(fakes.filter((f) => f.name === 'tick' && f.playing).length <= 1);
+  }
+  assert.equal(heard(fakes, 'tick'), 20);
 });
 
 test('banque : un lecteur indisponible ne plante rien', () => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
@@ -6,6 +6,7 @@ import BigNumber from '@/src/components/common/BigNumber';
 import { motion } from '@/src/constants/motion';
 import { fonts, palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useFrameValue, useLiveStore } from '@/src/hooks/useLiveValue';
 import { useRollingNumber } from '@/src/hooks/useRollingNumber';
 import { computeFormula, formulaSeries, seriesScale } from '@/src/lesson/formulas';
 import { rangeLine } from '@/src/lesson/interactive';
@@ -36,16 +37,18 @@ export default function SimulatorScreen({ screen, onDraftChange, setVal, enterDe
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { min, max, step, formula, params, outputs, ranges, unit } = screen;
-  const [value, setValue] = useState(screen.start);
+  // Valeur vivante du curseur ; l'écran (courbe, résultats, réplique) la
+  // lit au plus une fois par image, même pendant un glissement rapide
+  const live = useLiveStore(screen.start);
+  const value = useFrameValue(live);
   const [moved, setMoved] = useState(false);
 
   const results = computeFormula(formula, value, params);
-  const series = formulaSeries(formula, value, params);
+  const series = useMemo(() => formulaSeries(formula, value, params), [formula, value, params]);
   const scale = useMemo(() => seriesScale(formula, min, max, params), [formula, min, max, params]);
   const val = rangeLine(ranges, value);
   const big = outputs.find((o) => o.big) ?? outputs[0];
   const others = outputs.filter((o) => o !== big);
-  const rolling = useRollingNumber(results[big.key] ?? 0);
   // Taille fixe du gros chiffre : celle du résultat le plus long sur toute
   // la course du curseur (bornes comprises)
   const longest = useMemo(() => {
@@ -58,9 +61,11 @@ export default function SimulatorScreen({ screen, onDraftChange, setVal, enterDe
   }, [big, formula, params, min, max]);
   const sliderText = withUnit(formatNumber(value), unit);
 
-  useEffect(() => {
-    if (moved) onDraftChange({ raw: value, correct: true, correctText: null });
-  }, [moved, value, onDraftChange]);
+  // « Continuer » s'active au lâcher, avec la valeur finale exacte
+  const commit = (next: number) => {
+    live.set(next);
+    onDraftChange({ raw: next, correct: true, correctText: null });
+  };
 
   // Val (en haut de l'écran) change de phrase quand on change de tranche
   const valText = val?.line ?? null;
@@ -86,7 +91,7 @@ export default function SimulatorScreen({ screen, onDraftChange, setVal, enterDe
           <AppText variant="sectionLabel" tone="subtitle" style={styles.label}>
             {big.label}
           </AppText>
-          <BigNumber text={outputText(big, rolling)} sizingText={longest} size={BIG_SIZE} />
+          <RollingBigNumber output={big} target={results[big.key] ?? 0} sizingText={longest} />
           {others.map((o) => (
             <AppText key={o.key} variant="callout" tone="subtitle" style={styles.centerText}>
               {o.caption ? o.caption.replace('{}', outputText(o, results[o.key] ?? 0)) : `${o.label} : ${outputText(o, results[o.key] ?? 0)}`}
@@ -138,9 +143,10 @@ export default function SimulatorScreen({ screen, onDraftChange, setVal, enterDe
             max={max}
             step={step}
             onChange={(next) => {
-              setValue(next);
-              setMoved(true);
+              live.set(next);
+              if (!moved) setMoved(true);
             }}
+            onCommit={commit}
             accessibilityLabel={screen.label}
             valueText={sliderText}
             inviteDelay={enterDelay + motion.sheet}
@@ -158,6 +164,21 @@ export default function SimulatorScreen({ screen, onDraftChange, setVal, enterDe
     </View>
   );
 }
+
+// Gros chiffre qui défile vers sa cible : isolé, son défilement ne re-rend
+// que lui
+const RollingBigNumber = memo(function RollingBigNumber({
+  output,
+  target,
+  sizingText,
+}: {
+  output: SimulatorOutput;
+  target: number;
+  sizingText: string;
+}) {
+  const rolling = useRollingNumber(target);
+  return <BigNumber text={outputText(output, rolling)} sizingText={sizingText} size={BIG_SIZE} />;
+});
 
 const styles = StyleSheet.create({
   wrap: {

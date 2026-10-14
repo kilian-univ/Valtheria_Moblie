@@ -1,8 +1,10 @@
+import { createThrottle } from './frameBatch';
 import * as haptics from './haptics';
 import { playSound } from './sound';
 import {
   chestStepRate,
   COUNT_TICK_MIN_GAP,
+  SELECT_MIN_GAP,
   SOFT_GAIN,
   SOUND_LENGTH,
   TICK_BLOCKED_RATE,
@@ -11,14 +13,18 @@ import {
   tickRate,
 } from './soundRules';
 
+// Vibrations des crans de curseur : une toutes les 40 ms au plus
+const tickHaptic = createThrottle(SELECT_MIN_GAP, () => Date.now());
+
 // Retours d'un événement : la vibration et le son, toujours ensemble, au
 // moment même du geste (règles et volumes dans utils/soundRules.ts).
 export const feedback = {
   // Cran de curseur (pari, simulateur, répartir) : un peu plus aigu vers la
-  // droite (ratio de 0 à 1), un son toutes les 60 ms au plus
+  // droite (ratio de 0 à 1), un son toutes les 60 ms au plus, un seul
+  // lecteur audible à la fois ; une vibration toutes les 40 ms au plus
   tick(ratio: number) {
-    haptics.select();
-    playSound('tick', { rate: tickRate(ratio), minGap: TICK_MIN_GAP });
+    if (tickHaptic()) haptics.select();
+    playSound('tick', { rate: tickRate(ratio), minGap: TICK_MIN_GAP, exclusive: true });
   },
   // Curseur qui bute : cran plus grave (la vibration est celle de l'écran)
   tickBlocked() {
