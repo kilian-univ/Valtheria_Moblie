@@ -36,6 +36,7 @@ type Voice = {
   state: 'ready' | 'playing' | 'rewinding';
   startedAt: number;
   rate: number;
+  volume: number;
   // Change à chaque départ : un retour au début devenu inutile ne relance rien
   token: number;
 };
@@ -87,7 +88,7 @@ export function createSoundBank<N extends string>({
       try {
         const player = create(name);
         if (!player) break;
-        const voice: Voice = { player, state: 'ready', startedAt: -Infinity, rate: 1, token: 0 };
+        const voice: Voice = { player, state: 'ready', startedAt: -Infinity, rate: 1, volume: -1, token: 0 };
         // Fini : on rembobine aussitôt, le lecteur sera prêt au prochain coup
         player.onFinish(() => {
           if (voice.state !== 'playing') return;
@@ -108,7 +109,11 @@ export function createSoundBank<N extends string>({
 
   const start = (voice: Voice, rate: number, volume: number) => {
     voice.token++;
-    voice.player.setVolume(volume);
+    // Chaque réglage est un appel au natif : seulement s'il change
+    if (voice.volume !== volume) {
+      voice.player.setVolume(volume);
+      voice.volume = volume;
+    }
     if (voice.rate !== rate) {
       voice.player.setRate(rate);
       voice.rate = rate;

@@ -1,5 +1,7 @@
 import * as Haptics from 'expo-haptics';
 
+import { devFlags } from '@/src/state/devFlags';
+
 
 // Vibrations de l'app. Une seule par action de l'utilisateur, toujours en plus
 // d'un retour visuel (beaucoup d'appareils ont la vibration coupée). Toujours
@@ -20,6 +22,8 @@ function report(err: unknown): void {
 }
 
 function safely(run: () => Promise<void>): void {
+  // Développement : interrupteur « Sans vibrations » (jamais en version publiée)
+  if (devFlags.get().noHaptics) return;
   try {
     run().catch(report);
   } catch (err) {

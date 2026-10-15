@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { ComponentType, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -191,6 +191,8 @@ export default function LoginScreen() {
                 }}
               />
             ))}
+            {/* Diagnostic de la fluidité des curseurs */}
+            {DevSliderSwitches ? <DevSliderSwitches /> : null}
           </View>
         ) : null}
       </ScrollView>
@@ -202,6 +204,12 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   );
 }
+
+// Développement seulement : chargé sous __DEV__, retiré des versions publiées
+const DevSliderSwitches: ComponentType | null = __DEV__
+  ? // eslint-disable-next-line @typescript-eslint/no-require-imports -- import conditionnel voulu
+    require('@/src/components/dev/DevSliderSwitches').default
+  : null;
 
 // Développement : séries simulées pour voir les paliers sans attendre
 const DEV_STREAKS = [

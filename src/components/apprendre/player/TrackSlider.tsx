@@ -16,6 +16,7 @@ import { motion, springs, timing } from '@/src/constants/motion';
 import { palette, radius, reliefDepth, size as sizes, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { safeGesture } from '@/src/utils/gestureSafety';
+import { devFlags } from '@/src/state/devFlags';
 import { feedback } from '@/src/utils/feedback';
 import { useScrollLock } from './ScrollLock';
 
@@ -79,6 +80,12 @@ type TrackSliderProps = {
 // à la verticale
 const ACTIVE_X = 6;
 const FAIL_Y = 12;
+// Un curseur est-il glissé, côté JavaScript (sans lire le fil d'interface) ?
+// Un seul doigt glisse un curseur à la fois.
+let jsDragging = false;
+function setJsDragging(on: boolean) {
+  jsDragging = on;
+}
 export default function TrackSlider({
   value,
   min,
@@ -144,6 +151,9 @@ export default function TrackSlider({
   // JavaScript : un nouveau cran (vibration et son limités, voir feedback.tick)
   const stepped = (next: number) => {
     feedback.tick(max > min ? (next - min) / (max - min) : 0);
+    // Développement : « Sans mises à jour de l'écran pendant le glissement »
+    // (l'écran ne suit qu'au lâcher, voir settle)
+    if (jsDragging && devFlags.get().noLiveUpdates) return;
     onChange(next);
   };
   const hitLimit = () => {
@@ -152,11 +162,15 @@ export default function TrackSlider({
   };
   // Fin du glissement ou toucher : la valeur finale, exacte
   const settle = (final: number) => {
+    setJsDragging(false);
     lockScroll(false);
     onChange(final);
     onCommit?.(final);
   };
-  const startDrag = () => lockScroll(true);
+  const startDrag = () => {
+    setJsDragging(true);
+    lockScroll(true);
+  };
 
   // Fil d'interface : cran de la position x, butée comprise. Met à jour le
   // bouton, prévient JavaScript au changement de cran seulement.

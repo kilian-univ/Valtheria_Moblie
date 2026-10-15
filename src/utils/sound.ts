@@ -1,6 +1,7 @@
 import { type AudioPlayer, type AudioStatus, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Platform } from 'react-native';
 
+import { devFlags } from '@/src/state/devFlags';
 import { soundSettings } from '@/src/state/soundSettings';
 import { createSoundBank, type VoicePlayer } from './soundBank';
 import {
@@ -154,6 +155,8 @@ export type SoundOptions = {
 export function playSound(name: AnySoundName, { rate = 1, gain = 1, minGap = 0, exclusive = false }: SoundOptions = {}): void {
   try {
     if (!soundAllowed(soundSettings.isEnabled(), web, interacted)) return;
+    // Développement : interrupteur « Sans sons » (jamais en version publiée)
+    if (devFlags.get().noSounds) return;
     prepareMode();
     for (const step of soundSteps(name)) {
       const go = () => {
