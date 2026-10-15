@@ -24,10 +24,11 @@ import {
   soundSteps,
   soundVoices,
   soundVolume,
+  BURST_MIN_GAP,
+  chestStepRate as chestRate,
+  SOUND_VARIANTS,
   TICK_BLOCKED_RATE,
   TICK_COUNT_RATE,
-  TICK_MIN_GAP,
-  tickRate,
 } from '../src/utils/soundRules';
 import { RUN_MIN } from '../src/utils/lessonPlayer';
 
@@ -101,20 +102,17 @@ test('volumes : un seul tableau, trois niveaux bien séparés', () => {
 
 test('lecteurs : plusieurs pour les sons qui se chevauchent', () => {
   for (const name of ['tick', 'select', 'correct', 'match'] as const) assert.ok(soundVoices(name) >= 2, name);
-  assert.ok(soundVoices('tick') >= soundVoices('select'));
   assert.equal(soundVoices('lesson-complete'), 1);
 });
 
-test('tick : plus aigu vers la droite, à peine ; butée plus grave ; bilan plus aigu', () => {
-  const rates = [0, 0.25, 0.5, 0.75, 1].map(tickRate);
-  for (let i = 1; i < rates.length; i++) assert.ok(rates[i] > rates[i - 1]);
-  // Très légère variation : moins de trois demi-tons en tout
-  assert.ok(rates[4] / rates[0] < Math.pow(2, 3.01 / 12));
-  assert.equal(tickRate(-3), tickRate(0));
-  assert.equal(tickRate(9), tickRate(1));
-  assert.equal(tickRate(Number.NaN), tickRate(0));
-  assert.ok(TICK_BLOCKED_RATE < rates[0]);
-  assert.ok(TICK_COUNT_RATE > rates[4]);
+test('hauteurs fixes préparées d’avance : butée plus grave, chiffres plus aigus, paliers du coffre', () => {
+  assert.ok(TICK_BLOCKED_RATE < 1 && TICK_COUNT_RATE > 1);
+  const has = (name: string, rate = 1, gain = 1) =>
+    SOUND_VARIANTS.some((v) => v.name === name && (v.rate ?? 1) === rate && (v.gain ?? 1) === gain);
+  assert.ok(has('tick', TICK_BLOCKED_RATE));
+  assert.ok(has('tick', TICK_COUNT_RATE));
+  for (const step of [1, 2, 3]) assert.ok(has('chest-step', chestRate(step)), `palier ${step}`);
+  for (const name of ['swipe', 'mismatch', 'advance', 'streak', 'correct', 'wrong']) assert.ok(has(name, 1, SOFT_GAIN), name);
 });
 
 test('un fichier .m4a pour chaque son, chargé par le lecteur', () => {
@@ -165,18 +163,37 @@ test('réglage Sons : activé par défaut, coupé seulement sur demande', () => 
   assert.equal(soundAllowed(true, true, true), true);
 });
 
-test('curseur : un tick par cran (limité à un toutes les 60 ms), un tick grave à la butée', () => {
+test('curseur : vibration à chaque cran, aucun son pendant le glissement, un tick au lâcher', () => {
   const haptics = readFileSync(new URL('src/utils/haptics.ts', root), 'utf8');
   assert.ok(!haptics.includes('playSound'), 'les vibrations ne jouent pas de son');
   const slider = readFileSync(new URL('src/components/apprendre/player/TrackSlider.tsx', root), 'utf8');
-  assert.ok(slider.includes('feedback.tick('));
-  assert.ok(slider.includes('feedback.tickBlocked()'));
-  assert.equal(TICK_MIN_GAP, 60);
   const fb = readFileSync(new URL('src/utils/feedback.ts', root), 'utf8');
-  assert.match(fb, /playSound\('tick', \{ rate: tickRate\(ratio\), minGap: TICK_MIN_GAP, exclusive: true \}\)/);
-  // Vibration du cran : une toutes les 40 ms au plus
+  // Pendant le glissement : la vibration seule (une toutes les 40 ms au plus)
+  assert.match(fb, /sliderStep\(\) \{\s*if \(tickHaptic\(\)\) haptics\.select\(\);\s*\}/);
   assert.match(fb, /createThrottle\(SELECT_MIN_GAP/);
-  assert.match(fb, /if \(tickHaptic\(\)\) haptics\.select\(\);/);
+  assert.match(slider, /const stepped = \(next: number\) => \{\s*feedback\.sliderStep\(\);/);
+  // Au lâcher : un seul tick
+  assert.match(slider, /const settle = \(final: number\) => \{[^}]*feedback\.sliderRelease\(\);/);
+  assert.match(fb, /sliderRelease\(\) \{\s*playSound\('tick', \{ minGap: BURST_MIN_GAP \}\);/);
+  // Butée : tick grave, une fois par glissement (remis à zéro au début seulement)
+  assert.ok(slider.includes('feedback.tickBlocked()'));
+  assert.ok(slider.includes('if (wanted > ceiling && !blocked.get()) {'));
+  assert.ok(!slider.includes('blocked.set(false);\n    }'));
+});
+
+test('rafales : jamais plus d’un son toutes les 150 ms', () => {
+  assert.equal(BURST_MIN_GAP, 150);
+  const fb = readFileSync(new URL('src/utils/feedback.ts', root), 'utf8');
+  assert.match(fb, /playSound\('tick', \{ rate: TICK_COUNT_RATE, minGap: COUNT_TICK_MIN_GAP \}\)/);
+  assert.match(fb, /playSound\('chest-step', \{ rate: chestStepRate\(step\), minGap: BURST_MIN_GAP \}\)/);
+  assert.match(fb, /playSound\('tick', \{ rate: TICK_BLOCKED_RATE, minGap: BURST_MIN_GAP \}\)/);
+});
+
+test('session audio configurée une seule fois, au démarrage', () => {
+  const sound = readFileSync(new URL('src/utils/sound.ts', root), 'utf8');
+  assert.equal(sound.split('setAudioModeAsync(').length, 2, 'un seul appel');
+  assert.ok(sound.includes('if (modeReady) return;'));
+  assert.ok(readFileSync(new URL('app/_layout.tsx', root), 'utf8').includes('configureSoundSession();'));
 });
 
 // ---------------------------------------------------------------------------
@@ -194,6 +211,7 @@ type Fake = VoicePlayer & {
   heard: number;
   volume: number;
   rate: number;
+  settings: number;
   finish(): void;
 };
 
@@ -217,6 +235,7 @@ function makeBank({ sync = false } = {}) {
         heard: 0,
         volume: 1,
         rate: 1,
+        settings: 0,
         play() {
           fake.starts++;
           if (fake.position === 'end') return; // à la fin : silence
@@ -241,9 +260,11 @@ function makeBank({ sync = false } = {}) {
         },
         setVolume(v) {
           fake.volume = v;
+          fake.settings++;
         },
         setRate(r) {
           fake.rate = r;
+          fake.settings++;
         },
         onFinish(listener) {
           onFinish = listener;
@@ -269,9 +290,11 @@ const heard = (fakes: Fake[], name: string) => fakes.filter((f) => f.name === na
 
 test('banque : un son préchargé part tout de suite, sans attendre', () => {
   const { bank, fakes } = makeBank();
-  bank.preload('wrong');
+  bank.preload('wrong', { volume: 0.7 });
   assert.equal(fakes.length, 1);
   assert.equal(bank.play('wrong', { volume: 0.7 }), true);
+  // Même variante : le lecteur préchargé, aucun nouveau
+  assert.equal(fakes.length, 1);
   // Entendu dans le même appel : rien n'est attendu avant la lecture
   assert.equal(heard(fakes, 'wrong'), 1);
   assert.equal(fakes[0].volume, 0.7);
@@ -312,33 +335,31 @@ test('banque : sons qui se chevauchent sur plusieurs lecteurs', () => {
   assert.equal(fakes.filter((f) => f.name === 'correct' && f.playing).length, 2);
 });
 
-test('banque : tick limité à un toutes les 60 ms, vitesse appliquée', () => {
+test('banque : rafale limitée à un son toutes les 150 ms', () => {
   const { bank, fakes, tick } = makeBank({ sync: true });
   let played = 0;
-  // Glissement rapide : un cran toutes les 10 ms pendant 300 ms
-  for (let t = 0; t <= 300; t += 10) {
-    if (bank.play('tick', { minGap: TICK_MIN_GAP, rate: tickRate(t / 300) })) played++;
-    tick(10);
+  // Chiffres qui défilent : une valeur toutes les 16 ms pendant 750 ms
+  for (let t = 0; t <= 750; t += 16) {
+    if (bank.play('tick', { minGap: BURST_MIN_GAP, rate: TICK_COUNT_RATE })) played++;
+    tick(16);
   }
-  assert.equal(played, 6);
-  assert.equal(heard(fakes, 'tick'), 6);
-  // La hauteur suit la position
-  assert.equal(Math.max(...fakes.map((f) => f.rate)), tickRate(1));
-  // Crans lents : tous joués
-  for (let i = 0; i < 4; i++) {
-    tick(100);
-    assert.equal(bank.play('tick', { minGap: TICK_MIN_GAP }), true);
-  }
+  assert.ok(played >= 5 && played <= 6, String(played));
+  assert.equal(heard(fakes, 'tick'), played);
 });
 
-test('banque : tick à un seul lecteur audible pendant un glissement rapide', () => {
+test('banque : hauteur et volume réglés à la création, jamais au moment de jouer', () => {
   const { bank, fakes, tick } = makeBank({ sync: true });
-  for (let i = 0; i < 20; i++) {
-    bank.play('tick', { minGap: TICK_MIN_GAP, exclusive: true });
-    tick(61);
-    assert.ok(fakes.filter((f) => f.name === 'tick' && f.playing).length <= 1);
+  bank.preload('tick', { rate: TICK_COUNT_RATE, volume: 0.3 });
+  bank.preload('tick', { volume: 0.3 });
+  const before = fakes.reduce((n, f) => n + f.settings, 0);
+  for (let i = 0; i < 12; i++) {
+    bank.play('tick', { rate: i % 2 ? TICK_COUNT_RATE : 1, volume: 0.3 });
+    tick(200);
   }
-  assert.equal(heard(fakes, 'tick'), 20);
+  assert.equal(fakes.reduce((n, f) => n + f.settings, 0), before, 'aucun réglage pendant les lectures');
+  // Chaque variante a ses propres lecteurs, à sa hauteur
+  assert.ok(fakes.some((f) => f.rate === TICK_COUNT_RATE) && fakes.some((f) => f.rate === 1));
+  assert.equal(heard(fakes, 'tick'), 12);
 });
 
 test('banque : un lecteur indisponible ne plante rien', () => {

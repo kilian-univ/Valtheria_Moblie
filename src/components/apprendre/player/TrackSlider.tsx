@@ -70,9 +70,9 @@ type TrackSliderProps = {
 // fil d'interface (Reanimated) : le bouton et le remplissage suivent le
 // doigt à chaque image sans attendre JavaScript ; le cran est calculé là
 // aussi, et JavaScript n'est prévenu qu'au changement de cran. Un cran =
-// vibration select() (40 ms d'écart au moins) et son « tick » (60 ms),
-// la butée = « tick » plus grave. Au lâcher, le bouton se pose sur son
-// cran et la valeur finale exacte part (onCommit).
+// vibration select() (40 ms d'écart au moins), sans son ; la butée = tick
+// grave, une fois par glissement. Au lâcher, le bouton se pose sur son
+// cran, un seul tick confirme, et la valeur finale exacte part (onCommit).
 // Le geste ne prend que les mouvements horizontaux : un glissement
 // clairement vertical fait défiler la page ; pendant le glissement, la page
 // ne défile pas (verrou du lecteur). VoiceOver : gestes d'ajustement.
@@ -150,7 +150,7 @@ export default function TrackSlider({
 
   // JavaScript : un nouveau cran (vibration et son limités, voir feedback.tick)
   const stepped = (next: number) => {
-    feedback.tick(max > min ? (next - min) / (max - min) : 0);
+    feedback.sliderStep();
     // Développement : « Sans mises à jour de l'écran pendant le glissement »
     // (l'écran ne suit qu'au lâcher, voir settle)
     if (jsDragging && devFlags.get().noLiveUpdates) return;
@@ -164,6 +164,8 @@ export default function TrackSlider({
   const settle = (final: number) => {
     setJsDragging(false);
     lockScroll(false);
+    // Un seul tick discret, pour confirmer
+    feedback.sliderRelease();
     onChange(final);
     onCommit?.(final);
   };
@@ -183,15 +185,12 @@ export default function TrackSlider({
     const allowed = Math.min(wanted, ceiling);
     const ceilingX = ((ceiling - min) / (max - min)) * w;
     pos.set(Math.min(ratio * w, ceilingX));
-    if (wanted > ceiling) {
-      if (!blocked.get()) {
-        blocked.set(true);
-        scheduleOnRN(hitLimit);
-        // Petite résistance : le bouton pousse contre la butée et revient
-        if (!reduced) nudge.set(withSequence(withTiming(RESIST, timing(motion.tap)), withSpring(0, springs.press)));
-      }
-    } else {
-      blocked.set(false);
+    // Butée : signalée une seule fois par glissement (tick grave, vibration)
+    if (wanted > ceiling && !blocked.get()) {
+      blocked.set(true);
+      scheduleOnRN(hitLimit);
+      // Petite résistance : le bouton pousse contre la butée et revient
+      if (!reduced) nudge.set(withSequence(withTiming(RESIST, timing(motion.tap)), withSpring(0, springs.press)));
     }
     if (allowed !== current.get()) {
       current.set(allowed);
@@ -264,6 +263,7 @@ export default function TrackSlider({
     current.set(next);
     pos.set(max > min ? ((next - min) / (max - min)) * width.get() : 0);
     stepped(next);
+    feedback.sliderRelease();
     onCommit?.(next);
   };
 

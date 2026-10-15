@@ -2,6 +2,7 @@ import { createThrottle } from './frameBatch';
 import * as haptics from './haptics';
 import { playSound } from './sound';
 import {
+  BURST_MIN_GAP,
   chestStepRate,
   COUNT_TICK_MIN_GAP,
   SELECT_MIN_GAP,
@@ -9,8 +10,6 @@ import {
   SOUND_LENGTH,
   TICK_BLOCKED_RATE,
   TICK_COUNT_RATE,
-  TICK_MIN_GAP,
-  tickRate,
 } from './soundRules';
 
 // Vibrations des crans de curseur : une toutes les 40 ms au plus
@@ -19,18 +18,23 @@ const tickHaptic = createThrottle(SELECT_MIN_GAP, () => Date.now());
 // Retours d'un événement : la vibration et le son, toujours ensemble, au
 // moment même du geste (règles et volumes dans utils/soundRules.ts).
 export const feedback = {
-  // Cran de curseur (pari, simulateur, répartir) : un peu plus aigu vers la
-  // droite (ratio de 0 à 1), un son toutes les 60 ms au plus, un seul
-  // lecteur audible à la fois ; une vibration toutes les 40 ms au plus
-  tick(ratio: number) {
+  // Cran de curseur pendant le glissement (pari, simulateur, répartir) : la
+  // vibration seule, une toutes les 40 ms au plus. Aucun son pendant le
+  // glissement : sur iPhone, une rafale de sons fait saccader le curseur.
+  sliderStep() {
     if (tickHaptic()) haptics.select();
-    playSound('tick', { rate: tickRate(ratio), minGap: TICK_MIN_GAP, exclusive: true });
   },
-  // Curseur qui bute : cran plus grave (la vibration est celle de l'écran)
+  // Curseur lâché (ou réglé au lecteur d'écran) : un seul tick discret
+  sliderRelease() {
+    playSound('tick', { minGap: BURST_MIN_GAP });
+  },
+  // Curseur qui bute : cran plus grave, une fois par butée (la vibration
+  // est celle de l'écran)
   tickBlocked() {
-    playSound('tick', { rate: TICK_BLOCKED_RATE });
+    playSound('tick', { rate: TICK_BLOCKED_RATE, minGap: BURST_MIN_GAP });
   },
-  // Chiffres du bilan qui défilent : cran plus aigu, espacé, sans vibration
+  // Chiffres du bilan et jours de la série qui défilent : cran plus aigu, un
+  // toutes les 150 ms au plus, sans vibration
   countTick() {
     playSound('tick', { rate: TICK_COUNT_RATE, minGap: COUNT_TICK_MIN_GAP });
   },
@@ -126,7 +130,7 @@ export const feedback = {
   // Palier de rareté du coffre : un peu plus aigu à chaque palier
   chestStep(step: number) {
     haptics.select();
-    playSound('chest-step', { rate: chestStepRate(step) });
+    playSound('chest-step', { rate: chestStepRate(step), minGap: BURST_MIN_GAP });
   },
   chestOpen() {
     haptics.celebrate();

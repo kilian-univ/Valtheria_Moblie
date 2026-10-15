@@ -9,6 +9,7 @@ import {
   SOUND_NAMES,
   type SoundName,
   soundAllowed,
+  SOUND_VARIANTS,
   soundSteps,
   soundVoices,
   soundVolume,
@@ -75,6 +76,9 @@ if (web && typeof window !== 'undefined') {
   window.addEventListener('keydown', unlock, true);
 }
 
+// Session audio d'iOS configurée une seule fois (au démarrage, voir
+// configureSoundSession) : mélange avec la musique, bouton silencieux
+// respecté. Ensuite, plus aucun réglage de session.
 function prepareMode(): void {
   if (modeReady) return;
   modeReady = true;
@@ -126,6 +130,11 @@ const bank = createSoundBank<SoundName>({
   onError: note,
 });
 
+// Au démarrage de l'app (app/_layout.tsx) : la session audio, une fois
+export function configureSoundSession(): void {
+  prepareMode();
+}
+
 // Préchargement à l'ouverture du lecteur, de la cérémonie de fin et des
 // écrans qui jouent un son : aucun décalage au premier son. Sur le web, les
 // fichiers se chargent quand même (sans rien jouer avant une interaction).
@@ -133,7 +142,10 @@ export function preloadSounds(): void {
   try {
     soundSettings.load().catch(note);
     prepareMode();
-    SOUND_NAMES.forEach((name) => bank.preload(name));
+    // Chaque son à son niveau, puis ses variantes (hauteur, volume) : tout est
+    // réglé à la création des lecteurs, rien au moment de jouer
+    SOUND_NAMES.forEach((name) => bank.preload(name, { volume: soundVolume(name) }));
+    SOUND_VARIANTS.forEach((v) => bank.preload(v.name, { rate: v.rate ?? 1, volume: soundVolume(v.name, v.gain ?? 1) }));
   } catch (err) {
     note(err);
   }
@@ -146,13 +158,11 @@ export type SoundOptions = {
   gain?: number;
   // Écart minimal entre deux départs de ce son (ms)
   minGap?: number;
-  // Un seul lecteur audible à la fois pour ce son
-  exclusive?: boolean;
 };
 
 // Joue un son depuis le début, tout de suite, à chaque appel. Un son prévu
 // mais pas encore livré (medal) joue son remplaçant (soundRules.ts).
-export function playSound(name: AnySoundName, { rate = 1, gain = 1, minGap = 0, exclusive = false }: SoundOptions = {}): void {
+export function playSound(name: AnySoundName, { rate = 1, gain = 1, minGap = 0 }: SoundOptions = {}): void {
   try {
     if (!soundAllowed(soundSettings.isEnabled(), web, interacted)) return;
     // Développement : interrupteur « Sans sons » (jamais en version publiée)
@@ -160,7 +170,7 @@ export function playSound(name: AnySoundName, { rate = 1, gain = 1, minGap = 0, 
     prepareMode();
     for (const step of soundSteps(name)) {
       const go = () => {
-        bank.play(step.name, { rate, volume: soundVolume(step.name, gain), minGap, exclusive });
+        bank.play(step.name, { rate, volume: soundVolume(step.name, gain), minGap });
       };
       if (step.at > 0) setTimeout(go, step.at);
       else go();

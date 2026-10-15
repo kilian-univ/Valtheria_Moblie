@@ -112,7 +112,7 @@ export function soundVolume(name: SoundName, gain = 1): number {
 // Lecteurs prêts par son : plusieurs pour ceux qui se chevauchent (crans
 // rapides, réponses enchaînées, messages, paliers du coffre), un sinon
 const VOICES: Partial<Record<SoundName, number>> = {
-  tick: 4,
+  tick: 2,
   select: 3,
   correct: 2,
   wrong: 2,
@@ -179,22 +179,15 @@ export function soundForEvent(event: SoundEvent): AnySoundName {
   return EVENT_SOUNDS[event];
 }
 
-// Cran de curseur : un son toutes les 60 ms au plus (un glissement rapide
-// ne crépite pas), un peu plus aigu vers la droite
-export const TICK_MIN_GAP = 60;
+// Sons en rafale (chiffres du bilan, jours de la série, paliers du
+// coffre, confirmation d'un curseur) : jamais plus d'un toutes les 150 ms.
+// Sur iPhone, chaque lecture passe par le lecteur natif : une rafale de
+// sons faisait saccader les curseurs. Pendant un glissement, plus aucun
+// son : la vibration seule, et un tick au lâcher.
+export const BURST_MIN_GAP = 150;
+export const COUNT_TICK_MIN_GAP = BURST_MIN_GAP;
 // Vibration d'un cran : une toutes les 40 ms au plus
 export const SELECT_MIN_GAP = 40;
-// Chiffres du bilan qui défilent : plus espacés encore
-export const COUNT_TICK_MIN_GAP = 90;
-
-// Hauteur du cran selon la position (0 à gauche, 1 à droite) : de −1 à +2
-// demi-tons, à peine perceptible
-const TICK_LOW = -1;
-const TICK_HIGH = 2;
-export function tickRate(ratio: number): number {
-  const r = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 0;
-  return Math.pow(2, (TICK_LOW + r * (TICK_HIGH - TICK_LOW)) / 12);
-}
 
 // Curseur qui bute : cran plus grave ; chiffres du bilan : cran plus aigu
 export const TICK_BLOCKED_RATE = Math.pow(2, -7 / 12);
@@ -242,3 +235,21 @@ export function parseSoundSetting(raw: string | null | undefined): boolean {
 export function soundAllowed(enabled: boolean, web: boolean, interacted: boolean): boolean {
   return enabled && (!web || interacted);
 }
+
+// Variantes préparées d'avance (hauteur et volume fixés à la création de
+// leurs lecteurs, jamais réglés au moment de jouer) : butée, chiffres qui
+// défilent, paliers du coffre, sons adoucis
+export type SoundVariantSpec = { name: SoundName; rate?: number; gain?: number };
+export const SOUND_VARIANTS: SoundVariantSpec[] = [
+  { name: 'tick', rate: TICK_BLOCKED_RATE },
+  { name: 'tick', rate: TICK_COUNT_RATE },
+  { name: 'chest-step', rate: chestStepRate(1) },
+  { name: 'chest-step', rate: chestStepRate(2) },
+  { name: 'chest-step', rate: chestStepRate(3) },
+  { name: 'swipe', gain: SOFT_GAIN },
+  { name: 'mismatch', gain: SOFT_GAIN },
+  { name: 'advance', gain: SOFT_GAIN },
+  { name: 'streak', gain: SOFT_GAIN },
+  { name: 'correct', gain: SOFT_GAIN },
+  { name: 'wrong', gain: SOFT_GAIN },
+];

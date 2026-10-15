@@ -24,10 +24,12 @@ export type PlayOptions = {
   volume?: number;
   // Écart minimal entre deux départs de ce son (ms) : en deçà, rien
   minGap?: number;
-  // Un seul lecteur audible à la fois pour ce son : les autres sont coupés
-  // et rembobinés (tick pendant un glissement rapide)
-  exclusive?: boolean;
 };
+
+// Variante d'un son : sa hauteur (vitesse) et son volume, réglés une seule
+// fois à la création de ses lecteurs, jamais au moment de jouer (chaque
+// réglage est un appel au natif)
+export type SoundVariant = { rate?: number; volume?: number };
 
 type Voice = {
   player: VoicePlayer;
@@ -35,14 +37,12 @@ type Voice = {
   // signal) ; rewinding : retour au début en cours
   state: 'ready' | 'playing' | 'rewinding';
   startedAt: number;
-  rate: number;
-  volume: number;
   // Change à chaque départ : un retour au début devenu inutile ne relance rien
   token: number;
 };
 
 export type SoundBank<N extends string> = {
-  preload(name: N): void;
+  preload(name: N, variant?: SoundVariant): void;
   // Le son part-il ? (false : écart minimal, ou lecteur indisponible)
   play(name: N, options?: PlayOptions): boolean;
 };
@@ -62,7 +62,8 @@ export function createSoundBank<N extends string>({
   now: () => number;
   onError: (err: unknown) => void;
 }): SoundBank<N> {
-  const pools = new Map<N, Voice[]>();
+  // Lecteurs par variante (nom, hauteur, volume)
+  const pools = new Map<string, Voice[]>();
   const lastAt = new Map<N, number>();
 
   const rewind = (voice: Voice, then: () => void) => {
@@ -80,15 +81,19 @@ export function createSoundBank<N extends string>({
     }
   };
 
-  const pool = (name: N): Voice[] => {
-    const existing = pools.get(name);
+  const pool = (name: N, rate: number, volume: number): Voice[] => {
+    const key = `${name}|${rate}|${volume}`;
+    const existing = pools.get(key);
     if (existing) return existing;
     const list: Voice[] = [];
     for (let i = 0; i < Math.max(1, voices(name)); i++) {
       try {
         const player = create(name);
         if (!player) break;
-        const voice: Voice = { player, state: 'ready', startedAt: -Infinity, rate: 1, volume: -1, token: 0 };
+        // Hauteur et volume de la variante, une fois pour toutes
+        player.setVolume(volume);
+        if (rate !== 1) player.setRate(rate);
+        const voice: Voice = { player, state: 'ready', startedAt: -Infinity, token: 0 };
         // Fini : on rembobine aussitôt, le lecteur sera prêt au prochain coup
         player.onFinish(() => {
           if (voice.state !== 'playing') return;
@@ -103,58 +108,40 @@ export function createSoundBank<N extends string>({
         break;
       }
     }
-    pools.set(name, list);
+    pools.set(key, list);
     return list;
   };
 
-  const start = (voice: Voice, rate: number, volume: number) => {
+  // Départ : un seul appel au natif, play()
+  const start = (voice: Voice) => {
     voice.token++;
-    // Chaque réglage est un appel au natif : seulement s'il change
-    if (voice.volume !== volume) {
-      voice.player.setVolume(volume);
-      voice.volume = volume;
-    }
-    if (voice.rate !== rate) {
-      voice.player.setRate(rate);
-      voice.rate = rate;
-    }
     voice.player.play();
     voice.state = 'playing';
     voice.startedAt = now();
   };
 
   return {
-    preload(name) {
-      pool(name);
+    preload(name, { rate = 1, volume = 1 } = {}) {
+      pool(name, rate, volume);
     },
-    play(name, { rate = 1, volume = 1, minGap = 0, exclusive = false } = {}) {
+    play(name, { rate = 1, volume = 1, minGap = 0 } = {}) {
       try {
         const t = now();
         const last = lastAt.get(name);
         if (minGap > 0 && last !== undefined && t - last < minGap) return false;
-        const list = pool(name);
+        const list = pool(name, rate, volume);
         if (list.length === 0) return false;
         lastAt.set(name, t);
-        if (exclusive) {
-          for (const v of list) {
-            if (v.state !== 'playing') continue;
-            v.token++;
-            v.player.pause();
-            rewind(v, () => {
-              v.state = 'ready';
-            });
-          }
-        }
         const ready = list.find((v) => v.state === 'ready');
         if (ready) {
-          start(ready, rate, volume);
+          start(ready);
           return true;
         }
         // Aucun prêt : le plus ancien repart du début (pause, retour, lecture)
         const oldest = list.reduce((a, b) => (b.startedAt < a.startedAt ? b : a));
         oldest.token++;
         oldest.player.pause();
-        rewind(oldest, () => start(oldest, rate, volume));
+        rewind(oldest, () => start(oldest));
         return true;
       } catch (err) {
         onError(err);

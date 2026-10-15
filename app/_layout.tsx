@@ -11,6 +11,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 
@@ -25,6 +26,7 @@ import { usePreloadedImages } from '@/src/hooks/usePreloadedImages';
 import { palette } from '@/src/constants/style/Style';
 import { CustomDarkTheme, CustomLightTheme } from '@/src/constants/theme';
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext';
+import { configureSoundSession } from '@/src/utils/sound';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Démarrage : le splash natif (fond + logo, voir app.json) reste jusqu'à ce
@@ -96,6 +98,10 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+  // Session audio d'iOS configurée une seule fois, au démarrage
+  useEffect(() => {
+    configureSoundSession();
+  }, []);
   return (
     <SafeAreaProvider>
       <ThemeProvider>
