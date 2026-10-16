@@ -21,6 +21,8 @@ Pour chaque point :
 | 1 | Changer de mot de passe depuis l'app | Le changement passe par le site |
 | 1 | Mot de passe oublié en production | Bouton désactivé dans l'app |
 | 1 | Inscription depuis l'app | Fermée côté serveur (403) |
+| 2 | Révision du jour comptée dans la série et les XP (4.8) | La révision du jour ne donne ni XP ni série |
+| 2 | Dates d'activité par module et par leçon (4.6) | La leçon du jour et l'ordre des univers ne suivent que ce téléphone |
 | 2 | Phrase « À retenir » (takeaway) des leçons | Pas de déclic au carnet pour les leçons du serveur |
 | 2 | Objectifs crypto et impôts | Gardés sur le téléphone seulement |
 | 2 | Gel de série et record pour les comptes | « Bientôt disponible avec ton compte » ; record gardé sur le téléphone |
@@ -186,6 +188,18 @@ Ce n'est pas un manque du site, mais il faut choisir un seul format avant d'écr
 - **Rien ne manque pour l'affichage** : `difficulty` est renvoyé par `GET /api/modules`, parmi `entree, debutant, inter, avance, expert` (et l'ancienne valeur `intermediaire`, lue comme `inter`). L'app suit l'ordre du site et la même règle de déblocage que la page web d'un thème (un niveau s'ouvre quand tous les modules des niveaux précédents sont terminés).
 - **Souhaité, plus tard** : que l'API dise elle-même si un niveau est verrouillé, pour que la règle ne vive qu'à un endroit.
 - **En attendant** : la règle est recopiée dans l'app (`src/utils/levels.ts`).
+
+### 4.8 Révision quotidienne : la faire compter dans la série et les XP
+- **Ce qui existe sur main** : `GET /api/revision` prépare une session (un écran noté par notion à revoir, 10 au plus, gardée 6 h) et `POST /api/revision/{session}/complete` l'enregistre : dès 3 réponses, elle crédite 10 à 30 XP, fait avancer la série (`StreakService::creditActivity`), donne +10 Vals une fois par jour et compte pour la quête `complete_revision`. Cette route n'accepte que les sessions préparées par le serveur.
+- **Manque** : l'app tire elle-même sa révision du jour (règles choisies avec toi : de 4 à 10 écrans selon les leçons faites, écrans ratés d'abord, puis les plus anciens, univers mélangés, rien de la veille sauf ce qui a été raté, déclics du carnet compris). Aucune route ne permet de l'enregistrer.
+- **Souhaité** : `POST /api/revision/app`, avec :
+  - `{ day: "AAAA-MM-JJ", screens: [{ lesson_id, index, correct }], declics: [{ correct }] }` ;
+  - le serveur vérifie que chaque écran appartient à une leçon terminée par la personne et qu'il est noté ; les déclics sont comptés sans vérification (ils sont sur le téléphone) ;
+  - mêmes règles que la révision du serveur : `streak_min_answered` réponses au moins, mêmes XP selon la réussite, +10 Vals une fois par jour, quête `complete_revision` ;
+  - une seule révision créditée par jour et par compte (une deuxième répond 200 sans rien créditer) ;
+  - réponse : `xp_earned`, `new_streak`, `streak_progressed`, `daily_streak_bonus`, et `user: { xp, level, streak, vals }` comme `/complete`.
+  - Plus tard, si tu le souhaites : mettre à jour l'espacement par notion (`NotionProgressService`) avec ces résultats.
+- **En attendant** : la révision se joue et se mémorise sur le téléphone (date et résultat de chaque écran, pour l'espacement), sans XP ni série ; la série reste liée aux leçons. Les écrans des leçons terminées sont relus par `GET /api/lessons/{id}` (le contenu complet est renvoyé pour toute leçon publiée) et gardés sur le téléphone.
 
 ## 5. Dictionnaire
 - **Manque** :
