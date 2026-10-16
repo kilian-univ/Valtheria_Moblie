@@ -27,10 +27,7 @@ Pour chaque point :
 | 2 | Gel de série et record pour les comptes | « Bientôt disponible avec ton compte » ; record gardé sur le téléphone |
 | 2 | Photo de profil | Initiale à la place de la photo |
 | 3 | Bonus de série de bonnes réponses (4.9) | Pas de bonus d'XP ni de Vals pour les bonnes réponses d'affilée ; défis de précision gardés sur le téléphone |
-| 1 | Cours des actions et taux EUR/USD (8.4) | Yahoo v7 en 401 : taux figé à 1,08 (écart d'environ 4 %), cours des actions plus lents, cryptos hors liste sans cours |
-| 3 | Historique du portefeuille dans l'app (8.6) | Corrigé dans l'app ; une réponse non dépliée rendrait la correction inutile |
-| 2 | Positions regroupées, PRU, opérations et ventes (8.1 à 8.3) | Chaque ajout crée une ligne de plus ; pas de prix de revient moyen, pas d'historique des achats, pas de vente ni de plus-value réalisée |
-| 3 | Logos des actifs (8.5) | Une icône par type (la pièce 🪙 pour toutes les cryptos) |
+| 1 | Portefeuille : positions, opérations, ventes, cours, logos, risque (8) | **Fait côté site, en attente** : PR #5, ni fusionnée ni déployée. Ensuite, l'app pourra utiliser les nouvelles routes |
 | 1 | Écrans `number` et `live_month` non joués par l'app (9.1) | S'ils apparaissent dans une leçon ou une révision, l'écran compte comme raté : score plus bas, XP réduits, notion qui recule |
 | 1 | Formats de l'app pour `dialogue` et `allocate` (9.2, 9.3) | Impossible d'écrire ces écrans pour l'app sur le site |
 | 2 | Révélation, sous-titre, document, difficulté des leçons (9.4 à 9.7) | Écrans de l'app refusés par le validateur, coffres faussés pour certains niveaux |
@@ -256,118 +253,300 @@ Pour chaque point :
 
 ## 8. Outils : portefeuille
 
-Relevé du 16 octobre 2026 (site, branche `main`, lu en lecture seule). Le détail est dans le compte rendu de l'état des lieux ; ici, ce qu'il faudrait changer côté site.
+**Fait côté site le 16 octobre 2026.**
+- **Où** : branche `lot-portefeuille` du dépôt Valtheraa/Valtheria, **PR #5** (https://github.com/Valtheraa/Valtheria/pull/5).
+- **État** : ni fusionnée ni déployée, en attente de ta validation, puis staging avant la production.
+- **Tant que ce n'est pas en production** : l'app reste sur les anciennes routes, qui continuent de fonctionner (voir 8.3).
 
-### 8.1 Une position par actif, avec un prix de revient moyen
-- **Manque** :
-  - la table `positions` mélange l'actif et l'achat : `ticker`, `name`, `type`, `quantity`, `buy_price`, `buy_currency`, `buy_date`, `current_price`, plus `is_livret`, `is_manual`, `current_value_override`, `rate` ;
-  - `POST /api/portfolio/positions` crée **toujours une nouvelle ligne**. 2 SOL ajoutés à 3 SOL donnent deux lignes SOL, chacune avec son propre prix d'achat ;
-  - aucun prix de revient moyen (PRU) n'est calculé ; le gain est calculé ligne par ligne ;
-  - `PATCH /api/portfolio/positions/{id}` réécrit la quantité et le prix d'achat sans laisser de trace.
-- **Souhaité** :
-  - **une position par actif et par portefeuille** : unicité sur (`portfolio_id`, `ticker`) pour les actifs cotés. Les livrets et les actifs manuels gardent des lignes libres ;
-  - sur la position :
-    - `avg_cost` (PRU, dans la devise de la position, frais d'achat compris) ;
-    - `quantity` (quantité détenue) ;
-    - `realized_gain` (cumul des plus-values réalisées) ;
-    - `opened_at` (premier achat) et `closed_at` (quantité revenue à 0) ;
-  - méthode : **prix moyen pondéré**. À chaque achat, `avg_cost = (quantité détenue × avg_cost + quantité achetée × prix + frais) / nouvelle quantité`. Une vente ne change pas le PRU ;
-  - les valeurs de la position (quantité, PRU, plus-value réalisée) sont **toujours recalculées** en rejouant ses opérations dans l'ordre chronologique (une seule fonction, par exemple `PositionLedger::rebuild`), après chaque ajout, modification ou suppression d'opération ;
-  - **devise** : celle de la première opération. Une opération dans l'autre devise est convertie au taux du jour de l'opération, gardé sur l'opération ;
-  - **reprise des données** : chaque ligne existante devient une opération d'achat (date : `buy_date`, sinon `created_at`). Les lignes d'un même ticker sont ensuite fusionnées en une position. Les doublons de devise différente sont signalés dans le journal de la migration ;
-  - **compatibilité** :
-    - `buy_price` reste renvoyé (égal au PRU), pour la page web et les versions actuelles de l'app ;
-    - `POST /api/portfolio/positions` devient un achat qui rejoint la position existante.
+### 8.1 Ce qui est fait
 
-### 8.2 Historique des opérations
-- **Manque** : aucune table d'opérations. Seuls des instantanés de valeur totale (`portfolio_snapshots`) sont gardés.
-- **Souhaité** :
-  - **table `portfolio_operations`** :
-    - `id`, `portfolio_id`, `position_id` ;
-    - `side` (`buy` | `sell`) ;
-    - `quantity`, `unit_price`, `currency`, `fees` (0 par défaut) ;
-    - `fx_rate_eur` (taux du jour, pour convertir) ;
-    - `executed_at` (date et heure de l'opération, par défaut maintenant) ;
-    - `note` (500 caractères au plus, déjà accepté puis jeté par `store`) ;
-    - pour une vente : `cost_basis` (PRU au moment de la vente) et `realized_gain` ;
-    - `timestamps` ;
-  - **routes (connecté)** :
-    - `POST /api/portfolio/operations` `{ ticker, name, type, side, quantity, unit_price, currency, fees?, executed_at?, note? }` : trouve ou crée la position, enregistre l'opération, recalcule. Réponse 201 `{ operation, position }`, `position` ayant la même forme qu'un élément de `GET /api/portfolio` ;
-    - `GET /api/portfolio/positions/{id}/operations` : les opérations de la position, de la plus récente à la plus ancienne ;
-    - `GET /api/portfolio/operations?page=` : toutes les opérations, paginées ;
-    - `PATCH /api/portfolio/operations/{id}` et `DELETE /api/portfolio/operations/{id}` : refusés (422, message en français) si le recalcul ferait vendre plus que la quantité détenue à une date donnée ;
-  - `DELETE /api/portfolio/positions/{id}` supprime aussi ses opérations ;
-  - `PATCH /api/portfolio/positions/{id}` ne garde que le nom, la valeur manuelle et le taux. La quantité et le prix ne changent plus que par les opérations ;
-  - **courbe** : chaque instantané garde aussi `net_invested` (achats moins ventes, au prix payé). Ainsi, un achat n'apparaît plus comme un gain sur la courbe ;
-  - **réponse de `GET /api/portfolio/history`** :
-    - par point : `invested` ;
-    - la réponse doit aussi arriver en entier à l'app (voir 8.6).
+**Une position par actif**
+- La position est recalculée à partir de ses opérations :
+  - prix de revient moyen pondéré, frais compris ;
+  - plus-value réalisée cumulée ;
+  - dates d'ouverture et de clôture.
+- Les livrets et les actifs manuels restent des lignes libres, sans opérations.
+- **Reprise des données** : chaque ligne existante devient un achat, puis les lignes d'un même actif sont fusionnées (même ticker, même devise). Elle est réversible, et vérifiée sur MySQL comme sur SQLite.
 
-### 8.3 Ventes et plus-value réalisée
-- **Manque** : aucune vente. Pour vendre, on supprime la ligne ou on baisse sa quantité, et le gain disparaît.
-- **Souhaité** :
-  - **une vente** est une opération `sell`. Sa quantité doit être positive et ne pas dépasser la quantité détenue à cette date ; sinon 422 « Tu ne peux pas vendre plus que ce que tu détiens. » ;
-  - **plus-value réalisée** = `quantité × prix de vente − frais − quantité × PRU`, gardée sur l'opération et cumulée sur la position (`realized_gain`, et `realized_gain_eur` au taux de l'opération) ;
-  - **position soldée** (quantité 0) : elle est gardée avec `closed_at`, hors de la liste active. Elle est renvoyée par `GET /api/portfolio?include_closed=1`, ou dans un champ séparé `closed_positions` ;
-  - **dans `GET /api/portfolio`** :
-    - `realized_gain_total_eur` ;
-    - `unrealized_gain_eur` (le `gain_loss` actuel, calculé sur le PRU) ;
-  - **mention dans la réponse** : la plus-value est **indicative**. Pour les cryptos, l'impôt français se calcule sur l'ensemble du portefeuille (article 150 VH bis), pas actif par actif.
+**Les opérations** : achat ou vente, quantité, prix, devise, frais, date, note.
+- Routes : ajouter, lister (en tout et par position), modifier, supprimer.
+- Chaque changement rejoue l'historique de la position, sous verrou.
 
-### 8.4 Cours fiables
-- **Manque** :
-  - **Actions et ETF** (`StockPriceProvider`) : `query2.finance.yahoo.com/v7/finance/quote` répond **401** (vérifié le 16 octobre 2026). Chaque titre passe donc par le repli `v8/finance/chart`, qui répond : un appel par titre, l'un après l'autre (6 s de délai chacun) ;
-  - **taux EUR/USD** (`PriceService`, `PortfolioController`, `SnapshotService`) : il vient de `v7/finance/quote?symbols=EURUSD=X`, donc **401**, et retombe sur **1,08 écrit en dur**. Le taux réel était de 1,1236 le 16 octobre 2026 :
-    - toutes les conversions sont faussées d'environ 4 % ;
-    - la valeur en euros des cryptos est gonflée (somme en USD de CoinGecko, divisée par 1,08) ;
-    - le montant investi en euros d'un achat en dollars l'est aussi ;
-  - **autres devises** : une devise autre que EUR (GBp, CHF, JPY…) est traitée comme du dollar dans `buildStockEntry` ;
-  - **cryptos** : seules les 40 de `COINGECKO_MAP` sont reconnues. Une autre crypto (RENDER, FET…) est envoyée à Yahoo comme une action (symbole `RENDER` au lieu de `RENDER-USD`). Elle n'a donc pas de cours et reste « prix figé » au prix d'achat.
-- **Ce qui marche déjà dans le code** (vérifié le 16 octobre 2026) :
-  - CoinGecko `simple/price` (sans clé) ;
-  - Binance `ticker/price` (repli, en USDT) ;
-  - Yahoo `v8/finance/chart` (cours et historique) ;
-  - Yahoo `v1/finance/search` ;
-  - OpenFIGI (ISIN).
-- **Souhaité** :
-  - **actions et ETF** : retirer l'appel v7 et passer directement par `v8/finance/chart`, en parallèle (`Http::pool`), avec le cache de 5 minutes ;
-  - **taux de change** : un seul service, utilisé par l'index, l'historique et les instantanés. Source : `v8/finance/chart/EURUSD=X`, ou la BCE (par exemple Frankfurter) en repli. Il gère toutes les devises (`{DEV}EUR=X`, GBp divisé par 100). Plus aucune valeur écrite en dur : si aucun taux n'est disponible, garder le dernier taux connu et sa date ;
-  - **cryptos** : résoudre l'identifiant CoinGecko par sa recherche (`/api/v3/search`), une fois par actif, et le garder sur l'actif (voir 8.5). Clé CoinGecko « demo » gratuite, pour ne plus dépendre de la limite publique ;
-  - **dans chaque position** : `price_source` (`coingecko`, `binance`, `yahoo-chart`, `manual`) et `price_updated_at`, pour que l'app dise « cours du … » quand il est ancien ;
-  - **tests** : avec `Http::fake`, v7 en 401, taux absent, crypto inconnue de la liste.
+**Les ventes**
+- Une vente au-delà de la quantité détenue à sa date est refusée (422), et rien n'est écrit.
+- La plus-value réalisée est calculée en devise et en euros.
+- Les positions soldées sont renvoyées à part, dans `closed_positions`.
 
-### 8.5 Logos des actifs
-- **Manque** :
-  - le site ne garde **aucune image d'actif**. `public/data/assets.json` (522 actifs : 369 actions, 81 ETF, 40 cryptos, 15 autres, 12 matières, 5 livrets) n'a que `ticker`, `name`, `type`, `exchange`, et parfois `isin`, `currency`, `rate` ;
-  - la page web et l'app affichent une icône par type, pas par actif.
-- **Souhaité** :
-  - **table `assets`**, qui remplace `assets.json` :
-    - `ticker`, `name`, `type`, `exchange`, `isin`, `currency` ;
-    - `coingecko_id`, `yahoo_symbol` ;
-    - `logo_path`, `logo_updated_at` ;
-    - la position la référence par `asset_id` ;
-  - **cryptos** : le logo vient de CoinGecko (`/api/v3/coins/markets`, champ `image` ; vérifié pour Solana). Il est téléchargé une fois et servi par le site (stockage public), sans lien direct vers CoinGecko ;
-  - **actions et ETF** : aucune source gratuite n'est déjà branchée. Au choix :
-    - des logos choisis et déposés depuis l'admin pour les titres les plus suivis ;
-    - un service de logos à partir du site de l'entreprise, à valider (conditions d'usage) ;
-  - **API** : `logo_url` (URL absolue, ou `null`) dans chaque position de `GET /api/portfolio`, dans les résultats de `GET /api/search`, et dans `POST /api/portfolio/operations` ;
-  - **côté app** : sans logo, une pastille avec les initiales du ticker, dans la couleur du type.
+**Les cours**
+- **Actions et ETF** : fin de Yahoo v7 (401) ; Yahoo v8 est appelé en parallèle.
+- **Taux de change** : un seul service pour toutes les devises, sans aucune valeur écrite en dur (le 1,08 a disparu).
+  - Sources : Yahoo v8, puis la BCE, puis le dernier taux connu.
+- **Cryptos** : celles hors des 40 connues sont reconnues par la recherche CoinGecko.
+- **Source et heure du cours** dans chaque position (`price_source`, `price_updated_at`). Sans source disponible, le dernier cours gardé est servi.
 
-### 8.6 Historique du portefeuille dans l'app
-- **Manque** :
-  - `GET /api/portfolio/history` répond `{ data: [...], range, total_invested, current_value }` ;
-  - dans l'app, `authRequest` passe toute réponse par `unwrap()` (`src/context/ApiContext.tsx`), qui ne garde que `data` quand cette clé existe ;
-  - `range`, `total_invested` et `current_value` sont donc perdus, et l'app reçoit un simple tableau ;
-  - `HistoryChart` lit ensuite `history.data`, qui n'existe pas sur un tableau : la courbe affiche **toujours « Pas encore de données. »**, et la ligne « investi » n'est jamais tracée.
-- **Souhaité** :
-  - côté site, une réponse que `unwrap()` ne déplie pas, sans casser la page web (qui lit `data`) : `GET /api/portfolio/history?shape=app` ou une route `GET /api/portfolio/chart`, avec `{ points: [...], range, total_invested, current_value }` ;
-  - **autre voie, côté app** : corriger `getPortfolioHistory` dans `ApiContext.tsx`. Ce fichier est interdit sans ton accord explicite.
-- **En attendant** (corrigé dans l'app le 16 octobre 2026, sans toucher à `ApiContext.tsx`) : `HistoryChart` accepte le tableau tel quel ou la réponse entière (`src/utils/portfolioHistory.ts`), et la ligne « investi » vient de `total_invested_eur` de `GET /api/portfolio`. Seul `current_value` reste perdu, sans effet : la carte du haut l'affiche déjà.
+**Les logos et la table des actifs**
+- Une table `assets` remplace `public/data/assets.json`.
+- Les logos des cryptos sont récupérés chez CoinGecko et servis par le site, le 1er de chaque mois.
+- `logo_url`, ou `null`, est renvoyé dans le portefeuille et dans la recherche.
 
-### 8.7 Petites corrections au passage
-- **Journaux de débogage** : `PortfolioController::index` écrit à chaque appel un journal `Portfolio livePrices`, et un journal propre à SOL (`Prix SOL utilisé pour total`). `CryptoPriceProvider` écrit la réponse brute de CoinGecko à chaque appel. À retirer ;
-- **instantané à la connexion** : `TakePortfolioSnapshot` écoute l'événement `Login`, que la connexion de l'app par jeton (`createToken`) ne déclenche pas. Les comptes de l'app n'ont que les instantanés planifiés (toutes les 4 h, 24 h d'écart pour un compte gratuit) ;
-- **recherche** : `formatResult` interroge un cours pour chacun des 12 résultats ; un seul appel groupé suffirait.
+**Pour les écrans de l'app**
+- **Type d'actif et niveau de risque par actif** (`risk_level`, `risk_label`) : sans risque, modéré, élevé, très élevé.
+  - Par défaut selon le type : livrets sans risque, ETF modéré (à effet de levier : très élevé), actions et matières élevé, cryptos très élevé.
+  - Réglable dans la nouvelle page d'admin « Actifs ».
+- **Intérêts estimés des livrets sur l'année** (revenus passifs) : `annual_interest_estimate_eur` par livret, et `passive_income_estimate_eur` au total.
+  - Le taux vient de la position, sinon du chiffre réglementaire vérifié, sinon du catalogue.
+
+**Courbe**
+- Les instantanés gardent l'argent réellement versé (`net_invested`).
+- `GET /api/portfolio/chart` répond sans clé `data`. `/history` reste inchangée pour la page web.
+
+**Petites corrections**
+- Journaux de débogage retirés.
+- Instantané pris aussi à la connexion depuis l'app.
+- Un seul appel de cours par recherche.
+- L'IA ignore les positions soldées.
+- L'export des données personnelles contient les opérations.
+
+**Tests** : 481 au vert dans le site, dont 59 nouveaux. Les tests du lot passent aussi sur MySQL. Vérifié en local, avec les vraies sources, sur la page web connectée.
+
+### 8.2 Format des routes
+
+**Règles communes.**
+- **Format** : JSON plat, sans enveloppe `data`, à une exception près : `/history` garde la clé `data` pour la page web. L'app lit `/chart`.
+- **Accès** :
+  - authentification Sanctum : jeton Bearer pour l'app, session et cookie pour la page web ;
+  - un utilisateur ne voit que son portefeuille : toute position ou opération d'un autre compte répond `404` ;
+  - sans connexion, la réponse est `401`.
+- **Erreurs** :
+  - une erreur de validation répond `422 { message, errors: { champ: [message] } }` ;
+  - une erreur métier (vente supérieure à la quantité détenue, taux de change indisponible, position à plusieurs opérations modifiée par l'ancienne route) répond `422`, sous la même forme.
+- **Montants** :
+  - par ligne (`buy_price`, `avg_cost`, `current_price`, `value`, `invested`, `gain_loss`, `realized_gain`) : dans la devise de la position (`buy_currency`) ;
+  - suffixés `_eur` ou `_usd` : convertis. Ils valent `null` si aucun taux n'est connu.
+
+**Sources des cours** :
+
+| Actif | Source | Cache |
+|---|---|---|
+| Crypto | CoinGecko `simple/price` (EUR et USD natifs, heure du cours). Identifiant : `assets.coingecko_id`, sinon recherche CoinGecko une fois par ticker. Binance en secours | 60 s |
+| Actions, ETF, matières, paires Yahoo (`SOL-USD`, `EURUSD=X`) | Yahoo **v8 chart**, un appel par ticker, en parallèle. L'API **v7 n'est plus appelée** (401) | 5 min |
+| Taux de change (toutes devises, pence de Londres compris) | `FxService` : Yahoo v8 `{DEV}EUR=X`, puis BCE (Frankfurter), puis dernier taux connu. Aucune valeur écrite en dur | 5 min |
+| Livrets | Pas de cours. Taux : celui saisi sur la position, sinon le chiffre réglementaire vérifié (`livret_a_taux`, `ldds_taux`, `lep_taux`, `livret_jeune_taux`), sinon le taux du catalogue | — |
+
+Chaque position dit d'où vient son cours :
+- **`price_source`** :
+  - `coingecko`, `binance` ou `yahoo-chart` : cours en direct ;
+  - `stored` : dernier cours gardé, quand aucune source ne répond ;
+  - `buy_price` : jamais coté ;
+  - `livret` ou `manual`.
+- **`price_updated_at`** : la date ISO 8601 de ce cours.
+
+#### `GET /api/portfolio`
+Positions détenues, positions soldées à part, et totaux. Un portefeuille vide est créé au premier accès.
+
+```json
+{
+  "id": 1, "name": "Mon portefeuille", "currency": "EUR",
+  "eur_usd_rate": 1.124353,
+  "total_invested": 6460, "total_current": 6371.04, "gain_loss": -88.96, "gain_loss_pct": -1.38,
+  "daily_change": -6.28, "daily_change_pct": -0.1,
+  "total_current_eur": 6371.04, "total_current_usd": 7163.3, "total_invested_eur": 6460, "total_invested_usd": 7263.32,
+  "unrealized_gain_eur": -88.96,
+  "realized_gain_total_eur": 88.5,
+  "net_invested_eur": 6371.5,
+  "passive_income_estimate_eur": 144,
+  "fx": { "eur_usd": 1.124353, "source": "yahoo", "updated_at": "2026-10-16T21:16:27+00:00" },
+  "gains_note": "Plus-values indicatives, calculées actif par actif au prix de revient moyen. Pour les cryptos, l’impôt se calcule sur l’ensemble du portefeuille.",
+  "positions": [
+    {
+      "id": 1, "ticker": "SOL", "name": "Solana", "type": "crypto",
+      "asset_id": 4, "logo_url": "https://valtheria.fr/storage/assets/logos/sol-1a2b3c4d.png",
+      "risk_level": "tres_eleve", "risk_label": "Très élevé",
+      "buy_date": "2026-08-01", "opened_at": "2026-08-01T00:00:00+00:00", "closed_at": null,
+      "operations_count": 4, "is_livret": false, "is_manual": false,
+      "quantity": 4, "buy_currency": "EUR", "buy_price": 115, "avg_cost": 115,
+      "current_price": 92.76, "invested": 460, "value": 371.04, "gain_loss": -88.96, "gain_loss_pct": -19.34,
+      "current_price_eur": 92.76, "current_price_usd": 104.295, "value_eur": 371.04, "value_usd": 417.18,
+      "invested_eur": 460, "invested_usd": 517.2, "native_currency": "EUR",
+      "daily_change_pct": -1.66, "daily_change_abs": -6.28,
+      "is_live": true, "price_source": "coingecko", "price_updated_at": "2026-10-16T21:19:32+00:00",
+      "realized_gain": 88.5, "realized_gain_eur": 88.5, "unrealized_gain": -88.96,
+      "annual_interest_estimate_eur": null, "interest_rate_pct": null
+    },
+    {
+      "id": 3, "ticker": "LIVRET_A", "name": "Livret A", "type": "livret",
+      "asset_id": 284, "logo_url": null, "risk_level": "sans_risque", "risk_label": "Sans risque",
+      "operations_count": 0, "is_livret": true, "is_manual": false, "rate": 2.4,
+      "quantity": 1, "buy_currency": "EUR", "buy_price": 6000, "avg_cost": 6000, "value": 6000, "invested": 6000,
+      "price_source": "livret",
+      "annual_interest_estimate_eur": 144, "interest_rate_pct": 2.4, "interest_rate_source": "position"
+    }
+  ],
+  "closed_positions": [
+    {
+      "id": 7, "ticker": "AAPL", "name": "Apple Inc.", "type": "action",
+      "asset_id": 9, "logo_url": null, "risk_level": "eleve", "risk_label": "Élevé",
+      "buy_date": "2026-03-02", "opened_at": "2026-03-02T00:00:00+00:00", "closed_at": "2026-09-30T00:00:00+00:00",
+      "operations_count": 2, "is_livret": false, "is_manual": false,
+      "buy_currency": "USD", "avg_cost": 180.5, "realized_gain": 41.2, "realized_gain_eur": 36.63
+    }
+  ]
+}
+```
+
+**Signification des champs** :
+- **Risque** : `risk_level` vaut `sans_risque`, `modere`, `eleve`, `tres_eleve`, ou `null` (non classé).
+- **Montant investi** :
+  - `invested` et `total_invested*` : coût des parts **détenues**, au prix de revient moyen ;
+  - `net_invested_eur` : argent **réellement versé** (achats frais compris, moins le produit des ventes, plus les montants des livrets et actifs manuels).
+- **Plus-values** :
+  - `unrealized_gain_eur` : plus-value latente ;
+  - `realized_gain_total_eur` : plus-values réalisées, positions soldées comprises.
+- **Revenus passifs** : `passive_income_estimate_eur` est la somme des intérêts estimés des livrets sur un an.
+
+#### `POST /api/portfolio/operations`
+Achat ou vente. L'opération trouve ou crée la position de l'actif, puis tout est recalculé.
+
+**Corps de la requête**
+
+| Champ | Règle |
+|---|---|
+| `ticker` | obligatoire, 64 caractères au plus, `A-Z 0-9 . - = ^ _` |
+| `name` | facultatif, 120 caractères au plus (sinon le nom de l'actif) |
+| `type` | facultatif : `crypto`, `action`, `etf`, `matiere` ou `autre` (sinon le type de l'actif) |
+| `side` | obligatoire : `buy` ou `sell` |
+| `quantity` | obligatoire, > 0 |
+| `unit_price` | obligatoire, ≥ 0 |
+| `currency` | `EUR`, `USD`, `GBP` ou `CHF` ; par défaut, la devise de la position |
+| `fees` | ≥ 0, 0 par défaut |
+| `executed_at` | date, au plus demain ; par défaut maintenant |
+| `note` | 500 caractères au plus |
+
+**Calculs**
+- **Prix de revient moyen** : moyenne pondérée, frais compris. Une vente ne le change pas.
+- **Plus-value d'une vente** : `quantité × prix − frais − quantité × prix de revient moyen`.
+- **Devise différente de la position** : le prix est converti au taux du jour, figé sur l'opération.
+
+**Réponse `201`**
+```json
+{
+  "operation": {
+    "id": 4, "position_id": 1, "side": "sell", "quantity": 2, "unit_price": 160, "currency": "EUR", "fees": 1.5,
+    "total": 318.5, "executed_at": "2026-10-14T00:00:00+00:00", "note": "Prise de bénéfices",
+    "cost_basis": 115, "realized_gain": 88.5, "realized_gain_eur": 88.5, "created_at": "2026-10-16T21:19:42+00:00"
+  },
+  "position": { "…": "même forme qu'un élément de positions (ou de closed_positions si elle est soldée)" }
+}
+```
+
+**Vente au-delà de la quantité détenue** : réponse `422`, et rien n'est écrit.
+```json
+{ "message": "Tu ne peux pas vendre plus que ce que tu détiens à cette date (4).",
+  "errors": { "quantity": ["Tu ne peux pas vendre plus que ce que tu détiens à cette date (4)."] } }
+```
+Une vente d'un actif jamais acheté répond aussi `422` : « Tu ne détiens pas encore SOL : commence par un achat. ».
+
+#### `GET /api/portfolio/operations?page=&per_page=&ticker=&side=`
+Toutes les opérations, de la plus récente à la plus ancienne. `per_page` vaut 30 par défaut, 100 au plus.
+```json
+{
+  "operations": [
+    { "id": 4, "position_id": 1, "side": "sell", "quantity": 2, "unit_price": 160, "currency": "EUR", "fees": 1.5,
+      "total": 318.5, "executed_at": "2026-10-14T00:00:00+00:00", "note": "Prise de bénéfices",
+      "cost_basis": 115, "realized_gain": 88.5, "realized_gain_eur": 88.5, "created_at": "2026-10-16T21:19:42+00:00",
+      "ticker": "SOL", "name": "Solana", "type": "crypto" }
+  ],
+  "pagination": { "current_page": 1, "per_page": 30, "total": 4, "last_page": 1 }
+}
+```
+
+#### `GET /api/portfolio/positions/{id}/operations`
+`{ "position": { … même forme qu'un élément de positions … }, "operations": [ … de la plus récente à la plus ancienne … ] }`
+
+#### `PATCH /api/portfolio/operations/{id}`
+- **Corps (partiel)** : `side`, `quantity`, `unit_price`, `currency`, `fees`, `executed_at`, `note`.
+- **Effet** : toute la position est rejouée.
+- **Réponse** : `{ "operation", "position" }`.
+- **Refus `422`** : si la modification rend une vente impossible à une date donnée.
+
+#### `DELETE /api/portfolio/operations/{id}`
+- **Réponse** : `{ "ok": true, "position": { … } | null }`.
+- **Dernière opération** : sa suppression supprime aussi la position, et `position` vaut `null`.
+- **Refus `422`** : si la suppression rend une vente impossible (par exemple, supprimer l'achat qui la couvrait).
+
+#### `POST /api/portfolio/positions` (route d'origine, gardée)
+- **Corps inchangé** : `ticker`, `name`, `type`, `quantity`, `buy_price`, `buy_currency` (`EUR` ou `USD`), `buy_date?`, `is_livret?`, `is_manual?`, `current_value_override?`, `rate?` (en %), `note?`.
+- **Actif coté** : l'ajout devient un **achat qui rejoint la position existante** du même ticker.
+- **Livret ou actif manuel** : ligne libre, comme avant.
+- **Réponse** : `201 { "id": 1, "ticker": "SOL", "operation_id": 3, "merged": true }`. `operation_id` est absent pour un livret.
+
+#### `PATCH /api/portfolio/positions/{id}` (route d'origine, gardée)
+- **Livret et actif manuel** : tous les champs, comme avant, plus `rate` et `current_value_override`.
+- **Actif coté** :
+  - `name` est toujours accepté ;
+  - `quantity`, `buy_price`, `buy_currency` et `buy_date` : si la position n'a qu'une opération, cet achat est réécrit. Si elle en a plusieurs, une valeur **différente** de l'actuelle répond `422` : « Cette position regroupe plusieurs opérations : modifie-les une par une dans son historique. ». Les mêmes valeurs renvoyées telles quelles, comme le fait la page web, sont acceptées.
+- **Réponse** : `{ "ok": true }`.
+
+#### `DELETE /api/portfolio/positions/{id}`
+Supprime la position **et ses opérations**. Réponse : `{ "ok": true }`.
+
+#### `GET /api/portfolio/chart?range=1d|1w|1m|3m|6m|1y|max` (pour l'app)
+```json
+{
+  "points": [
+    { "date": "2026-10-16T21:17:24+00:00", "value": 5463.55, "invested": 5600, "is_snapshot": true },
+    { "date": "2026-10-16T21:19:42+00:00", "value": 6371.04, "invested": 6371.5, "is_snapshot": false }
+  ],
+  "range": "1m", "total_invested": 6460, "current_value": 6371.04, "net_invested": 6371.5
+}
+```
+- **Points** : les instantanés de la période.
+- **`invested`** : l'argent réellement versé à la date du point, ou `total_invested` pour les instantanés antérieurs au lot.
+- **Moins de deux instantanés** : un point de plus à la valeur actuelle, ou une ligne plate.
+
+#### `GET /api/portfolio/history?range=…` (page web)
+Même contenu que `/chart`, sous la clé `data` (forme d'origine, avec `invested` en plus dans chaque point).
+
+#### `GET /api/portfolio/snapshots`
+`[ { "id", "total_value", "total_invested", "net_invested", "gain_loss", "gain_loss_pct", "snapshot_at" } ]`. Suppression inchangée.
+
+#### `GET /api/search?q=&type=`
+Recherche dans la **table des actifs**, puis OpenFIGI pour un ISIN, puis Yahoo. 12 résultats au plus, avec **un seul appel de cours** pour tous.
+```json
+{ "results": [
+  { "ticker": "SOL", "name": "Solana", "type": "crypto", "isin": null, "exchange": "Crypto", "currency": "USD",
+    "price": 92.76, "price_eur": 92.76, "price_usd": 104.25, "change_24h": -1.66,
+    "logo_url": null, "risk_level": "tres_eleve", "risk_label": "Très élevé" }
+] }
+```
+
+#### `GET /api/prices?tickers=…`
+Forme inchangée.
+- `source` vaut `coingecko`, `binance`, `yahoo-chart` ou `livret`.
+- `updated_at` est l'heure du cours (horodatage Unix).
+- `price_eur` et `price_usd` valent `null` si aucun taux n'est connu.
+- Un livret renvoie son `rate` en fraction (0,017 pour 1,7 %), ou `null`.
+
+### 8.3 Pendant la transition, et ce qui restera à faire dans l'app
+**Les anciennes routes fonctionnent toujours.**
+- **Ajout (`POST /api/portfolio/positions`)** : il rejoint désormais la position existante du même actif. 2 SOL ajoutés à 3 SOL donnent une position de 5 SOL, au prix de revient moyen.
+- **Modification (`PATCH /api/portfolio/positions/{id}`)** : sur une position qui regroupe plusieurs opérations, un changement de quantité ou de prix répond 422, avec un message en français.
+
+**Une fois le lot en production, l'app pourra**
+- passer l'ajout par `POST /api/portfolio/operations` (achat ou vente, frais, date) ;
+- afficher l'historique d'une position, ses ventes et sa plus-value réalisée ;
+- afficher les positions soldées, le logo (avec une pastille d'initiales sans logo), le risque, et les intérêts estimés des livrets ;
+- lire `GET /api/portfolio/chart` : la correction de `HistoryChart` (`src/utils/portfolioHistory.ts`) accepte déjà cette forme ;
+- utiliser `GET /api/search` pour trouver un actif, au lieu de saisir son symbole.
+
+**Bug relevé dans le formulaire d'ajout actuel de l'app** (`AddPositionForm`) : pour un livret, il envoie le montant dans `quantity` et le taux dans `buy_price`. La valeur obtenue vaut donc montant × taux.
+- La page web envoie `quantity: 1`, le montant dans `buy_price`, et le taux dans `rate` (en %).
+- À corriger au moment de la refonte de l'écran.
+
+### 8.4 Points ouverts
+- **Page web, gelée** : une position entièrement vendue disparaît de sa liste, et il n'y a pas d'écran d'opérations. À faire à la refonte du site.
+- **Logos des actions et ETF** : aucune source gratuite n'est branchée. On peut en téléverser à la main dans l'admin « Actifs ».
+- **Plus-values** : elles sont indicatives (`gains_note`). Pour les cryptos, l'impôt se calcule sur l'ensemble du portefeuille, pas actif par actif.
 
 ## 9. Leçons : aligner le site sur le format de l'app
 
