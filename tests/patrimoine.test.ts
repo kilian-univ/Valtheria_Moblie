@@ -460,3 +460,27 @@ test('préférences du lot 3 : lecture prudente', async () => {
   assert.deepEqual(p.milestones, { premier_actif: '2026-10-01' });
   assert.deepEqual(p.months, ['2026-09']);
 });
+
+// ── Une seule célébration pour plusieurs étapes ───────────────────────
+
+test('plusieurs étapes gagnées en même temps : une seule célébration qui les regroupe', async () => {
+  const { celebrationText, mergeCelebration } = await import('../src/utils/patrimoine/celebration');
+  const first = mergeCelebration(null, { goals: [], milestones: ['trois_types', 'premier_actif', 'precaution'] });
+  assert.deepEqual(first.milestones, ['premier_actif', 'trois_types', 'precaution'], 'dans l’ordre du profil');
+  assert.deepEqual(celebrationText(first), {
+    title: 'Trois nouvelles étapes de ton patrimoine !',
+    lines: ['Étape : Premier actif suivi', 'Étape : Trois types d’actifs', 'Étape : Épargne de précaution'],
+  });
+  // Ce qui arrive pendant qu'elle est ouverte s'y ajoute, sans doublon
+  const more = mergeCelebration(first, { goals: [], milestones: ['precaution', 'six_mois'] });
+  assert.equal(more.milestones.length, 4);
+  assert.equal(celebrationText(more)!.title, 'Quatre nouvelles étapes de ton patrimoine !');
+  // Une seule étape : son nom dans le titre
+  assert.deepEqual(celebrationText({ goals: [], milestones: ['six_mois'] }), { title: 'Nouvelle étape : Six mois de régularité !', lines: [] });
+  // Un objectif et des étapes : l'objectif en titre, les étapes dessous
+  const mixed = celebrationText({ goals: ['Voyage'], milestones: ['premier_objectif'] })!;
+  assert.equal(mixed.title, 'Bravo, tu as atteint ton objectif « Voyage » !');
+  assert.deepEqual(mixed.lines, ['Étape : Premier objectif atteint']);
+  assert.equal(celebrationText({ goals: ['A', 'B'], milestones: [] })!.title, 'Bravo, tu as atteint deux objectifs !');
+  assert.equal(celebrationText({ goals: [], milestones: [] }), null);
+});

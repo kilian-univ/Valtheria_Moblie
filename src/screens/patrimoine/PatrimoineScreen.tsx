@@ -12,7 +12,7 @@ import ValBubble from '@/src/components/common/ValBubble';
 import IconButton from '@/src/components/common/IconButton';
 import Pill from '@/src/components/common/Pill';
 import AllocationBar from '@/src/components/patrimoine/AllocationBar';
-import CelebrationSheet, { type Celebration } from '@/src/components/patrimoine/CelebrationSheet';
+import CelebrationSheet from '@/src/components/patrimoine/CelebrationSheet';
 import GoalsSection from '@/src/components/patrimoine/GoalsSection';
 import Figure from '@/src/components/patrimoine/Figure';
 import LineChart from '@/src/components/patrimoine/LineChart';
@@ -43,8 +43,9 @@ import {
   type Period,
 } from '@/src/utils/patrimoine/chart';
 import { money, shortDate, signedMoney, signedPercent, updatedLabel } from '@/src/utils/patrimoine/format';
+import { celebrationText, mergeCelebration, type CelebrationItems } from '@/src/utils/patrimoine/celebration';
 import { emergencyGauge, markReached, newlyReached } from '@/src/utils/patrimoine/goals';
-import { earn, MILESTONES } from '@/src/utils/patrimoine/milestones';
+import { earn } from '@/src/utils/patrimoine/milestones';
 import { parseChart, type ChartPoint } from '@/src/utils/patrimoine/model';
 import { streakLabel } from '@/src/utils/patrimoine/regularity';
 import { chooseValTip } from '@/src/utils/patrimoine/valTips';
@@ -99,7 +100,9 @@ export default function PatrimoineScreen() {
 
   // Régularité, objectifs atteints et étapes gagnées (fêtés une seule fois)
   const progress = usePatrimoineProgress(userKey, prefs, data.fetchedAt);
-  const [celebration, setCelebration] = useState<Celebration | null>(null);
+  // Tout ce qui est gagné en même temps : une seule célébration, complétée si
+  // elle est encore ouverte
+  const [celebration, setCelebration] = useState<CelebrationItems | null>(null);
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   useEffect(() => {
     if (!portfolio || !prefs || !progress.ready) return;
@@ -118,17 +121,12 @@ export default function PatrimoineScreen() {
     );
     if (reached.length === 0 && fresh.length === 0) return;
     updatePatrimoinePrefs(userKey, (p) => ({ ...p, goals: markReached(p.goals, reached.map((g) => g.id), at), milestones: { ...earned, ...p.milestones } })).then(() => {
-      const lines = [
-        ...reached.map((g) => `Objectif atteint : ${g.name}`),
-        ...fresh.map((k) => `Nouvelle étape : ${MILESTONES.find((m) => m.key === k)?.title ?? k}`),
-      ];
-      setCelebration({
-        title: reached.length > 0 ? `Bravo, tu as atteint ton objectif « ${reached[0].name} » !` : 'Une nouvelle étape de ton patrimoine !',
-        lines,
-      });
+      setCelebration((current) => mergeCelebration(current, { goals: reached.map((g) => g.name), milestones: fresh }));
       setCelebrationOpen(true);
     });
   }, [portfolio, prefs, progress.ready, progress.best, userKey]);
+
+  const celebrationCopy = celebration ? celebrationText(celebration) : null;
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -366,8 +364,8 @@ export default function PatrimoineScreen() {
         </AppText>
       </ScrollView>
 
-      {celebration ? (
-        <CelebrationSheet open={celebrationOpen} celebration={celebration} onClose={() => setCelebrationOpen(false)} onClosed={() => setCelebration(null)} />
+      {celebrationCopy ? (
+        <CelebrationSheet open={celebrationOpen} celebration={celebrationCopy} onClose={() => setCelebrationOpen(false)} onClosed={() => setCelebration(null)} />
       ) : null}
     </View>
   );
