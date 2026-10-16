@@ -27,6 +27,10 @@ Pour chaque point :
 | 2 | Gel de série et record pour les comptes | « Bientôt disponible avec ton compte » ; record gardé sur le téléphone |
 | 2 | Photo de profil | Initiale à la place de la photo |
 | 3 | Bonus de série de bonnes réponses (4.9) | Pas de bonus d'XP ni de Vals pour les bonnes réponses d'affilée ; défis de précision gardés sur le téléphone |
+| 1 | Cours des actions et taux EUR/USD (8.4) | Yahoo v7 en 401 : taux figé à 1,08 (écart d'environ 4 %), cours des actions plus lents, cryptos hors liste sans cours |
+| 1 | Historique du portefeuille dans l'app (8.6) | La courbe affiche toujours « Pas encore de données » |
+| 2 | Positions regroupées, PRU, opérations et ventes (8.1 à 8.3) | Chaque ajout crée une ligne de plus ; pas de prix de revient moyen, pas d'historique des achats, pas de vente ni de plus-value réalisée |
+| 3 | Logos des actifs (8.5) | Une icône par type (la pièce 🪙 pour toutes les cryptos) |
 | 3 | Connexion Apple et Google | Boutons masqués |
 | 3 | Dictionnaire enrichi, notifications poussées, date d'inscription, étapes du chemin | Champs prévus mais vides |
 
@@ -248,6 +252,117 @@ Ce n'est pas un manque du site, mais il faut choisir un seul format avant d'écr
   - un son personnalisé « notification », une fois le fichier livré.
 - **En attendant** : rappels locaux, un par jour à l'heure choisie, avec un texte qui parle de l'objectif un jour sur deux, et le son système. Les notifications poussées et le son personnalisé demanderont aussi une version installée de l'app (voir `docs/a-faire-version-installee.md`).
 
-## 8. Outils : cours des actions
-- **Manque** : rien côté serveur. `GET /api/prices?tickers=…`, `GET /api/prices/history`, `POST /api/prices/refresh` et `GET /api/search?q=…&type=…` existent (connecté).
-- **À faire dans l'app, plus tard** : le Portefeuille affiche les prix calculés par `GET /api/portfolio` (`current_price`, `current_price_eur`), et l'ajout d'une position se fait en saisissant le symbole à la main. Il pourra utiliser `/search` pour trouver un titre et `/prices` pour des cours à jour.
+## 8. Outils : portefeuille
+
+Relevé du 16 octobre 2026 (site, branche `main`, lu en lecture seule). Le détail est dans le compte rendu de l'état des lieux ; ici, ce qu'il faudrait changer côté site.
+
+### 8.1 Une position par actif, avec un prix de revient moyen
+- **Manque** :
+  - la table `positions` mélange l'actif et l'achat : `ticker`, `name`, `type`, `quantity`, `buy_price`, `buy_currency`, `buy_date`, `current_price`, plus `is_livret`, `is_manual`, `current_value_override`, `rate` ;
+  - `POST /api/portfolio/positions` crée **toujours une nouvelle ligne**. 2 SOL ajoutés à 3 SOL donnent deux lignes SOL, chacune avec son propre prix d'achat ;
+  - aucun prix de revient moyen (PRU) n'est calculé ; le gain est calculé ligne par ligne ;
+  - `PATCH /api/portfolio/positions/{id}` réécrit la quantité et le prix d'achat sans laisser de trace.
+- **Souhaité** :
+  - **une position par actif et par portefeuille** : unicité sur (`portfolio_id`, `ticker`) pour les actifs cotés. Les livrets et les actifs manuels gardent des lignes libres ;
+  - sur la position :
+    - `avg_cost` (PRU, dans la devise de la position, frais d'achat compris) ;
+    - `quantity` (quantité détenue) ;
+    - `realized_gain` (cumul des plus-values réalisées) ;
+    - `opened_at` (premier achat) et `closed_at` (quantité revenue à 0) ;
+  - méthode : **prix moyen pondéré**. À chaque achat, `avg_cost = (quantité détenue × avg_cost + quantité achetée × prix + frais) / nouvelle quantité`. Une vente ne change pas le PRU ;
+  - les valeurs de la position (quantité, PRU, plus-value réalisée) sont **toujours recalculées** en rejouant ses opérations dans l'ordre chronologique (une seule fonction, par exemple `PositionLedger::rebuild`), après chaque ajout, modification ou suppression d'opération ;
+  - **devise** : celle de la première opération. Une opération dans l'autre devise est convertie au taux du jour de l'opération, gardé sur l'opération ;
+  - **reprise des données** : chaque ligne existante devient une opération d'achat (date : `buy_date`, sinon `created_at`). Les lignes d'un même ticker sont ensuite fusionnées en une position. Les doublons de devise différente sont signalés dans le journal de la migration ;
+  - **compatibilité** :
+    - `buy_price` reste renvoyé (égal au PRU), pour la page web et les versions actuelles de l'app ;
+    - `POST /api/portfolio/positions` devient un achat qui rejoint la position existante.
+
+### 8.2 Historique des opérations
+- **Manque** : aucune table d'opérations. Seuls des instantanés de valeur totale (`portfolio_snapshots`) sont gardés.
+- **Souhaité** :
+  - **table `portfolio_operations`** :
+    - `id`, `portfolio_id`, `position_id` ;
+    - `side` (`buy` | `sell`) ;
+    - `quantity`, `unit_price`, `currency`, `fees` (0 par défaut) ;
+    - `fx_rate_eur` (taux du jour, pour convertir) ;
+    - `executed_at` (date et heure de l'opération, par défaut maintenant) ;
+    - `note` (500 caractères au plus, déjà accepté puis jeté par `store`) ;
+    - pour une vente : `cost_basis` (PRU au moment de la vente) et `realized_gain` ;
+    - `timestamps` ;
+  - **routes (connecté)** :
+    - `POST /api/portfolio/operations` `{ ticker, name, type, side, quantity, unit_price, currency, fees?, executed_at?, note? }` : trouve ou crée la position, enregistre l'opération, recalcule. Réponse 201 `{ operation, position }`, `position` ayant la même forme qu'un élément de `GET /api/portfolio` ;
+    - `GET /api/portfolio/positions/{id}/operations` : les opérations de la position, de la plus récente à la plus ancienne ;
+    - `GET /api/portfolio/operations?page=` : toutes les opérations, paginées ;
+    - `PATCH /api/portfolio/operations/{id}` et `DELETE /api/portfolio/operations/{id}` : refusés (422, message en français) si le recalcul ferait vendre plus que la quantité détenue à une date donnée ;
+  - `DELETE /api/portfolio/positions/{id}` supprime aussi ses opérations ;
+  - `PATCH /api/portfolio/positions/{id}` ne garde que le nom, la valeur manuelle et le taux. La quantité et le prix ne changent plus que par les opérations ;
+  - **courbe** : chaque instantané garde aussi `net_invested` (achats moins ventes, au prix payé). Ainsi, un achat n'apparaît plus comme un gain sur la courbe ;
+  - **réponse de `GET /api/portfolio/history`** :
+    - par point : `invested` ;
+    - la réponse doit aussi arriver en entier à l'app (voir 8.6).
+
+### 8.3 Ventes et plus-value réalisée
+- **Manque** : aucune vente. Pour vendre, on supprime la ligne ou on baisse sa quantité, et le gain disparaît.
+- **Souhaité** :
+  - **une vente** est une opération `sell`. Sa quantité doit être positive et ne pas dépasser la quantité détenue à cette date ; sinon 422 « Tu ne peux pas vendre plus que ce que tu détiens. » ;
+  - **plus-value réalisée** = `quantité × prix de vente − frais − quantité × PRU`, gardée sur l'opération et cumulée sur la position (`realized_gain`, et `realized_gain_eur` au taux de l'opération) ;
+  - **position soldée** (quantité 0) : elle est gardée avec `closed_at`, hors de la liste active. Elle est renvoyée par `GET /api/portfolio?include_closed=1`, ou dans un champ séparé `closed_positions` ;
+  - **dans `GET /api/portfolio`** :
+    - `realized_gain_total_eur` ;
+    - `unrealized_gain_eur` (le `gain_loss` actuel, calculé sur le PRU) ;
+  - **mention dans la réponse** : la plus-value est **indicative**. Pour les cryptos, l'impôt français se calcule sur l'ensemble du portefeuille (article 150 VH bis), pas actif par actif.
+
+### 8.4 Cours fiables
+- **Manque** :
+  - **Actions et ETF** (`StockPriceProvider`) : `query2.finance.yahoo.com/v7/finance/quote` répond **401** (vérifié le 16 octobre 2026). Chaque titre passe donc par le repli `v8/finance/chart`, qui répond : un appel par titre, l'un après l'autre (6 s de délai chacun) ;
+  - **taux EUR/USD** (`PriceService`, `PortfolioController`, `SnapshotService`) : il vient de `v7/finance/quote?symbols=EURUSD=X`, donc **401**, et retombe sur **1,08 écrit en dur**. Le taux réel était de 1,1236 le 16 octobre 2026 :
+    - toutes les conversions sont faussées d'environ 4 % ;
+    - la valeur en euros des cryptos est gonflée (somme en USD de CoinGecko, divisée par 1,08) ;
+    - le montant investi en euros d'un achat en dollars l'est aussi ;
+  - **autres devises** : une devise autre que EUR (GBp, CHF, JPY…) est traitée comme du dollar dans `buildStockEntry` ;
+  - **cryptos** : seules les 40 de `COINGECKO_MAP` sont reconnues. Une autre crypto (RENDER, FET…) est envoyée à Yahoo comme une action (symbole `RENDER` au lieu de `RENDER-USD`). Elle n'a donc pas de cours et reste « prix figé » au prix d'achat.
+- **Ce qui marche déjà dans le code** (vérifié le 16 octobre 2026) :
+  - CoinGecko `simple/price` (sans clé) ;
+  - Binance `ticker/price` (repli, en USDT) ;
+  - Yahoo `v8/finance/chart` (cours et historique) ;
+  - Yahoo `v1/finance/search` ;
+  - OpenFIGI (ISIN).
+- **Souhaité** :
+  - **actions et ETF** : retirer l'appel v7 et passer directement par `v8/finance/chart`, en parallèle (`Http::pool`), avec le cache de 5 minutes ;
+  - **taux de change** : un seul service, utilisé par l'index, l'historique et les instantanés. Source : `v8/finance/chart/EURUSD=X`, ou la BCE (par exemple Frankfurter) en repli. Il gère toutes les devises (`{DEV}EUR=X`, GBp divisé par 100). Plus aucune valeur écrite en dur : si aucun taux n'est disponible, garder le dernier taux connu et sa date ;
+  - **cryptos** : résoudre l'identifiant CoinGecko par sa recherche (`/api/v3/search`), une fois par actif, et le garder sur l'actif (voir 8.5). Clé CoinGecko « demo » gratuite, pour ne plus dépendre de la limite publique ;
+  - **dans chaque position** : `price_source` (`coingecko`, `binance`, `yahoo-chart`, `manual`) et `price_updated_at`, pour que l'app dise « cours du … » quand il est ancien ;
+  - **tests** : avec `Http::fake`, v7 en 401, taux absent, crypto inconnue de la liste.
+
+### 8.5 Logos des actifs
+- **Manque** :
+  - le site ne garde **aucune image d'actif**. `public/data/assets.json` (522 actifs : 369 actions, 81 ETF, 40 cryptos, 15 autres, 12 matières, 5 livrets) n'a que `ticker`, `name`, `type`, `exchange`, et parfois `isin`, `currency`, `rate` ;
+  - la page web et l'app affichent une icône par type, pas par actif.
+- **Souhaité** :
+  - **table `assets`**, qui remplace `assets.json` :
+    - `ticker`, `name`, `type`, `exchange`, `isin`, `currency` ;
+    - `coingecko_id`, `yahoo_symbol` ;
+    - `logo_path`, `logo_updated_at` ;
+    - la position la référence par `asset_id` ;
+  - **cryptos** : le logo vient de CoinGecko (`/api/v3/coins/markets`, champ `image` ; vérifié pour Solana). Il est téléchargé une fois et servi par le site (stockage public), sans lien direct vers CoinGecko ;
+  - **actions et ETF** : aucune source gratuite n'est déjà branchée. Au choix :
+    - des logos choisis et déposés depuis l'admin pour les titres les plus suivis ;
+    - un service de logos à partir du site de l'entreprise, à valider (conditions d'usage) ;
+  - **API** : `logo_url` (URL absolue, ou `null`) dans chaque position de `GET /api/portfolio`, dans les résultats de `GET /api/search`, et dans `POST /api/portfolio/operations` ;
+  - **côté app** : sans logo, une pastille avec les initiales du ticker, dans la couleur du type.
+
+### 8.6 Historique du portefeuille dans l'app
+- **Manque** :
+  - `GET /api/portfolio/history` répond `{ data: [...], range, total_invested, current_value }` ;
+  - dans l'app, `authRequest` passe toute réponse par `unwrap()` (`src/context/ApiContext.tsx`), qui ne garde que `data` quand cette clé existe ;
+  - `range`, `total_invested` et `current_value` sont donc perdus, et l'app reçoit un simple tableau ;
+  - `HistoryChart` lit ensuite `history.data`, qui n'existe pas sur un tableau : la courbe affiche **toujours « Pas encore de données. »**, et la ligne « investi » n'est jamais tracée.
+- **Souhaité** :
+  - côté site, une réponse que `unwrap()` ne déplie pas, sans casser la page web (qui lit `data`) : `GET /api/portfolio/history?shape=app` ou une route `GET /api/portfolio/chart`, avec `{ points: [...], range, total_invested, current_value }` ;
+  - **autre voie, côté app** : corriger `getPortfolioHistory` dans `ApiContext.tsx`. Ce fichier est interdit sans ton accord explicite.
+- **En attendant** : rien n'est corrigé. Sans toucher à `ApiContext.tsx`, l'app pourrait accepter le tableau tel quel dans `HistoryChart`, et prendre « investi » dans `total_invested_eur` de `GET /api/portfolio`.
+
+### 8.7 Petites corrections au passage
+- **Journaux de débogage** : `PortfolioController::index` écrit à chaque appel un journal `Portfolio livePrices`, et un journal propre à SOL (`Prix SOL utilisé pour total`). `CryptoPriceProvider` écrit la réponse brute de CoinGecko à chaque appel. À retirer ;
+- **instantané à la connexion** : `TakePortfolioSnapshot` écoute l'événement `Login`, que la connexion de l'app par jeton (`createToken`) ne déclenche pas. Les comptes de l'app n'ont que les instantanés planifiés (toutes les 4 h, 24 h d'écart pour un compte gratuit) ;
+- **recherche** : `formatResult` interroge un cours pour chacun des 12 résultats ; un seul appel groupé suffirait.
