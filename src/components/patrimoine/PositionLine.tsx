@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { interpolateColor, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
 import { fonts, palette, space, withOpacity } from '@/src/constants/style/Style';
@@ -30,7 +30,11 @@ export default function PositionLine({ position: p, hidden, onPress, last, pulse
     if (!pulseAt) return;
     glow.set(reduced ? 0 : withSequence(withTiming(1, { duration: 220 }), withTiming(0, { duration: 900 })));
   }, [pulseAt, reduced, glow]);
-  const glowStyle = useAnimatedStyle(() => ({ backgroundColor: withOpacity(colors.gold, 0.14 * glow.get()) }));
+  // Couleurs calculées ici : le style animé tourne sur le fil de l'interface,
+  // où seules les fonctions worklet (interpolateColor) peuvent être appelées
+  const glowOff = withOpacity(colors.gold, 0);
+  const glowOn = withOpacity(colors.gold, 0.14);
+  const glowStyle = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(glow.get(), [0, 1], [glowOff, glowOn]) }));
 
   const stale = isStalePrice(p);
   const value = valueEurOf(p);
