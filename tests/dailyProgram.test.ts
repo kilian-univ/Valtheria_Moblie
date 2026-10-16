@@ -98,7 +98,7 @@ test('programme du jour : phrases de Val et compteur', () => {
   );
   assert.equal(programState(true, true).mood, 'celebrant');
   assert.equal(programState(false, true).count, 1);
-  assert.equal(programCounter(1), '1 sur 2');
+  assert.equal(programCounter(1), '1\u00A0sur\u00A02');
 });
 
 test('révision : durée estimée (25 s par écran, minute supérieure)', () => {
@@ -124,4 +124,18 @@ test('carrousel : objectif, puis en cours du plus récent au plus ancien, puis l
   // Univers terminé : avec les autres, dans l'ordre du serveur
   const done = carouselOrder(visibleUniverses([uni(1, 'fini', [1]), uni(2, 'neuf', [2])], [mod(1, [true]), mod(2, [false])]), null, []);
   assert.deepEqual(done.map((e) => e.universe.slug), ['fini', 'neuf']);
+});
+
+test('programme du jour sans leçon disponible : la révision seule, sur 1', () => {
+  const todo = programState(false, false, false);
+  assert.deepEqual([todo.count, todo.total, todo.dayDone, todo.line], [0, 1, false, 'Tu es à jour ! Une petite révision ?']);
+  assert.equal(programCounter(todo.count, todo.total), '0\u00A0sur\u00A01');
+  const done = programState(false, true, false);
+  assert.deepEqual([done.count, done.total, done.dayDone, done.line], [1, 1, true, 'Révision faite, à demain !']);
+  // La dernière leçon faite aujourd'hui compte toujours
+  const last = programState(true, false, false);
+  assert.deepEqual([last.count, last.total, last.dayDone], [1, 2, false]);
+  assert.equal(programState(true, true, false).dayDone, true);
+  // Avec une leçon disponible : sur 2, journée faite avec les deux
+  assert.deepEqual([programState(false, true).total, programState(false, true).dayDone], [2, false]);
 });

@@ -10,6 +10,7 @@ import Button from '@/src/components/common/Button';
 import { StatusBarShade } from '@/src/components/common/AppBackground';
 import GoldConfetti from '@/src/components/common/GoldConfetti';
 import GoldHalo from '@/src/components/common/GoldHalo';
+import ChallengeCelebration from '@/src/components/common/ChallengeCelebration';
 import MedalCelebration from '@/src/components/common/MedalCelebration';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import StreakFlame from '@/src/components/common/StreakFlame';
@@ -43,6 +44,7 @@ import { celebrate } from '@/src/utils/haptics';
 import { preloadSounds } from '@/src/utils/sound';
 import { type Medal, MEDALS, weekDays, type WeekDay } from '@/src/utils/streakRewards';
 import { isSignupClosed } from '@/src/utils/onboarding';
+import { type Challenge, findChallenge } from '@/src/utils/accuracy';
 import { universeTint } from '@/src/utils/universeTint';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -77,16 +79,23 @@ export default function DiscoveryEndScreen() {
     justes?: string;
     total?: string;
     rattrapees?: string;
+    defis?: string;
   }>();
   const medal = MEDALS.find((m) => String(m.days) === params.medaille) ?? null;
+  // Défis de précision gagnés par cette leçon
+  const challenges = (params.defis ?? '')
+    .split(',')
+    .map(findChallenge)
+    .filter((c): c is Challenge => c !== null);
   // Dans l'ordre : le bilan de la leçon (s'il est transmis), les six sujets,
-  // puis le palier de série
-  const [steps, setSteps] = useState<('recap' | 'six' | 'medal')[]>(() =>
+  // le palier de série, puis les défis de précision
+  const [steps, setSteps] = useState<string[]>(() =>
     [
-      params.total !== undefined ? ('recap' as const) : null,
-      params.six === '1' ? ('six' as const) : null,
-      medal ? ('medal' as const) : null,
-    ].filter((x) => x !== null)
+      params.total !== undefined ? 'recap' : null,
+      params.six === '1' ? 'six' : null,
+      medal ? 'medal' : null,
+      ...challenges.map((c) => `defi:${c.id}`),
+    ].filter((x): x is string => x !== null)
   );
   const next = () => setSteps((list) => list.slice(1));
   // Sons préchargés à l'ouverture de la cérémonie de fin
@@ -96,6 +105,8 @@ export default function DiscoveryEndScreen() {
   if (steps[0] === 'recap') return <RecapStep onDone={next} />;
   if (steps[0] === 'six') return <SixCelebration onDone={next} />;
   if (steps[0] === 'medal' && medal) return <MedalStep medal={medal} freezeGained={params.gel === '1'} onDone={next} />;
+  const challenge = steps[0]?.startsWith('defi:') ? findChallenge(steps[0].slice(5)) : null;
+  if (challenge) return <ChallengeStep key={challenge.id} challenge={challenge} onDone={next} />;
   return <EndContent />;
 }
 
@@ -107,6 +118,23 @@ function MedalStep({ medal, freezeGained, onDone }: { medal: Medal; freezeGained
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={[styles.content, styles.celebration, { paddingTop: insets.top + space[8] }]} bounces={false}>
         <MedalCelebration medal={medal} freezeGained={freezeGained} />
+      </ScrollView>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
+        <Button label="Continuer" onPress={onDone} />
+      </View>
+      <GoldConfetti />
+      <StatusBarShade tab="apprendre" />
+    </View>
+  );
+}
+
+// Défi de précision gagné : même écran que la médaille de série
+function ChallengeStep({ challenge, onDone }: { challenge: Challenge; onDone: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={[styles.content, styles.celebration, { paddingTop: insets.top + space[8] }]} bounces={false}>
+        <ChallengeCelebration challenge={challenge} />
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
         <Button label="Continuer" onPress={onDone} />
@@ -131,6 +159,8 @@ function RecapStep({ onDone }: { onDone: () => void }) {
     total?: string;
     rattrapees?: string;
     xp?: string;
+    meilleure?: string;
+    parfaite?: string;
   }>();
   const fromHome = params.depuis === 'accueil';
   const lesson = discoveryLesson((fromHome ? toObjective(params.objectif) : null) ?? state.objective);
@@ -149,6 +179,8 @@ function RecapStep({ onDone }: { onDone: () => void }) {
         recovered={count(params.rattrapees)}
         streak={Math.max(1, discoveryStreak(state.lessonDays))}
         takeaway={lesson.takeaway}
+        bestRun={count(params.meilleure)}
+        perfect={params.parfaite === '1'}
         onContinue={onDone}
       />
       <StatusBarShade tab="apprendre" />

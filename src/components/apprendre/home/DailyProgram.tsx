@@ -57,7 +57,7 @@ export default function DailyProgram({
         flush
         mood={program.mood}
         text={program.line}
-        accent={programCounter(program.count)}
+        accent={programCounter(program.count, program.total)}
         width={learnHome.valWidth}
         height={learnHome.valHeight}
       />

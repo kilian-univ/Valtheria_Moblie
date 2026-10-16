@@ -95,27 +95,35 @@ export function pickLessonOfDay({
 export type ProgramState = {
   lessonDone: boolean;
   revisionDone: boolean;
-  // Compteur « <n> sur 2 » de la bulle
+  // Compteur « <n> sur <total> » de la bulle : 2 (leçon et révision), ou 1
+  // quand il n'y a plus de leçon disponible (la révision seule)
   count: number;
+  total: 1 | 2;
+  // Journée faite (célébration)
+  dayDone: boolean;
   line: string;
   mood: ValMood;
 };
 
-export function programState(lessonDone: boolean, revisionDone: boolean): ProgramState {
+// lessonAvailable : il reste une leçon à faire (sinon « Tu es à jour »). Une
+// leçon déjà faite aujourd'hui compte toujours, même si c'était la dernière.
+export function programState(lessonDone: boolean, revisionDone: boolean, lessonAvailable = true): ProgramState {
+  if (!lessonAvailable && !lessonDone) {
+    return revisionDone
+      ? { lessonDone, revisionDone, count: 1, total: 1, dayDone: true, line: 'Révision faite, à demain !', mood: 'celebrant' }
+      : { lessonDone, revisionDone, count: 0, total: 1, dayDone: false, line: 'Tu es à jour ! Une petite révision ?', mood: 'complice' };
+  }
   const count = (lessonDone ? 1 : 0) + (revisionDone ? 1 : 0);
-  if (lessonDone && revisionDone) {
-    return { lessonDone, revisionDone, count, line: 'Journée terminée. À demain !', mood: 'celebrant' };
-  }
-  if (lessonDone) return { lessonDone, revisionDone, count, line: 'Bien joué ! Plus que la révision.', mood: 'fier' };
-  if (revisionDone) {
-    return { lessonDone, revisionDone, count, line: 'Révision faite. Plus que la leçon !', mood: 'fier' };
-  }
-  return { lessonDone, revisionDone, count, line: 'Une leçon, une révision, et ta journée est faite.', mood: 'complice' };
+  const base = { lessonDone, revisionDone, count, total: 2 as const, dayDone: lessonDone && revisionDone };
+  if (lessonDone && revisionDone) return { ...base, line: 'Journée terminée. À demain !', mood: 'celebrant' };
+  if (lessonDone) return { ...base, line: 'Bien joué ! Plus que la révision.', mood: 'fier' };
+  if (revisionDone) return { ...base, line: 'Révision faite. Plus que la leçon !', mood: 'fier' };
+  return { ...base, line: 'Une leçon, une révision, et ta journée est faite.', mood: 'complice' };
 }
 
-// « 1 sur 2 »
-export function programCounter(count: number): string {
-  return `${count} sur 2`;
+// « 1 sur 2 », « 0 sur 1 » (espaces insécables : jamais coupé en fin de bulle)
+export function programCounter(count: number, total: number = 2): string {
+  return `${count}\u00A0sur\u00A0${total}`;
 }
 
 // ---------------------------------------------------------------------------

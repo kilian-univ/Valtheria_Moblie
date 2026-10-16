@@ -25,6 +25,7 @@ import { fetchServerRevision } from '@/src/state/serverRevision';
 import { type UserKey, userKeyOf } from '@/src/state/userMemory';
 import { weekJournalStore } from '@/src/state/weekJournal';
 import { localDay } from '@/src/utils/day';
+import { allModulesDone } from '@/src/utils/learning';
 import { feedback } from '@/src/utils/feedback';
 import { error as errorHaptic, success } from '@/src/utils/haptics';
 import type { LessonResult, LessonSummary } from '@/src/utils/lessonPlayer';
@@ -61,8 +62,11 @@ const sends = new Map<string, Promise<Record<string, any>>>();
 
 const leave = () => (router.canGoBack() ? router.back() : router.replace('/apprendre'));
 
-// La leçon du jour est-elle faite aussi (journal du téléphone) ?
+// La journée est-elle faite avec cette révision ? Oui si la leçon du jour
+// est faite (journal du téléphone), ou s'il n'y a plus de leçon disponible
+// (la révision seule compte alors)
 async function lessonDoneToday(user: UserKey): Promise<boolean> {
+  if (allModulesDone(learningStore.getState().modules)) return true;
   const today = localDay(new Date());
   const [log, journal] = await Promise.all([learningLogStore.load(user), weekJournalStore.load(user)]);
   return log.some((e) => e.day === today) || journal.some((e) => e.day === today);

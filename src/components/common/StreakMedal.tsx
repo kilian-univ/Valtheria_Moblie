@@ -12,17 +12,21 @@ const LOCKED_OPACITY = 0.42;
 const NUMBER_MIN_SIZE = 40;
 
 type StreakMedalProps = {
-  // Palier (3, 7, 14…)
+  // Palier (3, 7, 14…), ou valeur du défi (10 d'affilée, 10 leçons parfaites)
   days: number;
   size: number;
   earned: boolean;
+  // streak : médaille de série (flamme) ; run : défi d'affilée (éclair) ;
+  // perfect : défi de leçons parfaites (éclair, petite étoile sur le nombre)
+  kind?: 'streak' | 'run' | 'perfect';
 };
 
 // Médaille de série dessinée en code : médaillon rond en relief (face or,
 // tranche or foncé, reflet), nombre de jours en Fraunces au centre, petite
-// flamme au-dessus. Pas encore gagnée : grise, atténuée, avec un cadenas.
-// Décorative : le parent porte le libellé lu.
-export default function StreakMedal({ days, size, earned }: StreakMedalProps) {
+// flamme au-dessus. Défi de précision : même médaille, un éclair dans une
+// pastille à la place de la flamme. Pas encore gagnée : grise, atténuée,
+// avec un cadenas. Décorative : le parent porte le libellé lu.
+export default function StreakMedal({ days, size, earned, kind = 'streak' }: StreakMedalProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const depth = Math.max(2, Math.round(size * 0.07));
@@ -50,6 +54,9 @@ export default function StreakMedal({ days, size, earned }: StreakMedalProps) {
             { inset: Math.round(size * 0.09), borderRadius: size / 2, borderColor: earned ? colors.goldDeep : colors.controlBorder },
           ]}
         />
+        {showNumber && kind === 'perfect' ? (
+          <Ionicons name="star" size={Math.round(size * 0.16)} color={ink} style={{ marginBottom: -Math.round(size * 0.04) }} />
+        ) : null}
         {showNumber ? (
           <Text
             allowFontScaling={false}
@@ -59,7 +66,24 @@ export default function StreakMedal({ days, size, earned }: StreakMedalProps) {
           </Text>
         ) : null}
       </View>
-      {earned ? (
+      {earned && kind !== 'streak' ? (
+        // Éclair : pastille sombre cerclée d'or, posée sur le haut du médaillon
+        <View
+          style={[
+            styles.bolt,
+            {
+              width: flame,
+              height: flame,
+              borderRadius: flame / 2,
+              top: -Math.round(flame * 0.45),
+              backgroundColor: colors.surface,
+              borderColor: colors.gold,
+            },
+          ]}
+        >
+          <Ionicons name="flash" size={Math.round(flame * 0.62)} color={colors.gold} />
+        </View>
+      ) : earned ? (
         <Text allowFontScaling={false} style={[styles.flame, { fontSize: flame, lineHeight: Math.round(flame * 1.2), top: -Math.round(flame * 0.55) }]}>
           {FLAME}
         </Text>
@@ -102,6 +126,13 @@ const styles = StyleSheet.create({
   flame: {
     position: 'absolute',
     alignSelf: 'center',
+  },
+  bolt: {
+    position: 'absolute',
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
   },
   lock: {
     position: 'absolute',

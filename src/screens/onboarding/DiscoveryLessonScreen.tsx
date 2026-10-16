@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 import { useApi } from '@/src/context/ApiContext';
 import { DISCOVERY, discoveryLesson, toObjective } from '@/src/lesson/discovery';
+import { recordLessonAccuracy } from '@/src/state/accuracy';
 import { learningStore } from '@/src/state/learningStore';
 import { addToNotebook } from '@/src/state/notebook';
 import { recordLessonXp } from '@/src/state/weekJournal';
@@ -11,6 +12,7 @@ import ApprendreDetailScreen from '@/src/screens/ApprendreDetailScreen';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { recordLessonDone } from '@/src/utils/discoveryHome';
 import { withPlayed } from '@/src/utils/onboarding';
+import { bestRunOf, isPerfectLesson } from '@/src/utils/accuracy';
 import type { LessonSummary } from '@/src/utils/lessonPlayer';
 import { track } from '@/src/utils/track';
 
@@ -33,7 +35,7 @@ export default function DiscoveryLessonScreen() {
     if (objective) onboardingStore.update({ started: withPlayed(onboardingStore.get().state.started, objective) });
   }, [objective, fromHome]);
 
-  const onFinished = useCallback((summary: LessonSummary) => {
+  const onFinished = useCallback(async (summary: LessonSummary, results: { index: number; correct: boolean }[]) => {
     track('decouverte_terminee', { objectif: objective });
     // Le déclic du document entre au carnet (une seule fois), avec l'univers
     // conseillé (nom du serveur s'il est chargé)
@@ -53,8 +55,20 @@ export default function DiscoveryLessonScreen() {
     const done = recordLessonDone(onboardingStore.get().state, objective);
     // Journal de la semaine (graphique du profil) : les XP comptés sur le téléphone
     recordLessonXp(userKeyOf(user?.id), done.xpGained).catch(() => {});
+    // Précision gardée sur le téléphone (sans compte aussi) ; les défis
+    // gagnés sont fêtés à la fin
+    const bestRun = bestRunOf(results);
+    const perfect = isPerfectLesson(summary);
+    const challenges = await recordLessonAccuracy(userKeyOf(user?.id), {
+      key: `decouverte-${objective ?? 'decouvrir'}`,
+      bestRun,
+      perfect,
+    }).catch(() => []);
     const params = {
       serie: String(done.streakFrom),
+      meilleure: String(bestRun),
+      ...(perfect ? { parfaite: '1' } : {}),
+      ...(challenges.length > 0 ? { defis: challenges.map((c) => c.id).join(',') } : {}),
       // Bilan de la leçon (premier écran de la fin)
       justes: String(summary.correct),
       total: String(summary.total),

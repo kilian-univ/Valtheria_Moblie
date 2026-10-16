@@ -38,7 +38,7 @@ import type { LessonModel, LessonScreen, ValLine } from '@/src/lesson/model';
 import { normalizeLesson } from '@/src/lesson/normalize';
 import { learningStore } from '@/src/state/learningStore';
 import { feedback } from '@/src/utils/feedback';
-import { error as errorHaptic } from '@/src/utils/haptics';
+import { celebrate, error as errorHaptic, success as successHaptic } from '@/src/utils/haptics';
 import { addToNotebook } from '@/src/state/notebook';
 import { recordLessonDone } from '@/src/state/learningLog';
 import { cachedLesson, rememberLesson } from '@/src/state/revisionMemory';
@@ -47,7 +47,9 @@ import { userKeyOf } from '@/src/state/userMemory';
 import { universeOfModule } from '@/src/utils/modulePath';
 import { declicForLesson } from '@/src/utils/notebook';
 import { preloadSounds } from '@/src/utils/sound';
-import { comboReached, SOFT_GAIN } from '@/src/utils/soundRules';
+import { SOFT_GAIN } from '@/src/utils/soundRules';
+import { bestRunOf, type Challenge, isPerfectLesson, runEvent } from '@/src/utils/accuracy';
+import { recordLessonAccuracy } from '@/src/state/accuracy';
 import {
   buildResponses,
   canContinue,
@@ -59,7 +61,6 @@ import {
   firstTryRun,
   isFirstTryCorrect,
   isGradable,
-  RUN_MIN,
   LessonResult,
   LessonSummary,
   lessonSummary,
@@ -190,6 +191,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   // Réplique de Val qui remplace celle de l'arrivée (réaction, tranche du
   // simulateur…) ; null : celle de l'arrivée
   const [valOverride, setValOverride] = useState<ValLine | null>(null);
+  // Petit bond de Val quand la série d'affilée démarre ou passe un palier
+  const [valHop, setValHop] = useState(0);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Dernier « Continuer » donné : la barre de progression est pleine
@@ -197,6 +200,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<LessonResult | null>(null);
   const [moduleTitle, setModuleTitle] = useState<string | null>(null);
+  // Précision de la leçon : meilleure série d'affilée, leçon parfaite, défis gagnés
+  const [accuracy, setAccuracy] = useState<{ bestRun: number; perfect: boolean; challenges: Challenge[] } | null>(null);
 
   // Série de jours avant la leçon, pour fêter son augmentation à la fin
   const [streakBefore] = useState<number | null>(() =>
@@ -454,6 +459,14 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
         firstTryResults(answers, screens)
       ).catch(() => {});
 
+      // Précision gardée sur le téléphone ; les défis gagnés sont fêtés à la fin
+      const firsts = firstTryResults(answers, screens);
+      const lessonAccuracy = { bestRun: bestRunOf(firsts), perfect: isPerfectLesson(summary) };
+      const challenges = await recordLessonAccuracy(userKeyOf(user?.id), { key: `l${lessonId}`, ...lessonAccuracy }).catch(
+        () => [] as Challenge[]
+      );
+      setAccuracy({ ...lessonAccuracy, challenges });
+
       setModuleTitle(finishedModuleTitle(res ?? {}, learningStore.getState().modules, Number(id)));
       setResult(res ?? {});
     } catch (err: any) {
@@ -487,7 +500,14 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     // prévue : la sienne d'arrivée, avec l'humeur du verdict)
     setAnswered(true);
     const arrival = introLine(current, !!discovery, isLast);
-    setValOverride(reaction ?? { line: arrival.line, mood: draft.correct ? 'celebrant' : 'rassurant' });
+    // Bonnes réponses du premier coup d'affilée : la pastille surgit à 3, un
+    // palier à 5 et à 10 (premières tentatives seulement)
+    const run = retrying ? null : runEvent(firstTryRun(answers, screens), firstTryRun(nextAnswers, screens));
+    const cheer = run?.kind === 'appear' || run?.kind === 'milestone';
+    const reactionLine = reaction ?? { line: arrival.line, mood: draft.correct ? ('celebrant' as const) : ('rassurant' as const) };
+    // Série qui démarre ou palier : Val ravi, avec un petit bond
+    setValOverride(cheer ? { line: reactionLine.line, mood: 'celebrant' } : reactionLine);
+    if (cheer) setValHop((n) => n + 1);
     const nextVerdict: Verdict = {
       correct: draft.correct,
       firstTry: !retrying && isFirstTryCorrect(nextAnswers, screens, screenIndex),
@@ -495,9 +515,6 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       explanation: (draft.explanation !== undefined ? draft.explanation : current.explanation) ?? undefined,
       val: reaction,
     };
-    // Pastille d'affilée qui apparaît ou monte d'un palier : son « combo »
-    // juste après celui de la bonne réponse (premières tentatives seulement)
-    const combo = !retrying && comboReached(firstTryRun(answers, screens), firstTryRun(nextAnswers, screens), RUN_MIN);
     // Premier signal : as-tu eu bon ? Bords de l'écran, vibration, son, au
     // toucher de « Valider » même, avant la correction animée de l'écran.
     // Réponse validée seule (dernière carte, dernière paire, réplique) :
@@ -510,7 +527,16 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       flashEdges(nextVerdict.correct);
       if (nextVerdict.correct) feedback.right(gain);
       else feedback.wrong(gain);
-      if (combo) comboTimer.current = setTimeout(feedback.combo, COMBO_AFTER);
+      // Pastille qui surgit : son « combo » et vibration de réussite, juste
+      // après le son de la bonne réponse ; palier (5, 10) : combo et grande
+      // vibration de fête. Série cassée : rien de plus que la mauvaise réponse.
+      if (cheer) {
+        comboTimer.current = setTimeout(() => {
+          feedback.combo();
+          if (run?.kind === 'milestone') celebrate();
+          else successHaptic();
+        }, COMBO_AFTER);
+      }
     };
     if (!draft.autoSubmit) signal();
     // Puis la feuille monte (montée directement ouverte : une feuille montée
@@ -578,6 +604,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
           takeaway={lessonInfo.takeaway}
           streakBefore={streakBefore}
           moduleTitle={moduleTitle}
+          accuracy={accuracy}
           onDone={() => router.back()}
         />
       </EndFlowBoundary>
@@ -664,6 +691,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                             // Réaction : tout de suite ; arrivée : dans la cascade
                             bubbleDelay={valOverride ? 0 : cascadeAt + RANK_BUBBLE * motion.stagger}
                             typing={current.kind !== 'simulator' || !valOverride}
+                            hop={valHop}
                           />
                         </Cascade>
                       ) : null}

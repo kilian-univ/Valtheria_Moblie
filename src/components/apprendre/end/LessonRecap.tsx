@@ -15,6 +15,8 @@ import { formatInteger } from '@/src/utils/format';
 import { feedback } from '@/src/utils/feedback';
 import { SOUND_LENGTH } from '@/src/utils/soundRules';
 import { precisionCaption, precisionPercent, streakDaysCaption } from '@/src/utils/lessonPlayer';
+import Pill from '@/src/components/common/Pill';
+import { BEST_RUN_SHOWN_FROM, bestRunLine } from '@/src/utils/accuracy';
 import Cascade from '../player/Cascade';
 import CelebrationScene from './CelebrationScene';
 
@@ -55,6 +57,10 @@ export type LessonRecapProps = {
   buttonLabel?: string;
   // Petites capitales au-dessus du titre (« RÉVISION TERMINÉE » pour une révision)
   kicker?: string;
+  // Meilleure série de bonnes réponses d'affilée de la leçon (ligne sous
+  // les tuiles, à partir de 2) et leçon parfaite (pastille)
+  bestRun?: number | null;
+  perfect?: boolean;
 };
 
 // Bilan de fin de leçon : le décor du coffre et Val qui arrive en sautant
@@ -75,6 +81,8 @@ export default function LessonRecap({
   onContinue,
   buttonLabel = 'Continuer',
   kicker = 'LEÇON TERMINÉE',
+  bestRun = null,
+  perfect = false,
 }: LessonRecapProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -147,6 +155,17 @@ export default function LessonRecap({
                   {lessonTitle}
                 </AppText>
               ) : null}
+              {perfect ? (
+                <Pill
+                  size="badge"
+                  icon="flash"
+                  label="LEÇON PARFAITE"
+                  accessibilityLabel="Leçon parfaite : tout juste du premier coup"
+                  background={colors.goldSoft}
+                  color={colors.gold}
+                  style={styles.perfect}
+                />
+              ) : null}
             </Cascade>
 
             {tiles.length > 0 ? (
@@ -164,8 +183,19 @@ export default function LessonRecap({
               </View>
             ) : null}
 
-            {takeaway ? (
+            {bestRun !== null && bestRun >= BEST_RUN_SHOWN_FROM ? (
               <Cascade index={TILES_RANK + tiles.length} skip={fast}>
+                <View style={styles.bestRun} accessible accessibilityLabel={bestRunLine(bestRun)}>
+                  <Ionicons name="flash" size={16} color={colors.gold} />
+                  <AppText variant="callout" tone="subtitle">
+                    {bestRunLine(bestRun)}
+                  </AppText>
+                </View>
+              </Cascade>
+            ) : null}
+
+            {takeaway ? (
+              <Cascade index={TILES_RANK + tiles.length + 1} skip={fast}>
                 <View
                   style={[
                     styles.takeaway,
@@ -281,6 +311,16 @@ const styles = StyleSheet.create({
     lineHeight: TITLE_SIZE + 6,
     letterSpacing: titleLetterSpacing(TITLE_SIZE),
     textAlign: 'center',
+  },
+  perfect: {
+    alignSelf: 'center',
+    marginTop: space[2],
+  },
+  bestRun: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   centerText: {
     textAlign: 'center',

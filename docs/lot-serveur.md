@@ -26,6 +26,7 @@ Pour chaque point :
 | 2 | Objectifs crypto et impôts | Gardés sur le téléphone seulement |
 | 2 | Gel de série et record pour les comptes | « Bientôt disponible avec ton compte » ; record gardé sur le téléphone |
 | 2 | Photo de profil | Initiale à la place de la photo |
+| 3 | Bonus de série de bonnes réponses (4.9) | Pas de bonus d'XP ni de Vals pour les bonnes réponses d'affilée ; défis de précision gardés sur le téléphone |
 | 3 | Connexion Apple et Google | Boutons masqués |
 | 3 | Dictionnaire enrichi, notifications poussées, date d'inscription, étapes du chemin | Champs prévus mais vides |
 
@@ -197,6 +198,15 @@ Ce n'est pas un manque du site, mais il faut choisir un seul format avant d'écr
   - rien à réviser (`session: null` avec des notions) : « Rien à réviser aujourd'hui. Prochaine révision : … », et la révision du jour compte comme faite.
 - **Repli** (sans compte, route en erreur, hors ligne) : la révision construite par l'app, sans XP.
 - **À noter, sans urgence** : une erreur de l'API (`{ error: { code, message } }`) arrive dans l'app sans son code ; une session expirée et une panne du serveur y sont traitées de la même façon (« Réessayer » ou « Terminer sans l'enregistrer »).
+
+### 4.9 Bonus de série de bonnes réponses
+- **Manque** : le serveur ne récompense pas les bonnes réponses d'affilée. L'app les compte déjà (pastille ⚡ dès 3 bonnes réponses du premier coup, paliers à 5 et 10) et garde sur le téléphone la meilleure série de chaque leçon, la meilleure de tous les temps, les leçons parfaites et des défis de précision (`src/utils/accuracy.ts`).
+- **Souhaité** :
+  - `POST /api/lessons/{id}/complete` accepte en plus `best_run` (meilleure série de la leçon, premières tentatives) ; le serveur la recalcule à partir des réponses reçues (il a déjà les premières tentatives dans l'ordre) et ne fait confiance qu'à son calcul ;
+  - un bonus d'XP et de Vals, par exemple +2 XP par palier de 3 (3, 6, 9…), et un bonus de leçon parfaite (toutes les questions notées justes du premier coup), une fois par leçon ou à chaque partie, à décider ;
+  - dans la réponse : `run_bonus: { best_run, xp, vals, perfect }`, compté dans `xp_gained` et `vals_gained` ;
+  - plus tard : la meilleure série, les leçons parfaites et les défis de précision gardés sur le compte, pour les retrouver sur un autre téléphone.
+- **En attendant** : aucun bonus d'XP n'est affiché dans l'app. Le bilan montre « Meilleure série : n d'affilée » et la pastille « LEÇON PARFAITE » ; les défis sont gagnés et gardés sur le téléphone, par compte et sans compte.
 
 ## 5. Dictionnaire
 - **Manque** :

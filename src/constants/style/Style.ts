@@ -258,6 +258,22 @@ export const learnHome = {
   tileName: 18,
 } as const;
 
+// Pastille ⚡ des bonnes réponses d'affilée (lecteur de leçon) : échelles
+// de l'apparition et de la pulsation, durées (ms) de la traînée
+// d'étincelles, de la gerbe des paliers, du mot bref et de la sortie ;
+// nombre d'étincelles et portée de la gerbe
+export const runBadgeFx = {
+  peak: 1.2,
+  pulse: 1.15,
+  trail: 650,
+  burst: 700,
+  word: 1200,
+  exit: 200,
+  trailSparks: 7,
+  burstSparks: 10,
+  burstReach: 30,
+} as const;
+
 // Lueur dorée derrière l'en-tête du profil : or au cœur, diamètre
 export const headerGlow = { opacity: 0.16, size: 300 } as const;
 

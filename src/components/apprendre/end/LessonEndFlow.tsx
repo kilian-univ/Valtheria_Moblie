@@ -16,7 +16,9 @@ import { useCountUp } from '@/src/hooks/useCountUp';
 import { formatInteger } from '@/src/utils/format';
 import { nextExcess } from '@/src/utils/fit';
 import GoldConfetti from '@/src/components/common/GoldConfetti';
+import ChallengeCelebration from '@/src/components/common/ChallengeCelebration';
 import MedalCelebration from '@/src/components/common/MedalCelebration';
+import type { Challenge } from '@/src/utils/accuracy';
 import StreakFlame from '@/src/components/common/StreakFlame';
 import { useApi } from '@/src/context/ApiContext';
 import { useOnboarding } from '@/src/state/onboarding';
@@ -36,8 +38,9 @@ import {
   streakGain,
 } from '@/src/utils/lessonPlayer';
 
-// Étapes affichées : celles du serveur, plus la médaille si un palier est franchi
-type FlowStep = EndStep | 'medal';
+// Étapes affichées : celles du serveur, plus la médaille si un palier est
+// franchi, et un écran par défi de précision gagné (« defi-0 », « defi-1 »…)
+type FlowStep = EndStep | 'medal' | `defi-${number}`;
 
 const TITLE_SIZE = 32;
 const TITLE_LINE_HEIGHT = 38;
@@ -67,6 +70,9 @@ type LessonEndFlowProps = {
   onDone: () => void;
   // Fin d'une révision (du serveur) : « RÉVISION TERMINÉE »
   revision?: boolean;
+  // Précision de la leçon (mémoire du téléphone) : meilleure série
+  // d'affilée, leçon parfaite, défis gagnés à fêter
+  accuracy?: { bestRun: number; perfect: boolean; challenges: Challenge[] } | null;
 };
 
 // Suite d'écrans de fin, en sautant ceux qui ne s'appliquent pas.
@@ -79,6 +85,7 @@ export default function LessonEndFlow({
   moduleTitle,
   onDone,
   revision = false,
+  accuracy = null,
 }: LessonEndFlowProps) {
   const { user } = useApi();
   const [baseSteps] = useState<EndStep[]>(() => endSteps(result, streakBefore));
@@ -112,7 +119,17 @@ export default function LessonEndFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const steps: FlowStep[] = medal ? [...baseSteps.slice(0, streakIndex + 1), 'medal', ...baseSteps.slice(streakIndex + 1)] : baseSteps;
+  const withMedal: FlowStep[] = medal
+    ? [...baseSteps.slice(0, streakIndex + 1), 'medal', ...baseSteps.slice(streakIndex + 1)]
+    : baseSteps;
+  // Défis de précision : après la série et sa médaille, avant les coffres
+  const challenges = accuracy?.challenges ?? [];
+  const after = Math.max(withMedal.indexOf('medal'), withMedal.indexOf('streak'), 0) + 1;
+  const steps: FlowStep[] = [
+    ...withMedal.slice(0, after),
+    ...challenges.map((_, i) => `defi-${i}` as const),
+    ...withMedal.slice(after),
+  ];
 
   const next = () => {
     if (index < steps.length - 1) {
@@ -132,11 +149,16 @@ export default function LessonEndFlow({
           lessonTitle={lessonTitle}
           takeaway={takeaway}
           kicker={revision ? 'RÉVISION TERMINÉE' : undefined}
+          bestRun={accuracy?.bestRun ?? null}
+          perfect={accuracy?.perfect ?? false}
           onNext={next}
         />
       ) : null}
       {step === 'streak' && gain ? <StreakStep from={gain.from} to={gain.to} onNext={next} /> : null}
       {step === 'medal' && medal ? <MedalStep medal={medal} onNext={next} /> : null}
+      {step.startsWith('defi-') && challenges[Number(step.slice(5))] ? (
+        <ChallengeStep challenge={challenges[Number(step.slice(5))]} onNext={next} />
+      ) : null}
       {step === 'chest' ? <ChestStep result={result} onNext={next} /> : null}
       {step === 'surprise' ? <ChestStep result={result} surprise onNext={next} /> : null}
       {step === 'module' ? <ModuleStep title={moduleTitle} onNext={next} /> : null}
@@ -201,6 +223,8 @@ function DoneStep({
   lessonTitle,
   takeaway,
   kicker,
+  bestRun,
+  perfect,
   onNext,
 }: {
   result: LessonResult;
@@ -208,6 +232,8 @@ function DoneStep({
   lessonTitle: string | null;
   takeaway: string | null;
   kicker?: string;
+  bestRun: number | null;
+  perfect: boolean;
   onNext: () => void;
 }) {
   const { state } = useOnboarding();
@@ -225,6 +251,8 @@ function DoneStep({
       streak={typeof result.user?.streak === 'number' ? result.user.streak : null}
       takeaway={takeaway}
       kicker={kicker}
+      bestRun={bestRun}
+      perfect={perfect}
       onContinue={onNext}
     />
   );
@@ -274,6 +302,18 @@ function StreakStep({ from, to, onNext }: { from: number; to: number; onNext: ()
 // ---------------------------------------------------------------------------
 // b bis. Nouvelle médaille de série (une seule fois par palier)
 // ---------------------------------------------------------------------------
+// Défi de précision gagné : même écran que la médaille de série
+function ChallengeStep({ challenge, onNext }: { challenge: Challenge; onNext: () => void }) {
+  return (
+    <>
+      <StepFrame button={<Button label="Continuer" onPress={onNext} />}>
+        <ChallengeCelebration challenge={challenge} />
+      </StepFrame>
+      <GoldConfetti />
+    </>
+  );
+}
+
 function MedalStep({ medal, onNext }: { medal: Medal; onNext: () => void }) {
   return (
     <>

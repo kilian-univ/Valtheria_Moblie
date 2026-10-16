@@ -9,7 +9,6 @@ import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
 import IconButton from '@/src/components/common/IconButton';
 import { ProfileSkeleton } from '@/src/components/common/ScreenSkeletons';
-import StreakMedal from '@/src/components/common/StreakMedal';
 import UniverseCard from '@/src/components/common/UniverseCard';
 import AccessTile, { IconSquare } from '@/src/components/profile/AccessTile';
 import HeaderGlow from '@/src/components/profile/HeaderGlow';
@@ -22,14 +21,14 @@ import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { useProfile } from '@/src/hooks/useProfile';
+import MedalsCard from '@/src/components/profile/MedalsCard';
+import { useAccuracy } from '@/src/state/accuracy';
 import { discoveryLesson, type Objective } from '@/src/lesson/discovery';
 import { initialOf, lastMedalDays, levelA11y, medalsEarned } from '@/src/utils/profile';
-import { MEDALS } from '@/src/utils/streakRewards';
 import { universeTint } from '@/src/utils/universeTint';
 
 const AVATAR = 104;
 const PSEUDO_SIZE = 28;
-const MEDAL = 40;
 // Petit message après un changement d'objectif
 const NOTICE_MS = 2600;
 // Lueur dorée : son centre sur la photo
@@ -45,6 +44,8 @@ export default function ProfileScreen() {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const p = useProfile();
+  // Défis de précision et meilleure série d'affilée (mémoire du téléphone)
+  const accuracy = useAccuracy(p.userKey);
   const { launch } = useLessonLauncher();
 
   // Feuilles : montées pendant leur animation de fermeture
@@ -197,41 +198,32 @@ export default function ProfileScreen() {
             accessibilityLabel={declics > 0 ? `Ton carnet : ${declics} ${declics > 1 ? 'déclics' : 'déclic'}` : 'Ton carnet, vide pour l’instant'}
             accessibilityHint="Ouvre ton carnet et le test sur tes déclics"
           />
-          <View style={styles.halves}>
-            <AccessTile
-              style={styles.half}
-              icon={<StreakMedal days={lastMedal ?? MEDALS[0].days} size={MEDAL} earned={lastMedal !== null} />}
-              value={medals > 0 ? String(medals) : undefined}
-              unit={medals > 0 ? (medals > 1 ? 'médailles' : 'médaille') : undefined}
-              caption={medals > 0 ? `sur ${MEDALS.length}` : `Première médaille à ${MEDALS[0].days} jours`}
-              onPress={() => {
-                setStreakMounted(true);
-                setStreakOpen(true);
-              }}
-              accessibilityLabel={
-                medals > 0 ? `Médailles de série : ${medals} sur ${MEDALS.length}` : `Aucune médaille pour l’instant, la première à ${MEDALS[0].days} jours`
-              }
-              accessibilityHint="Ouvre ta série et tes médailles"
-            />
-            <AccessTile
-              style={styles.half}
-              icon={
-                <IconSquare background={withOpacity(colors.chart3, 0.18)}>
-                  <Ionicons name="book-outline" size={20} color={colors.chart3} />
-                </IconSquare>
-              }
-              value={words > 0 ? String(words) : undefined}
-              unit={words > 0 ? (words > 1 ? 'mots' : 'mot') : undefined}
-              caption={words > 0 ? (words > 1 ? 'découverts' : 'découvert') : 'Ouvre ton premier mot'}
-              onPress={() => router.navigate({ pathname: '/dictionary', params: { section: 'mes-mots' } })}
-              accessibilityLabel={
-                words > 0
-                  ? `Mots découverts : ${words}${p.wordsTotal > 0 ? ` sur ${p.wordsTotal}` : ''}`
-                  : 'Aucun mot découvert pour l’instant'
-              }
-              accessibilityHint="Ouvre le Dictionnaire"
-            />
-          </View>
+          <MedalsCard
+            medals={medals}
+            lastMedal={lastMedal}
+            accuracy={accuracy}
+            onStreak={() => {
+              setStreakMounted(true);
+              setStreakOpen(true);
+            }}
+          />
+          <AccessTile
+            icon={
+              <IconSquare background={withOpacity(colors.chart3, 0.18)}>
+                <Ionicons name="book-outline" size={20} color={colors.chart3} />
+              </IconSquare>
+            }
+            value={words > 0 ? String(words) : undefined}
+            unit={words > 0 ? (words > 1 ? 'mots' : 'mot') : undefined}
+            caption={words > 0 ? (words > 1 ? 'découverts' : 'découvert') : 'Ouvre ton premier mot'}
+            onPress={() => router.navigate({ pathname: '/dictionary', params: { section: 'mes-mots' } })}
+            accessibilityLabel={
+              words > 0
+                ? `Mots découverts : ${words}${p.wordsTotal > 0 ? ` sur ${p.wordsTotal}` : ''}`
+                : 'Aucun mot découvert pour l’instant'
+            }
+            accessibilityHint="Ouvre le Dictionnaire"
+          />
         </View>
       </ScrollView>
 
@@ -311,12 +303,5 @@ const styles = StyleSheet.create({
   },
   access: {
     gap: space[2] + 2,
-  },
-  halves: {
-    flexDirection: 'row',
-    gap: space[2] + 2,
-  },
-  half: {
-    flex: 1,
   },
 });

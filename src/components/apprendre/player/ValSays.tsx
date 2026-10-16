@@ -20,6 +20,8 @@ export const VAL_BUST = 100;
 const VAL_BUST_MIN = 80;
 // Petit bond quand son humeur change
 const BOUNCE_SCALE = 1.06;
+// Petit bond de la série d'affilée (px)
+const HOP_HEIGHT = 10;
 
 type ValSaysProps = {
   line: ValLine;
@@ -27,18 +29,20 @@ type ValSaysProps = {
   bubbleDelay: number;
   // false : la réplique s'affiche d'un coup (simulateur)
   typing?: boolean;
+  // Chaque hausse : petit bond de Val (série d'affilée qui démarre, palier)
+  hop?: number;
 };
 
 // Val pose la question : son buste à gauche, sa bulle à droite, pointe vers
 // sa bouche. Une nouvelle réplique remonte la bulle (elle s'écrit, un
 // toucher l'affiche d'un coup) ; une nouvelle humeur passe en fondu de
 // 150 ms avec un petit bond.
-export default function ValSays({ line, bubbleDelay, typing }: ValSaysProps) {
+export default function ValSays({ line, bubbleDelay, typing, hop = 0 }: ValSaysProps) {
   const { height } = useWindowDimensions();
   const bust = windowFitHeight(VAL_BUST, VAL_BUST_MIN, height);
   return (
     <ValBeside
-      figure={<ValBust mood={line.mood} size={bust} />}
+      figure={<ValBust mood={line.mood} size={bust} hop={hop} />}
       width={bust}
       height={bust}
       face={AVATAR_FACE}
@@ -49,7 +53,7 @@ export default function ValSays({ line, bubbleDelay, typing }: ValSaysProps) {
   );
 }
 
-function ValBust({ mood, size }: { mood: ValMood; size: number }) {
+function ValBust({ mood, size, hop }: { mood: ValMood; size: number; hop: number }) {
   const reduced = useReducedMotion();
   // Humeur affichée et précédente (fondu de l'une sur l'autre)
   const [shown, setShown] = useState(mood);
@@ -67,7 +71,14 @@ function ValBust({ mood, size }: { mood: ValMood; size: number }) {
     return () => clearTimeout(timer);
   }, [previous, bounce]);
 
-  const bounceStyle = useAnimatedStyle(() => ({ transform: [{ scale: bounce.get() }] }));
+  // Petit bond (série d'affilée) : monte et retombe en ressort
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    if (hop === 0 || reduced) return;
+    lift.set(withSequence(withTiming(-HOP_HEIGHT, timing(motion.tap)), withSpring(0, springs.celebrate)));
+  }, [hop, reduced, lift]);
+
+  const bounceStyle = useAnimatedStyle(() => ({ transform: [{ translateY: lift.get() }, { scale: bounce.get() }] }));
 
   return (
     <Animated.View style={[{ width: size, height: size }, bounceStyle]}>

@@ -132,12 +132,14 @@ export default function ApprendreHomeScreen() {
     lastModuleId: memory.lastModuleId,
     objectiveSlug,
   });
-  const program = programState(revision.lessonDone, revision.revisionDone);
+  // Plus de leçon disponible : le programme ne compte que la révision
+  const program = programState(revision.lessonDone, revision.revisionDone, lessonOfDay !== null);
   const dictionary = useDictionary();
   const word = wordOfTheDay(dictionary.entries, new Date());
 
-  // Journée faite (leçon et révision) : fêtée une fois, avec la phrase de Val
-  const bothDone = data.isAuthenticated && program.lessonDone && program.revisionDone;
+  // Journée faite (leçon et révision, ou la révision seule quand il n'y a
+  // plus de leçon) : fêtée une fois, avec la phrase de Val
+  const bothDone = data.isAuthenticated && program.dayDone;
   useEffect(() => {
     if (!bothDone || !user) return;
     const key = userKeyOf(user.id);
