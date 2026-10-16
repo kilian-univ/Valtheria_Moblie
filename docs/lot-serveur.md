@@ -28,7 +28,7 @@ Pour chaque point :
 | 2 | Photo de profil | Initiale à la place de la photo |
 | 3 | Bonus de série de bonnes réponses (4.9) | Pas de bonus d'XP ni de Vals pour les bonnes réponses d'affilée ; défis de précision gardés sur le téléphone |
 | 1 | Cours des actions et taux EUR/USD (8.4) | Yahoo v7 en 401 : taux figé à 1,08 (écart d'environ 4 %), cours des actions plus lents, cryptos hors liste sans cours |
-| 1 | Historique du portefeuille dans l'app (8.6) | La courbe affiche toujours « Pas encore de données » |
+| 3 | Historique du portefeuille dans l'app (8.6) | Corrigé dans l'app ; une réponse non dépliée rendrait la correction inutile |
 | 2 | Positions regroupées, PRU, opérations et ventes (8.1 à 8.3) | Chaque ajout crée une ligne de plus ; pas de prix de revient moyen, pas d'historique des achats, pas de vente ni de plus-value réalisée |
 | 3 | Logos des actifs (8.5) | Une icône par type (la pièce 🪙 pour toutes les cryptos) |
 | 3 | Connexion Apple et Google | Boutons masqués |
@@ -360,7 +360,7 @@ Relevé du 16 octobre 2026 (site, branche `main`, lu en lecture seule). Le déta
 - **Souhaité** :
   - côté site, une réponse que `unwrap()` ne déplie pas, sans casser la page web (qui lit `data`) : `GET /api/portfolio/history?shape=app` ou une route `GET /api/portfolio/chart`, avec `{ points: [...], range, total_invested, current_value }` ;
   - **autre voie, côté app** : corriger `getPortfolioHistory` dans `ApiContext.tsx`. Ce fichier est interdit sans ton accord explicite.
-- **En attendant** : rien n'est corrigé. Sans toucher à `ApiContext.tsx`, l'app pourrait accepter le tableau tel quel dans `HistoryChart`, et prendre « investi » dans `total_invested_eur` de `GET /api/portfolio`.
+- **En attendant** (corrigé dans l'app le 16 octobre 2026, sans toucher à `ApiContext.tsx`) : `HistoryChart` accepte le tableau tel quel ou la réponse entière (`src/utils/portfolioHistory.ts`), et la ligne « investi » vient de `total_invested_eur` de `GET /api/portfolio`. Seul `current_value` reste perdu, sans effet : la carte du haut l'affiche déjà.
 
 ### 8.7 Petites corrections au passage
 - **Journaux de débogage** : `PortfolioController::index` écrit à chaque appel un journal `Portfolio livePrices`, et un journal propre à SOL (`Prix SOL utilisé pour total`). `CryptoPriceProvider` écrit la réponse brute de CoinGecko à chaque appel. À retirer ;

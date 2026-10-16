@@ -1,43 +1,49 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
+import { historyBounds, historyPoints, type HistoryPoint } from '@/src/utils/portfolioHistory';
 import { CHART_HEIGHT, CHART_PADDING, CHART_WIDTH, RANGES } from './chartConstants';
-
-type HistoryPoint = { date: string; value: number; is_snapshot: boolean };
-
-type HistoryData = {
-  data: HistoryPoint[];
-  range: string;
-  total_invested: number;
-  current_value: number;
-};
 
 export default function HistoryChart({
   colors,
   styles,
   getPortfolioHistory,
+  invested,
 }: {
   colors: any;
   styles: any;
-  getPortfolioHistory: (range: string) => Promise<HistoryData>;
+  // Réponse dépliée par la couche API (tableau) ou entière ({ data })
+  getPortfolioHistory: (range: string) => Promise<unknown>;
+  // Montant investi en euros (GET /api/portfolio), ligne pointillée
+  invested: number | null;
 }) {
   const [range, setRange] = useState('1m');
-  const [history, setHistory] = useState<HistoryData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Dernière réponse reçue, avec sa période : chargement tant qu'elle n'est
+  // pas celle demandée
+  const [loaded, setLoaded] = useState<{ range: string; points: HistoryPoint[] } | null>(null);
 
   useEffect(() => {
-    setIsLoading(true);
+    let active = true;
     getPortfolioHistory(range)
-      .then(setHistory)
-      .catch(() => setHistory(null))
-      .finally(() => setIsLoading(false));
-  }, [range]);
+      .then(historyPoints)
+      .catch(() => [])
+      .then((points) => {
+        if (active) setLoaded({ range, points });
+      });
+    return () => {
+      active = false;
+    };
+  }, [range, getPortfolioHistory]);
 
-  const points = history?.data ?? [];
+  const isLoading = loaded?.range !== range;
+  const points = loaded?.points ?? [];
   const values = points.map((p) => p.value);
-  const minVal = values.length ? Math.min(...values) : 0;
-  const maxVal = values.length ? Math.max(...values) : 1;
+  const { min: minVal, max: maxVal } = historyBounds(values, invested);
   const span = maxVal - minVal || 1;
+  const investedY =
+    invested !== null && Number.isFinite(invested) && invested > 0
+      ? CHART_PADDING + (1 - (invested - minVal) / span) * (CHART_HEIGHT - CHART_PADDING * 2)
+      : null;
 
   const isPositive = points.length >= 2 ? points[points.length - 1].value >= points[0].value : true;
   const lineColor = isPositive ? colors.success : colors.error;
@@ -75,12 +81,12 @@ export default function HistoryChart({
         </View>
       ) : (
         <Svg width="100%" height={CHART_HEIGHT} viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}>
-          {history && (
+          {investedY !== null && (
             <Line
               x1={CHART_PADDING}
               x2={CHART_WIDTH - CHART_PADDING}
-              y1={CHART_PADDING + (1 - (history.total_invested - minVal) / span) * (CHART_HEIGHT - CHART_PADDING * 2)}
-              y2={CHART_PADDING + (1 - (history.total_invested - minVal) / span) * (CHART_HEIGHT - CHART_PADDING * 2)}
+              y1={investedY}
+              y2={investedY}
               stroke={colors.border}
               strokeWidth={1}
               strokeDasharray="4,4"

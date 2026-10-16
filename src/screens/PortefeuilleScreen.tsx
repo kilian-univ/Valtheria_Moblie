@@ -146,7 +146,12 @@ export default function PortefeuilleScreen() {
                 </View>
               </View>
 
-              <HistoryChart colors={colors} styles={styles} getPortfolioHistory={getPortfolioHistory} />
+              <HistoryChart
+                colors={colors}
+                styles={styles}
+                getPortfolioHistory={getPortfolioHistory}
+                invested={portfolio.total_invested_eur ?? null}
+              />
 
               {showAddForm ? (
                   <AddPositionForm colors={colors} styles={formStyles} onSubmit={handleAdd} onCancel={() => setShowAddForm(false)} />
