@@ -47,13 +47,6 @@ export function plainDeclic(text: string): string {
   return text.replace(/\[([^\]]*)\]/g, '$1').replace(/\s+/g, ' ').trim();
 }
 
-// Citation courte de la carte du profil : la première proposition (avant
-// « ; »), entre guillemets insécables
-export function shortQuote(text: string): string {
-  const first = plainDeclic(text).split(/\s*;\s*/)[0].replace(/[.\s]+$/, '');
-  return `«\u00A0${first}.\u00A0»`;
-}
-
 // Mots clés marqués
 export function declicKeywords(text: string): string[] {
   return [...text.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim()).filter(Boolean);

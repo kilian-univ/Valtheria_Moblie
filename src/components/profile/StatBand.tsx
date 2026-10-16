@@ -26,7 +26,7 @@ export default function StatBand({ streak, best, xp, vals }: StatBandProps) {
   const colors = palette[colorScheme];
   const record = Math.max(best, streak);
   return (
-    <View style={[styles.band, { backgroundColor: colors.panel }]}>
+    <View style={[styles.band, { backgroundColor: colors.panelStrong }]}>
       <Stat
         icon={<AppText style={styles.flame}>{FLAME}</AppText>}
         value={`${formatInteger(streak)} j`}

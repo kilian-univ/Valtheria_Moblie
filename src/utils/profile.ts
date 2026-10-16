@@ -88,6 +88,27 @@ export function objectiveProgress(slug: string, universes: Universe[], modules: 
   };
 }
 
+// Univers terminé : le suivant conseillé, dans l'ordre des univers, le premier
+// qui a encore des leçons à faire (sinon null)
+export function nextUniverse(slug: string, universes: Universe[], modules: Module[]): Universe | null {
+  const sorted = [...universes].sort((a, b) => a.position - b.position || a.id - b.id);
+  const i = sorted.findIndex((u) => u.slug === slug);
+  const order = i < 0 ? sorted : [...sorted.slice(i + 1), ...sorted.slice(0, i)];
+  return (
+    order.find((u) => {
+      const e = universeEntry(u, modules);
+      return e.modules.length > 0 && e.progress < 1;
+    }) ?? null
+  );
+}
+
+// Dernière médaille gagnée (nombre de jours), sinon null
+export function lastMedalDays(best: number, streak: number): number | null {
+  const reached = Math.max(best || 0, streak || 0);
+  const earned = MEDALS.filter((m) => reached >= m.days);
+  return earned.length > 0 ? earned[earned.length - 1].days : null;
+}
+
 // Objectif tel que le serveur l'accepte (User::OBJECTIVES du site :
 // comprendre, epargner, investir, projet, rouge, decouvrir). Le logement y
 // est encore « projet » (relu en logement par toObjective) ; crypto et

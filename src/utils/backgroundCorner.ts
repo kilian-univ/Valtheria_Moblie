@@ -1,5 +1,5 @@
-// Coin de la lumière du fond commun (AppBackground), calculé depuis l'adresse
-// de la page. Fonctions pures, sans React : testables avec Node.
+// Coin propre à une page du fond commun (AppBackground) : celui du halo bleu
+// nuit, calculé depuis l'adresse de la page. Fonctions pures, sans React : testables avec Node.
 //
 // Règles :
 // - seul le premier segment de l'adresse compte (« /apprendre/module/3 » →
@@ -11,7 +11,7 @@
 //   un sans code supplémentaire ;
 // - les onglets visibles ont des coins différents (jusqu'à 4) : en cas de
 //   collision, l'onglet suivant prend le prochain coin libre ;
-// - le bleu nuit est toujours dans le coin opposé à la lumière.
+// - le halo doré est toujours dans le coin opposé (oppositeCorner).
 
 export const CORNERS = ['topRight', 'bottomLeft', 'topLeft', 'bottomRight'] as const;
 export type Corner = (typeof CORNERS)[number];

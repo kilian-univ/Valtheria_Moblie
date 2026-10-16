@@ -5,6 +5,7 @@ import { useApi } from '@/src/context/ApiContext';
 import { DISCOVERY, discoveryLesson, toObjective } from '@/src/lesson/discovery';
 import { learningStore } from '@/src/state/learningStore';
 import { addToNotebook } from '@/src/state/notebook';
+import { recordLessonXp } from '@/src/state/weekJournal';
 import { userKeyOf } from '@/src/state/userMemory';
 import ApprendreDetailScreen from '@/src/screens/ApprendreDetailScreen';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
@@ -50,6 +51,8 @@ export default function DiscoveryLessonScreen() {
     // Leçon et jour de série mémorisés ; la fin de leçon reçoit la série
     // d'avant (flamme qui grandit) et, la sixième fois, la célébration
     const done = recordLessonDone(onboardingStore.get().state, objective);
+    // Journal de la semaine (graphique du profil) : les XP comptés sur le téléphone
+    recordLessonXp(userKeyOf(user?.id), done.xpGained).catch(() => {});
     const params = {
       serie: String(done.streakFrom),
       // Bilan de la leçon (premier écran de la fin)

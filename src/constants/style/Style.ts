@@ -35,8 +35,6 @@ export const palette = {
   // Thème sombre — reprend le fond confirmé du site (#0D0D0F)
   dark: {
     background: '#0D0D0F',
-    backgroundNight: '#0D1016',          // fond commun : coin bleu nuit
-    backgroundGold: '#100F0C',           // fond commun : coin de l'or sombre (aussi discret que la nuit)
     surface: '#18181C',       // cartes, inputs, panneaux légèrement plus clairs
     surfaceAlt: '#232328',
     text: '#F2EFE8',
@@ -88,6 +86,14 @@ export const palette = {
     disabledEdge: '#1F1F25',             // sa tranche
     disabledText: 'rgba(242,239,232,0.38)', // son libellé (ivoire à 38 %)
     panel: 'rgba(255,255,255,0.04)',     // encart posé sur le fond (barres d'une révélation)
+    panelStrong: 'rgba(255,255,255,0.05)', // bande de chiffres du profil
+    cardSurface: 'rgba(255,255,255,0.03)', // carte de couleur (UniverseCard) : fond
+    cardBorder: 'rgba(255,255,255,0.07)',  // son filet
+    track: 'rgba(255,255,255,0.08)',       // piste d'une barre de progression sur une carte
+    goldPill: 'rgba(201,168,76,0.14)',     // pastille du niveau
+    goldTile: 'rgba(201,168,76,0.16)',     // carré d'une icône dorée (carnet)
+    goldLight: '#E8C97A',                  // barre du jour (graphique de la semaine)
+    barEmpty: '#18181C',                   // barre d'un jour sans leçon
     pileBack: '#18181D',                 // cartes sous la pile du vrai ou faux
     pileBackDeep: '#141418',             // la plus basse
     chatBubble: '#23232A',               // bulle d'un personnage (dialogue)
@@ -108,8 +114,6 @@ export const palette = {
   light: {
     background: '#FAFAFA',
     // Thème clair : fond commun uni (aucun changement)
-    backgroundNight: '#FAFAFA',
-    backgroundGold: '#FAFAFA',
     surface: '#FFFFFF',
     surfaceAlt: '#F0EFF4',
     text: '#0D0D0F',
@@ -162,6 +166,14 @@ export const palette = {
     disabledEdge: '#CFCED6',
     disabledText: 'rgba(13,13,15,0.38)',
     panel: 'rgba(0,0,0,0.04)',
+    panelStrong: 'rgba(0,0,0,0.05)',
+    cardSurface: 'rgba(0,0,0,0.03)',
+    cardBorder: 'rgba(0,0,0,0.08)',
+    track: 'rgba(0,0,0,0.08)',
+    goldPill: 'rgba(201,168,76,0.18)',
+    goldTile: 'rgba(201,168,76,0.18)',
+    goldLight: '#B8952F',
+    barEmpty: '#E4E4E8',
     pileBack: '#EEEDF2',
     pileBackDeep: '#E4E3E8',
     chatBubble: '#ECEBF0',
@@ -192,6 +204,26 @@ export const moduleColors = {
 } as const;
 
 export type ModuleColors = (typeof moduleColors)[keyof typeof moduleColors];
+
+// Fond commun (AppBackground), thème sombre : deux halos radiaux par-dessus
+// le fond #0D0D0F, puis le grain. Bleu nuit dans le coin propre à l'onglet,
+// or dans le coin opposé. reach : rayon où le halo s'éteint, en part de la
+// largeur de l'écran (l'or un peu plus court).
+// Carte de couleur (UniverseCard) : rayon, liseré gauche (largeur, retrait
+// en haut et en bas). Sa lueur qui suit la progression : utils/universeGlow.
+export const universeCard = {
+  radius: 20,
+  bar: 4,
+  barInset: 14,
+} as const;
+
+// Lueur dorée derrière l'en-tête du profil : or au cœur, diamètre
+export const headerGlow = { opacity: 0.16, size: 300 } as const;
+
+export const backgroundHalo = {
+  night: { color: '#4664AA', opacity: 0.3, reach: 0.78 },
+  gold: { color: '#C9A84C', opacity: 0.2, reach: 0.7 },
+} as const;
 
 // Une couleur « #RRGGBB » de la palette, avec une opacité (0 à 1)
 export function withOpacity(hex: string, opacity: number): string {

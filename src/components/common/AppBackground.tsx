@@ -1,9 +1,8 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname } from 'expo-router';
 import { ReactNode, useEffect, useId, useMemo } from 'react';
 import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, G, Image as SvgImage, LinearGradient as SvgLinearGradient, Mask, Pattern, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, G, Image as SvgImage, LinearGradient as SvgLinearGradient, Mask, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -15,15 +14,13 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { TAB_ROUTES } from '@/src/constants/tabs';
-import { palette } from '@/src/constants/style/Style';
+import { backgroundHalo, palette } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { Corner, cornerForPath } from '@/src/utils/backgroundCorner';
+import { Corner, cornerForPath, oppositeCorner } from '@/src/utils/backgroundCorner';
 
 const GRAIN = require('@/assets/images/background/grain.webp');
 const TABS = TAB_ROUTES.map((t) => t.name);
 
-// Dégradé : nuit → background entre 40 % et 58 % → or
-const STOPS = [0, 0.4, 0.58, 1] as const;
 // Changement de coin
 const MOVE_MS = 700;
 const FADE_MS = 160;
@@ -33,6 +30,19 @@ const MASK_WHITE = '#FFFFFF';
 
 const ease = Easing.inOut(Easing.cubic);
 
+// Coin de l'or : opposé au coin propre à l'onglet (le bleu nuit)
+function goldCorner(path: string): Corner {
+  return oppositeCorner(cornerForPath(path, TABS));
+}
+
+// Coin sur l'écran, en px
+function cornerPoint(corner: Corner, w: number, h: number): { x: number; y: number } {
+  return {
+    x: corner === 'topRight' || corner === 'bottomRight' ? w : 0,
+    y: corner === 'bottomLeft' || corner === 'bottomRight' ? h : 0,
+  };
+}
+
 // Vecteur centre → coin de l'or, sur l'écran
 function cornerVector(corner: Corner, w: number, h: number): { x: number; y: number } {
   const x = corner === 'topRight' || corner === 'bottomRight' ? w / 2 : -w / 2;
@@ -40,21 +50,42 @@ function cornerVector(corner: Corner, w: number, h: number): { x: number; y: num
   return { x, y };
 }
 
-// Le dégradé est tracé de haut (nuit) en bas (or) sur un carré de côté la
-// diagonale de l'écran, centré, puis tourné pour que l'or vise le coin : les
-// coins de l'écran tombent alors aux extrémités du dégradé. Angle de cette
+// Les halos sont tracés sur un carré de côté la diagonale de l'écran, centré :
+// le bleu nuit au milieu du bord haut, l'or au milieu du bord bas. Le carré
+// est tourné pour que l'or vise son coin : le bleu tombe alors sur le coin
+// opposé (les deux sont à une demi-diagonale du centre, comme les coins). Angle de cette
 // rotation (radians) : il amène le bas du carré (0, 1) sur le coin.
 function cornerAngle(corner: Corner, w: number, h: number): number {
   const v = cornerVector(corner, w, h);
   return Math.atan2(-v.x, v.y);
 }
 
-// Dessin du fond commun : couleur de fond, dégradé (dans `frame`, qui le
+// Halos radiaux du fond (bleu nuit, or), centrés en (x, y), dans un dessin
+// SVG : le dégradé s'éteint au rayon reach × largeur de l'écran
+function HaloDefs({ id, night, gold, w }: { id: string; night: { x: number; y: number }; gold: { x: number; y: number }; w: number }) {
+  return (
+    <Defs>
+      {(['night', 'gold'] as const).map((k) => {
+        const halo = backgroundHalo[k];
+        const at = k === 'night' ? night : gold;
+        return (
+          <RadialGradient key={k} id={`${id}${k}`} gradientUnits="userSpaceOnUse" cx={at.x} cy={at.y} r={halo.reach * w}>
+            <Stop offset={0} stopColor={halo.color} stopOpacity={halo.opacity} />
+            <Stop offset={1} stopColor={halo.color} stopOpacity={0} />
+          </RadialGradient>
+        );
+      })}
+    </Defs>
+  );
+}
+
+// Dessin du fond commun : couleur de fond, halos (dans `frame`, qui les
 // tourne) et grain. Thème clair : fond uni.
 function Backdrop({ frame }: { frame: (gradient: ReactNode, square: object) => ReactNode }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { width: w, height: h } = useWindowDimensions();
+  const id = `bg${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
 
   if (colorScheme === 'light') {
     return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />;
@@ -63,13 +94,11 @@ function Backdrop({ frame }: { frame: (gradient: ReactNode, square: object) => R
   const diagonal = Math.ceil(Math.hypot(w, h));
   const square = { width: diagonal, height: diagonal, left: (w - diagonal) / 2, top: (h - diagonal) / 2 };
   const gradient = (
-    <LinearGradient
-      colors={[colors.backgroundNight, colors.background, colors.background, colors.backgroundGold]}
-      locations={STOPS}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
-      style={StyleSheet.absoluteFill}
-    />
+    <Svg width={diagonal} height={diagonal} style={StyleSheet.absoluteFill}>
+      <HaloDefs id={id} night={{ x: diagonal / 2, y: 0 }} gold={{ x: diagonal / 2, y: diagonal }} w={w} />
+      <Rect x={0} y={0} width={diagonal} height={diagonal} fill={`url(#${id}night)`} />
+      <Rect x={0} y={0} width={diagonal} height={diagonal} fill={`url(#${id}gold)`} />
+    </Svg>
   );
 
   return (
@@ -93,23 +122,22 @@ function Backdrop({ frame }: { frame: (gradient: ReactNode, square: object) => R
 }
 
 // Fond commun de toute l'app, posé une fois à la racine, derrière la
-// navigation : dégradé diagonal (bleu nuit dans un coin, noir au centre, or
-// sombre dans le coin opposé, deux teintes aussi discrètes l'une que
-// l'autre) et grain presque invisible. Il suit la taille de l'écran (fixe au
-// défilement). Le coin de l'or vient de l'adresse (utils/backgroundCorner) et
-// tourne quand on change d'onglet. Seuls les écrans racines des onglets le
+// navigation : le fond #0D0D0F, un halo bleu nuit dans le coin propre à
+// l'onglet, un halo doré dans le coin opposé, et un grain presque invisible. Il suit la taille de l'écran (fixe au
+// défilement). Les coins viennent de l'adresse (utils/backgroundCorner) et
+// tournent quand on change d'onglet. Seuls les écrans racines des onglets le
 // laissent voir : les pages poussées sur une pile sont opaques (OpaqueScreen).
 export default function AppBackground() {
   const reduced = useReducedMotion();
   const pathname = usePathname();
   const { width: w, height: h } = useWindowDimensions();
-  const corner = cornerForPath(pathname ?? '/', TABS);
+  const corner = goldCorner(pathname ?? '/');
   const target = useMemo(() => cornerAngle(corner, w, h), [corner, w, h]);
 
   const angle = useSharedValue(target);
   const opacity = useSharedValue(1);
 
-  // Changement de coin : le dégradé tourne en 700 ms (le plus court chemin),
+  // Changement de coin : les halos tournent en 700 ms (le plus court chemin),
   // ou fondu direct avec les animations réduites
   useEffect(() => {
     if (reduced) {
@@ -135,13 +163,13 @@ export default function AppBackground() {
   );
 }
 
-// Copie STATIQUE du fond commun pour une page poussée sur une pile : même
-// dégradé, même grain, coin fixe de son onglet (`tab` : premier segment de
+// Copie STATIQUE du fond commun pour une page poussée sur une pile : mêmes
+// halos, même grain, coin fixe de son onglet (`tab` : premier segment de
 // l'adresse de l'onglet, ou de la page hors onglet). Aucune animation : elle
 // ne tourne pas quand l'adresse change sous elle.
 export function StaticBackground({ tab }: { tab: string }) {
   const { width: w, height: h } = useWindowDimensions();
-  const angle = cornerAngle(cornerForPath(`/${tab}`, TABS), w, h);
+  const angle = cornerAngle(goldCorner(`/${tab}`), w, h);
   return (
     <Backdrop
       frame={(gradient, square) => <View style={[styles.abs, square, { transform: [{ rotate: `${angle}rad` }] }]}>{gradient}</View>}
@@ -149,8 +177,8 @@ export function StaticBackground({ tab }: { tab: string }) {
   );
 }
 
-// Fondu fait de la matière du fond (même dégradé tourné vers le même coin,
-// même grain), redessiné en SVG sous un masque en dégradé continu : aucune
+// Fondu fait de la matière du fond (mêmes halos aux mêmes coins, même
+// grain), redessiné en SVG sous un masque en dégradé continu : aucune
 // tranche, donc aucune bande, sur le web comme sur le téléphone.
 const GRAIN_TILE = 128;
 // Courbe du masque, adoucie aux deux bouts (12 paliers interpolés en continu)
@@ -179,14 +207,9 @@ export function BackdropFade({ tab, top, height, direction, solid = 0 }: Backdro
   const { width: w, height: h } = useWindowDimensions();
   const id = `bf${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
 
-  // Dégradé du fond : tracé sur un carré de côté la diagonale, centré, tourné
-  // vers le coin de l'onglet ; ses extrémités, ramenées dans ce dessin
-  const angle = cornerAngle(cornerForPath(`/${tab}`, TABS), w, h);
-  const half = Math.ceil(Math.hypot(w, h)) / 2;
-  const cx = w / 2;
-  const cy = h / 2 - top;
-  const dx = -Math.sin(angle) * half;
-  const dy = Math.cos(angle) * half;
+  // Halos du fond aux coins de l'écran, ramenés dans ce dessin (posé à top)
+  const gold = cornerPoint(goldCorner(`/${tab}`), w, h);
+  const night = cornerPoint(cornerForPath(`/${tab}`, TABS), w, h);
 
   // Masque : opacité du fond selon la hauteur (1 : fond plein)
   const solidPart = Math.min(1, Math.max(0, solid / height));
@@ -200,13 +223,8 @@ export function BackdropFade({ tab, top, height, direction, solid = 0 }: Backdro
 
   return (
     <Svg width={w} height={height} style={[styles.abs, { top, left: 0 }]} pointerEvents="none">
+      <HaloDefs id={id} night={{ x: night.x, y: night.y - top }} gold={{ x: gold.x, y: gold.y - top }} w={w} />
       <Defs>
-        <SvgLinearGradient id={`${id}g`} gradientUnits="userSpaceOnUse" x1={cx - dx} y1={cy - dy} x2={cx + dx} y2={cy + dy}>
-          <Stop offset={STOPS[0]} stopColor={colors.backgroundNight} />
-          <Stop offset={STOPS[1]} stopColor={colors.background} />
-          <Stop offset={STOPS[2]} stopColor={colors.background} />
-          <Stop offset={STOPS[3]} stopColor={colors.backgroundGold} />
-        </SvgLinearGradient>
         <Pattern
           id={`${id}p`}
           patternUnits="userSpaceOnUse"
@@ -231,7 +249,9 @@ export function BackdropFade({ tab, top, height, direction, solid = 0 }: Backdro
           <Rect x={0} y={0} width={w} height={height} fill={colors.background} />
         ) : (
           <>
-            <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}g)`} />
+            <Rect x={0} y={0} width={w} height={height} fill={colors.background} />
+            <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}night)`} />
+            <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}gold)`} />
             <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}p)`} opacity={GRAIN_OPACITY} />
           </>
         )}

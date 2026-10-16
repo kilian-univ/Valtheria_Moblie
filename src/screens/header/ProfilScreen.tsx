@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -8,33 +9,37 @@ import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
 import IconButton from '@/src/components/common/IconButton';
 import { ProfileSkeleton } from '@/src/components/common/ScreenSkeletons';
-import NotebookCard from '@/src/components/profile/NotebookCard';
-import ObjectiveCard from '@/src/components/profile/ObjectiveCard';
+import StreakMedal from '@/src/components/common/StreakMedal';
+import UniverseCard from '@/src/components/common/UniverseCard';
+import AccessTile, { IconSquare } from '@/src/components/profile/AccessTile';
+import HeaderGlow from '@/src/components/profile/HeaderGlow';
 import ObjectiveSheet from '@/src/components/profile/ObjectiveSheet';
 import ProfileAvatar from '@/src/components/profile/ProfileAvatar';
-import RingTile from '@/src/components/profile/RingTile';
 import StatBand from '@/src/components/profile/StatBand';
-import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
+import WeekChart from '@/src/components/profile/WeekChart';
+import { fonts, palette, radius, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { useProfile } from '@/src/hooks/useProfile';
 import type { Objective } from '@/src/lesson/discovery';
-import { shortQuote } from '@/src/utils/notebook';
-import { initialOf, levelA11y, medalsEarned } from '@/src/utils/profile';
+import { initialOf, lastMedalDays, levelA11y, medalsEarned } from '@/src/utils/profile';
 import { MEDALS } from '@/src/utils/streakRewards';
 import { universeTint } from '@/src/utils/universeTint';
 
-const AVATAR = 76;
-const PSEUDO_SIZE = 26;
+const AVATAR = 104;
+const PSEUDO_SIZE = 28;
+const MEDAL = 40;
 // Petit message après un changement d'objectif
 const NOTICE_MS = 2600;
+// Lueur dorée : son centre sur la photo
+const GLOW_TOP = -space[8];
 
-// Profil (écran poussé, fond commun) : l'en-tête compact (photo et anneau de
-// niveau, pseudo, niveau), la bande de chiffres, la carte de l'objectif, le
-// carnet de déclics, puis les médailles et les mots découverts. La roue
-// dentée ouvre les Réglages. Tient sur un écran d'iPhone standard ; sur
-// iPhone SE et en grand texte, l'écran défile.
+// Profil, version 4 (écran poussé, fond commun) : l'en-tête centré (photo
+// dans l'anneau de niveau, pseudo, pastille du niveau) sur une lueur dorée,
+// la bande série · XP · Vals, la carte de l'objectif (UniverseCard), la
+// semaine en barres, puis les accès au carnet, aux médailles et aux mots.
+// États vides engageants, jamais un « 0 » seul. Défile sur les petits écrans.
 export default function ProfileScreen() {
   const { isLoading } = useApi();
   const { colorScheme } = useTheme();
@@ -78,17 +83,16 @@ export default function ProfileScreen() {
     noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_MS);
   };
 
-  // Prochaine leçon disponible de l'univers, sinon la page de l'univers
-  const continueObjective = () => {
-    if (p.progress.next) launch(p.progress.next.lesson);
-    else if (p.progress.universe)
-      router.push({ pathname: '/apprendre/univers/[universeId]', params: { universeId: p.progress.universe.id } });
-    else router.navigate('/apprendre');
-  };
+  const openUniverse = (universeId: number) =>
+    router.push({ pathname: '/apprendre/univers/[universeId]', params: { universeId } });
 
-  const latest = p.declics[0] ? shortQuote(p.declics[0].text) : null;
-  const medals = medalsEarned(p.best, p.streak);
   const pseudo = p.user.pseudo ?? '';
+  const tint = universeTint(p.objectiveSlug, p.universes);
+  const next = p.progress.next;
+  const medals = medalsEarned(p.best, p.streak);
+  const lastMedal = lastMedalDays(p.best, p.streak);
+  const declics = p.declics.length;
+  const words = p.wordsDiscovered;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -104,34 +108,64 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* En-tête compact */}
+        {/* En-tête centré, sur une lueur dorée très douce */}
         <View style={styles.head}>
+          <HeaderGlow top={GLOW_TOP} />
           <ProfileAvatar size={AVATAR} initial={initialOf(pseudo)} ratio={p.level.ratio} accessibilityLabel={levelA11y(p.level)} />
-          <View style={styles.headTexts}>
-            <AppText maxFontSizeMultiplier={1.3} style={styles.pseudo} accessibilityRole="header" numberOfLines={1}>
-              {pseudo}
+          <AppText maxFontSizeMultiplier={1.3} style={styles.pseudo} accessibilityRole="header" numberOfLines={1}>
+            {pseudo}
+          </AppText>
+          <View style={[styles.pill, { backgroundColor: colors.goldPill }]} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+            <AppText maxFontSizeMultiplier={1.3} style={[styles.pillLevel, { color: colors.gold }]}>
+              {`Niveau ${p.level.level}`}
             </AppText>
-            <AppText variant="caption" tone="subtitle" maxFontSizeMultiplier={1.4} importantForAccessibility="no" accessibilityElementsHidden>
-              <AppText variant="caption" style={[styles.level, { color: colors.gold }]}>
-                {`Niveau ${p.level.level}`}
-              </AppText>
-              {` · encore ${p.level.remaining} XP`}
+            <AppText variant="caption" tone="subtitle" maxFontSizeMultiplier={1.3}>
+              {`· encore ${p.level.remaining} XP`}
             </AppText>
           </View>
         </View>
 
         <StatBand streak={p.streak} best={p.best} xp={p.xp} vals={p.vals} />
 
-        <ObjectiveCard
-          label={p.objectiveLabel}
-          tint={universeTint(p.objectiveSlug, p.universes)}
+        <UniverseCard
+          color={tint.face}
+          label="Ton objectif"
+          labelAction={
+            <IconButton
+              icon="pencil"
+              iconSize={16}
+              color={colors.subtitle}
+              variant="plain"
+              size={36}
+              onPress={() => {
+                setObjectiveMounted(true);
+                setObjectiveOpen(true);
+              }}
+              accessibilityLabel="Changer d’objectif"
+              accessibilityHint="Ouvre la liste des six objectifs"
+              style={styles.pencil}
+            />
+          }
+          title={p.objectiveLabel}
           done={p.progress.done}
           total={p.progress.total}
-          onEdit={() => {
-            setObjectiveMounted(true);
-            setObjectiveOpen(true);
-          }}
-          onContinue={continueObjective}
+          next={
+            next
+              ? { title: next.lesson.title, onPress: () => launch(next.lesson), accessibilityLabel: `Prochaine leçon : ${next.lesson.title}` }
+              : p.progress.universe && !p.finished
+                ? { title: `Voir l’univers ${p.progress.universe.name}`, onPress: () => openUniverse(p.progress.universe!.id) }
+                : null
+          }
+          finished={
+            p.finished
+              ? {
+                  title: 'Univers terminé !',
+                  link: p.nextUniverse
+                    ? { label: `Univers suivant : ${p.nextUniverse.name}`, onPress: () => openUniverse(p.nextUniverse!.id) }
+                    : undefined,
+                }
+              : null
+          }
         />
         {notice ? (
           <AppText variant="caption" tone="success" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.notice}>
@@ -139,35 +173,57 @@ export default function ProfileScreen() {
           </AppText>
         ) : null}
 
-        <NotebookCard count={p.declics.length} latest={latest} onPress={() => router.push('/client/carnet')} />
+        <WeekChart week={p.week} />
 
-        <View style={styles.rings}>
-          <RingTile
-            value={`${medals}/${MEDALS.length}`}
-            ratio={medals / MEDALS.length}
-            title="Médailles"
-            caption="de série"
-            accessibilityLabel={`Médailles de série : ${medals} sur ${MEDALS.length}`}
-            accessibilityHint="Ouvre ta série et tes médailles"
-            onPress={() => {
-              setStreakMounted(true);
-              setStreakOpen(true);
-            }}
-          />
-          <RingTile
-            value={String(p.wordsDiscovered)}
-            ratio={p.wordsTotal > 0 ? p.wordsDiscovered / p.wordsTotal : 0}
-            title="Mots"
-            caption={p.wordsTotal > 0 ? `sur ${p.wordsTotal} découverts` : 'découverts'}
-            color={colors.chart3}
-            accessibilityLabel={
-              p.wordsTotal > 0
-                ? `Mots découverts : ${p.wordsDiscovered} sur ${p.wordsTotal}`
-                : `Mots découverts : ${p.wordsDiscovered}`
+        <View style={styles.access}>
+          <AccessTile
+            icon={
+              <IconSquare background={colors.goldTile}>
+                <Ionicons name="sparkles" size={20} color={colors.gold} />
+              </IconSquare>
             }
-            accessibilityHint="Ouvre Mes mots dans le Dictionnaire"
-            onPress={() => router.navigate({ pathname: '/dictionary', params: { section: 'mes-mots' } })}
+            value={declics > 0 ? String(declics) : undefined}
+            unit={declics > 0 ? (declics > 1 ? 'déclics' : 'déclic') : undefined}
+            caption={declics > 0 ? 'Ton carnet · me tester' : 'Ton carnet se remplit à chaque leçon'}
+            onPress={() => router.push('/client/carnet')}
+            accessibilityLabel={declics > 0 ? `Ton carnet : ${declics} ${declics > 1 ? 'déclics' : 'déclic'}` : 'Ton carnet, vide pour l’instant'}
+            accessibilityHint="Ouvre ton carnet et le test sur tes déclics"
           />
+          <View style={styles.halves}>
+            <AccessTile
+              style={styles.half}
+              icon={<StreakMedal days={lastMedal ?? MEDALS[0].days} size={MEDAL} earned={lastMedal !== null} />}
+              value={medals > 0 ? String(medals) : undefined}
+              unit={medals > 0 ? (medals > 1 ? 'médailles' : 'médaille') : undefined}
+              caption={medals > 0 ? `sur ${MEDALS.length}` : `Première médaille à ${MEDALS[0].days} jours`}
+              onPress={() => {
+                setStreakMounted(true);
+                setStreakOpen(true);
+              }}
+              accessibilityLabel={
+                medals > 0 ? `Médailles de série : ${medals} sur ${MEDALS.length}` : `Aucune médaille pour l’instant, la première à ${MEDALS[0].days} jours`
+              }
+              accessibilityHint="Ouvre ta série et tes médailles"
+            />
+            <AccessTile
+              style={styles.half}
+              icon={
+                <IconSquare background={withOpacity(colors.chart3, 0.18)}>
+                  <Ionicons name="book-outline" size={20} color={colors.chart3} />
+                </IconSquare>
+              }
+              value={words > 0 ? String(words) : undefined}
+              unit={words > 0 ? (words > 1 ? 'mots' : 'mot') : undefined}
+              caption={words > 0 ? (words > 1 ? 'découverts' : 'découvert') : 'Ouvre ton premier mot'}
+              onPress={() => router.navigate({ pathname: '/dictionary', params: { section: 'mes-mots' } })}
+              accessibilityLabel={
+                words > 0
+                  ? `Mots découverts : ${words}${p.wordsTotal > 0 ? ` sur ${p.wordsTotal}` : ''}`
+                  : 'Aucun mot découvert pour l’instant'
+              }
+              accessibilityHint="Ouvre le Dictionnaire"
+            />
+          </View>
         </View>
       </ScrollView>
 
@@ -208,34 +264,51 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: space[5],
-    paddingTop: space[1],
     paddingBottom: space[6],
-    gap: space[4],
-  },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: space[3] + 2,
   },
-  headTexts: {
-    flex: 1,
+  head: {
+    alignItems: 'center',
+    paddingTop: space[1],
   },
   pseudo: {
     fontFamily: fonts.title,
     fontSize: PSEUDO_SIZE,
-    lineHeight: 30,
+    lineHeight: 32,
     letterSpacing: titleLetterSpacing(PSEUDO_SIZE),
-  },
-  level: {
-    fontFamily: fonts.bodyBold,
-  },
-  notice: {
-    marginTop: -space[2],
+    marginTop: space[3],
     textAlign: 'center',
   },
-  rings: {
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 28,
+    paddingHorizontal: space[3],
+    marginTop: 6,
+    borderRadius: radius.pill,
+  },
+  pillLevel: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  pencil: {
+    marginVertical: -space[2],
+    marginRight: -space[2],
+  },
+  notice: {
+    marginTop: -space[1],
+    textAlign: 'center',
+  },
+  access: {
+    gap: space[2] + 2,
+  },
+  halves: {
     flexDirection: 'row',
     gap: space[2] + 2,
-    marginTop: -space[1],
+  },
+  half: {
+    flex: 1,
   },
 });

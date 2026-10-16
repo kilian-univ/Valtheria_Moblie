@@ -20,7 +20,18 @@ import {
   QUIZ_MAX,
   quizLesson,
 } from '../src/utils/notebook';
-import { levelA11y, levelFromXp, levelInfo, medalsEarned, serverObjective, truncateEmail } from '../src/utils/profile';
+import {
+  lastMedalDays,
+  levelA11y,
+  levelFromXp,
+  levelInfo,
+  medalsEarned,
+  nextUniverse,
+  serverObjective,
+  truncateEmail,
+} from '../src/utils/profile';
+import { GLOW, glowStops } from '../src/utils/universeGlow';
+import { addJournalEntry, barHeight, journalEntry, weekSummary } from '../src/utils/weekJournal';
 import { OBJECTIVE_REMINDERS, reminderMessageFor, REMINDER_MESSAGES } from '../src/utils/reminder';
 
 test('niveau : formule du site, XP restants avant le niveau suivant', () => {
@@ -173,4 +184,78 @@ test('rappel : un texte par objectif, un jour sur deux', () => {
   assert.equal(withGoal.filter((b) => b === OBJECTIVE_REMINDERS.investir.body).length, 7);
   // Sans objectif : les textes habituels
   for (const d of days) assert.ok(REMINDER_MESSAGES.includes(reminderMessageFor(d, null)));
+});
+
+// ---------------------------------------------------------------------------
+// Profil version 4 : lueur de la carte de couleur, semaine, univers suivant
+// ---------------------------------------------------------------------------
+
+test('carte de couleur : la lueur suit la progression', () => {
+  // 36 % : encore à 8 % à 36 %, éteinte vers 61 %
+  assert.deepEqual(glowStops(0.36), [
+    { at: 0, opacity: GLOW.edge },
+    { at: 0.36, opacity: GLOW.at },
+    { at: 0.61, opacity: 0 },
+  ]);
+  assert.equal(GLOW.edge, 0.2);
+  assert.equal(GLOW.at, 0.08);
+  // 0 % : une touche contre le bord
+  assert.deepEqual(glowStops(0).map((s) => s.at), [0, 0, 0.25]);
+  // 100 % : toute la carte teintée, jusqu'au bord droit
+  const full = glowStops(1);
+  assert.equal(full[full.length - 1].at, 1);
+  assert.ok(full.every((s) => s.opacity > 0));
+  // Au-delà de 75 % : la lueur atteint le bord droit sans s'éteindre d'un coup
+  const late = glowStops(0.86);
+  assert.equal(late[2].at, 1);
+  assert.ok(late[2].opacity > 0 && late[2].opacity < GLOW.at);
+  // Valeurs illisibles : comme 0 %
+  assert.deepEqual(glowStops(Number.NaN), glowStops(0));
+});
+
+test('semaine : XP par jour du lundi au dimanche, aujourd’hui mis en avant', () => {
+  // Jeudi 15 octobre 2026
+  const now = new Date(2026, 9, 15, 18, 0);
+  let journal = [journalEntry(new Date(2026, 9, 11, 10), 20)]; // dimanche précédent : hors semaine
+  journal = addJournalEntry(journal, journalEntry(new Date(2026, 9, 12, 9), 20)); // lundi
+  journal = addJournalEntry(journal, journalEntry(new Date(2026, 9, 14, 9), 20)); // mercredi
+  journal = addJournalEntry(journal, journalEntry(new Date(2026, 9, 14, 21), 40)); // mercredi soir
+  journal = addJournalEntry(journal, journalEntry(new Date(2026, 9, 15, 8), 30)); // aujourd'hui
+  const w = weekSummary(journal, now);
+  assert.deepEqual(w.days.map((d) => d.initial), ['L', 'M', 'M', 'J', 'V', 'S', 'D']);
+  assert.deepEqual(w.days.map((d) => d.xp), [20, 0, 60, 30, 0, 0, 0]);
+  assert.equal(w.totalXp, 110);
+  assert.equal(w.lessons, 4);
+  assert.equal(w.max, 60);
+  assert.equal(w.days.findIndex((d) => d.isToday), 3);
+  assert.ok(w.days[4].isFuture && !w.days[3].isFuture);
+  // Barres : proportionnelles au meilleur jour, minimale sans leçon
+  assert.equal(barHeight(60, 60, 70, 4), 70);
+  assert.equal(barHeight(0, 60, 70, 4), 4);
+  assert.ok(barHeight(1, 60, 70, 4) >= 8);
+  // Semaine vide
+  const empty = weekSummary([], now);
+  assert.equal(empty.lessons, 0);
+  assert.equal(empty.totalXp, 0);
+  // Dimanche : la semaine commence le lundi d'avant
+  assert.equal(weekSummary([], new Date(2026, 9, 18, 12)).days[0].day, '2026-10-12');
+});
+
+test('univers terminé : le suivant conseillé ; dernière médaille gagnée', () => {
+  const lessons = (n: number, done: number) => Array.from({ length: n }, (_, i) => ({ id: i + 1, slug: '', title: '', xp_reward: 0, completed: i < done }));
+  const modules = [
+    { id: 1, slug: 'a', title: 'A', lessons_count: 2, lessons_completed: 2, lessons: lessons(2, 2) },
+    { id: 2, slug: 'b', title: 'B', lessons_count: 2, lessons_completed: 2, lessons: lessons(2, 2) },
+    { id: 3, slug: 'c', title: 'C', lessons_count: 2, lessons_completed: 0, lessons: lessons(2, 0) },
+  ];
+  const universes = [
+    { id: 10, slug: 'un', name: 'Un', description: null, position: 1, moduleIds: [1] },
+    { id: 20, slug: 'deux', name: 'Deux', description: null, position: 2, moduleIds: [2] },
+    { id: 30, slug: 'trois', name: 'Trois', description: null, position: 3, moduleIds: [3] },
+  ];
+  assert.equal(nextUniverse('un', universes, modules)?.slug, 'trois');
+  assert.equal(nextUniverse('trois', universes, modules), null);
+  assert.equal(lastMedalDays(0, 0), null);
+  assert.equal(lastMedalDays(6, 2), 3);
+  assert.equal(lastMedalDays(0, 31), 30);
 });

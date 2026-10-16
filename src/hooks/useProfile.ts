@@ -9,10 +9,12 @@ import { useNotebook } from '@/src/state/notebook';
 import { rememberObjective, setUserObjective, useStoredObjective } from '@/src/state/objective';
 import { useOnboarding } from '@/src/state/onboarding';
 import { useBestStreak } from '@/src/state/streakRewards';
+import { useWeekJournal } from '@/src/state/weekJournal';
 import { userKeyOf } from '@/src/state/userMemory';
 import { discoveredCount } from '@/src/utils/discoveredWords';
 import { success } from '@/src/utils/haptics';
-import { levelInfo, objectiveProgress, serverObjective } from '@/src/utils/profile';
+import { levelInfo, nextUniverse, objectiveProgress, serverObjective } from '@/src/utils/profile';
+import { weekSummary } from '@/src/utils/weekJournal';
 
 // Données du profil et des réglages : compte, niveau, série, objectif,
 // carnet, mots découverts. Les modules et univers sont rechargés à chaque
@@ -59,7 +61,11 @@ export function useProfile() {
     }
   };
 
+  const finished = progress.total > 0 && progress.done >= progress.total;
+  const after = finished ? nextUniverse(objectiveSlug, learning.universes, learning.modules) : null;
+
   const declics = useNotebook(userKey) ?? [];
+  const week = weekSummary(useWeekJournal(userKey) ?? [], new Date());
   const words = useDiscoveredWords(userKey) ?? [];
   const terms = dictionary.entries.map((e) => e.term);
 
@@ -75,6 +81,9 @@ export function useProfile() {
     objectiveLabel,
     objectiveSlug,
     progress,
+    finished,
+    nextUniverse: after,
+    week,
     changeObjective,
     universes: learning.universes,
     declics,

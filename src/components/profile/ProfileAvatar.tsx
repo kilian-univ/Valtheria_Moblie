@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
+import IconButton from '@/src/components/common/IconButton';
 import ProgressRing from '@/src/components/common/ProgressRing';
 import { fonts, palette } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -15,14 +16,17 @@ type ProfileAvatarProps = {
   initial: string;
   // Progression vers le niveau suivant, de 0 à 1
   ratio: number;
-  // « Niveau 10, encore 225 XP avant le niveau 11 »
+  // « Niveau 10, encore 25 XP avant le niveau 11 »
   accessibilityLabel: string;
+  // Petit bouton appareil photo : seulement si l'envoi d'une photo est
+  // possible (pas de route serveur pour l'instant, docs/lot-serveur.md)
+  onCamera?: () => void;
 };
 
 // Photo de profil ronde dans un anneau doré qui montre la progression vers
 // le niveau suivant. Sans photo (le serveur ne l'envoie pas encore à l'app) :
 // l'initiale sur un fond doux. L'anneau se remplit à l'apparition.
-export default function ProfileAvatar({ size, initial, ratio, accessibilityLabel }: ProfileAvatarProps) {
+export default function ProfileAvatar({ size, initial, ratio, accessibilityLabel, onCamera }: ProfileAvatarProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const inner = size - 2 * INSET;
@@ -40,6 +44,18 @@ export default function ProfileAvatar({ size, initial, ratio, accessibilityLabel
           </AppText>
         </View>
       </ProgressRing>
+      {onCamera ? (
+        <IconButton
+          icon="camera"
+          iconSize={14}
+          variant="plain"
+          color={colors.onGold}
+          onPress={onCamera}
+          accessibilityLabel="Changer ma photo"
+          size={30}
+          style={[styles.camera, { backgroundColor: colors.gold, borderColor: colors.background }]}
+        />
+      ) : null}
     </View>
   );
 }
@@ -51,5 +67,11 @@ const styles = StyleSheet.create({
   },
   initial: {
     fontFamily: fonts.title,
+  },
+  camera: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    borderWidth: 3,
   },
 });

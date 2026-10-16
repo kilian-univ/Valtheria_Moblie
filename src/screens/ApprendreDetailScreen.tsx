@@ -40,6 +40,7 @@ import { learningStore } from '@/src/state/learningStore';
 import { feedback } from '@/src/utils/feedback';
 import { error as errorHaptic } from '@/src/utils/haptics';
 import { addToNotebook } from '@/src/state/notebook';
+import { recordLessonXp } from '@/src/state/weekJournal';
 import { userKeyOf } from '@/src/state/userMemory';
 import { declicForLesson } from '@/src/utils/notebook';
 import { preloadSounds } from '@/src/utils/sound';
@@ -420,6 +421,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       const { modules: known, universes } = learningStore.getState();
       const declic = declicForLesson(Number(id), lessonInfo.marked, lessonInfo.title, known, universes, new Date().toISOString());
       if (declic) addToNotebook(userKeyOf(user?.id), declic).catch(() => {});
+      // … et la leçon au journal de la semaine (graphique du profil)
+      recordLessonXp(userKeyOf(user?.id), typeof res?.xp_gained === 'number' ? res.xp_gained : 0).catch(() => {});
 
       setModuleTitle(finishedModuleTitle(res ?? {}, learningStore.getState().modules, Number(id)));
       setResult(res ?? {});
