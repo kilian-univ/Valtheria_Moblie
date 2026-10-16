@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { runShout, runValLine } from '../src/utils/accuracy';
-import { CHEST_MAX_MS, chestTimeline, fountainPoint, growingShake } from '../src/utils/chestTimeline';
+import { CHEST_AFTER_OPEN, CHEST_OPEN_MAX_MS, chestAnticipation, fountainPoint, growingShake } from '../src/utils/chestTimeline';
 import { revealScroll } from '../src/utils/modulePath';
 import { correctRate, RUN_PITCH_SEMITONES, semitoneRate, SOUND_VARIANTS } from '../src/utils/soundRules';
 
@@ -49,16 +49,17 @@ test('page module : pas de défilement si le rond et sa carte sont visibles, sin
   assert.equal(revealScroll({ ...base, viewport: 0, top: 0, bottom: 10 }), null);
 });
 
-test('coffre : trois temps en 3 secondes au plus, quelle que soit la rareté', () => {
+test('coffre : anticipation toute seule, puis moment fort et retombée en 1,5 s au plus après le toucher', () => {
   for (let stages = 1; stages <= 4; stages++) {
-    const t = chestTimeline(stages);
-    assert.equal(t.steps.length, stages - 1);
-    assert.ok(t.steps.every((ms) => ms < t.open), 'paliers pendant l’anticipation');
-    assert.ok(t.leak < t.open && t.leak > 0, 'la lumière filtre avant l’ouverture');
-    assert.ok(t.open < t.stamp && t.stamp <= t.count && t.count < t.end, 'retombée après le moment fort');
-    assert.ok(t.end <= CHEST_MAX_MS, `${stages} raretés : ${t.end} ms`);
+    const a = chestAnticipation(stages);
+    assert.equal(a.steps.length, stages - 1);
+    assert.ok(a.steps.every((ms) => ms < a.ready), 'paliers avant l’attente');
+    assert.ok(a.leak > 0 && a.leak < a.ready, 'la lumière filtre avant l’attente');
+    assert.ok(a.ready <= 1400, `${stages} raretés : attente à ${a.ready} ms`);
   }
-  assert.deepEqual(chestTimeline(9).steps.length, 3, 'au plus 4 raretés');
+  assert.equal(chestAnticipation(9).steps.length, 3, 'au plus 4 raretés');
+  assert.ok(CHEST_AFTER_OPEN.stamp <= CHEST_AFTER_OPEN.count && CHEST_AFTER_OPEN.count < CHEST_AFTER_OPEN.end);
+  assert.ok(CHEST_AFTER_OPEN.end <= CHEST_OPEN_MAX_MS);
 });
 
 test('coffre : tremblement qui grandit, gerbe en arc qui retombe', () => {

@@ -1,9 +1,11 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { ImageSourcePropType, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withRepeat,
   withSequence,
   withSpring,
   withTiming,
@@ -18,7 +20,14 @@ import { chestLight, fonts, palette, radius, space, titleLetterSpacing, withOpac
 import { useTheme } from '@/src/context/ThemeContext';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { formatInteger } from '@/src/utils/format';
-import { CHEST_COUNT_MS, CHEST_FLASH_MS, CHEST_FOUNTAIN_MS, chestTimeline, growingShake } from '@/src/utils/chestTimeline';
+import {
+  CHEST_AFTER_OPEN,
+  CHEST_COUNT_MS,
+  CHEST_FLASH_MS,
+  CHEST_FOUNTAIN_MS,
+  chestAnticipation,
+  growingShake,
+} from '@/src/utils/chestTimeline';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
 import { ChestFountain, ChestLight, LidLight } from './ChestEffects';
@@ -53,6 +62,10 @@ const CLOSED_TILT = -4;
 const SHAKE_MIN = 1.5;
 const SHAKE_MAX = 7;
 const SHAKE_PERIOD = 90;
+// Attente : le coffre respire, la lumière pulse dans les fentes (de LEAK_LOW à 1)
+const BREATH_MS = 2400;
+const BREATH_SCALE = 1.03;
+const LEAK_LOW = 0.45;
 // Rebond à l'ouverture (squash) : écrasé puis étiré
 const SQUASH_X = 1.12;
 const SQUASH_Y = 0.86;
@@ -71,7 +84,7 @@ const RARITY_NAMES: Record<ChestRarity, string> = {
   legendaire: 'LÉGENDAIRE',
 };
 
-type Phase = 'anticipation' | 'open';
+type Phase = 'anticipation' | 'ready' | 'open';
 
 type ChestRevealProps = {
   rarity: ChestRarity;
@@ -84,45 +97,55 @@ type ChestRevealProps = {
   onDone: () => void;
 };
 
-// Le coffre, en trois temps (3 s au plus, utils/chestTimeline) :
-// 1. anticipation : fermé, il tremble de plus en plus en montant en rareté
-//    (un cran par palier), puis la lumière filtre par les fentes du couvercle ;
-// 2. moment fort : il s'ouvre avec un léger rebond, un flash blanc doré de
-//    120 ms et une gerbe de pièces et d'étincelles qui jaillit en arc ;
-// 3. retombée : les pièces retombent et s'estompent, la rareté s'inscrit
-//    d'un petit tampon, le montant défile (son des pièces), puis le coffre
-//    reste posé dans une lumière douce de la couleur de sa rareté (halo qui
-//    respire, rayons flous qui tournent en 20 s).
-// Un toucher, n'importe où, passe directement à la fin. Animations réduites :
-// coffre ouvert tout de suite, lumière fixe, sans gerbe ni flash.
+// Le coffre, en trois temps (utils/chestTimeline) :
+// 1. anticipation, toute seule : fermé, il tremble de plus en plus en
+//    montant en rareté (un cran par palier), puis la lumière filtre par les
+//    fentes du couvercle ; ensuite il attend (il respire, la lumière pulse
+//    dans les fentes) qu'on le touche, ou « Ouvrir le coffre » ;
+// 2. moment fort, au toucher : il s'ouvre avec un léger rebond, un flash
+//    blanc doré de 120 ms et une gerbe de pièces et d'étincelles en arc ;
+// 3. retombée (environ 1,5 s en tout) : les pièces retombent et
+//    s'estompent, la rareté s'inscrit d'un petit tampon, le montant défile
+//    (son des pièces), puis le coffre reste posé dans une lumière douce de la
+//    couleur de sa rareté (halo qui respire, rayons flous qui tournent en 20 s).
+// Un toucher pendant la retombée passe directement à la fin ; un toucher
+// pendant la montée ouvre tout de suite. Animations réduites : coffre fermé
+// de la bonne rareté, ouvert directement au toucher, lumière fixe, sans
+// gerbe ni flash.
 export default function ChestReveal({ rarity, amount, total, firstName, surprise = false, onDone }: ChestRevealProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
   const [steps] = useState(() => (surprise ? [rarity] : chestEvolution(rarity)));
-  const [plan] = useState(() => chestTimeline(steps.length));
+  const [plan] = useState(() => chestAnticipation(steps.length));
   const light = chestLight[rarity];
 
-  const [phase, setPhase] = useState<Phase>(reduced ? 'open' : 'anticipation');
+  const [phase, setPhase] = useState<Phase>(reduced ? 'ready' : 'anticipation');
   const [stage, setStage] = useState(reduced ? steps.length - 1 : 0);
   // Retombée : rareté inscrite, montant qui défile, déroulé fini
-  const [stamped, setStamped] = useState(reduced);
-  const [counting, setCounting] = useState(reduced);
-  const [settled, setSettled] = useState(reduced);
+  const [stamped, setStamped] = useState(false);
+  const [counting, setCounting] = useState(false);
+  const [settled, setSettled] = useState(false);
   const [fountain, setFountain] = useState(false);
   const current = steps[stage];
   const name = firstName?.trim();
 
   const tilt = useSharedValue(reduced ? 0 : CLOSED_TILT);
+  const breath = useSharedValue(1);
   const squashX = useSharedValue(1);
   const squashY = useSharedValue(1);
-  const opened = useSharedValue(reduced ? 1 : 0);
+  const opened = useSharedValue(0);
   const leak = useSharedValue(0);
   const flash = useSharedValue(0);
-  const glow = useSharedValue(reduced ? 1 : 0);
+  const glow = useSharedValue(0);
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const played = useRef({ open: reduced, coins: false });
+  const played = useRef({ open: false, coins: false });
+  const at = (ms: number, run: () => void) => timers.current.push(setTimeout(run, ms));
+  const clearTimers = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+  };
 
   // Sons de l'ouverture et des pièces : une fois chacun, même si on passe
   const playOpen = () => {
@@ -136,23 +159,24 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
     feedback.coins();
   };
 
-  useEffect(() => {
-    const list = timers.current;
-    if (reduced) {
-      // Coffre ouvert d'emblée : le son de l'ouverture, puis celui des pièces
-      feedback.chestOpen();
-      if (amount > 0) list.push(setTimeout(() => feedback.coins(), motion.sheet));
-      return () => list.forEach(clearTimeout);
-    }
-    const at = (ms: number, run: () => void) => list.push(setTimeout(run, ms));
+  // En attente : le coffre respire, la lumière pulse dans les fentes
+  const wait = () => {
+    setPhase('ready');
+    const half = { duration: BREATH_MS / 2, easing: Easing.inOut(Easing.sin) };
+    breath.set(withRepeat(withSequence(withTiming(BREATH_SCALE, half), withTiming(1, half)), -1));
+    leak.set(withRepeat(withSequence(withTiming(LEAK_LOW, half), withTiming(1, half)), -1));
+  };
 
-    // 1. Anticipation : tremblement qui grandit, paliers de rareté, lumière
-    const shakes = growingShake(plan.open, SHAKE_PERIOD, SHAKE_MIN, SHAKE_MAX);
+  // 1. Anticipation, toute seule : tremblement qui grandit, paliers de
+  // rareté, lumière qui filtre, puis l'attente
+  useEffect(() => {
+    if (reduced) return;
+    const shakes = growingShake(plan.ready, SHAKE_PERIOD, SHAKE_MIN, SHAKE_MAX);
     const half = timing(SHAKE_PERIOD / 2);
     tilt.set(
       withSequence(
         ...shakes.flatMap((amp) => [withTiming(CLOSED_TILT - amp, half), withTiming(CLOSED_TILT + amp, half)]),
-        withTiming(0, timing(motion.tap))
+        withTiming(CLOSED_TILT, timing(motion.tap))
       )
     );
     plan.steps.forEach((ms, i) =>
@@ -163,49 +187,24 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
       })
     );
     at(plan.leak, () => leak.set(withTiming(1, timing(motion.screen))));
-
-    // 2. Moment fort
-    at(plan.open, () => {
-      setPhase('open');
-      setFountain(true);
-      playOpen();
-      leak.set(withTiming(0, timing(CHEST_FLASH_MS)));
-      opened.set(withTiming(1, { duration: 60 }));
-      squashX.set(withSequence(withTiming(SQUASH_X, timing(70)), withSpring(1, springs.celebrate)));
-      squashY.set(withSequence(withTiming(SQUASH_Y, timing(70)), withSpring(1, springs.celebrate)));
-      flash.set(withSequence(withTiming(1, { duration: CHEST_FLASH_MS / 3 }), withTiming(0, timing((CHEST_FLASH_MS * 2) / 3))));
-      glow.set(withTiming(1, timing(motion.max)));
-    });
-
-    // 3. Retombée
-    at(plan.stamp, () => {
-      setStamped(true);
-      tap();
-    });
-    at(plan.count, () => {
-      setCounting(true);
-      playCoins();
-    });
-    at(plan.open + CHEST_FOUNTAIN_MS, () => setFountain(false));
-    at(plan.end, () => setSettled(true));
-    return () => list.forEach(clearTimeout);
+    at(plan.ready, wait);
+    return clearTimers;
     // Une seule fois, à l'arrivée
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Un toucher : directement la fin (coffre ouvert dans sa lumière, rareté
-  // inscrite, montant final), sans rejouer ce qui a déjà sonné
-  const skip = () => {
-    if (settled) return;
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
-    tilt.set(withTiming(0, timing(motion.tap)));
+  // Fin de la retombée : coffre ouvert dans sa lumière, rareté inscrite,
+  // montant final, sans rejouer ce qui a déjà sonné
+  const finish = () => {
+    clearTimers();
+    tilt.set(0);
+    breath.set(1);
     leak.set(0);
     flash.set(0);
     squashX.set(1);
     squashY.set(1);
     opened.set(1);
-    glow.set(withTiming(1, timing(motion.state)));
+    glow.set(reduced ? 1 : withTiming(1, timing(motion.state)));
     setStage(steps.length - 1);
     setPhase('open');
     setFountain(false);
@@ -216,12 +215,53 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
     playCoins();
   };
 
+  // 2 et 3. Le toucher : moment fort puis retombée (un toucher pendant la
+  // montée ouvre tout de suite ; pendant la retombée, passe à la fin)
+  const open = () => {
+    if (settled) return;
+    if (phase === 'open') {
+      finish();
+      return;
+    }
+    if (reduced) {
+      finish();
+      return;
+    }
+    clearTimers();
+    setStage(steps.length - 1);
+    setPhase('open');
+    setFountain(true);
+    playOpen();
+    tilt.set(withTiming(0, timing(motion.tap)));
+    breath.set(withTiming(1, timing(motion.tap)));
+    leak.set(withTiming(0, timing(CHEST_FLASH_MS)));
+    opened.set(withTiming(1, { duration: 60 }));
+    squashX.set(withSequence(withTiming(SQUASH_X, timing(70)), withSpring(1, springs.celebrate)));
+    squashY.set(withSequence(withTiming(SQUASH_Y, timing(70)), withSpring(1, springs.celebrate)));
+    flash.set(withSequence(withTiming(1, { duration: CHEST_FLASH_MS / 3 }), withTiming(0, timing((CHEST_FLASH_MS * 2) / 3))));
+    glow.set(withTiming(1, timing(motion.max)));
+    at(CHEST_AFTER_OPEN.stamp, () => {
+      setStamped(true);
+      tap();
+    });
+    at(CHEST_AFTER_OPEN.count, () => {
+      setCounting(true);
+      playCoins();
+    });
+    at(CHEST_FOUNTAIN_MS, () => setFountain(false));
+    at(CHEST_AFTER_OPEN.end, () => setSettled(true));
+  };
+
   // Le montant défile pendant la retombée ; passé : le montant final
   const rolling = Math.round(useCountUp(counting ? amount : 0, { duration: CHEST_COUNT_MS }));
   const shownAmount = settled ? amount : rolling;
 
   const chestStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${tilt.get()}deg` }, { scaleX: squashX.get() }, { scaleY: squashY.get() }],
+    transform: [
+      { rotate: `${tilt.get()}deg` },
+      { scaleX: squashX.get() * breath.get() },
+      { scaleY: squashY.get() * breath.get() },
+    ],
   }));
   const closedStyle = useAnimatedStyle(() => ({ opacity: 1 - opened.get() }));
   const openStyle = useAnimatedStyle(() => ({ opacity: opened.get() }));
@@ -231,8 +271,8 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
   const isOpen = phase === 'open';
 
   return (
-    <Pressable style={styles.screen} onPress={skip} disabled={settled} accessible={false}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} scrollEnabled={settled}>
+    <Pressable style={styles.screen} onPress={open} disabled={settled} accessible={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} scrollEnabled={settled || !isOpen}>
         <View style={styles.texts}>
           <AppText variant="sectionLabel" style={styles.kicker}>
             {isOpen ? (surprise ? 'COFFRE SURPRISE' : chestLabel(rarity).toUpperCase()) : surprise ? 'UNE SURPRISE' : 'TA RÉCOMPENSE'}
@@ -253,7 +293,7 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
         <View
           style={styles.haloBox}
           accessible
-          accessibilityLabel={isOpen ? `${surprise ? 'Coffre surprise' : chestLabel(rarity)} ouvert` : 'Le coffre s’ouvre'}
+          accessibilityLabel={isOpen ? `${surprise ? 'Coffre surprise' : chestLabel(rarity)} ouvert` : 'Coffre fermé'}
         >
           {/* Lumière douce de la rareté (rayons fondus, halo qui respire) */}
           <Animated.View pointerEvents="none" style={[styles.lightBox, glowStyle]}>
@@ -307,7 +347,7 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
           </View>
         ) : (
           <AppText variant="callout" tone="subtitle" style={styles.centerText}>
-            {surprise ? 'Il va s’ouvrir…' : 'Il monte en rareté…'}
+            {phase === 'ready' ? 'Touche le coffre pour l’ouvrir' : surprise ? 'Une surprise t’attend…' : 'Il monte en rareté…'}
           </AppText>
         )}
       </ScrollView>
@@ -315,8 +355,10 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
       <View style={styles.footer}>
         {settled ? (
           <Button label="Super" onPress={onDone} />
+        ) : isOpen ? (
+          <Button variant="text" label="Passer" onPress={finish} accessibilityHint="Montre tout de suite ce que contient le coffre" />
         ) : (
-          <Button variant="text" label="Passer" onPress={skip} accessibilityHint="Ouvre le coffre tout de suite" />
+          <Button label="Ouvrir le coffre" onPress={open} silent />
         )}
       </View>
     </Pressable>
