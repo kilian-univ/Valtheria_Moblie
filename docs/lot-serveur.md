@@ -27,7 +27,7 @@ Pour chaque point :
 | 2 | Gel de série et record pour les comptes | « Bientôt disponible avec ton compte » ; record gardé sur le téléphone |
 | 2 | Photo de profil | Initiale à la place de la photo |
 | 3 | Bonus de série de bonnes réponses (4.9) | Pas de bonus d'XP ni de Vals pour les bonnes réponses d'affilée ; défis de précision gardés sur le téléphone |
-| 1 | Portefeuille : positions, opérations, ventes, cours, logos, risque (8) | **Fait côté site, en attente** : PR #5, ni fusionnée ni déployée. Ensuite, l'app pourra utiliser les nouvelles routes |
+| — | Portefeuille : positions, opérations, ventes, cours, logos, risque (8) | **En production depuis le 17 octobre 2026** ; l'app utilise les nouvelles routes |
 | 1 | Écrans `number` et `live_month` non joués par l'app (9.1) | S'ils apparaissent dans une leçon ou une révision, l'écran compte comme raté : score plus bas, XP réduits, notion qui recule |
 | 1 | Formats de l'app pour `dialogue` et `allocate` (9.2, 9.3) | Impossible d'écrire ces écrans pour l'app sur le site |
 | 2 | Révélation, sous-titre, document, difficulté des leçons (9.4 à 9.7) | Écrans de l'app refusés par le validateur, coffres faussés pour certains niveaux |
@@ -253,10 +253,14 @@ Pour chaque point :
 
 ## 8. Outils : portefeuille
 
-**Fait côté site le 16 octobre 2026.**
-- **Où** : branche `lot-portefeuille` du dépôt Valtheraa/Valtheria, **PR #5** (https://github.com/Valtheraa/Valtheria/pull/5).
-- **État** : ni fusionnée ni déployée, en attente de ta validation, puis staging avant la production.
-- **Tant que ce n'est pas en production** : l'app reste sur les anciennes routes, qui continuent de fonctionner (voir 8.3).
+**En production depuis le 17 octobre 2026** (PR #5 fusionnée, commit 93e4f83 du site) :
+- les cinq migrations sont passées ;
+- reprise des lignes : les deux lignes SOL du compte de test sont fusionnées, les livrets sont restés des lignes libres ;
+- `public/storage` est en place ;
+- les 40 logos des cryptos sont servis par le site ;
+- la file d'attente et la tâche planifiée tournent (logos chaque mois, instantanés toutes les 4 h).
+- Sauvegarde vérifiée juste avant : `/var/backups/valtheria/pre-deploy/db-avant-lot-portefeuille-20261016-222338.sql.gz`, restaurée à l'identique dans une base temporaire, supprimée ensuite.
+- L'app bascule sur le nouveau suivi de patrimoine (8.5) : `GET /api/portfolio` répond au nouveau format.
 
 ### 8.1 Ce qui est fait
 
