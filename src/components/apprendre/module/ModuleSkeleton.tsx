@@ -6,7 +6,7 @@ import { NODE_H, NODE_SIZES, PATH_TOP, pathOffset, STEP_Y } from '@/src/utils/mo
 
 const NODE_W = NODE_SIZES.lesson.w;
 
-// Mêmes dimensions que la bannière et le chemin réels (ModuleBanner, ModulePath)
+// Mêmes dimensions que la bannière (UniverseCard) et le chemin réels (ModulePath)
 const BANNER_HEIGHT = 80;
 const NODES = 5;
 

@@ -14,36 +14,36 @@ import ModuleSkeleton from '@/src/components/apprendre/module/ModuleSkeleton';
 import NextLessonBar from '@/src/components/apprendre/module/NextLessonBar';
 import JumpButton from '@/src/components/apprendre/module/path/JumpButton';
 import LessonCard from '@/src/components/apprendre/module/path/LessonCard';
-import ModuleBanner from '@/src/components/apprendre/module/path/ModuleBanner';
 import ModuleGuideSheet from '@/src/components/apprendre/module/path/ModuleGuideSheet';
 import ModulePath from '@/src/components/apprendre/module/path/ModulePath';
+import Button from '@/src/components/common/Button';
+import IconButton from '@/src/components/common/IconButton';
 import PageState from '@/src/components/common/PageState';
+import UniverseCard from '@/src/components/common/UniverseCard';
+import ValBubble from '@/src/components/common/ValBubble';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import { durations } from '@/src/constants/motion';
-import AppText from '@/src/components/common/AppText';
-import { fonts, moduleColors, palette, space } from '@/src/constants/style/Style';
+import { moduleColors, palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useBestStreak } from '@/src/state/streakRewards';
 import { useTheme } from '@/src/context/ThemeContext';
 import { loadErrorMessage, OFFLINE_BANNER, OFFLINE_REASON, useLearningData } from '@/src/hooks/useLearningData';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
-import { moduleUniverse } from '@/src/lesson/normalize';
 import { forgetLaunch, peekLaunch, rememberLaunch } from '@/src/state/pathSnapshot';
-import { currentLesson, findModule, lessonViews, LessonView } from '@/src/utils/learning';
+import { currentLesson, findModule, lessonViews, LessonView, moduleState } from '@/src/utils/learning';
+import { levelGroups } from '@/src/utils/levels';
 import {
-  bannerLabel,
-  followingModule,
   moduleColorKey,
-  moduleNumber,
   Rect,
   Unlock,
   unlockTransition,
+  universeOfModule,
   Visibility,
   visibility,
 } from '@/src/utils/modulePath';
-import { universeBannerLabel } from '@/src/utils/universes';
+import { universeEntry } from '@/src/utils/universes';
 
 // Au-delà, les titres débordent : on passe en liste verticale
 const LIST_MODE_FONT_SCALE = 1.35;
@@ -75,7 +75,13 @@ export default function ModuleScreen() {
   const views = useMemo(() => (module ? lessonViews(module) : []), [module]);
   const listMode = fontScale >= LIST_MODE_FONT_SCALE;
   const tint = module ? moduleColors[moduleColorKey(data.modules, module.id, data.universes)] : moduleColors.ardoise;
-  const number = module ? moduleNumber(data.modules, module.id) : null;
+  // Univers et niveau du module : libellé de la bannière, et page de
+  // l'univers ouverte sur ce niveau pour choisir la suite
+  const universe = module ? universeOfModule(module, data.universes) : null;
+  const level = module && universe
+    ? (levelGroups(universeEntry(universe, data.modules).modules).find((g) => g.modules.some((m) => m.id === module.id)) ?? null)
+    : null;
+  const bannerText = [universe?.name, level?.key ? level.label : null].filter(Boolean).join(' · ') || 'Module';
 
   // Ouvrir un module l'enregistre comme dernier module ouvert
   const openedId = module?.id ?? null;
@@ -225,8 +231,18 @@ export default function ModuleScreen() {
   const [barHeight, setBarHeight] = useState(0);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/apprendre'));
-  const openModule = (moduleIdToOpen: number) =>
-    router.push({ pathname: '/apprendre/module/[moduleId]', params: { moduleId: moduleIdToOpen } });
+  // L'ordre des modules est libre : on choisit le suivant sur la page de
+  // l'univers, ouverte sur le niveau de ce module
+  const chooseNext = () => {
+    if (!universe) {
+      router.push('/apprendre/univers');
+      return;
+    }
+    router.push({
+      pathname: '/apprendre/univers/[universeId]',
+      params: level?.key ? { universeId: universe.id, niveau: level.key } : { universeId: universe.id },
+    });
+  };
 
   const nextLesson = module ? currentLesson(module) : null;
   const currentView = views.find((v) => v.status === 'current') ?? null;
@@ -241,9 +257,6 @@ export default function ModuleScreen() {
   // ---------------------------------------------------------------------------
   // Contenu
   // ---------------------------------------------------------------------------
-  const following = module ? followingModule(data.modules, module.id) : null;
-  const followingTint = following ? moduleColors[moduleColorKey(data.modules, following.id, data.universes)] : null;
-
   let extras: ReactNode = null;
   let body: ReactNode = null;
   let after: ReactNode = null;
@@ -300,30 +313,18 @@ export default function ModuleScreen() {
       />
     );
 
-    // Après le trophée : le module suivant, dans sa propre couleur
-    if (following && followingTint) {
-      const followingViews = lessonViews(following);
-      const followingDone = followingViews.filter((v) => v.status === 'completed').length;
-      after = (
-        <View style={styles.after}>
-          <View style={styles.separator} accessibilityRole="header">
-            <View style={[styles.separatorRule, { backgroundColor: colors.border }]} />
-            <AppText tone="subtitle" style={styles.separatorText}>
-              Module suivant
-            </AppText>
-            <View style={[styles.separatorRule, { backgroundColor: colors.border }]} />
-          </View>
-          <ModuleBanner
-            label={bannerLabel(moduleNumber(data.modules, following.id), followingDone, followingViews.length)}
-            title={following.title}
-            progress={followingViews.length ? followingDone / followingViews.length : 0}
-            colors={followingTint}
-            onPress={() => openModule(following.id)}
-            accessibilityHint="Ouvre ce module"
-          />
-        </View>
-      );
-    }
+    // Après le trophée : Val, et le choix du prochain module
+    const finished = moduleState(module) === 'done';
+    after = (
+      <View style={styles.after}>
+        <ValBubble
+          mood={finished ? 'celebrant' : 'complice'}
+          diameter={VAL_DIAMETER}
+          text={finished ? 'Module terminé ! À toi de choisir la suite.' : 'Ici, c’est toi qui choisis la suite, dans l’ordre que tu veux.'}
+        />
+        <Button label="Choisir mon prochain module" icon="compass-outline" onPress={chooseNext} />
+      </View>
+    );
 
     if (listMode && nextLesson && currentView) {
       bar = (
@@ -395,13 +396,27 @@ export default function ModuleScreen() {
           </View>
           <View style={styles.bannerSlot}>
             {module ? (
-              <ModuleBanner
-                universe={universeBannerLabel(moduleUniverse(module)?.name)}
-                label={bannerLabel(number, doneCount, views.length)}
+              <UniverseCard
+                color={tint.face}
+                label={bannerText}
                 title={module.title}
-                progress={views.length ? doneCount / views.length : 0}
-                colors={tint}
-                onGuide={openGuide}
+                titleSize={BANNER_TITLE}
+                done={doneCount}
+                total={views.length}
+                showProgress={false}
+                labelAction={
+                  <IconButton
+                    variant="plain"
+                    size={GUIDE_ZONE}
+                    icon="book-outline"
+                    iconSize={GUIDE_ICON}
+                    color={colors.subtitle}
+                    onPress={openGuide}
+                    accessibilityLabel="Guide du module"
+                    accessibilityHint="Description et liste des leçons"
+                    style={styles.guide}
+                  />
+                }
               />
             ) : null}
           </View>
@@ -474,7 +489,10 @@ export default function ModuleScreen() {
 
 // Marge sous la bannière, avant le contenu qui défile
 const HEADER_GAP = 12;
-const SEPARATOR_TEXT = 13;
+const BANNER_TITLE = 19;
+const GUIDE_ZONE = 40;
+const GUIDE_ICON = 22;
+const VAL_DIAMETER = 64;
 
 const styles = StyleSheet.create({
   screen: {
@@ -520,23 +538,14 @@ const styles = StyleSheet.create({
   },
   after: {
     paddingHorizontal: space[5],
-    paddingTop: space[4],
+    paddingTop: space[6],
     paddingBottom: space[10],
-    gap: space[4],
+    gap: space[5],
   },
-  separator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[3],
-  },
-  separatorRule: {
-    flex: 1,
-    height: 1,
-  },
-  separatorText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: SEPARATOR_TEXT,
-    lineHeight: 18,
+  // Le guide dans le coin, sans agrandir la ligne du libellé
+  guide: {
+    marginVertical: -space[2],
+    marginRight: -space[2],
   },
   jump: {
     position: 'absolute',

@@ -13,6 +13,8 @@ import GoldHalo from '@/src/components/common/GoldHalo';
 import MedalCelebration from '@/src/components/common/MedalCelebration';
 import { StaggerItem } from '@/src/components/common/Stagger';
 import StreakFlame from '@/src/components/common/StreakFlame';
+import UniverseArt from '@/src/components/common/UniverseArt';
+import UniverseCard from '@/src/components/common/UniverseCard';
 import ValFullBody from '@/src/components/common/ValFullBody';
 import { motion, springs } from '@/src/constants/motion';
 import { fonts, palette, radius, space, withOpacity } from '@/src/constants/style/Style';
@@ -42,7 +44,6 @@ import { preloadSounds } from '@/src/utils/sound';
 import { type Medal, MEDALS, weekDays, type WeekDay } from '@/src/utils/streakRewards';
 import { isSignupClosed } from '@/src/utils/onboarding';
 import { universeTint } from '@/src/utils/universeTint';
-import { universeIcon } from '@/src/utils/universes';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -57,7 +58,8 @@ const FLAME_SHARE = 0.75;
 const DAYS_SIZE = 64;
 const DAY_DOT = 30;
 const TOPIC = 44;
-const SUITE_BADGE = 42;
+const SUITE_ART = 56;
+const SUITE_TITLE = 18;
 const QUIET_DAY = 0.6;
 // Le nombre défile une fois la flamme allumée
 const FLAME_LIT = 450;
@@ -313,23 +315,18 @@ function EndContent() {
         </View>
 
         {/* La suite : l'univers conseillé, verrouillé sans compte */}
-        <View
-          style={[styles.suite, { borderColor: withOpacity(suiteTint.face, 0.5), backgroundColor: withOpacity(suiteTint.face, 0.08) }]}
-          accessible
-          accessibilityLabel={`La suite : univers ${suite}. Des vraies leçons t’y attendent. Verrouillé.`}
-        >
-          <View style={[styles.suiteBadge, { backgroundColor: suiteTint.face }]}>
-            <Ionicons name={universeIcon(plan.universe.slug)} size={20} color={suiteTint.onFace} />
-          </View>
-          <View style={styles.suiteTexts}>
-            <AppText style={[styles.kicker, { color: suiteTint.face }]} numberOfLines={2}>
-              {`LA SUITE : UNIVERS ${suite.toUpperCase()}`}
-            </AppText>
-            <AppText variant="bodyMedium" style={styles.suiteLine}>
-              Des vraies leçons t’y attendent
-            </AppText>
-          </View>
-          <Ionicons name="lock-closed-outline" size={20} color={colors.subtitle} />
+        <View accessible accessibilityLabel={`La suite : univers ${suite}. Des vraies leçons t’y attendent. Verrouillé.`}>
+          <UniverseCard
+            color={suiteTint.face}
+            label={`La suite : univers ${suite}`}
+            labelAction={<Ionicons name="lock-closed-outline" size={18} color={colors.subtitle} />}
+            title="Des vraies leçons t’y attendent"
+            titleSize={SUITE_TITLE}
+            done={0}
+            total={1}
+            showProgress={false}
+            leading={<UniverseArt slug={plan.universe.slug} color={suiteTint.face} size={SUITE_ART} framed />}
+          />
         </View>
       </ScrollView>
 
@@ -504,34 +501,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  suite: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[3],
-    paddingVertical: space[3],
-    paddingHorizontal: space[3] + 2,
-    borderRadius: radius.card,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-  },
-  suiteBadge: {
-    width: SUITE_BADGE,
-    height: SUITE_BADGE,
-    borderRadius: SUITE_BADGE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Largeur donnée par la rangée : flexShrink et flexGrow, pas flex: 1 seul
-  // (dans un parent qui se règle sur son contenu, flex: 1 vaut 0 sur
-  // téléphone et le texte disparaît)
-  suiteTexts: {
-    flexGrow: 1,
-    flexShrink: 1,
-    gap: 2,
-  },
-  suiteLine: {
-    fontFamily: fonts.bodySemibold,
   },
   footer: {
     paddingHorizontal: space[5],

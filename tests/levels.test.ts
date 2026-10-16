@@ -93,7 +93,7 @@ test('tri des modules : en cours (plus récent d’abord), puis pas commencés, 
 
 test('libellés de la page d’un univers', () => {
   assert.equal(levelIntro(7), '7 modules · fais-les dans l’ordre que tu veux');
-  assert.equal(levelIntro(1), '1 module · fais-les dans l’ordre que tu veux');
+  assert.equal(levelIntro(1), '1 module dans ce niveau');
   assert.equal(doneModulesLabel(2, true), '2 modules terminés dans ce niveau');
   assert.equal(doneModulesLabel(1, false), '1 module terminé');
   assert.equal(moduleLessonsLabel(mod(1, 'inter', [true, true, false, false, false])), '2 sur 5 leçons');

@@ -97,6 +97,30 @@ export function universeArt(slug: string): UniverseArtRef {
   return name ? { kind: 'art', name } : { kind: 'decor', name: universeDecor(slug) };
 }
 
+// Phrase de Val à la première visite d'un univers
+export const UNIVERSE_INTROS: Record<string, string> = {
+  'avant-d-investir': 'Avant de placer un euro, on pose les fondations : coussin de sécurité, dettes, horizon.',
+  bourse: 'La bourse sans jargon : on va comprendre ce que tu achètes vraiment.',
+  crypto: 'Bitcoin et compagnie : on regarde ce qui brille, et ce qui peut faire mal.',
+  immobilier: 'Acheter, louer, investir : on fait les comptes avant de signer quoi que ce soit.',
+  'investir-autrement': 'Or, art, vin… On explore les placements à part, sans tomber dans leurs pièges.',
+  'paie-primes-et-aides': 'Ta fiche de paie cache des choses. On la lit ensemble, et on cherche les aides oubliées.',
+  'revenus-annexes': 'Gagner un peu plus à côté, c’est possible. On voit comment, et ce que ça change.',
+  entreprendre: 'Lancer ton activité ? On parle statut, chiffres et premiers clients.',
+  'garder-la-main': 'Ton argent du quotidien : on reprend la main sur ton budget, sans tout te refuser.',
+  'se-loger': 'Louer, déménager, choisir : on fait le tour avant que tu signes.',
+  'savoir-s-endetter': 'Un crédit peut aider… ou piéger. On apprend à lire le vrai prix d’un emprunt.',
+  impots: 'Les impôts, ça se comprend. On avance pas à pas, promis.',
+  macroeconomie: 'Inflation, taux, croissance : on prend de la hauteur pour voir le grand tableau.',
+  'prix-marches': 'Pourquoi les prix montent et descendent ? On ouvre le capot des marchés.',
+  'analyser-une-entreprise': 'Bilan, marges, dettes : on apprend à juger une entreprise comme un pro.',
+};
+
+export function universeIntro(slug: string, description: string | null): string {
+  if (Object.hasOwn(UNIVERSE_INTROS, slug)) return UNIVERSE_INTROS[slug];
+  return description ? `Bienvenue ! ${description}` : 'Bienvenue dans cet univers. On avance à ton rythme.';
+}
+
 // Les quatre familles du site, dans leur ordre, avec leurs univers
 export type UniverseFamily = { key: string; title: string; slugs: readonly string[] };
 

@@ -15,6 +15,7 @@ import {
   UNIVERSE_FAMILIES,
   universeArt,
   universeFamily,
+  universeIntro,
   modulesOutsideUniverses,
   modulesProgressLabel,
   UNIVERSE_ICONS,
@@ -272,4 +273,12 @@ test('groupByFamily : ordre des familles, ordre reçu dedans, inconnus à la fin
       ['Autres univers', ['nouveau']],
     ]
   );
+});
+
+test('Val présente chacun des 15 univers ; sinon, la description', () => {
+  for (const slug of Object.keys(UNIVERSE_ICONS)) {
+    assert.ok(universeIntro(slug, null).length > 20, slug);
+  }
+  assert.equal(universeIntro('nouveau', 'Un sujet neuf.'), 'Bienvenue ! Un sujet neuf.');
+  assert.equal(universeIntro('nouveau', null), 'Bienvenue dans cet univers. On avance à ton rythme.');
 });

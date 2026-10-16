@@ -169,9 +169,9 @@ export function sortLevelModules(
   };
 }
 
-// « 3 modules · fais-les dans l'ordre que tu veux »
+// « 3 modules · fais-les dans l'ordre que tu veux » (un seul : « 1 module dans ce niveau »)
 export function levelIntro(count: number): string {
-  return `${count} ${count >= 2 ? 'modules' : 'module'} · fais-les dans l’ordre que tu veux`;
+  return count >= 2 ? `${count} modules · fais-les dans l’ordre que tu veux` : `${count} module dans ce niveau`;
 }
 
 // « 2 modules terminés dans ce niveau »

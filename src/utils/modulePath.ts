@@ -4,7 +4,7 @@
 import type { Lesson, Module } from '@/src/context/ApiContext';
 import type { Universe } from '../lesson/model';
 import { moduleUniverse, stepKind, type StepKind } from '../lesson/normalize';
-import { lessonsWord, type LessonView } from './learning';
+import { type LessonView } from './learning';
 
 // ---------------------------------------------------------------------------
 // Couleur d'un module
@@ -39,24 +39,6 @@ export function moduleColorKey(modules: Module[], moduleId: number, universes: U
   const universe = index < 0 ? null : universeOfModule(modules[index], universes);
   if (universe) return universeColorKey(universe);
   return MODULE_COLOR_ORDER[(index < 0 ? 0 : index) % MODULE_COLOR_ORDER.length];
-}
-
-// « MODULE 3 » : rang dans la liste du serveur, à partir de 1
-export function moduleNumber(modules: Module[], moduleId: number): number | null {
-  const index = modules.findIndex((m) => m.id === moduleId);
-  return index < 0 ? null : index + 1;
-}
-
-// Module suivant dans l'ordre du serveur (null pour le dernier)
-export function followingModule(modules: Module[], moduleId: number): Module | null {
-  const index = modules.findIndex((m) => m.id === moduleId);
-  return index < 0 || index >= modules.length - 1 ? null : modules[index + 1];
-}
-
-// « MODULE 3, 2 LEÇONS SUR 5 » (sans rang connu : « 2 LEÇONS SUR 5 »)
-export function bannerLabel(number: number | null, done: number, total: number): string {
-  const progress = `${done} ${lessonsWord(done)} sur ${total}`.toUpperCase();
-  return number === null ? progress : `MODULE ${number}, ${progress}`;
 }
 
 // ---------------------------------------------------------------------------
