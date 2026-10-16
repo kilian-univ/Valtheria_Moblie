@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { positionPayload } from '@/src/utils/patrimoine/legacyPayload';
 import { Position, TYPE_ICON, TYPE_LABEL } from './types';
 
 const TYPES: Position['type'][] = ['action', 'etf', 'crypto', 'livret', 'matiere', 'autre'];
@@ -35,14 +36,9 @@ export default function AddPositionForm({
     if (!canSubmit) return;
     setIsSubmitting(true);
     try {
-      await onSubmit({
-        ticker: ticker.trim().toUpperCase(),
-        name: name.trim(),
-        type,
-        quantity: parseFloat(quantity.replace(',', '.')),
-        buy_price: parseFloat(buyPrice.replace(',', '.')),
-        buy_currency: buyCurrency,
-      });
+      await onSubmit(
+        positionPayload({ type, ticker, name, first: quantity, second: buyPrice, currency: buyCurrency })
+      );
     } finally {
       setIsSubmitting(false);
     }

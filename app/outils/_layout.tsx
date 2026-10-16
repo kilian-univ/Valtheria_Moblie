@@ -5,6 +5,9 @@ export default function OutilsLayout() {
     // Transitions natives ; chaque page est opaque (OpaqueScreen)
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
       <Stack.Screen name="portefeuille" />
+      <Stack.Screen name="actif/[id]" />
+      <Stack.Screen name="operation" />
+      <Stack.Screen name="analyse" />
       <Stack.Screen name="cashflow" />
       <Stack.Screen name="epargne" />
     </Stack>
