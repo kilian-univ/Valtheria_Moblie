@@ -10,7 +10,10 @@ import BigNumber from '@/src/components/common/BigNumber';
 import Button from '@/src/components/common/Button';
 import ValBubble from '@/src/components/common/ValBubble';
 import IconButton from '@/src/components/common/IconButton';
+import Pill from '@/src/components/common/Pill';
 import AllocationBar from '@/src/components/patrimoine/AllocationBar';
+import CelebrationSheet, { type Celebration } from '@/src/components/patrimoine/CelebrationSheet';
+import GoalsSection from '@/src/components/patrimoine/GoalsSection';
 import Figure from '@/src/components/patrimoine/Figure';
 import LineChart from '@/src/components/patrimoine/LineChart';
 import PeriodPicker from '@/src/components/patrimoine/PeriodPicker';
@@ -20,6 +23,7 @@ import ValRemark from '@/src/components/patrimoine/ValRemark';
 import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { usePatrimoineProgress } from '@/src/hooks/usePatrimoineProgress';
 import { loadPatrimoine, usePatrimoineState } from '@/src/state/patrimoineData';
 import { updatePatrimoinePrefs, usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
 import { userKeyOf } from '@/src/state/userMemory';
@@ -39,7 +43,10 @@ import {
   type Period,
 } from '@/src/utils/patrimoine/chart';
 import { money, shortDate, signedMoney, signedPercent, updatedLabel } from '@/src/utils/patrimoine/format';
+import { emergencyGauge, markReached, newlyReached } from '@/src/utils/patrimoine/goals';
+import { earn, MILESTONES } from '@/src/utils/patrimoine/milestones';
 import { parseChart, type ChartPoint } from '@/src/utils/patrimoine/model';
+import { streakLabel } from '@/src/utils/patrimoine/regularity';
 import { chooseValTip } from '@/src/utils/patrimoine/valTips';
 
 const TICK_MS = 30_000;
@@ -90,6 +97,39 @@ export default function PatrimoineScreen() {
   );
   const chartLoading = series?.range !== range;
 
+  // Régularité, objectifs atteints et étapes gagnées (fêtés une seule fois)
+  const progress = usePatrimoineProgress(userKey, prefs, data.fetchedAt);
+  const [celebration, setCelebration] = useState<Celebration | null>(null);
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
+  useEffect(() => {
+    if (!portfolio || !prefs || !progress.ready) return;
+    const reached = newlyReached(prefs.goals, portfolio.totalEur);
+    const emergency = emergencyGauge(prefs.emergency, portfolio.positions);
+    const at = new Date().toISOString();
+    const { earned, fresh } = earn(
+      prefs.milestones,
+      {
+        positions: portfolio.positions,
+        bestStreak: progress.best,
+        emergencyReached: !!emergency?.reached,
+        anyGoalReached: prefs.goals.some((g) => g.reachedAt) || reached.length > 0,
+      },
+      at
+    );
+    if (reached.length === 0 && fresh.length === 0) return;
+    updatePatrimoinePrefs(userKey, (p) => ({ ...p, goals: markReached(p.goals, reached.map((g) => g.id), at), milestones: { ...earned, ...p.milestones } })).then(() => {
+      const lines = [
+        ...reached.map((g) => `Objectif atteint : ${g.name}`),
+        ...fresh.map((k) => `Nouvelle étape : ${MILESTONES.find((m) => m.key === k)?.title ?? k}`),
+      ];
+      setCelebration({
+        title: reached.length > 0 ? `Bravo, tu as atteint ton objectif « ${reached[0].name} » !` : 'Une nouvelle étape de ton patrimoine !',
+        lines,
+      });
+      setCelebrationOpen(true);
+    });
+  }, [portfolio, prefs, progress.ready, progress.best, userKey]);
+
   const refresh = useCallback(async () => {
     setRefreshing(true);
     await loadPatrimoine(userKey, getPortfolio, true);
@@ -125,7 +165,8 @@ export default function PatrimoineScreen() {
     );
   }
   const shares = byType(positions);
-  const tip = chooseValTip({ positions, now: new Date(now), monthlyExpenses: null });
+  const tip = chooseValTip({ positions, now: new Date(now), monthlyExpenses: prefs?.emergency.monthlyExpenses ?? null });
+  const regularity = streakLabel(progress.streak);
   const v = variation(points);
   const values = points.map((p) => modeValue(p, mode));
   const deposits = mode === 'valeur' ? depositIndexes(points) : [];
@@ -179,9 +220,21 @@ export default function PatrimoineScreen() {
         <AppText accessibilityRole="header" style={styles.title}>
           Mon patrimoine
         </AppText>
-        <AppText variant="caption" tone="subtitle">
-          {updatedLabel(data.fetchedAt, now)}
-        </AppText>
+        <View style={styles.metaRow}>
+          <AppText variant="caption" tone="subtitle">
+            {updatedLabel(data.fetchedAt, now)}
+          </AppText>
+          {regularity ? (
+            <Pill
+              size="sm"
+              icon="calendar-outline"
+              label={regularity}
+              background={colors.goldSoft}
+              color={colors.gold}
+              accessibilityLabel={`Régularité : ${regularity} avec au moins un versement`}
+            />
+          ) : null}
+        </View>
 
         <View style={styles.hero} accessible accessibilityLabel={`Valeur totale : ${hidden ? 'masquée' : money(portfolio.totalEur)}`}>
           <AppText variant="caption" tone="subtitle">
@@ -285,6 +338,8 @@ export default function PatrimoineScreen() {
           </View>
         </View>
 
+        {prefs ? <GoalsSection positions={positions} totalEur={portfolio.totalEur} prefs={prefs} hidden={hidden} /> : null}
+
         {portfolio.closed.length > 0 ? (
           <View style={styles.section}>
             <Pressable
@@ -310,6 +365,10 @@ export default function PatrimoineScreen() {
           Valtheria ne donne pas de conseil en investissement.
         </AppText>
       </ScrollView>
+
+      {celebration ? (
+        <CelebrationSheet open={celebrationOpen} celebration={celebration} onClose={() => setCelebrationOpen(false)} onClosed={() => setCelebration(null)} />
+      ) : null}
     </View>
   );
 }
@@ -372,5 +431,6 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   left: { textAlign: 'left' },
   disclaimer: { marginTop: space[6] },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[2], flexWrap: 'wrap' },
   firstStep: { flex: 1, justifyContent: 'center', paddingHorizontal: space[5], gap: space[6] },
 });

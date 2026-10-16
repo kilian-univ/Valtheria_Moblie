@@ -14,8 +14,23 @@ import { dayOf, isoDay, stepDay, type Day } from '@/src/utils/patrimoine/forms';
 const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
 // Date d'une opération : le champ affiche « 2 juin 2026 » ; le toucher ouvre
-// une feuille à trois crans (jour, mois, année), jamais après aujourd'hui.
-export default function DateField({ value, onChange, label = 'Date' }: { value: Day; onChange: (d: Day) => void; label?: string }) {
+// une feuille à trois crans (jour, mois, année), entre ses bornes.
+export default function DateField({
+  value,
+  onChange,
+  label = 'Date',
+  title = 'Date de l’opération',
+  min,
+  max,
+}: {
+  value: Day;
+  onChange: (d: Day) => void;
+  label?: string;
+  title?: string;
+  // Bornes (par défaut : de 1990 à aujourd'hui)
+  min?: Day;
+  max?: Day;
+}) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const [mounted, setMounted] = useState(false);
@@ -25,7 +40,7 @@ export default function DateField({ value, onChange, label = 'Date' }: { value: 
 
   const step = (field: 'd' | 'm' | 'y', delta: number) => {
     select();
-    setDraft((d) => stepDay(d, field, delta, dayOf(new Date())));
+    setDraft((d) => stepDay(d, field, delta, max ?? dayOf(new Date()), min));
   };
 
   return (
@@ -52,7 +67,7 @@ export default function DateField({ value, onChange, label = 'Date' }: { value: 
         <BottomSheet open={open} onRequestClose={() => setOpen(false)} onClosed={() => setMounted(false)}>
           <View style={styles.sheet}>
             <AppText variant="title3" accessibilityRole="header" style={styles.center}>
-              Date de l’opération
+              {title}
             </AppText>
             <View style={styles.steppers}>
               <Stepper label="jour" value={String(draft.d)} onMinus={() => step('d', -1)} onPlus={() => step('d', 1)} />

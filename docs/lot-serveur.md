@@ -539,14 +539,44 @@ Forme inchangée.
 - lire `GET /api/portfolio/chart` : la correction de `HistoryChart` (`src/utils/portfolioHistory.ts`) accepte déjà cette forme ;
 - utiliser `GET /api/search` pour trouver un actif, au lieu de saisir son symbole.
 
-**Bug relevé dans le formulaire d'ajout actuel de l'app** (`AddPositionForm`) : pour un livret, il envoie le montant dans `quantity` et le taux dans `buy_price`. La valeur obtenue vaut donc montant × taux.
-- La page web envoie `quantity: 1`, le montant dans `buy_price`, et le taux dans `rate` (en %).
-- À corriger au moment de la refonte de l'écran.
+**Bug du formulaire d'ajout actuel (livret), corrigé le 17 octobre 2026** : il envoyait le montant dans `quantity` et le taux dans `buy_price`. Il envoie désormais, comme la page web, `quantity: 1`, le montant dans `buy_price` et le taux dans `rate` (`src/utils/patrimoine/legacyPayload.ts`).
 
 ### 8.4 Points ouverts
 - **Page web, gelée** : une position entièrement vendue disparaît de sa liste, et il n'y a pas d'écran d'opérations. À faire à la refonte du site.
 - **Logos des actions et ETF** : aucune source gratuite n'est branchée. On peut en téléverser à la main dans l'admin « Actifs ».
 - **Plus-values** : elles sont indicatives (`gains_note`). Pour les cryptos, l'impôt se calcule sur l'ensemble du portefeuille, pas actif par actif.
+
+### 8.5 Suivi de patrimoine dans l'app : à garder sur le compte
+
+**L'app (17 octobre 2026)** :
+- Le nouveau suivi de patrimoine (Mon patrimoine, Un actif, Noter une opération, Analyse) est construit sur le format des routes 8.2.
+- Il ne s'affiche que si `GET /api/portfolio` répond à ce format (`closed_positions` et `avg_cost` présents). Sinon, l'écran actuel du portefeuille reste en place, sans erreur.
+- La question est reposée à chaque ouverture : rien n'est basculé pour de bon.
+
+**Ce que l'app garde aujourd'hui sur le téléphone**, par compte (`valtheria:patrimoine:<compte>`, `src/utils/patrimoine/prefs.ts`) :
+- **Épargne de précaution** : les dépenses mensuelles indiquées, et le nombre de mois visés (3 à 6). L'épargne est comptée sur les actifs sans risque.
+- **Objectifs personnels** : nom, montant, échéance facultative, date d'atteinte (fêtée une seule fois). Un objectif se mesure sur la valeur totale du patrimoine.
+- **Étapes gagnées** : premier actif suivi, trois types d'actifs, six mois de régularité, épargne de précaution atteinte, premier objectif atteint. Aucune n'est liée aux gains, à la performance ou au nombre d'opérations.
+- **Régularité** : les mois où la personne a fait au moins un versement.
+  - Les achats sont relus chez le serveur (`GET /api/portfolio/operations?side=buy`).
+  - Les dépôts sur un livret sont notés par l'app quand le montant du livret augmente, car le serveur ne garde pas l'historique d'un livret.
+  - Les ventes ne comptent jamais.
+- **Mode discret** : il reste sur le téléphone, c'est un choix d'affichage.
+
+**Souhaité côté site, pour retrouver tout cela sur un autre téléphone** :
+- **Mouvements des livrets** : des versements et des retraits datés, au lieu d'un seul montant modifiable.
+  - Par exemple, une table `savings_movements` (`position_id`, `amount` ±, `executed_at`) et `POST /api/portfolio/positions/{id}/movements`.
+  - Le montant du livret devient leur somme.
+  - Sans cela, la régularité ne voit pas les dépôts faits ailleurs que sur ce téléphone.
+- **Objectifs** :
+  - une table `portfolio_goals` (`user_id`, `kind` : `precaution` | `custom`, `name`, `amount`, `monthly_expenses`, `months`, `due_on`, `reached_at`) ;
+  - les routes `GET`, `POST`, `PATCH` et `DELETE /api/portfolio/goals` ;
+  - réponses en JSON plat (`{ goals: [...] }`, `{ goal }`), sans clé `data`.
+- **Régularité et étapes calculées par le serveur** : `GET /api/portfolio/progress` → `{ regularity: { current_months, best_months, months: ["2026-07", …] }, milestones: [{ key, earned_at }] }`.
+  - Mêmes règles que l'app : un mois compte s'il contient un achat ou un versement sur un livret ; les ventes ne comptent pas ; une étape gagnée le reste.
+  - Les règles sont dans `src/utils/patrimoine/regularity.ts` et `milestones.ts`, testées dans `tests/patrimoine.test.ts`.
+- **Répartition par zone** : une zone par actif (par exemple `assets.zone` : `europe`, `amerique_nord`, `monde`, `emergents`…, ou une répartition en % pour un ETF), renvoyée dans `GET /api/portfolio`. L'onglet « Par zone » de l'Analyse affiche « Bientôt disponible » en attendant.
+- **Reprise** : à la première lecture de ces routes, l'app enverrait une fois ce qu'elle a gardé sur le téléphone (objectifs, étapes), comme pour les autres mémoires reprises d'un téléphone vers le compte.
 
 ## 9. Leçons : aligner le site sur le format de l'app
 

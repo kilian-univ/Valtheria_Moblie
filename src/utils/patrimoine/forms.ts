@@ -15,8 +15,9 @@ export const isoDay = (day: Day): string => `${day.y}-${String(day.m).padStart(2
 const daysIn = (y: number, m: number) => new Date(y, m, 0).getDate();
 const cmp = (a: Day, b: Day) => a.y - b.y || a.m - b.m || a.d - b.d;
 
-// Un cran sur le jour, le mois ou l'année ; jamais après aujourd'hui ni avant 1990
-export function stepDay(day: Day, field: 'd' | 'm' | 'y', delta: number, today: Day): Day {
+// Un cran sur le jour, le mois ou l'année, entre `min` (1990 par défaut) et
+// `max` (aujourd'hui pour une opération, plus tard pour une échéance)
+export function stepDay(day: Day, field: 'd' | 'm' | 'y', delta: number, max: Day, min: Day = { y: MIN_YEAR, m: 1, d: 1 }): Day {
   let { y, m, d } = day;
   if (field === 'y') y += delta;
   if (field === 'm') {
@@ -36,8 +37,8 @@ export function stepDay(day: Day, field: 'd' | 'm' | 'y', delta: number, today: 
   }
   d = Math.min(d, daysIn(y, m));
   let next: Day = { y, m, d };
-  if (cmp(next, today) > 0) next = today;
-  if (next.y < MIN_YEAR) next = { y: MIN_YEAR, m: 1, d: 1 };
+  if (cmp(next, max) > 0) next = max;
+  if (cmp(next, min) < 0) next = min;
   return next;
 }
 

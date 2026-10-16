@@ -317,6 +317,10 @@ test('dates : un cran à la fois, jamais après aujourd’hui ni avant 1990', as
   assert.equal(isoDay(stepDay({ y: 2026, m: 1, d: 10 }, 'm', -1, today)), '2025-12-10');
   assert.equal(isoDay(stepDay({ y: 1990, m: 1, d: 1 }, 'y', -1, today)), '1990-01-01');
   assert.equal(isoDay(stepDay({ y: 2026, m: 3, d: 1 }, 'd', -1, today)), '2026-02-28');
+  // Échéance d'un objectif : dans le futur, jamais avant aujourd'hui
+  const later = { y: 2076, m: 12, d: 31 };
+  assert.equal(isoDay(stepDay(today, 'y', 2, later, today)), '2028-10-16');
+  assert.equal(isoDay(stepDay(today, 'd', -1, later, today)), '2026-10-16');
 });
 
 test('requête d’un achat ou d’une vente', async () => {
@@ -369,4 +373,90 @@ test('préférences : versements sur les livrets gardés, lecture prudente', asy
   assert.equal(p.livretDeposits.length, 1);
   assert.equal(addLivretDeposit(p, { at: '2026-10-03', amount: 0, positionId: null }), p, 'un retrait ne s’ajoute pas');
   assert.equal(addLivretDeposit(p, { at: '2026-10-03', amount: 20, positionId: 3 }).livretDeposits.length, 2);
+});
+
+// ── Lot 3 : régularité, objectifs, étapes ─────────────────────────────
+
+test('régularité : une série de mois avec au moins un versement, les ventes ne comptent pas', async () => {
+  const { depositMonths, currentStreak, bestStreak, streakLabel } = await import('../src/utils/patrimoine/regularity');
+  const months = depositMonths([
+    { at: '2026-07-03T10:00:00', side: 'buy' },
+    { at: '2026-07-20T10:00:00', side: 'buy' }, // deux achats le même mois : un seul mois
+    { at: '2026-08-11T10:00:00' }, // dépôt sur un livret
+    { at: '2026-09-02T10:00:00', side: 'buy' },
+    { at: '2026-10-01T10:00:00', side: 'sell' }, // une vente ne compte pas
+    { at: '2026-03-01T10:00:00', side: 'buy' },
+  ]);
+  assert.deepEqual(months, ['2026-03', '2026-07', '2026-08', '2026-09']);
+  // Octobre pas encore fini : la série court jusqu'à septembre
+  assert.equal(currentStreak(months, new Date(2026, 9, 16)), 3);
+  assert.equal(currentStreak([...months, '2026-10'], new Date(2026, 9, 16)), 4);
+  // Novembre sans versement en octobre : la série est rompue
+  assert.equal(currentStreak(months, new Date(2026, 10, 2)), 0);
+  assert.equal(bestStreak(months), 3);
+  assert.equal(bestStreak(['2025-11', '2025-12', '2026-01']), 3, 'à cheval sur deux années');
+  assert.equal(streakLabel(0), null);
+  assert.equal(streakLabel(3), '3 mois d’affilée');
+});
+
+test('épargne de précaution : dépenses × 3 à 6 mois, comptée sur les actifs sans risque', async () => {
+  const { emergencyGauge, monthsCovered, clampMonths } = await import('../src/utils/patrimoine/goals');
+  const list = [pos('livret', 4000), pos('crypto', 9000), pos('etf', 3000)];
+  assert.equal(emergencyGauge({ monthlyExpenses: null, months: 3 }, list), null);
+  const g = emergencyGauge({ monthlyExpenses: 1500, months: 3 }, list)!;
+  assert.deepEqual([g.current, g.target, g.reached], [4000, 4500, false]);
+  assert.ok(Math.abs(g.ratio - 4000 / 4500) < 1e-9);
+  assert.equal(emergencyGauge({ monthlyExpenses: 1000, months: 3 }, list)!.reached, true);
+  assert.equal(emergencyGauge({ monthlyExpenses: 1000, months: 6 }, list)!.target, 6000);
+  assert.ok(Math.abs(monthsCovered({ monthlyExpenses: 1500, months: 3 }, list)! - 2.6667) < 1e-3);
+  assert.equal(clampMonths(9), 6);
+  assert.equal(clampMonths(1), 3);
+});
+
+test('objectifs personnels : jauge, première atteinte fêtée une seule fois', async () => {
+  const { goalGauge, newlyReached, markReached, validateGoal } = await import('../src/utils/patrimoine/goals');
+  const goals = [
+    { id: 'a', name: 'Apport', amount: 20000, date: '2028-01-01', createdAt: '2026-01-01', reachedAt: null },
+    { id: 'b', name: 'Voyage', amount: 3000, date: null, createdAt: '2026-01-01', reachedAt: null },
+  ];
+  assert.equal(goalGauge(goals[0], 10000).ratio, 0.5);
+  assert.deepEqual(newlyReached(goals, 5000).map((g) => g.id), ['b']);
+  const marked = markReached(goals, ['b'], '2026-10-16');
+  assert.deepEqual(newlyReached(marked, 5000), [], 'déjà fêté');
+  assert.equal(marked[1].reachedAt, '2026-10-16');
+  assert.ok(validateGoal({ name: 'Apport', amount: '20 000', date: null }).ok);
+  assert.ok(!validateGoal({ name: '', amount: '100', date: null }).ok);
+  assert.ok(!validateGoal({ name: 'X', amount: '0', date: null }).ok);
+});
+
+test('étapes : gagnées une fois, jamais liées aux gains ni au nombre d’opérations', async () => {
+  const { earn, satisfied, MILESTONES } = await import('../src/utils/patrimoine/milestones');
+  const ctx = { positions: [pos('livret', 100)], bestStreak: 2, emergencyReached: false, anyGoalReached: false };
+  assert.deepEqual(satisfied(ctx), ['premier_actif']);
+  assert.deepEqual(satisfied({ ...ctx, positions: [pos('livret', 1), pos('etf', 1), pos('crypto', 1)], bestStreak: 6, emergencyReached: true, anyGoalReached: true }), [
+    'premier_actif', 'trois_types', 'six_mois', 'precaution', 'premier_objectif',
+  ]);
+  const first = earn({}, ctx, '2026-10-01');
+  assert.deepEqual(first.fresh, ['premier_actif']);
+  const again = earn(first.earned, { ...ctx, positions: [] }, '2026-10-02');
+  assert.deepEqual(again.fresh, []);
+  assert.equal(again.earned.premier_actif, '2026-10-01', 'une étape gagnée le reste');
+  // Une grosse plus-value ou beaucoup d'opérations ne gagnent rien de plus
+  const rich = { ...ctx, positions: [pos('crypto', 1_000_000, { gain: 900_000, operationsCount: 500 })] };
+  assert.deepEqual(satisfied(rich), ['premier_actif']);
+  for (const m of MILESTONES) assert.ok(!/gain|plus-value|performance|achat|vente/i.test(m.title), m.title);
+});
+
+test('préférences du lot 3 : lecture prudente', async () => {
+  const { parsePrefs } = await import('../src/utils/patrimoine/prefs');
+  const p = parsePrefs({
+    emergency: { monthlyExpenses: 1500, months: 12 },
+    goals: [{ id: 'a', name: 'Apport', amount: 20000 }, { id: 'b', name: '', amount: 5 }],
+    milestones: { premier_actif: '2026-10-01', inconnu: 'x' },
+    months: ['2026-09', '2026-09', 'nope'],
+  });
+  assert.deepEqual(p.emergency, { monthlyExpenses: 1500, months: 6 });
+  assert.equal(p.goals.length, 1);
+  assert.deepEqual(p.milestones, { premier_actif: '2026-10-01' });
+  assert.deepEqual(p.months, ['2026-09']);
 });

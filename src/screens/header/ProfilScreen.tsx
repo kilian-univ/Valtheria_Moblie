@@ -21,6 +21,7 @@ import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { useProfile } from '@/src/hooks/useProfile';
+import PatrimoineStepsCard from '@/src/components/profile/PatrimoineStepsCard';
 import MedalsCard from '@/src/components/profile/MedalsCard';
 import { useAccuracy } from '@/src/state/accuracy';
 import { wordCountsLabel } from '@/src/utils/wordStates';
@@ -208,6 +209,7 @@ export default function ProfileScreen() {
               setStreakOpen(true);
             }}
           />
+          <PatrimoineStepsCard user={p.userKey} />
           <AccessTile
             icon={
               <IconSquare background={withOpacity(colors.chart3, 0.18)}>
