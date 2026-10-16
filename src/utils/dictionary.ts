@@ -441,7 +441,7 @@ function acronymLetters(term: string): string {
 
 // Écrit comme un sigle : majuscules, 2 à 6 caractères (chiffres et points
 // permis), éventuellement suivi d'un nombre (« CAC 40 »)
-function looksLikeAcronym(term: string): boolean {
+export function looksLikeAcronym(term: string): boolean {
   const t = term.trim();
   const compact = t.replace(/\s+/g, '');
   return /^[A-Z][A-Z0-9.]*(?: [A-Z0-9.]+)?$/.test(t) && /[A-Z].*[A-Z0-9]/.test(compact) && compact.length <= 6;
@@ -863,6 +863,170 @@ export function quizFor(
     return draw.quiz;
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Test sur le mot de la page (plein écran, lecteur des leçons)
+// ---------------------------------------------------------------------------
+//
+// La définition est cachée pendant le test : la question peut porter sur le
+// mot de la fiche. Formats possibles avec les champs du serveur (terme,
+// définition, catégorie ; ni exemple ni mots liés) :
+// - definition : « Que veut dire <mot> ? », la bonne définition parmi 3
+//   (jamais pour un sigle : le développé trahirait la réponse) ;
+// - expansion : « Que signifie <SIGLE> ? », le bon développé parmi 3 ;
+// - term : la définition (mot masqué), « Quel mot correspond ? ».
+// Mêmes garde-fous que l'ancien Teste-toi : rien d'affiché ne trahit la
+// réponse (le mot, son sigle, son développé, sa racine), et rien n'est
+// presque entièrement masqué.
+
+export type WordQuestionFormat = 'definition' | 'expansion' | 'term';
+
+export type WordQuestion = {
+  format: WordQuestionFormat;
+  // Réplique de Val et texte affiché en grand (la question, ou la définition masquée)
+  ask: string;
+  question: string;
+  answers: QuizAnswer[];
+  correctLabel: string;
+  // Montrée après la réponse : la définition complète (seulement après la
+  // dernière question, sinon elle donnerait la réponse de la suivante)
+  explanation: string | null;
+};
+
+// Développés des sigles du dictionnaire (autres que `except`)
+function otherExpansions(entries: DictionaryEntry[], except: DictionaryEntry): string[] {
+  const self = normalizeText(except.term);
+  const out: string[] = [];
+  for (const e of entries) {
+    if (normalizeText(e.term) === self) continue;
+    const x = expansionOf(e);
+    if (x && !out.some((o) => normalizeText(o) === normalizeText(x))) out.push(x);
+  }
+  return out;
+}
+
+function guarded(texts: string[], subject: DictionaryEntry): boolean {
+  return texts.every((t) => !revealsSubject(t, subject) && !tooMasked(t));
+}
+
+export function wordQuestion(
+  entries: DictionaryEntry[],
+  entry: DictionaryEntry,
+  format: WordQuestionFormat,
+  random: () => number
+): WordQuestion | null {
+  const explanation = `${entry.term} : ${entry.definition}`;
+  if (format === 'expansion') {
+    const own = expansionOf(entry);
+    if (!own) return null;
+    const others = shuffled(otherExpansions(entries, entry), random)
+      .filter((x) => normalizeText(x) !== normalizeText(own))
+      .slice(0, QUIZ_ANSWERS - 1);
+    if (others.length < QUIZ_ANSWERS - 1) return null;
+    const answers = shuffled([{ label: own, correct: true }, ...others.map((x) => ({ label: x, correct: false }))], random);
+    return { format, ask: `Que signifie **${entry.term}** ?`, question: `Que signifie ${entry.term} ?`, answers, correctLabel: own, explanation };
+  }
+  if (!isPlayable(entry)) return null;
+  if (format === 'definition') {
+    if (isAcronym(entry)) return null;
+    const wrong = pickDistractors(entries, entry, [], QUIZ_ANSWERS - 1, random, 'definition');
+    if (wrong.length < QUIZ_ANSWERS - 1) return null;
+    const label = (e: DictionaryEntry) => maskSubject(entryDefinition(e), entry);
+    const answers = shuffled([{ label: label(entry), correct: true }, ...wrong.map((e) => ({ label: label(e), correct: false }))], random);
+    if (!guarded(answers.map((a) => a.label), entry)) return null;
+    return { format, ask: `Que veut dire **${entry.term}** ?`, question: `Que veut dire ${entry.term} ?`, answers, correctLabel: label(entry), explanation };
+  }
+  // term : la définition masquée, retrouver le mot (jamais un mot cité dedans)
+  const quote = maskSubject(entryDefinition(entry), entry);
+  if (!guarded([quote], entry)) return null;
+  const sigle = isAcronym(entry);
+  const allowed = (e: DictionaryEntry) => phraseRanges(quote, e.term).length === 0 && (sigle ? isAcronym(e) : !isAcronym(e));
+  let wrong = pickDistractors(entries, entry, [], QUIZ_ANSWERS - 1, random, 'term', allowed);
+  if (wrong.length < QUIZ_ANSWERS - 1) {
+    wrong = pickDistractors(entries, entry, [], QUIZ_ANSWERS - 1, random, 'term', (e) => phraseRanges(quote, e.term).length === 0);
+  }
+  if (wrong.length < QUIZ_ANSWERS - 1) return null;
+  const answers = shuffled([{ label: entry.term, correct: true }, ...wrong.map((e) => ({ label: e.term, correct: false }))], random);
+  return {
+    format,
+    ask: sigle ? 'Quel sigle correspond à cette définition ?' : 'Quel mot correspond à cette définition ?',
+    question: `« ${quote} »`,
+    answers,
+    correctLabel: entry.term,
+    explanation,
+  };
+}
+
+// Formats possibles pour ce mot, du plus « compréhension » au plus « rappel »
+export function wordQuestionFormats(entries: DictionaryEntry[], entry: DictionaryEntry): WordQuestionFormat[] {
+  const probe = rng(hashText(normalizeText(entry.term)));
+  const order: WordQuestionFormat[] = isAcronym(entry) ? ['expansion', 'term'] : ['definition', 'term'];
+  return order.filter((f) => wordQuestion(entries, entry, f, probe) !== null);
+}
+
+// Le test d'un mot, tiré à partir de `seed` (un nouveau test, un nouveau
+// tirage). Une seule question pour un mot : ses deux formats reposent sur la
+// même définition, la première donnerait la réponse de la seconde. Deux pour
+// un sigle : son développé, puis le sigle à retrouver depuis la définition
+// (sans le développé). La définition complète n'est montrée qu'après la
+// dernière question.
+export function wordTest(unsorted: DictionaryEntry[], entry: DictionaryEntry, seed: number, max = 2): WordQuestion[] {
+  if (unsorted.length < QUIZ_ANSWERS) return [];
+  const entries = [...unsorted].sort(compareTerms);
+  const random = rng(hashText(normalizeText(entry.term)) ^ Math.imul(seed + 1, 0x85ebca6b));
+  const formats = wordQuestionFormats(entries, entry);
+  const limit = Math.min(max, formats.includes('expansion') ? 2 : 1);
+  const out: WordQuestion[] = [];
+  for (const format of formats) {
+    if (out.length >= limit) break;
+    const q = wordQuestion(entries, entry, format, random);
+    if (q) out.push(q);
+  }
+  return out.map((q, i) => (i === out.length - 1 ? q : { ...q, explanation: null }));
+}
+
+// Une question au format d'un écran du serveur (choix unique, noté) : elle
+// se joue dans le lecteur des leçons
+export function wordQuestionScreen(q: WordQuestion): Record<string, unknown> {
+  return {
+    type: 'choice',
+    scored: true,
+    val: {
+      intro: { line: q.ask, mood: 'complice' },
+      correct: { line: 'Bien vu !', mood: 'fier' },
+      wrong: { line: 'Pas grave, il reviendra.', mood: 'rassurant' },
+    },
+    explanation: q.explanation,
+    payload: {
+      question: q.question,
+      mode: 'single',
+      options: q.answers.map((a, i) => ({ id: `w${i}`, text: a.label, ...(a.correct ? { correct: true } : {}) })),
+    },
+  };
+}
+
+// Mots à proposer après un test réussi (« Un autre mot ? ») : ceux qui
+// apparaissent dans les mêmes leçons, puis de la même catégorie ; d'abord
+// ceux pas encore vus
+export function relatedWords(
+  entries: DictionaryEntry[],
+  entry: DictionaryEntry,
+  isSeen: (term: string) => boolean,
+  sameLessons: (term: string) => string[] = () => [],
+  max = 2
+): DictionaryEntry[] {
+  const self = normalizeText(entry.term);
+  const byLesson = new Set(sameLessons(entry.term).map(normalizeText));
+  const pool = entries.filter((e) => normalizeText(e.term) !== self && isPlayable(e));
+  const score = (e: DictionaryEntry) =>
+    (isSeen(e.term) ? 0 : 4) + (byLesson.has(normalizeText(e.term)) ? 2 : 0) + (e.category === entry.category ? 1 : 0);
+  return pool
+    .filter((e) => byLesson.has(normalizeText(e.term)) || e.category === entry.category)
+    .map((e, i) => ({ e, i, s: score(e) }))
+    .sort((a, b) => b.s - a.s || a.i - b.i)
+    .slice(0, max)
+    .map((x) => x.e);
 }
 
 // ---------------------------------------------------------------------------

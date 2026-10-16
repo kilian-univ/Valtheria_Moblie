@@ -217,6 +217,20 @@ Ce n'est pas un manque du site, mais il faut choisir un seul format avant d'écr
   - plus tard, pour le lot Dictionnaire : mots découverts et mots maîtrisés gardés sur le serveur, et collections par catégorie.
 - **En attendant** : la fiche n'affiche ni « en clair » ni « Dans tes leçons ». Les mots découverts et « Mes mots » sont gardés sur le téléphone, par compte. Sans compte, le dictionnaire est réservé.
 
+### 5.1 Relier les mots aux notions et aux leçons
+- **Manque** :
+  - aucun lien entre un mot du dictionnaire et les notions des leçons (`notion` de chaque écran noté) ;
+  - en base, `dictionary_terms` a déjà `full_definition` et `related_lesson_id`, mais `GET /api/dictionary/terms` ne les renvoie pas ;
+  - les états des mots (vu, maîtrisé) ne sont gardés que sur le téléphone.
+- **Souhaité** :
+  - une table de liaison mots ↔ notions (`dictionary_term_notion`), remplie à l'écriture des leçons (ou depuis l'admin) ;
+  - dans `GET /api/dictionary/terms`, par mot : `id`, `slug`, `notions[{slug, nom}]`, `lessons[{id, title}]` (leçons publiées qui travaillent ces notions), `full_definition`, et plus tard `plain` (« en clair ») et une phrase d'exemple (elle permettrait les questions « mot masqué dans un exemple ») ;
+  - plus tard : les états des mots gardés sur le compte (`vu_le`, `maitrise_le`, dernier résultat), et leur place dans la révision du serveur (une notion maîtrisée fait avancer ses mots, un mot raté remet sa notion en révision).
+- **En attendant** :
+  - l'app relie les mots aux leçons elle-même : un index construit sur le téléphone à partir des textes des leçons (titre, questions, réponses, explications), accents et casse ignorés, sans les mots trop courts ou trop courants (`src/utils/wordLessonIndex.ts`) ;
+  - « Tu le croises dans » sur la fiche, et « Un autre mot ? » après un test réussi, s'appuient sur cet index ;
+  - les états des mots et leur espacement en révision sont gardés sur le téléphone, par compte et sans compte.
+
 ## 6. Carnet de déclics
 - **Manque** : rien n'est gardé sur le serveur.
 - **Souhaité** (plus tard) :

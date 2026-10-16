@@ -44,6 +44,9 @@ import {
 import { dictionaryTermHref } from '@/src/utils/dictionaryLinks';
 import { formatInteger } from '@/src/utils/format';
 import { select } from '@/src/utils/haptics';
+import { useWordStates } from '@/src/state/wordStates';
+import { userKeyOf } from '@/src/state/userMemory';
+import { matchesFilter, WORD_FILTERS, type WordFilter, wordState } from '@/src/utils/wordStates';
 
 type Section = { title: string; data: DictionaryEntry[] };
 
@@ -57,6 +60,13 @@ function errorMessage(kind: 'network' | 'server'): string {
     ? 'Impossible de charger le dictionnaire : pas de connexion internet.'
     : 'Impossible de charger le dictionnaire : le serveur ne répond pas.';
 }
+
+// Filtre par état sans aucun mot
+const EMPTY_FILTER: Record<Exclude<WordFilter, 'tous'>, string> = {
+  nouveaux: 'Tu as déjà ouvert tous ces mots.',
+  vus: 'Aucun mot vu en attente : ouvre une fiche pour commencer.',
+  maitrises: 'Aucun mot maîtrisé pour l’instant : réussis le test d’une fiche.',
+};
 
 export default function DictionaryHomeScreen() {
   const router = useRouter();
@@ -72,6 +82,10 @@ export default function DictionaryHomeScreen() {
   const { favorites } = useDictionaryFavorites(user?.id);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
+  // Filtre par état : tous, à découvrir, vus, maîtrisés
+  const [wordFilter, setWordFilter] = useState<WordFilter>('tous');
+  const wordMemory = useWordStates(userKeyOf(user?.id));
+  const stateOf = useCallback((term: string) => (wordMemory ? wordState(wordMemory, term) : 'nouveau'), [wordMemory]);
   const [refreshing, setRefreshing] = useState(false);
   const [headerH, setHeaderH] = useState(0);
   const listRef = useRef<SectionList<DictionaryEntry, Section>>(null);
@@ -98,7 +112,10 @@ export default function DictionaryHomeScreen() {
   }, [section, router]);
 
   const searching = normalizeText(query) !== '';
-  const results = useMemo(() => searchEntries(data.entries, query, category), [data.entries, query, category]);
+  const results = useMemo(
+    () => searchEntries(data.entries, query, category).filter((e) => matchesFilter(stateOf(e.term), wordFilter)),
+    [data.entries, query, category, stateOf, wordFilter]
+  );
   const sections: Section[] = useMemo(
     () => (searching ? (results.length ? [{ title: '', data: results }] : []) : letterSections(results)),
     [searching, results]
@@ -280,6 +297,28 @@ export default function DictionaryHomeScreen() {
         </View>
       ) : null}
       {blocks}
+      {ready ? (
+        // En tête de la liste : filtre par état des mots
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={[styles.bleed, styles.filters]}
+          contentContainerStyle={styles.categories}
+          accessibilityRole="tablist"
+        >
+          {WORD_FILTERS.map((f) => (
+            <Chip
+              key={f.key}
+              label={f.label}
+              active={wordFilter === f.key}
+              onPress={() => {
+                select();
+                setWordFilter(f.key);
+              }}
+            />
+          ))}
+        </ScrollView>
+      ) : null}
     </View>
   );
 
@@ -296,6 +335,7 @@ export default function DictionaryHomeScreen() {
             query={searching ? query : ''}
             last={index === section.data.length - 1}
             paddingRight={rowPadding}
+            state={stateOf(item.term)}
             onPress={() => openTerm(item.term)}
           />
         )}
@@ -309,7 +349,13 @@ export default function DictionaryHomeScreen() {
         getItemLayout={(_data, index) => ({ ...(layout[index] ?? { length: 0, offset: 0 }), index })}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          ready && searching ? <NoResult query={query} close={close} onSuggestion={setQuery} /> : null
+          ready && searching ? (
+            <NoResult query={query} close={close} onSuggestion={setQuery} />
+          ) : ready && wordFilter !== 'tous' ? (
+            <AppText variant="callout" tone="subtitle" style={styles.emptyFilter}>
+              {EMPTY_FILTER[wordFilter]}
+            </AppText>
+          ) : null
         }
         initialNumToRender={20}
         windowSize={11}
@@ -393,6 +439,14 @@ const styles = StyleSheet.create({
   // Les pastilles défilent jusqu'au bord de l'écran
   bleed: {
     marginHorizontal: -space[5],
+  },
+  filters: {
+    marginTop: space[5],
+  },
+  emptyFilter: {
+    paddingHorizontal: space[5],
+    paddingTop: space[6],
+    textAlign: 'center',
   },
   categories: {
     gap: space[2],

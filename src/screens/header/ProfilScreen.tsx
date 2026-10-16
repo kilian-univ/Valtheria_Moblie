@@ -23,6 +23,7 @@ import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { useProfile } from '@/src/hooks/useProfile';
 import MedalsCard from '@/src/components/profile/MedalsCard';
 import { useAccuracy } from '@/src/state/accuracy';
+import { wordCountsLabel } from '@/src/utils/wordStates';
 import { discoveryLesson, type Objective } from '@/src/lesson/discovery';
 import { initialOf, lastMedalDays, levelA11y, medalsEarned } from '@/src/utils/profile';
 import { universeTint } from '@/src/utils/universeTint';
@@ -93,7 +94,7 @@ export default function ProfileScreen() {
   const medals = medalsEarned(p.best, p.streak);
   const lastMedal = lastMedalDays(p.best, p.streak);
   const declics = p.declics.length;
-  const words = p.wordsDiscovered;
+  const words = p.words;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -213,14 +214,13 @@ export default function ProfileScreen() {
                 <Ionicons name="book-outline" size={20} color={colors.chart3} />
               </IconSquare>
             }
-            value={words > 0 ? String(words) : undefined}
-            unit={words > 0 ? (words > 1 ? 'mots' : 'mot') : undefined}
-            caption={words > 0 ? (words > 1 ? 'découverts' : 'découvert') : 'Ouvre ton premier mot'}
+            value={words.seen > 0 ? wordCountsLabel(words) : undefined}
+            caption={words.seen > 0 ? (p.wordsTotal > 0 ? `sur ${p.wordsTotal} mots du Dictionnaire` : 'Mots du Dictionnaire') : 'Ouvre ton premier mot'}
             onPress={() => router.navigate({ pathname: '/dictionary', params: { section: 'mes-mots' } })}
             accessibilityLabel={
-              words > 0
-                ? `Mots découverts : ${words}${p.wordsTotal > 0 ? ` sur ${p.wordsTotal}` : ''}`
-                : 'Aucun mot découvert pour l’instant'
+              words.seen > 0
+                ? `Mots du Dictionnaire : ${wordCountsLabel(words)}${p.wordsTotal > 0 ? `, sur ${p.wordsTotal}` : ''}`
+                : 'Aucun mot vu pour l’instant'
             }
             accessibilityHint="Ouvre le Dictionnaire"
           />

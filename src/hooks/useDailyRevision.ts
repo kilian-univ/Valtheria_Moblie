@@ -1,9 +1,14 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import { useApi } from '@/src/context/ApiContext';
 import { learningStore } from '@/src/state/learningStore';
 import { useLearningLog } from '@/src/state/learningLog';
+import { useDictionary } from '@/src/hooks/useDictionary';
 import { useNotebook } from '@/src/state/notebook';
+import { saveLessonText } from '@/src/state/lessonTexts';
+import { useWordStates } from '@/src/state/wordStates';
+import { dayNumber } from '@/src/utils/dictionary';
+import { revisionWords } from '@/src/utils/revisionWords';
 import { cachedLesson, updateRevisionMemory, useRevisionMemory } from '@/src/state/revisionMemory';
 import { fetchServerRevision } from '@/src/state/serverRevision';
 import { userKeyOf } from '@/src/state/userMemory';
@@ -76,6 +81,16 @@ export function useDailyRevision(userId: number | null | undefined) {
   const key = userKeyOf(userId);
   const memory = useRevisionMemory(key);
   const declics = useNotebook(key);
+  // Mots du Dictionnaire dus aujourd'hui, avec leur question (null : pas
+  // encore prêts ; dictionnaire indisponible : aucun)
+  const dictionary = useDictionary();
+  const wordMemory = useWordStates(key);
+  const words = useMemo(() => {
+    if (dictionary.isLoading || wordMemory === null) return null;
+    if (dictionary.entries.length === 0) return [];
+    const now = new Date();
+    return revisionWords(wordMemory, dictionary.entries, localDay(now), dayNumber(now));
+  }, [dictionary.isLoading, dictionary.entries, wordMemory]);
   const log = useLearningLog(key);
   const journal = useWeekJournal(key);
   const { modules, universes, loaded } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
@@ -86,7 +101,7 @@ export function useDailyRevision(userId: number | null | undefined) {
   const record = memory?.servers.find((r) => r.day === today) ?? null;
   const usable = serverRevisionUsable(record, today, new Date());
   useEffect(() => {
-    if (userId === null || userId === undefined || !memory || declics === null) return;
+    if (userId === null || userId === undefined || !memory || declics === null || words === null) return;
     if (usable) {
       if (server.get(key)?.state !== 'ok') setServer(key, { state: 'ok', at: Date.now() });
       return;
@@ -95,11 +110,11 @@ export function useDailyRevision(userId: number | null | undefined) {
     if (known?.state === 'loading') return;
     if (known?.state === 'unavailable' && Date.now() - known.at < SERVER_RETRY_MS) return;
     setServer(key, { state: 'loading', at: Date.now() });
-    fetchServerRevision(get, key, memory, declics).then(
+    fetchServerRevision(get, key, memory, declics, words).then(
       () => setServer(key, { state: 'ok', at: Date.now() }),
       () => setServer(key, { state: 'unavailable', at: Date.now() })
     );
-  }, [userId, key, memory, declics, usable, get]);
+  }, [userId, key, memory, declics, words, usable, get]);
   // Révision de l'app : seulement si le serveur ne répond pas
   const appMode = serverState?.state === 'unavailable' && !usable;
 
@@ -126,6 +141,8 @@ export function useDailyRevision(userId: number | null | undefined) {
       for (const { lesson, module } of missing) {
         try {
           const data = await getLesson(lesson.id);
+          // Son texte sert aussi à relier les mots du Dictionnaire aux leçons
+          saveLessonText(lesson.id, data, lesson.title);
           const slug = universeOfModule(module, universes)?.slug ?? null;
           const entry = cachedLesson(lesson.id, data, slug, new Date().toISOString());
           await updateRevisionMemory(key, (m) => ({ ...m, lessons: { ...m.lessons, [String(lesson.id)]: entry } }));
@@ -139,7 +156,7 @@ export function useDailyRevision(userId: number | null | undefined) {
   // 2. Révision du jour : tirée une fois (ou dès qu'il y a de la matière)
   const plan = memory?.plans.find((p) => p.day === today) ?? null;
   useEffect(() => {
-    if (userId === null || userId === undefined || !appMode || fetching || !memory || declics === null || log === null) return;
+    if (userId === null || userId === undefined || !appMode || fetching || !memory || declics === null || log === null || words === null) return;
     const existing = memory.plans.find((p) => p.day === today);
     if (existing && (existing.items.length > 0 || existing.done)) return;
     const random = seededRandom(`${key}|${today}`);
@@ -147,6 +164,7 @@ export function useDailyRevision(userId: number | null | undefined) {
     const candidates = buildCandidates({
       lessons: Object.values(memory.lessons),
       declics,
+      words,
       history: memory.history,
       lessonDoneAt: (id) => doneAt.get(id) ?? null,
       random,
@@ -162,7 +180,7 @@ export function useDailyRevision(userId: number | null | undefined) {
     if (existing && picked.length === 0) return;
     const next: DailyPlan = { day: today, items: picked.map((c) => c.item), done: null };
     updateRevisionMemory(key, (m) => ({ ...m, plans: [...m.plans.filter((p) => p.day !== today), next] }));
-  }, [userId, key, appMode, fetching, memory, declics, log, modules, today]);
+  }, [userId, key, appMode, fetching, memory, declics, words, log, modules, today]);
 
   const lessonDone = (log ?? []).some((e) => e.day === today) || (journal ?? []).some((e) => e.day === today);
   const common = { lessonDone, log: log ?? [] };

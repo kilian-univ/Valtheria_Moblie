@@ -38,7 +38,12 @@ import {
   serverResponses,
   serverRevisionLesson,
   serverRevisionUsable,
+  termOfKey,
 } from '@/src/utils/revision';
+import { revisionWords } from '@/src/utils/revisionWords';
+import { dayNumber } from '@/src/utils/dictionary';
+import { useDictionary } from '@/src/hooks/useDictionary';
+import { recordWordResult, useWordStates } from '@/src/state/wordStates';
 
 const VAL_DIAMETER = 72;
 const SCORE_SIZE = 44;
@@ -59,6 +64,15 @@ type Played = {
 // remonté (ou un effet rejoué) ne renvoie jamais deux fois la même révision
 // (le serveur répondrait « session déjà terminée »)
 const sends = new Map<string, Promise<Record<string, any>>>();
+
+// Mots du Dictionnaire révisés : réussi → maîtrisé ; raté → « Vu », il
+// revient dès le lendemain
+function recordWords(user: UserKey, results: readonly { key: string; correct: boolean }[]) {
+  for (const r of results) {
+    const term = termOfKey(r.key);
+    if (term) recordWordResult(user, term, r.correct).catch(() => {});
+  }
+}
 
 const leave = () => (router.canGoBack() ? router.back() : router.replace('/apprendre'));
 
@@ -85,8 +99,15 @@ export default function RevisionScreen() {
   const { user, get } = useApi();
   const key = userKeyOf(user?.id);
   const memory = useRevisionMemory(key);
-  const declics = useNotebook(key);
   const [today] = useState(() => localDay(new Date()));
+  const declics = useNotebook(key);
+  // Mots dus (session du serveur expirée, redemandée avec ses ajouts)
+  const dictionary = useDictionary();
+  const wordMemory = useWordStates(key);
+  const words = useMemo(
+    () => (wordMemory && dictionary.entries.length > 0 ? revisionWords(wordMemory, dictionary.entries, today, dayNumber(new Date())) : null),
+    [wordMemory, dictionary.entries, today]
+  );
   const [recap, setRecap] = useState<Recap | null>(null);
   const [played, setPlayed] = useState<Played | null>(null);
   const [ended, setEnded] = useState<{ result: LessonResult; summary: LessonSummary; streakBefore: number | null } | null>(null);
@@ -99,7 +120,7 @@ export default function RevisionScreen() {
   useEffect(() => {
     if (!memory || declics === null || !expired || refreshFailed || refreshing.current) return;
     refreshing.current = true;
-    fetchServerRevision(get, key, memory, declics).then(
+    fetchServerRevision(get, key, memory, declics, words ?? []).then(
       () => {
         refreshing.current = false;
       },
@@ -108,7 +129,7 @@ export default function RevisionScreen() {
         setRefreshFailed(true);
       }
     );
-  }, [memory, declics, expired, refreshFailed, get, key]);
+  }, [memory, declics, words, expired, refreshFailed, get, key]);
 
   if (memory === null) return null;
 
@@ -213,6 +234,7 @@ function ServerRevisionPlayer({
         .filter((r) => r.index >= built.serverCount)
         .map((r) => ({ key: built.extraKeys[r.index - built.serverCount], correct: r.correct }))
         .filter((r): r is { key: string; correct: boolean } => typeof r.key === 'string');
+      recordWords(user, extras);
       await updateRevisionMemory(user, (m) => ({ ...m, history: recordResults(m.history, extras, at) }));
       const extraScore = { correct: extras.filter((r) => r.correct).length, total: extras.length };
 
@@ -380,6 +402,7 @@ function RevisionPlayer({
       const scored = results
         .map((r) => ({ key: built.keys[r.index], correct: r.correct }))
         .filter((r): r is { key: string; correct: boolean } => typeof r.key === 'string');
+      recordWords(user, scored);
       await updateRevisionMemory(user, (m) => ({
         ...m,
         history: recordResults(m.history, scored, at),

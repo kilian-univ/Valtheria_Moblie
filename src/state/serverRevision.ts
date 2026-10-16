@@ -2,17 +2,18 @@ import { localDay } from '@/src/utils/day';
 import type { Declic } from '@/src/utils/notebook';
 import {
   parseServerRevision,
-  pickDeclicExtras,
+  pickServerExtras,
   type PlanItem,
   seededRandom,
   type ServerRevision,
+  type WordCandidate,
 } from '@/src/utils/revision';
 import { updateRevisionMemory, type RevisionMemory } from './revisionMemory';
 import type { UserKey } from './userMemory';
 
 // Révision du serveur d'un compte : demandée à GET /api/revision, gardée sur
 // le téléphone pour la journée (la même session tant qu'elle n'a pas
-// expiré), avec les déclics du carnet ajoutés. Une seule demande à la fois.
+// expiré), avec des déclics du carnet et des mots du Dictionnaire ajoutés. Une seule demande à la fois.
 // Échec (hors ligne, route absente, erreur, réponse inattendue) : rejet, et
 // l'app retombe sur sa propre révision.
 
@@ -35,7 +36,9 @@ export function fetchServerRevision(
   get: (path: string) => Promise<unknown>,
   user: UserKey,
   memory: RevisionMemory,
-  declics: readonly Declic[]
+  declics: readonly Declic[],
+  // Mots du Dictionnaire dus aujourd'hui (2 au plus ajoutés, 3 ajouts en tout)
+  words: readonly WordCandidate[] = []
 ): Promise<ServerRevision> {
   const current = running.get(user);
   if (current) return current;
@@ -49,8 +52,9 @@ export function fetchServerRevision(
       fetchedAt: now.toISOString(),
       session: parsed.session,
       empty: parsed.empty,
-      extras: pickDeclicExtras({
+      extras: pickServerExtras({
         declics,
+        words,
         history: memory.history,
         yesterdayKeys: yesterdayKeys(memory, today),
         random: seededRandom(`${user}|${today}|declics`),

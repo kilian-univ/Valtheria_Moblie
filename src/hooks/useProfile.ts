@@ -4,14 +4,14 @@ import { useApi } from '@/src/context/ApiContext';
 import { useDictionary } from '@/src/hooks/useDictionary';
 import { useLearningData } from '@/src/hooks/useLearningData';
 import { DISCOVERY, OBJECTIVE_OPTIONS, type Objective, toObjective } from '@/src/lesson/discovery';
-import { useDiscoveredWords } from '@/src/state/discoveredWords';
+import { useWordStates } from '@/src/state/wordStates';
 import { useNotebook } from '@/src/state/notebook';
 import { rememberObjective, setUserObjective, useStoredObjective } from '@/src/state/objective';
 import { useOnboarding } from '@/src/state/onboarding';
 import { useBestStreak } from '@/src/state/streakRewards';
 import { useWeekJournal } from '@/src/state/weekJournal';
 import { userKeyOf } from '@/src/state/userMemory';
-import { discoveredCount } from '@/src/utils/discoveredWords';
+import { wordCounts } from '@/src/utils/wordStates';
 import { success } from '@/src/utils/haptics';
 import { levelInfo, nearestUniverseWithLessons, nextUniverse, objectiveProgress, serverObjective } from '@/src/utils/profile';
 import { weekSummary } from '@/src/utils/weekJournal';
@@ -70,7 +70,7 @@ export function useProfile() {
 
   const declics = useNotebook(userKey) ?? [];
   const week = weekSummary(useWeekJournal(userKey) ?? [], new Date());
-  const words = useDiscoveredWords(userKey) ?? [];
+  const words = useWordStates(userKey) ?? {};
   const terms = dictionary.entries.map((e) => e.term);
 
   return {
@@ -93,7 +93,8 @@ export function useProfile() {
     changeObjective,
     universes: learning.universes,
     declics,
-    wordsDiscovered: discoveredCount(words, terms),
+    // Mots vus (maîtrisés compris) et maîtrisés
+    words: wordCounts(words, terms),
     wordsTotal: terms.length,
   };
 }

@@ -40,7 +40,14 @@ export type SeenHistory = Record<string, SeenRecord>;
 
 export type PlanItem =
   | { key: string; kind: 'screen'; lessonId: number; index: number; universe: string | null }
-  | { key: string; kind: 'declic'; universe: string | null; question: QuizQuestion };
+  | { key: string; kind: 'declic'; universe: string | null; question: QuizQuestion }
+  // Mot du Dictionnaire (vu ou maîtrisé), sa question déjà tirée (format
+  // d'un écran du serveur)
+  | { key: string; kind: 'word'; universe: null; term: string; screen: Record<string, unknown> };
+
+// Mot du Dictionnaire dû en révision (utils/wordStates.dueWords), avec la
+// question à jouer
+export type WordCandidate = { term: string; failed: boolean; lastSeen: string; screen: Record<string, unknown> };
 
 export type DailyPlan = {
   day: string;
@@ -50,6 +57,11 @@ export type DailyPlan = {
 };
 
 export const screenKey = (lessonId: number, index: number) => `e:${lessonId}:${index}`;
+export const wordItemKey = (term: string) => `w:${term.trim()}`;
+// Terme d'un élément de révision « mot » (null pour un écran ou un déclic)
+export function termOfKey(key: string): string | null {
+  return key.startsWith('w:') ? key.slice(2) : null;
+}
 export const declicKey = (text: string) => `d:${text.trim()}`;
 
 // Écrans notés d'une leçon (forme du serveur) : ceux que la révision peut
@@ -201,6 +213,7 @@ export function buildCandidates({
   history,
   lessonDoneAt,
   random,
+  words = [],
 }: {
   lessons: readonly CachedLesson[];
   declics: readonly Declic[];
@@ -208,6 +221,8 @@ export function buildCandidates({
   // Fin de la leçon, connue sur ce téléphone (ISO)
   lessonDoneAt: (lessonId: number) => string | null;
   random: () => number;
+  // Mots du Dictionnaire dus aujourd'hui (jamais les mots pas encore vus)
+  words?: readonly WordCandidate[];
 }): Candidate[] {
   const out: Candidate[] = [];
   for (const lesson of lessons) {
@@ -237,6 +252,10 @@ export function buildCandidates({
       item: { key, kind: 'declic', universe: d.universeSlug, question },
     });
   }
+  for (const w of words) {
+    const key = wordItemKey(w.term);
+    out.push({ key, universe: null, failed: w.failed, lastSeen: w.lastSeen, item: { key, kind: 'word', universe: null, term: w.term, screen: w.screen } });
+  }
   return out;
 }
 
@@ -248,6 +267,11 @@ export function revisionLesson(items: readonly PlanItem[], lessons: readonly Cac
   items.forEach((item, i) => {
     if (item.kind === 'declic') {
       screens.push(quizScreen(item.question, i));
+      keys.push(item.key);
+      return;
+    }
+    if (item.kind === 'word') {
+      screens.push(item.screen);
       keys.push(item.key);
       return;
     }
@@ -295,8 +319,10 @@ export function revisionVerdict(correct: number, total: number, dayDone: boolean
 // écrans : il ignore les positions qu'il n'a pas servies.
 // ---------------------------------------------------------------------------
 
-// Déclics ajoutés à la révision du serveur, au plus
+// Ajoutés à la révision du serveur, au plus : déclics, mots, et en tout
 export const DECLIC_EXTRAS = 2;
+export const WORD_EXTRAS = 2;
+export const EXTRAS_MAX = 3;
 // Le serveur garde la session 360 min : au-delà de 330, on en demande une autre
 export const SESSION_SAFE_MINUTES = 330;
 
@@ -386,14 +412,42 @@ export function pickDeclicExtras({
     .map((c) => c.item);
 }
 
+// Ajouts à la révision du serveur : 2 mots et 2 déclics au plus, 3 en tout,
+// en alternant (mots ratés et déclics ratés d'abord, voir pickRevision)
+export function pickServerExtras({
+  declics,
+  words,
+  history,
+  yesterdayKeys,
+  random,
+}: {
+  declics: readonly Declic[];
+  words: readonly WordCandidate[];
+  history: SeenHistory;
+  yesterdayKeys: readonly string[];
+  random: () => number;
+}): PlanItem[] {
+  const fromDeclics = pickDeclicExtras({ declics, history, yesterdayKeys, random });
+  const wordCandidates = buildCandidates({ lessons: [], declics: [], history, lessonDoneAt: () => null, random, words });
+  const fromWords = pickRevision({ candidates: wordCandidates, lessonsDone: 0, yesterday: { keys: yesterdayKeys }, random })
+    .slice(0, WORD_EXTRAS)
+    .map((c) => c.item);
+  const out: PlanItem[] = [];
+  for (let i = 0; out.length < EXTRAS_MAX && (i < fromWords.length || i < fromDeclics.length); i++) {
+    if (fromWords[i]) out.push(fromWords[i]);
+    if (out.length < EXTRAS_MAX && fromDeclics[i]) out.push(fromDeclics[i]);
+  }
+  return out;
+}
+
 // Écrans joués : ceux du serveur (positions 0…n-1, celles qu'attend
 // /complete), puis les déclics
 export function serverRevisionLesson(rec: ServerRevision): { title: string; screens: unknown[]; serverCount: number; extraKeys: string[] } {
   const own = rec.session?.screens ?? [];
-  const extras = rec.extras.filter((i): i is Extract<PlanItem, { kind: 'declic' }> => i.kind === 'declic');
+  const extras = rec.extras.filter((i) => i.kind === 'declic' || i.kind === 'word');
   return {
     title: 'Révision',
-    screens: [...own, ...extras.map((item, i) => quizScreen(item.question, own.length + i))],
+    screens: [...own, ...extras.map((item, i) => (item.kind === 'word' ? item.screen : item.kind === 'declic' ? quizScreen(item.question, own.length + i) : null))],
     serverCount: own.length,
     extraKeys: extras.map((i) => i.key),
   };

@@ -5,6 +5,7 @@ import AppText from '@/src/components/common/AppText';
 import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { DictionaryEntry, highlightRange } from '@/src/utils/dictionary';
+import { type WordState, wordStateLabel } from '@/src/utils/wordStates';
 
 // Hauteurs FIXES : la liste A-Z (centaines de mots) saute à une lettre par
 // calcul, sans mesurer les lignes. Le texte est plafonné à ROW_MAX_SCALE pour
@@ -15,6 +16,8 @@ const TERM_LINE = 22;
 const DEF_LINE = 20;
 const GAP = 2;
 const CHEVRON = 18;
+const MARK = 16;
+const DOT = 6;
 
 export function termRowHeight(fontScale: number): number {
   const m = Math.min(Math.max(fontScale, 1), ROW_MAX_SCALE);
@@ -31,11 +34,13 @@ type TermRowProps = {
   last?: boolean;
   // Place laissée à droite (index alphabétique)
   paddingRight?: number;
+  // État du mot : rien (pas encore vu), un point (vu), une coche dorée (maîtrisé)
+  state?: WordState;
   onPress: () => void;
 };
 
 // Ligne d'un mot : terme et catégorie, définition sur une ligne, chevron
-export default function TermRow({ entry, height, query = '', last = false, paddingRight = space[5], onPress }: TermRowProps) {
+export default function TermRow({ entry, height, query = '', last = false, paddingRight = space[5], state = 'nouveau', onPress }: TermRowProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const range = query ? highlightRange(entry.term, query) : null;
@@ -44,7 +49,7 @@ export default function TermRow({ entry, height, query = '', last = false, paddi
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${entry.term}, ${entry.category}. ${entry.definition}`}
+      accessibilityLabel={`${entry.term}, ${entry.category}${state !== 'nouveau' ? `, ${wordStateLabel(state).toLowerCase()}` : ''}. ${entry.definition}`}
       style={({ pressed }) => [
         styles.row,
         { height, paddingRight },
@@ -76,6 +81,13 @@ export default function TermRow({ entry, height, query = '', last = false, paddi
         <AppText variant="callout" tone="subtitle" numberOfLines={1} maxFontSizeMultiplier={ROW_MAX_SCALE}>
           {entry.definition}
         </AppText>
+      </View>
+      <View style={styles.mark}>
+        {state === 'maitrise' ? (
+          <Ionicons name="checkmark" size={MARK} color={colors.gold} />
+        ) : state === 'vu' ? (
+          <View style={[styles.dot, { backgroundColor: colors.subtitle }]} />
+        ) : null}
       </View>
       <Ionicons name="chevron-forward" size={CHEVRON} color={colors.subtitle} />
     </Pressable>
@@ -121,6 +133,17 @@ const styles = StyleSheet.create({
   category: {
     flexShrink: 0,
     maxWidth: '45%',
+  },
+  // Place fixe de la marque d'état : les chevrons restent alignés
+  mark: {
+    width: MARK,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dot: {
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
   },
   header: {
     height: LETTER_HEADER_HEIGHT,

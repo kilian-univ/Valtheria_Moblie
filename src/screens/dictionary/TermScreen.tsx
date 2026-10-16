@@ -15,7 +15,8 @@ import ValBubble from '@/src/components/common/ValBubble';
 import { Reserved, TermSkeleton } from '@/src/components/dictionary/DictionaryStates';
 import NeighborButtons from '@/src/components/dictionary/NeighborButtons';
 import TermIllustration from '@/src/components/dictionary/TermIllustration';
-import TermQuiz from '@/src/components/dictionary/TermQuiz';
+import ReliefCard from '@/src/components/common/ReliefCard';
+import Button from '@/src/components/common/Button';
 import TermRow from '@/src/components/dictionary/TermRow';
 import { fonts, palette, size, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { Module, useApi } from '@/src/context/ApiContext';
@@ -23,9 +24,12 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { useDictionary, useDictionaryFavorites, useDictionaryRecents } from '@/src/hooks/useDictionary';
 import { OFFLINE_BANNER } from '@/src/hooks/useLearningData';
 import { learningStore } from '@/src/state/learningStore';
-import { DictionaryLesson, findEntry, neighbors, sameFamily, shareMessage } from '@/src/utils/dictionary';
+import { DictionaryLesson, findEntry, neighbors, sameFamily, shareMessage, wordQuestionFormats } from '@/src/utils/dictionary';
+import { useWordLessons } from '@/src/hooks/useWordLessons';
+import { markWordSeen, useWordStates } from '@/src/state/wordStates';
+import { lessonsOfWord } from '@/src/utils/wordLessonIndex';
+import { type WordState, wordState, wordStateLabel } from '@/src/utils/wordStates';
 import { dictionaryTermHref, termHref } from '@/src/utils/dictionaryLinks';
-import { markDiscovered } from '@/src/state/discoveredWords';
 import { userKeyOf } from '@/src/state/userMemory';
 import { feedback } from '@/src/utils/feedback';
 import { select, tap } from '@/src/utils/haptics';
@@ -34,6 +38,50 @@ import IconButton from '@/src/components/common/IconButton';
 const TERM_SIZE = 40;
 const VAL_DIAMETER = 56;
 const ACTION_ICON = 22;
+// « Tu le croises dans » : 2 leçons au plus
+const CROSSED_MAX = 2;
+
+// État du mot sous son titre : un point pour « Vu », une coche dorée pour
+// « Maîtrisé »
+function WordStateTag({ state }: { state: WordState }) {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  const mastered = state === 'maitrise';
+  return (
+    <View style={styles.stateRow} accessible accessibilityLabel={`État : ${wordStateLabel(state)}`}>
+      {mastered ? (
+        <Ionicons name="checkmark-circle" size={16} color={colors.gold} />
+      ) : (
+        <View style={[styles.stateDot, { backgroundColor: colors.subtitle }]} />
+      )}
+      <AppText variant="caption" style={{ color: mastered ? colors.gold : colors.subtitle }}>
+        {wordStateLabel(state)}
+      </AppText>
+    </View>
+  );
+}
+
+// « Teste-toi » : une carte qui ouvre le test sur ce mot, en plein écran
+function TestCard({ mastered, onStart }: { mastered: boolean; onStart: () => void }) {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  return (
+    <ReliefCard>
+      <View style={styles.testHead}>
+        <Ionicons name="flash" size={14} color={colors.gold} />
+        <AppText variant="sectionLabel" accessibilityRole="header">
+          Teste-toi
+        </AppText>
+      </View>
+      <AppText variant="body" style={styles.testText}>
+        {mastered
+          ? 'Tu le maîtrises déjà. Envie de vérifier ?'
+          : 'Une ou deux questions sur ce mot, définition cachée. Réussis et il passe à « Maîtrisé ».'}
+      </AppText>
+      <Button label="Me tester" icon="flash" onPress={onStart} style={styles.testButton} />
+    </ReliefCard>
+  );
+}
 
 function moduleOfLesson(modules: Module[], lessonId: number): Module | null {
   return modules.find((m) => (m.lessons ?? []).some((l) => l.id === lessonId)) ?? null;
@@ -65,11 +113,26 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
   useEffect(() => {
     if (openedTerm) addRecent(openedTerm);
   }, [openedTerm, addRecent]);
-  // … et le compte parmi les mots découverts (la première fois seulement)
+  // … et le marque « Vu » (la première fois seulement)
   const userKey = userKeyOf(user?.id);
   useEffect(() => {
-    if (openedTerm) markDiscovered(userKey, openedTerm).catch(() => {});
+    if (openedTerm) markWordSeen(userKey, openedTerm).catch(() => {});
   }, [openedTerm, userKey]);
+  const wordMemory = useWordStates(userKey);
+  const state = entry && wordMemory ? wordState(wordMemory, entry.term) : null;
+  // Leçons où le mot apparaît : celles du serveur s'il les envoie, sinon
+  // l'index construit sur le téléphone (2 au plus)
+  const wordLessons = useWordLessons(data.entries);
+  const croised: DictionaryLesson[] = entry
+    ? (entry.lessons ??
+        (wordLessons
+          ? lessonsOfWord(wordLessons.index, entry.term)
+              .map((id) => ({ id, title: wordLessons.lessons.get(id)?.title ?? '' }))
+              .filter((l) => l.title !== '')
+          : [])
+      ).slice(0, CROSSED_MAX)
+    : [];
+  const testable = entry ? wordQuestionFormats(data.entries, entry).length > 0 : false;
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/dictionary'));
   const href = (t: string, c?: string | null) => (standalone ? termHref(t, c) : dictionaryTermHref(t, c));
@@ -164,6 +227,7 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
             </AppText>
             <TermIllustration category={entry.category} />
           </View>
+          {state && state !== 'nouveau' ? <WordStateTag state={state} /> : null}
           <AppText maxFontSizeMultiplier={1.6} style={[styles.definition, { color: colors.text }]}>
             {entry.definition}
           </AppText>
@@ -177,11 +241,16 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
           </StaggerItem>
         ) : null}
 
-        <StaggerItem index={2}>
-          <View style={styles.block}>
-            <TermQuiz key={entry.term} entries={data.entries} entry={entry} onOpenTerm={replaceTerm} />
-          </View>
-        </StaggerItem>
+        {testable ? (
+          <StaggerItem index={2}>
+            <View style={styles.block}>
+              <TestCard
+                mastered={state === 'maitrise'}
+                onStart={() => router.push({ pathname: '/dictionnaire/test', params: { term: entry.term } })}
+              />
+            </View>
+          </StaggerItem>
+        ) : null}
 
         {family.length > 0 ? (
           <StaggerItem index={3}>
@@ -198,20 +267,25 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
           </StaggerItem>
         ) : null}
 
-        {entry.lessons ? (
+        {croised.length > 0 ? (
           <StaggerItem index={4}>
-            <View style={[styles.block, styles.listRows]}>
-              {entry.lessons.map((lesson, i) => (
-                <ListRow
-                  key={lesson.id}
-                  title={`Vu dans la leçon ${lesson.title}`}
-                  leading={<Ionicons name="school-outline" size={size.icon} color={colors.gold} />}
-                  showChevron
-                  last={i === entry.lessons!.length - 1}
-                  onPress={() => openLesson(lesson)}
-                  accessibilityHint="Ouvre le module de cette leçon"
-                />
-              ))}
+            <View style={styles.block}>
+              <AppText variant="sectionLabel" style={styles.label}>
+                Tu le croises dans
+              </AppText>
+              <View style={styles.listRows}>
+                {croised.map((lesson, i) => (
+                  <ListRow
+                    key={lesson.id}
+                    title={lesson.title}
+                    leading={<Ionicons name="school-outline" size={size.icon} color={colors.gold} />}
+                    showChevron
+                    last={i === croised.length - 1}
+                    onPress={() => openLesson(lesson)}
+                    accessibilityHint="Ouvre le module de cette leçon"
+                  />
+                ))}
+              </View>
             </View>
           </StaggerItem>
         ) : null}
@@ -300,6 +374,29 @@ const styles = StyleSheet.create({
     lineHeight: 46,
     letterSpacing: titleLetterSpacing(TERM_SIZE),
     marginTop: space[2],
+  },
+  stateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: space[2],
+  },
+  stateDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+  },
+  testHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  testText: {
+    marginTop: space[2],
+  },
+  testButton: {
+    marginTop: space[4],
   },
   definition: {
     fontFamily: fonts.body,

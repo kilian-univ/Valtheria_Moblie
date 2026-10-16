@@ -41,6 +41,7 @@ import { feedback } from '@/src/utils/feedback';
 import { celebrate, error as errorHaptic, success as successHaptic } from '@/src/utils/haptics';
 import { addToNotebook } from '@/src/state/notebook';
 import { recordLessonDone } from '@/src/state/learningLog';
+import { saveLessonText } from '@/src/state/lessonTexts';
 import { cachedLesson, rememberLesson } from '@/src/state/revisionMemory';
 import { recordLessonXp } from '@/src/state/weekJournal';
 import { userKeyOf } from '@/src/state/userMemory';
@@ -139,7 +140,7 @@ export type DiscoveryMode = {
   // false : pas de rattrapage des questions ratées (test du carnet, révision)
   retry?: boolean;
   // Sortie sans écran précédent (choix de l'objectif par défaut)
-  exitTo?: '/bienvenue/objectif' | '/client/carnet' | '/apprendre';
+  exitTo?: '/bienvenue/objectif' | '/client/carnet' | '/apprendre' | '/dictionary';
 };
 
 export default function ApprendreDetailScreen({ discovery }: { discovery?: DiscoveryMode } = {}) {
@@ -236,6 +237,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
         // Forme du serveur → format interne : tout se passe dans lesson/normalize.ts
         const lesson = normalizeLesson(data);
         rawLesson.current = data;
+        // Texte gardé : il relie les mots du Dictionnaire à cette leçon
+        saveLessonText(Number(id), data);
 
         // DIAGNOSTIC : résumé de la leçon + JSON complet des types pas encore construits
         console.log(
