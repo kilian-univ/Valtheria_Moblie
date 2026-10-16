@@ -14,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { TAB_ROUTES } from '@/src/constants/tabs';
-import { backgroundHalo, palette } from '@/src/constants/style/Style';
+import { backgroundGrain, backgroundHalo, palette } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { Corner, cornerForPath, oppositeCorner } from '@/src/utils/backgroundCorner';
 
@@ -24,7 +24,7 @@ const TABS = TAB_ROUTES.map((t) => t.name);
 // Changement de coin
 const MOVE_MS = 700;
 const FADE_MS = 160;
-const GRAIN_OPACITY = 0.05;
+const GRAIN_OPACITY = backgroundGrain;
 // Masque SVG : le blanc laisse voir, la transparence efface (indépendant du thème)
 const MASK_WHITE = '#FFFFFF';
 
@@ -110,7 +110,7 @@ function Backdrop({ frame }: { frame: (gradient: ReactNode, square: object) => R
     >
       {frame(gradient, square)}
 
-      {/* Grain : tuile de 128 × 128 px répétée, à 5 % */}
+      {/* Grain : tuile de 128 × 128 px répétée, très légère (backgroundGrain) */}
       <Image
         source={GRAIN}
         resizeMode="repeat"

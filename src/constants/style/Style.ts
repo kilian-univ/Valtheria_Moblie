@@ -220,6 +220,9 @@ export const universeCard = {
 // Lueur dorée derrière l'en-tête du profil : or au cœur, diamètre
 export const headerGlow = { opacity: 0.16, size: 300 } as const;
 
+// Grain du fond commun : juste assez pour lisser les dégradés des halos
+export const backgroundGrain = 0.02;
+
 export const backgroundHalo = {
   night: { color: '#4664AA', opacity: 0.3, reach: 0.78 },
   gold: { color: '#C9A84C', opacity: 0.2, reach: 0.7 },

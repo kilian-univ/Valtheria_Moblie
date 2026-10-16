@@ -13,7 +13,7 @@ import { useWeekJournal } from '@/src/state/weekJournal';
 import { userKeyOf } from '@/src/state/userMemory';
 import { discoveredCount } from '@/src/utils/discoveredWords';
 import { success } from '@/src/utils/haptics';
-import { levelInfo, nextUniverse, objectiveProgress, serverObjective } from '@/src/utils/profile';
+import { levelInfo, nearestUniverseWithLessons, nextUniverse, objectiveProgress, serverObjective } from '@/src/utils/profile';
 import { weekSummary } from '@/src/utils/weekJournal';
 
 // Données du profil et des réglages : compte, niveau, série, objectif,
@@ -62,6 +62,10 @@ export function useProfile() {
   };
 
   const finished = progress.total > 0 && progress.done >= progress.total;
+  // Univers sans leçon publiée (une fois les données chargées) : l'univers le
+  // plus proche qui en a, sinon les leçons découvertes
+  const noLessons = !learning.isLoading && progress.total === 0;
+  const nearest = noLessons ? nearestUniverseWithLessons(objectiveSlug, learning.universes, learning.modules) : null;
   const after = finished ? nextUniverse(objectiveSlug, learning.universes, learning.modules) : null;
 
   const declics = useNotebook(userKey) ?? [];
@@ -82,6 +86,8 @@ export function useProfile() {
     objectiveSlug,
     progress,
     finished,
+    noLessons,
+    nearestUniverse: nearest,
     nextUniverse: after,
     week,
     changeObjective,

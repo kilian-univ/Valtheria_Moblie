@@ -1,6 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   RefreshControl,
   ScrollView,
   SectionList,
@@ -11,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BackdropFade } from '@/src/components/common/AppBackground';
 import AppText from '@/src/components/common/AppText';
 import PageState from '@/src/components/common/PageState';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
@@ -31,6 +34,7 @@ import {
   DictionaryEntry,
   letterSections,
   normalizeText,
+  stuckLetter,
   entriesForTerms,
   searchEntries,
   suggestions,
@@ -124,6 +128,25 @@ export default function DictionaryHomeScreen() {
     }
     return items;
   }, [sections, headerH, letterH, rowH]);
+
+  // En-têtes de lettre : leur position dans la liste. Celui arrivé en haut
+  // est redessiné, collé, sur une copie du fond commun avec un fondu en bas
+  // (pas de bande opaque), et seulement à ce moment-là.
+  const headerOffsets = useMemo(() => {
+    const out: { title: string; offset: number }[] = [];
+    let offset = headerH;
+    for (const s of sections) {
+      out.push({ title: s.title, offset });
+      offset += letterH + s.data.length * rowH;
+    }
+    return out;
+  }, [sections, headerH, letterH, rowH]);
+  const [stuck, setStuck] = useState<string | null>(null);
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (searching) return;
+    // Même valeur : React ne refait pas le rendu
+    setStuck(stuckLetter(headerOffsets, e.nativeEvent.contentOffset.y, insets.top));
+  };
 
   const jumpToLetter = (letter: string) => {
     const sectionIndex = sections.findIndex((s) => s.title === letter);
@@ -279,7 +302,10 @@ export default function DictionaryHomeScreen() {
         renderSectionHeader={({ section }: { section: SectionListData<DictionaryEntry, Section> }) =>
           searching ? null : <LetterHeader letter={section.title} />
         }
-        stickySectionHeadersEnabled={!searching}
+        // Collage dessiné par l'écran (StuckLetter), pas par la liste
+        stickySectionHeadersEnabled={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         getItemLayout={(_data, index) => ({ ...(layout[index] ?? { length: 0, offset: 0 }), index })}
         ListHeaderComponent={header}
         ListEmptyComponent={
@@ -302,6 +328,7 @@ export default function DictionaryHomeScreen() {
           ) : undefined
         }
       />
+      {stuck && !searching && ready ? <StuckLetter letter={stuck} top={insets.top} /> : null}
       {showIndex ? (
         <View style={[styles.index, { top: insets.top + INDEX_TOP }]} pointerEvents="box-none">
           <AlphabetIndex available={available} onLetter={jumpToLetter} />
@@ -311,7 +338,27 @@ export default function DictionaryHomeScreen() {
   );
 }
 
+// En-tête de lettre collé en haut : copie du fond commun (zone de l'heure
+// comprise) puis un léger fondu en bas ; les mots passent dessous
+const STUCK_FADE = 16;
+function StuckLetter({ letter, top }: { letter: string; top: number }) {
+  return (
+    <View pointerEvents="none" style={[styles.stuck, { height: top + LETTER_HEADER_HEIGHT + STUCK_FADE }]}>
+      <BackdropFade tab="dictionary" top={0} height={top + LETTER_HEADER_HEIGHT + STUCK_FADE} direction="out" solid={top + LETTER_HEADER_HEIGHT} />
+      <View style={{ marginTop: top }}>
+        <LetterHeader letter={letter} />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  stuck: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
   screen: {
     flex: 1,
   },

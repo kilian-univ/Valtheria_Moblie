@@ -37,6 +37,7 @@ import {
   suggestions,
   termLetter,
   wordOfTheDay,
+  stuckLetter,
   type DictionaryEntry,
   type Quiz,
   type QuizRejection,
@@ -705,4 +706,20 @@ test('garde-fou : un tirage trahi ou presque tout masqué est écarté, on tire 
   assert.ok(rejected.includes('indice'));
   assert.equal(tooMasked('… … sur les ….'), true);
   assert.equal(tooMasked('Somme perçue chaque mois.'), false);
+});
+
+test('en-tête de lettre collé : seulement quand une lettre a atteint le haut', () => {
+  // Liste : en-tête de 300 px, puis A à 300, B à 500, C à 800 ; zone de l'heure : 50
+  const headers = [
+    { title: 'A', offset: 300 },
+    { title: 'B', offset: 500 },
+    { title: 'C', offset: 800 },
+  ];
+  assert.equal(stuckLetter(headers, 0, 50), null);
+  assert.equal(stuckLetter(headers, 249, 50), null);
+  assert.equal(stuckLetter(headers, 250, 50), 'A');
+  assert.equal(stuckLetter(headers, 449, 50), 'A');
+  assert.equal(stuckLetter(headers, 450, 50), 'B');
+  assert.equal(stuckLetter(headers, 5000, 50), 'C');
+  assert.equal(stuckLetter([], 900, 50), null);
 });

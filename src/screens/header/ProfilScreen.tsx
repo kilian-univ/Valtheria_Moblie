@@ -22,7 +22,7 @@ import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { useProfile } from '@/src/hooks/useProfile';
-import type { Objective } from '@/src/lesson/discovery';
+import { discoveryLesson, type Objective } from '@/src/lesson/discovery';
 import { initialOf, lastMedalDays, levelA11y, medalsEarned } from '@/src/utils/profile';
 import { MEDALS } from '@/src/utils/streakRewards';
 import { universeTint } from '@/src/utils/universeTint';
@@ -149,10 +149,18 @@ export default function ProfileScreen() {
           title={p.objectiveLabel}
           done={p.progress.done}
           total={p.progress.total}
+          emptyMessage={p.noLessons ? 'Les leçons de cet univers arrivent bientôt.' : null}
           next={
             next
               ? { title: next.lesson.title, onPress: () => launch(next.lesson), accessibilityLabel: `Prochaine leçon : ${next.lesson.title}` }
-              : p.progress.universe && !p.finished
+              : p.noLessons
+                ? p.nearestUniverse
+                  ? { title: `Univers ${p.nearestUniverse.name}`, onPress: () => openUniverse(p.nearestUniverse!.id), accessibilityLabel: `En attendant, l’univers ${p.nearestUniverse.name}` }
+                  : {
+                      title: `Leçon découverte : ${discoveryLesson(p.objective).title ?? ''}`,
+                      onPress: () => router.push({ pathname: '/bienvenue/lecon', params: { objectif: p.objective, depuis: 'accueil' } }),
+                    }
+                : p.progress.universe && !p.finished
                 ? { title: `Voir l’univers ${p.progress.universe.name}`, onPress: () => openUniverse(p.progress.universe!.id) }
                 : null
           }

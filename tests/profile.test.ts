@@ -3,6 +3,7 @@
 // Profil : niveau, carnet de déclics et son test, mots découverts, rappel
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { discoveryLesson, OBJECTIVES } from '../src/lesson/discovery';
@@ -26,6 +27,7 @@ import {
   levelFromXp,
   levelInfo,
   medalsEarned,
+  nearestUniverseWithLessons,
   nextUniverse,
   serverObjective,
   truncateEmail,
@@ -258,4 +260,34 @@ test('univers terminé : le suivant conseillé ; dernière médaille gagnée', (
   assert.equal(lastMedalDays(0, 0), null);
   assert.equal(lastMedalDays(6, 2), 3);
   assert.equal(lastMedalDays(0, 31), 30);
+});
+
+test('univers sans leçon publiée : le plus proche qui en a, sinon les leçons découvertes', () => {
+  const lessons = (n: number) => Array.from({ length: n }, (_, i) => ({ id: i + 1, slug: '', title: '', xp_reward: 0, completed: false }));
+  const modules = [
+    { id: 1, slug: 'a', title: 'A', lessons_count: 2, lessons_completed: 0, lessons: lessons(2) },
+    { id: 4, slug: 'd', title: 'D', lessons_count: 3, lessons_completed: 0, lessons: lessons(3) },
+    { id: 5, slug: 'e', title: 'E', lessons_count: 0, lessons_completed: 0, lessons: [] },
+  ];
+  const u = (id: number, slug: string, position: number, moduleIds: number[]) => ({ id, slug, name: slug, description: null, position, moduleIds });
+  const universes = [u(1, 'un', 1, [1]), u(2, 'vide', 3, [5]), u(3, 'trois', 4, [4]), u(4, 'loin', 9, [])];
+  // « vide » (position 3) : « trois » (4) est plus proche que « un » (1)
+  assert.equal(nearestUniverseWithLessons('vide', universes, modules)?.slug, 'trois');
+  // Univers inconnu du serveur : le premier qui a des leçons
+  assert.equal(nearestUniverseWithLessons('absent', universes, modules)?.slug, 'un');
+  // Aucun univers avec des leçons : null (les leçons découvertes prennent le relais)
+  assert.equal(nearestUniverseWithLessons('vide', universes, []), null);
+  // La carte n'affiche alors ni barre ni « 0 / 0 »
+  const card = readFileSync(new URL('../src/components/common/UniverseCard.tsx', import.meta.url), 'utf8');
+  assert.match(card, /\{emptyMessage \? \(/);
+  const profile = readFileSync(new URL('../src/screens/header/ProfilScreen.tsx', import.meta.url), 'utf8');
+  assert.ok(profile.includes('Les leçons de cet univers arrivent bientôt.'));
+});
+
+test('fond commun : grain à 2 %, en jeton ; accès du profil jamais coupés', () => {
+  const style = readFileSync(new URL('../src/constants/style/Style.ts', import.meta.url), 'utf8');
+  assert.match(style, /export const backgroundGrain = 0\.02;/);
+  assert.ok(readFileSync(new URL('../src/components/common/AppBackground.tsx', import.meta.url), 'utf8').includes('const GRAIN_OPACITY = backgroundGrain;'));
+  const tile = readFileSync(new URL('../src/components/profile/AccessTile.tsx', import.meta.url), 'utf8');
+  assert.ok(!tile.includes('numberOfLines'), 'aucun texte coupé');
 });

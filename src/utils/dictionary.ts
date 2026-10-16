@@ -879,3 +879,15 @@ export function isUnauthorized(err: unknown): boolean {
 export function wordsLabel(count: string | number, n: number): string {
   return `${count} ${n >= 2 ? 'mots' : 'mot'}`;
 }
+
+// En-tête de lettre collé en haut de la liste : la dernière lettre dont
+// l'en-tête a atteint le haut (offset dans la liste, moins la zone de
+// l'heure) ; null tant qu'aucune n'y est arrivée
+export function stuckLetter(headers: readonly { title: string; offset: number }[], scrollY: number, top: number): string | null {
+  let found: string | null = null;
+  for (const h of headers) {
+    if (h.offset - top <= scrollY) found = h.title;
+    else break;
+  }
+  return found;
+}

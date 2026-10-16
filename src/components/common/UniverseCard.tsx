@@ -29,6 +29,8 @@ type UniverseCardProps = {
   next?: { title: string; onPress: () => void; accessibilityLabel?: string } | null;
   // Univers terminé : le message, et un lien éventuel (univers suivant)
   finished?: { title: string; link?: { label: string; onPress: () => void } } | null;
+  // Aucune leçon publiée : ce message à la place de la barre et du compte
+  emptyMessage?: string | null;
 };
 
 // Carte de couleur sombre : fond blanc à 3 %, filet fin, liseré vertical à la
@@ -36,7 +38,7 @@ type UniverseCardProps = {
 // PROGRESSION (utils/universeGlow). La lueur glisse vers sa nouvelle position
 // quand la progression change (animations réduites : directement). Texte
 // toujours ivoire ou atténué, jamais sombre sur un aplat de couleur.
-export default function UniverseCard({ color, label, labelAction, title, done, total, next, finished }: UniverseCardProps) {
+export default function UniverseCard({ color, label, labelAction, title, done, total, next, finished, emptyMessage }: UniverseCardProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const ratio = total > 0 ? Math.min(1, done / total) : 0;
@@ -67,18 +69,24 @@ export default function UniverseCard({ color, label, labelAction, title, done, t
         {title}
       </AppText>
 
-      <View
-        style={styles.progress}
-        accessible
-        accessibilityLabel={`${done} ${done > 1 ? 'leçons terminées' : 'leçon terminée'} sur ${total}`}
-      >
-        <View style={[styles.track, { backgroundColor: colors.track }]}>
-          <View style={[styles.fill, { width: `${Math.round(shown * 1000) / 10}%`, backgroundColor: color }]} />
-        </View>
-        <AppText maxFontSizeMultiplier={1.3} style={styles.count}>
-          {`${done} / ${total}`}
+      {emptyMessage ? (
+        <AppText variant="callout" tone="subtitle" style={styles.empty}>
+          {emptyMessage}
         </AppText>
-      </View>
+      ) : (
+        <View
+          style={styles.progress}
+          accessible
+          accessibilityLabel={`${done} ${done > 1 ? 'leçons terminées' : 'leçon terminée'} sur ${total}`}
+        >
+          <View style={[styles.track, { backgroundColor: colors.track }]}>
+            <View style={[styles.fill, { width: `${Math.round(shown * 1000) / 10}%`, backgroundColor: color }]} />
+          </View>
+          <AppText maxFontSizeMultiplier={1.3} style={styles.count}>
+            {`${done} / ${total}`}
+          </AppText>
+        </View>
+      )}
 
       {finished ? (
         <View style={styles.finished}>
@@ -186,6 +194,9 @@ const styles = StyleSheet.create({
   },
   finished: {
     gap: space[1],
+  },
+  empty: {
+    marginTop: space[2],
   },
   nextRow: {
     flexDirection: 'row',

@@ -82,13 +82,12 @@ export default function TermRow({ entry, height, query = '', last = false, paddi
   );
 }
 
-// Intitulé de lettre, collant en haut de la liste (fond opaque : les lignes
-// passent dessous)
+// Intitulé de lettre dans la liste : transparent (le fond commun se voit).
+// Arrivé en haut, c'est la copie collée de l'écran qui prend le relais
+// (StuckLetterHeader, accueil du Dictionnaire).
 export function LetterHeader({ letter }: { letter: string }) {
-  const { colorScheme } = useTheme();
-  const colors = palette[colorScheme];
   return (
-    <View style={[styles.header, { backgroundColor: colors.background }]}>
+    <View style={styles.header}>
       <AppText variant="sectionLabel" accessibilityRole="header">
         {letter}
       </AppText>

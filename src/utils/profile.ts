@@ -102,6 +102,19 @@ export function nextUniverse(slug: string, universes: Universe[], modules: Modul
   );
 }
 
+// Univers sans leçon publiée : le plus proche (par position) qui en a, sinon
+// null (les leçons découvertes prennent le relais)
+export function nearestUniverseWithLessons(slug: string, universes: Universe[], modules: Module[]): Universe | null {
+  const sorted = [...universes].sort((a, b) => a.position - b.position || a.id - b.id);
+  const own = sorted.find((u) => u.slug === slug);
+  const withLessons = sorted.filter(
+    (u) => u.slug !== slug && universeEntry(u, modules).modules.some((m) => totalCount(m) > 0)
+  );
+  if (withLessons.length === 0) return null;
+  if (!own) return withLessons[0];
+  return withLessons.reduce((best, u) => (Math.abs(u.position - own.position) < Math.abs(best.position - own.position) ? u : best));
+}
+
 // Dernière médaille gagnée (nombre de jours), sinon null
 export function lastMedalDays(best: number, streak: number): number | null {
   const reached = Math.max(best || 0, streak || 0);

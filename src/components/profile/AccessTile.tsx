@@ -40,12 +40,13 @@ export default function AccessTile({ icon, value, unit, caption, onPress, access
       <View style={styles.icon}>{icon}</View>
       <View style={styles.texts}>
         {value ? (
-          <AppText maxFontSizeMultiplier={1.3} style={styles.value} numberOfLines={1}>
+          <AppText maxFontSizeMultiplier={1.3} style={styles.value}>
             {value}
             {unit ? <AppText style={[styles.unit, { color: colors.subtitle }]}>{` ${unit}`}</AppText> : null}
           </AppText>
         ) : null}
-        <AppText variant="caption" tone="subtitle" maxFontSizeMultiplier={1.3} numberOfLines={2}>
+        {/* Jamais coupée : elle passe sur plusieurs lignes s'il le faut */}
+        <AppText variant="caption" tone="subtitle" maxFontSizeMultiplier={1.3} style={styles.caption}>
           {caption}
         </AppText>
       </View>
@@ -83,6 +84,10 @@ const styles = StyleSheet.create({
   },
   unit: {
     fontFamily: fonts.bodyMedium,
+  },
+  caption: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   square: {
     width: ICON,
