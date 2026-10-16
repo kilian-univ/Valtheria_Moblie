@@ -18,10 +18,12 @@ type ReminderSettingRowProps = {
   rowStyle: StyleProp<ViewStyle>;
   leftStyle: StyleProp<ViewStyle>;
   labelStyle: StyleProp<TextStyle>;
+  // Taille de l'icône (18 par défaut, 20 dans les Réglages)
+  iconSize?: number;
 };
 
 // Réglage du profil : changer l'heure du rappel quotidien, ou le couper
-export default function ReminderSettingRow({ rowStyle, leftStyle, labelStyle }: ReminderSettingRowProps) {
+export default function ReminderSettingRow({ rowStyle, leftStyle, labelStyle, iconSize = 18 }: ReminderSettingRowProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
@@ -78,7 +80,7 @@ export default function ReminderSettingRow({ rowStyle, leftStyle, labelStyle }: 
         accessibilityLabel={`Rappel quotidien, ${value}`}
       >
         <View style={leftStyle}>
-          <Ionicons name="notifications-outline" size={18} color={colors.subtitle} />
+          <Ionicons name="notifications-outline" size={iconSize} color={colors.subtitle} />
           <AppText style={labelStyle}>Rappel quotidien</AppText>
         </View>
         <AppText variant="callout" tone="subtitle">

@@ -1,371 +1,241 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import ValsCoin from '@/src/components/common/ValsCoin';
-import Header from '@/src/components/topbar/header';
-import {
-  getBasiquesStyles,
-  getBoutonStyles,
-  getProfileStyles,
-  palette,
-  fonts,
-} from '@/src/constants/style/Style';
+import StreakSheet from '@/src/components/apprendre/home/StreakSheet';
+import AppText from '@/src/components/common/AppText';
+import BackButton from '@/src/components/common/BackButton';
+import IconButton from '@/src/components/common/IconButton';
+import { ProfileSkeleton } from '@/src/components/common/ScreenSkeletons';
+import NotebookCard from '@/src/components/profile/NotebookCard';
+import ObjectiveCard from '@/src/components/profile/ObjectiveCard';
+import ObjectiveSheet from '@/src/components/profile/ObjectiveSheet';
+import ProfileAvatar from '@/src/components/profile/ProfileAvatar';
+import RingTile from '@/src/components/profile/RingTile';
+import StatBand from '@/src/components/profile/StatBand';
+import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { clearLastProfile } from '@/src/state/lastProfile';
-import { ProfileSkeleton } from '@/src/components/common/ScreenSkeletons';
-import ReminderSettingRow from '@/src/components/onboarding/ReminderSettingRow';
-import SoundSettingRow from '@/src/components/common/SoundSettingRow';
+import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
+import { useProfile } from '@/src/hooks/useProfile';
+import type { Objective } from '@/src/lesson/discovery';
+import { shortQuote } from '@/src/utils/notebook';
+import { initialOf, levelA11y, medalsEarned } from '@/src/utils/profile';
+import { MEDALS } from '@/src/utils/streakRewards';
+import { universeTint } from '@/src/utils/universeTint';
 
+const AVATAR = 76;
+const PSEUDO_SIZE = 26;
+// Petit message après un changement d'objectif
+const NOTICE_MS = 2600;
+
+// Profil (écran poussé, fond commun) : l'en-tête compact (photo et anneau de
+// niveau, pseudo, niveau), la bande de chiffres, la carte de l'objectif, le
+// carnet de déclics, puis les médailles et les mots découverts. La roue
+// dentée ouvre les Réglages. Tient sur un écran d'iPhone standard ; sur
+// iPhone SE et en grand texte, l'écran défile.
 export default function ProfileScreen() {
-  const { user, isLoading, logout, exportUser, deleteAccount, updateUser } = useApi();
-  const { colorScheme, toggleTheme } = useTheme();
+  const { isLoading } = useApi();
+  const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const basiques_styles = getBasiquesStyles(colorScheme);
-  const bouton_styles = getBoutonStyles(colorScheme);
-  const profile_styles = getProfileStyles(colorScheme);
+  const p = useProfile();
+  const { launch } = useLessonLauncher();
 
-  // --- Édition du pseudo ---
-  const [editingPseudo, setEditingPseudo] = useState(false);
-  const [pseudo, setPseudo] = useState(user?.pseudo ?? '');
-  const [pseudoSaving, setPseudoSaving] = useState(false);
-  const [pseudoError, setPseudoError] = useState<string | null>(null);
+  // Feuilles : montées pendant leur animation de fermeture
+  const [objectiveMounted, setObjectiveMounted] = useState(false);
+  const [objectiveOpen, setObjectiveOpen] = useState(false);
+  const [streakMounted, setStreakMounted] = useState(false);
+  const [streakOpen, setStreakOpen] = useState(false);
+  const closeObjective = useCallback(() => setObjectiveOpen(false), []);
+  const unmountObjective = useCallback(() => setObjectiveMounted(false), []);
+  const closeStreak = useCallback(() => setStreakOpen(false), []);
+  const unmountStreak = useCallback(() => setStreakMounted(false), []);
 
-  const savePseudo = async () => {
-    if (!pseudo.trim()) {
-      setPseudoError('Le pseudo ne peut pas être vide.');
-      return;
-    }
-    setPseudoSaving(true);
-    setPseudoError(null);
-    try {
-      await updateUser({ pseudo: pseudo.trim() });
-      setEditingPseudo(false);
-    } catch (err: any) {
-      setPseudoError(err.message || 'Échec de la mise à jour.');
-    } finally {
-      setPseudoSaving(false);
-    }
-  };
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+  }, []);
 
-  // --- Changement de mot de passe ---
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newPasswordConfirmation, setNewPasswordConfirmation] = useState('');
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
-
-  const savePassword = async () => {
-    setPasswordError(null);
-    setPasswordSuccess(false);
-
-    if (!currentPassword || !newPassword || !newPasswordConfirmation) {
-      setPasswordError('Merci de remplir tous les champs.');
-      return;
-    }
-    if (newPassword !== newPasswordConfirmation) {
-      setPasswordError('Les mots de passe ne correspondent pas.');
-      return;
-    }
-
-    setPasswordSaving(true);
-    try {
-      // Hypothèse sur les noms de champs attendus par UserController::update
-      // — à confirmer côté backend (current_password / password / password_confirmation ?)
-      await updateUser({
-        current_password: currentPassword,
-        password: newPassword,
-        password_confirmation: newPasswordConfirmation,
-      } as any);
-      setPasswordSuccess(true);
-      setCurrentPassword('');
-      setNewPassword('');
-      setNewPasswordConfirmation('');
-      setTimeout(() => setShowPasswordForm(false), 1200);
-    } catch (err: any) {
-      setPasswordError(err.message || 'Échec du changement de mot de passe.');
-    } finally {
-      setPasswordSaving(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    // Avant logout() : il déconnecte même si la requête échoue
-    await clearLastProfile();
-    await logout();
-    router.back();
-  };
-
-  const handleExport = async () => {
-    try {
-      const data = await exportUser();
-      console.log('Export RGPD :', data);
-    } catch (err: any) {
-      Alert.alert('Erreur', err.message);
-    }
-  };
-
-  const handleDelete = () => {
-    Alert.alert('Supprimer le compte', 'Cette action est définitive. Confirmer ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteAccount();
-            await clearLastProfile();
-            router.back();
-          } catch (err: any) {
-            Alert.alert('Erreur', err.message);
-          }
-        },
-      },
-    ]);
-  };
-
-  if (isLoading) {
+  if (isLoading || !p.user) {
     return (
-      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-        <Header showBack />
+      <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+        <View style={styles.bar}>
+          <BackButton onBack={() => router.back()} />
+        </View>
         <ProfileSkeleton />
       </SafeAreaView>
     );
   }
 
-  const initial = user?.pseudo?.charAt(0)?.toUpperCase() ?? '?';
+  const pickObjective = async (next: Objective) => {
+    setObjectiveOpen(false);
+    if (next === p.objective) return;
+    const where = await p.changeObjective(next);
+    setNotice(where === 'serveur' ? 'Objectif enregistré.' : 'Objectif enregistré sur ce téléphone.');
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_MS);
+  };
+
+  // Prochaine leçon disponible de l'univers, sinon la page de l'univers
+  const continueObjective = () => {
+    if (p.progress.next) launch(p.progress.next.lesson);
+    else if (p.progress.universe)
+      router.push({ pathname: '/apprendre/univers/[universeId]', params: { universeId: p.progress.universe.id } });
+    else router.navigate('/apprendre');
+  };
+
+  const latest = p.declics[0] ? shortQuote(p.declics[0].text) : null;
+  const medals = medalsEarned(p.best, p.streak);
+  const pseudo = p.user.pseudo ?? '';
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-      <Header showBack />
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <View style={styles.bar}>
+        <BackButton onBack={() => router.back()} />
+        <IconButton
+          icon="settings-outline"
+          variant="filled"
+          onPress={() => router.push('/client/reglages')}
+          accessibilityLabel="Réglages"
+          accessibilityHint="Compte, préférences et données"
+        />
+      </View>
 
-      <ScrollView contentContainerStyle={profile_styles.scroll}>
-        {/* Carte profil */}
-        <View style={profile_styles.card}>
-          <View style={profile_styles.profileHeader}>
-            <View style={profile_styles.avatar}>
-              <Text style={profile_styles.avatarText}>{initial}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={profile_styles.pseudo}>{user?.pseudo}</Text>
-              <Text style={profile_styles.email}>{user?.email}</Text>
-              <View style={profile_styles.badge}>
-                <Text style={profile_styles.badgeText}>
-                  Niveau {user?.level} · {user?.plan}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={profile_styles.statsRow}>
-            <View style={profile_styles.statItem}>
-              <Text style={profile_styles.statValue}>{user?.xp ?? 0}</Text>
-              <Text style={profile_styles.statLabel}>XP</Text>
-            </View>
-            <View style={profile_styles.statItem}>
-              <Text style={profile_styles.statValue}>{user?.vals ?? 0}</Text>
-              <ValsCoin size={18} style={profile_styles.coinIcon} />
-              <Text style={profile_styles.statLabel}>Vals</Text>
-            </View>
-            <View style={profile_styles.statItem}>
-              <Text style={profile_styles.statValue}>{user?.streak ?? 0}</Text>
-              <Text style={profile_styles.statLabel}>Jours de suite</Text>
-            </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* En-tête compact */}
+        <View style={styles.head}>
+          <ProfileAvatar size={AVATAR} initial={initialOf(pseudo)} ratio={p.level.ratio} accessibilityLabel={levelA11y(p.level)} />
+          <View style={styles.headTexts}>
+            <AppText maxFontSizeMultiplier={1.3} style={styles.pseudo} accessibilityRole="header" numberOfLines={1}>
+              {pseudo}
+            </AppText>
+            <AppText variant="caption" tone="subtitle" maxFontSizeMultiplier={1.4} importantForAccessibility="no" accessibilityElementsHidden>
+              <AppText variant="caption" style={[styles.level, { color: colors.gold }]}>
+                {`Niveau ${p.level.level}`}
+              </AppText>
+              {` · encore ${p.level.remaining} XP`}
+            </AppText>
           </View>
         </View>
 
-        {/* Compte */}
-        <View>
-          <Text style={profile_styles.sectionTitle}>Compte</Text>
-          <View style={profile_styles.card}>
-            {/* Pseudo */}
-            <View style={profile_styles.row}>
-              {editingPseudo ? (
-                <View style={{ flex: 1 }}>
-                  <View style={profile_styles.inlineEditRow}>
-                    <TextInput
-                      style={profile_styles.smallInput}
-                      value={pseudo}
-                      onChangeText={setPseudo}
-                      autoCapitalize="none"
-                      autoFocus
-                    />
-                    <Pressable style={profile_styles.smallBtn} onPress={savePseudo} disabled={pseudoSaving}>
-                      {pseudoSaving ? (
-                        <ActivityIndicator size="small" color={colors.onGold} />
-                      ) : (
-                        <Text style={profile_styles.smallBtnText}>OK</Text>
-                      )}
-                    </Pressable>
-                    <Pressable
-                      style={profile_styles.smallBtnSecondary}
-                      onPress={() => {
-                        setEditingPseudo(false);
-                        setPseudo(user?.pseudo ?? '');
-                        setPseudoError(null);
-                      }}
-                    >
-                      <Ionicons name="close" size={16} color={colors.subtitle} />
-                    </Pressable>
-                  </View>
-                  {pseudoError && <Text style={basiques_styles.error}>{pseudoError}</Text>}
-                </View>
-              ) : (
-                <>
-                  <View style={profile_styles.rowLeft}>
-                    <Ionicons name="person-outline" size={18} color={colors.subtitle} />
-                    <Text style={profile_styles.rowLabel}>Pseudo</Text>
-                  </View>
-                  <Pressable
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                    onPress={() => setEditingPseudo(true)}
-                  >
-                    <Text style={{ color: colors.subtitle, fontSize: 14, fontFamily: fonts.body }}>{user?.pseudo}</Text>
-                    <Ionicons name="pencil-outline" size={14} color={colors.gold} />
-                  </Pressable>
-                </>
-              )}
-            </View>
+        <StatBand streak={p.streak} best={p.best} xp={p.xp} vals={p.vals} />
 
-            {/* Mot de passe */}
-            <View style={[profile_styles.row, profile_styles.rowLast]}>
-              <Pressable
-                style={{ flex: 1 }}
-                onPress={() => setShowPasswordForm((v) => !v)}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={profile_styles.rowLeft}>
-                    <Ionicons name="lock-closed-outline" size={18} color={colors.subtitle} />
-                    <Text style={profile_styles.rowLabel}>Mot de passe</Text>
-                  </View>
-                  <Ionicons
-                    name={showPasswordForm ? 'chevron-up' : 'chevron-down'}
-                    size={18}
-                    color={colors.subtitle}
-                  />
-                </View>
+        <ObjectiveCard
+          label={p.objectiveLabel}
+          tint={universeTint(p.objectiveSlug, p.universes)}
+          done={p.progress.done}
+          total={p.progress.total}
+          onEdit={() => {
+            setObjectiveMounted(true);
+            setObjectiveOpen(true);
+          }}
+          onContinue={continueObjective}
+        />
+        {notice ? (
+          <AppText variant="caption" tone="success" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.notice}>
+            {notice}
+          </AppText>
+        ) : null}
 
-                {showPasswordForm && (
-                  <View style={{ marginTop: 14, gap: 10 }}>
-                    <TextInput
-                      style={profile_styles.smallInput}
-                      placeholder="Mot de passe actuel"
-                      placeholderTextColor={colors.subtitle}
-                      secureTextEntry
-                      value={currentPassword}
-                      onChangeText={setCurrentPassword}
-                    />
-                    <TextInput
-                      style={profile_styles.smallInput}
-                      placeholder="Nouveau mot de passe"
-                      placeholderTextColor={colors.subtitle}
-                      secureTextEntry
-                      value={newPassword}
-                      onChangeText={setNewPassword}
-                    />
-                    <TextInput
-                      style={profile_styles.smallInput}
-                      placeholder="Confirmer le nouveau mot de passe"
-                      placeholderTextColor={colors.subtitle}
-                      secureTextEntry
-                      value={newPasswordConfirmation}
-                      onChangeText={setNewPasswordConfirmation}
-                    />
+        <NotebookCard count={p.declics.length} latest={latest} onPress={() => router.push('/client/carnet')} />
 
-                    {passwordError && <Text style={basiques_styles.error}>{passwordError}</Text>}
-                    {passwordSuccess && (
-                      <Text style={profile_styles.successText}>Mot de passe mis à jour ✓</Text>
-                    )}
-
-                    <Pressable
-                      style={bouton_styles.button}
-                      onPress={savePassword}
-                      disabled={passwordSaving}
-                    >
-                      {passwordSaving ? (
-                        <ActivityIndicator color={colors.onGold} />
-                      ) : (
-                        <Text style={bouton_styles.buttonText}>Mettre à jour</Text>
-                      )}
-                    </Pressable>
-                  </View>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </View>
-
-        {/* Préférences */}
-        <View>
-          <Text style={profile_styles.sectionTitle}>Préférences</Text>
-          <View style={profile_styles.card}>
-            <ReminderSettingRow
-              rowStyle={profile_styles.row}
-              leftStyle={profile_styles.rowLeft}
-              labelStyle={profile_styles.rowLabel}
-            />
-            <SoundSettingRow
-              rowStyle={profile_styles.row}
-              leftStyle={profile_styles.rowLeft}
-              labelStyle={profile_styles.rowLabel}
-            />
-            <Pressable style={[profile_styles.row, profile_styles.rowLast]} onPress={toggleTheme}>
-              <View style={profile_styles.rowLeft}>
-                <Ionicons
-                  name={colorScheme === 'dark' ? 'moon-outline' : 'sunny-outline'}
-                  size={18}
-                  color={colors.subtitle}
-                />
-                <Text style={profile_styles.rowLabel}>Thème</Text>
-              </View>
-              <Text style={{ color: colors.subtitle, fontSize: 14, fontFamily: fonts.body }}>
-                {colorScheme === 'dark' ? 'Sombre' : 'Clair'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Données & compte */}
-        <View>
-          <Text style={profile_styles.sectionTitle}>Données</Text>
-          <View style={profile_styles.card}>
-            <Pressable style={profile_styles.row} onPress={handleExport}>
-              <View style={profile_styles.rowLeft}>
-                <Ionicons name="download-outline" size={18} color={colors.subtitle} />
-                <Text style={profile_styles.rowLabel}>Exporter mes données</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.subtitle} />
-            </Pressable>
-
-            <Pressable style={profile_styles.row} onPress={handleLogout}>
-              <View style={profile_styles.rowLeft}>
-                <Ionicons name="log-out-outline" size={18} color={colors.subtitle} />
-                <Text style={profile_styles.rowLabel}>Se déconnecter</Text>
-              </View>
-            </Pressable>
-
-            <Pressable style={[profile_styles.row, profile_styles.rowLast]} onPress={handleDelete}>
-              <View style={profile_styles.rowLeft}>
-                <Ionicons name="trash-outline" size={18} color={colors.error} />
-                <Text style={profile_styles.rowLabelDanger}>Supprimer mon compte</Text>
-              </View>
-            </Pressable>
-          </View>
+        <View style={styles.rings}>
+          <RingTile
+            value={`${medals}/${MEDALS.length}`}
+            ratio={medals / MEDALS.length}
+            title="Médailles"
+            caption="de série"
+            accessibilityLabel={`Médailles de série : ${medals} sur ${MEDALS.length}`}
+            accessibilityHint="Ouvre ta série et tes médailles"
+            onPress={() => {
+              setStreakMounted(true);
+              setStreakOpen(true);
+            }}
+          />
+          <RingTile
+            value={String(p.wordsDiscovered)}
+            ratio={p.wordsTotal > 0 ? p.wordsDiscovered / p.wordsTotal : 0}
+            title="Mots"
+            caption={p.wordsTotal > 0 ? `sur ${p.wordsTotal} découverts` : 'découverts'}
+            color={colors.chart3}
+            accessibilityLabel={
+              p.wordsTotal > 0
+                ? `Mots découverts : ${p.wordsDiscovered} sur ${p.wordsTotal}`
+                : `Mots découverts : ${p.wordsDiscovered}`
+            }
+            accessibilityHint="Ouvre Mes mots dans le Dictionnaire"
+            onPress={() => router.navigate({ pathname: '/dictionary', params: { section: 'mes-mots' } })}
+          />
         </View>
       </ScrollView>
+
+      {objectiveMounted ? (
+        <ObjectiveSheet
+          open={objectiveOpen}
+          current={p.objective}
+          universes={p.universes}
+          onPick={pickObjective}
+          onRequestClose={closeObjective}
+          onClosed={unmountObjective}
+        />
+      ) : null}
+      {streakMounted ? (
+        <StreakSheet
+          streak={p.streak}
+          best={p.best}
+          freezes={null}
+          open={streakOpen}
+          onRequestClose={closeStreak}
+          onClosed={unmountStreak}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space[4],
+    minHeight: 48,
+  },
+  content: {
+    paddingHorizontal: space[5],
+    paddingTop: space[1],
+    paddingBottom: space[6],
+    gap: space[4],
+  },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3] + 2,
+  },
+  headTexts: {
+    flex: 1,
+  },
+  pseudo: {
+    fontFamily: fonts.title,
+    fontSize: PSEUDO_SIZE,
+    lineHeight: 30,
+    letterSpacing: titleLetterSpacing(PSEUDO_SIZE),
+  },
+  level: {
+    fontFamily: fonts.bodyBold,
+  },
+  notice: {
+    marginTop: -space[2],
+    textAlign: 'center',
+  },
+  rings: {
+    flexDirection: 'row',
+    gap: space[2] + 2,
+    marginTop: -space[1],
+  },
+});

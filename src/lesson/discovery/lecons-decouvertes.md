@@ -24,13 +24,15 @@ Le parcours : bienvenue, « Qu'est-ce qui t'amène ? », la leçon de cet object
 | Le dialogue (nouveau) | une conversation avec un personnage, choisir sa réponse | oui |
 | La question à choix (`choice`) | trois réponses, une bonne | oui |
 
+**Mots clés** : dans chaque déclic, les mots clés sont entre crochets (« le [temps] fait plus que le [montant] ») ; l'app les retire à l'affichage et s'en sert pour le test « Me tester sur mes déclics ».
+
 **Les règles** : un déclic nommable en une phrase ; une vraie surprise (pari puis révélation, ou simulateur) ; des calculs triviaux ; des pièges crédibles ; aucune morale ; aucun mot interdit (aube, voyage, continuer la marche, jargon, école, 5 minutes par jour) ; des chiffres prudents, soit fictifs et cohérents, soit présentés comme des hypothèses ; et une dernière question notée, sans aide, pour finir sur une réussite.
 
 Chaque écran donne son type, son contenu et les répliques de Val avec son humeur.
 
 ## Leçon 1 : Mettre de l'argent de côté, « L'argent qui fond »
 
-**Déclic : l'argent qui dort sur un compte courant perd de la valeur ; mis de côté en premier, au bon endroit, il est protégé.**
+**Déclic : l'argent qui dort sur un compte courant perd de la [valeur] ; mis de côté en [premier], au bon endroit, il est protégé.**
 
 1. **Le pari** (`slider`, non noté)
    - « Tu laisses 1 000 € sur ton compte courant pendant 10 ans. Avec 2 % d'inflation par an, que pourras-tu encore acheter avec, en euros d'aujourd'hui ? »
@@ -61,7 +63,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 
 ## Leçon 2 : Commencer à investir, « La machine à intérêts »
 
-**Déclic : le temps fait plus que le montant ; placés 30 ans, 100 € par mois peuvent plus que doubler.**
+**Déclic : le [temps] fait plus que le [montant] ; placés 30 ans, 100 € par mois peuvent plus que doubler.**
 
 1. **Le pari** (`slider`, non noté)
    - « Tu places 100 € par mois pendant 30 ans. Si ça rapporte 5 % par an en moyenne, combien as-tu à la fin ? »
@@ -91,7 +93,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 
 ## Leçon 3 : Comprendre la crypto, « Le grand huit »
 
-**Déclic : la crypto peut perdre les trois quarts de sa valeur en un an ; on n'y met que ce qu'on peut se permettre de perdre.**
+**Déclic : la crypto peut perdre les trois quarts de sa [valeur] en un an ; on n'y met que ce qu'on peut se permettre de [perdre].**
 
 1. **Le pari** (`slider`, non noté)
    - « En novembre 2021, un bitcoin valait environ 69 000 dollars. À ton avis, combien valait-il un an plus tard ? »
@@ -123,7 +125,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 
 ## Leçon 4 : Acheter un jour un logement, « Le vrai prix d'un crédit »
 
-**Déclic : avec un crédit, un logement coûte bien plus que son prix, et la durée change tout.**
+**Déclic : avec un [crédit], un logement coûte bien plus que son prix, et la [durée] change tout.**
 
 1. **Le pari** (`slider`, non noté)
    - « Tu empruntes 200 000 € sur 25 ans à 3,5 %. Combien rembourses-tu en tout ? »
@@ -153,7 +155,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 
 ## Leçon 5 : Payer moins d'impôts, « Le mythe de la tranche »
 
-**Déclic : changer de tranche ne fait jamais perdre d'argent ; seule la partie au-dessus du seuil est taxée plus.** Pour que les calculs restent simples, la leçon utilise un barème simplifié, annoncé comme tel : 0 % jusqu'à 11 000 €, 11 % de 11 000 à 30 000 €, 30 % au-delà, pour une personne seule.
+**Déclic : changer de [tranche] ne fait jamais perdre d'argent ; seule la partie au-dessus du [seuil] est taxée plus.** Pour que les calculs restent simples, la leçon utilise un barème simplifié, annoncé comme tel : 0 % jusqu'à 11 000 €, 11 % de 11 000 à 30 000 €, 30 % au-delà, pour une personne seule.
 
 1. **Le pari** (`slider`, non noté)
    - « Une prime fait passer ton revenu imposable de 29 000 € à 31 000 €, et tu changes de tranche : de 11 % à 30 %. De combien augmente ton impôt ? »
@@ -185,7 +187,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 
 ## Leçon 6 : Je découvre, « Ton vrai salaire »
 
-**Déclic : tu touches 1 660 € net, tu coûtes 3 055 € à ton employeur ; l'écart finance ta protection sociale.** C'est le déclic de ta leçon 1 publiée (« Tu coûtes plus cher »), avec ses chiffres.
+**Déclic : tu touches 1 660 € net, tu coûtes 3 055 € à ton [employeur] ; l'écart finance ta [protection sociale].** C'est le déclic de ta leçon 1 publiée (« Tu coûtes plus cher »), avec ses chiffres.
 
 1. **Le pari** (`slider`, non noté)
    - « Tu touches 1 660 € net par mois. Combien coûtes-tu à ton employeur ? »

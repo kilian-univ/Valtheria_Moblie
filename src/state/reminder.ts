@@ -4,6 +4,8 @@ import { Platform } from 'react-native';
 
 import { DEFAULT_REMINDER, ReminderTime, reminderMessageFor, upcomingReminders } from '@/src/utils/reminder';
 import { REMINDER_SOUND_FILE, reminderSound } from '@/src/utils/soundRules';
+import { lastObjective } from './objective';
+import { onboardingStore } from './onboarding';
 
 // Rappel quotidien en notifications LOCALES (rien côté serveur). Un seul
 // rappel par jour, jamais plus. Pour que le texte change chaque jour, on
@@ -74,8 +76,11 @@ async function schedule(Notifications: typeof NotificationsModule, time: Reminde
       ...(REMINDER_SOUND_FILE ? { sound: REMINDER_SOUND_FILE } : {}),
     });
   }
+  // Objectif connu (profil, sinon première ouverture) : un jour sur deux,
+  // le rappel en parle
+  const objective = (await lastObjective()) ?? (await onboardingStore.load()).objective;
   for (const date of upcomingReminders(new Date(), time, DAYS_AHEAD)) {
-    const { title, body } = reminderMessageFor(date);
+    const { title, body } = reminderMessageFor(date, objective);
     await Notifications.scheduleNotificationAsync({
       content: { title, body, sound: reminderSound() },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: CHANNEL },

@@ -9,7 +9,7 @@ import { PARI_INTRO, TRUE_FALSE_QUESTION } from './shared';
 export const epargner = {
   title: 'L’argent qui fond',
   // Déclic du document : carte « À RETENIR » de la fin de leçon
-  takeaway: 'L’argent qui dort sur un compte courant perd de la valeur ; mis de côté en premier, au bon endroit, il est protégé.',
+  takeaway: 'L’argent qui dort sur un compte courant perd de la [valeur] ; mis de côté en [premier], au bon endroit, il est protégé.',
   // Phrase d'accroche : carte de l'accueil sans compte
   hook: 'Pourquoi l’argent qui dort perd de la valeur',
   screens: [

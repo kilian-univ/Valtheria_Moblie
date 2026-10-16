@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { Image, StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import Pill from '@/src/components/common/Pill';
@@ -13,7 +12,6 @@ import {
   fonts,
   ModuleColors,
   palette,
-  reliefDepth,
   size,
   softShadow,
   space,
@@ -22,10 +20,9 @@ import {
 } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { HomeCard, HomeCardAction } from '@/src/utils/discoveryHome';
-import { tap } from '@/src/utils/haptics';
 import { universeDecor } from '@/src/utils/universes';
-import { useReliefPress } from '@/src/hooks/useReliefPress';
 import Button from '@/src/components/common/Button';
+import IvoryButton from '@/src/components/common/IvoryButton';
 import Sheen from '@/src/components/common/Sheen';
 
 const RADIUS = 22;
@@ -56,8 +53,6 @@ const GLOW_OPACITY = 0.2;
 // Décor peint de l'univers, en grand dans la carte, en bas à gauche
 const DECOR_SIZE = 190;
 const DECOR_OPACITY = 0.12;
-const BUTTON_HEIGHT = 46;
-const BUTTON_RADIUS = 14;
 
 // Libellés lus par le lecteur d'écran (les capitales s'épellent parfois)
 const SPOKEN: Record<HomeCardAction, string> = {
@@ -160,9 +155,8 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
           spokenLabel={SPOKEN[card.action]}
           icon={ICONS[card.action]}
           color={look.deep}
-          ivory={colors.ivory}
-          edgeColor={colors.cardEdge}
           onPress={() => onAction(card.action)}
+          style={styles.button}
         />
         {card.action === 'creer-compte' ? (
           <Button
@@ -192,49 +186,6 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
 // « LEÇON TERMINÉE » → « Leçon terminée » pour le lecteur d’écran
 function spokenBadge(badge: string): string {
   return badge.charAt(0) + badge.slice(1).toLowerCase();
-}
-
-// Bouton ivoire en relief, posé sur la carte : la face s'enfonce à l'appui
-function IvoryButton({
-  label,
-  spokenLabel,
-  icon,
-  color,
-  ivory,
-  edgeColor,
-  onPress,
-}: {
-  label: string;
-  spokenLabel: string;
-  icon?: ComponentProps<typeof Ionicons>['name'];
-  color: string;
-  ivory: string;
-  edgeColor: string;
-  onPress: () => void;
-}) {
-  const { faceStyle, onPressIn, onPressOut } = useReliefPress();
-
-  return (
-    <Pressable
-      onPress={() => {
-        tap();
-        onPress();
-      }}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      accessibilityRole="button"
-      accessibilityLabel={spokenLabel}
-      style={styles.button}
-    >
-      <View style={[styles.buttonEdge, { backgroundColor: edgeColor }]} />
-      <Animated.View style={[styles.buttonFace, { backgroundColor: ivory }, faceStyle]}>
-        {icon ? <Ionicons name={icon} size={18} color={color} /> : null}
-        <AppText maxFontSizeMultiplier={1.3} style={[styles.buttonText, { color }]}>
-          {label}
-        </AppText>
-      </Animated.View>
-    </Pressable>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -321,30 +272,5 @@ const styles = StyleSheet.create({
   // Toujours en bas de la carte
   button: {
     marginTop: 'auto',
-    alignSelf: 'flex-start',
-    paddingBottom: reliefDepth,
-  },
-  buttonEdge: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: reliefDepth,
-    bottom: 0,
-    borderRadius: BUTTON_RADIUS,
-    borderCurve: 'continuous',
-  },
-  buttonFace: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[2],
-    minHeight: BUTTON_HEIGHT,
-    paddingHorizontal: PAD,
-    borderRadius: BUTTON_RADIUS,
-    borderCurve: 'continuous',
-  },
-  buttonText: {
-    fontFamily: fonts.bodyExtraBold,
-    fontSize: 15,
-    lineHeight: 20,
   },
 });

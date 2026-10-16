@@ -61,7 +61,7 @@ export default function DictionaryHomeScreen() {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { user } = useApi();
-  const { term: termParam } = useLocalSearchParams<{ term?: string }>();
+  const { term: termParam, section } = useLocalSearchParams<{ term?: string; section?: string }>();
 
   const data = useDictionary();
   const { recents } = useDictionaryRecents(user?.id);
@@ -85,6 +85,13 @@ export default function DictionaryHomeScreen() {
     router.setParams({ term: undefined });
     openTerm(termParam);
   }, [termParam, router, openTerm]);
+
+  // Depuis le profil (« Mots ») : « Mes mots », en haut de l'accueil
+  useEffect(() => {
+    if (section !== 'mes-mots') return;
+    router.setParams({ section: undefined });
+    listRef.current?.getScrollResponder()?.scrollTo({ y: 0, animated: true });
+  }, [section, router]);
 
   const searching = normalizeText(query) !== '';
   const results = useMemo(() => searchEntries(data.entries, query, category), [data.entries, query, category]);

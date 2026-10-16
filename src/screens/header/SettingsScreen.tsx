@@ -1,0 +1,339 @@
+import Constants from 'expo-constants';
+import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { useCallback, useState } from 'react';
+import { Alert, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import AppText from '@/src/components/common/AppText';
+import BackButton from '@/src/components/common/BackButton';
+import BottomSheet from '@/src/components/common/BottomSheet';
+import Button from '@/src/components/common/Button';
+import SoundSettingRow from '@/src/components/common/SoundSettingRow';
+import TextField from '@/src/components/common/TextField';
+import ReminderSettingRow from '@/src/components/onboarding/ReminderSettingRow';
+import ObjectiveSheet from '@/src/components/profile/ObjectiveSheet';
+import ProfileAvatar from '@/src/components/profile/ProfileAvatar';
+import { SettingsRow, SettingsSection, useSettingsRowStyles } from '@/src/components/profile/SettingsList';
+import { FORGOT_PASSWORD_URL, PRIVACY_URL, TERMS_URL } from '@/src/constants/links';
+import { fonts, palette, radius, size, space } from '@/src/constants/style/Style';
+import { useApi } from '@/src/context/ApiContext';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useProfile } from '@/src/hooks/useProfile';
+import type { Objective } from '@/src/lesson/discovery';
+import { FORGOT_PASSWORD_ENABLED } from '@/src/screens/header/LoginScreen';
+import { clearLastProfile } from '@/src/state/lastProfile';
+import { success } from '@/src/utils/haptics';
+import { pseudoError } from '@/src/utils/onboarding';
+import { initialOf, levelA11y, truncateEmail } from '@/src/utils/profile';
+
+const AVATAR = 64;
+
+type Sheet = 'pseudo' | 'password' | 'objective' | 'legal' | null;
+
+// Réglages (ouverts par la roue dentée du profil) : compte, préférences,
+// données. Reprend tout le comportement de l'ancien profil : pseudo, mot de
+// passe, rappel, sons, thème, export, déconnexion, suppression. La
+// suppression reste facile à trouver (règle d'Apple) : une ligne grisée,
+// sans rouge ; le rouge n'apparaît que dans la confirmation.
+export default function SettingsScreen() {
+  const { user, logout, exportUser, deleteAccount, updateUser, post } = useApi();
+  const { colorScheme, toggleTheme } = useTheme();
+  const colors = palette[colorScheme];
+  const p = useProfile();
+  const rowStyles = useSettingsRowStyles();
+
+  // Une feuille à la fois ; « mounted » reste vrai pendant la fermeture
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const [mounted, setMounted] = useState<Sheet>(null);
+  const open = (s: Exclude<Sheet, null>) => {
+    setMounted(s);
+    setSheet(s);
+  };
+  const close = useCallback(() => setSheet(null), []);
+  const unmount = useCallback(() => setMounted(null), []);
+
+  // --- Pseudo (règles du serveur, comme à l'inscription) ---
+  const [pseudo, setPseudo] = useState('');
+  const [pseudoTouched, setPseudoTouched] = useState(false);
+  const [pseudoSaving, setPseudoSaving] = useState(false);
+  const [pseudoServerError, setPseudoServerError] = useState<string | null>(null);
+  const cleanPseudo = pseudo.trim();
+  const pseudoProblem = pseudoError(cleanPseudo);
+  const openPseudo = () => {
+    setPseudo(user?.pseudo ?? '');
+    setPseudoTouched(false);
+    setPseudoServerError(null);
+    open('pseudo');
+  };
+  const savePseudo = async () => {
+    setPseudoTouched(true);
+    if (pseudoProblem) return;
+    if (cleanPseudo === user?.pseudo) {
+      close();
+      return;
+    }
+    setPseudoSaving(true);
+    setPseudoServerError(null);
+    try {
+      await updateUser({ pseudo: cleanPseudo } as unknown as Parameters<typeof updateUser>[0]);
+      success();
+      close();
+    } catch (err) {
+      setPseudoServerError(err instanceof Error && err.message ? err.message : 'Échec de la mise à jour.');
+    } finally {
+      setPseudoSaving(false);
+    }
+  };
+
+  // --- Mot de passe : l'API n'a pas de route pour le changer ; un lien de
+  // réinitialisation par e-mail (dans l'app quand la route est en ligne,
+  // sinon sur le site) ---
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const sendReset = async () => {
+    setResetError(null);
+    if (!FORGOT_PASSWORD_ENABLED) {
+      WebBrowser.openBrowserAsync(FORGOT_PASSWORD_URL).catch(() => {});
+      return;
+    }
+    try {
+      await post('/auth/forgot-password', { email: user?.email ?? '' });
+      setResetSent(true);
+    } catch {
+      setResetError('Impossible d’envoyer le lien pour l’instant. Réessaie dans un instant.');
+    }
+  };
+
+  // --- Objectif ---
+  const pickObjective = async (next: Objective) => {
+    close();
+    if (next !== p.objective) await p.changeObjective(next);
+  };
+
+  // --- Données ---
+  const handleExport = async () => {
+    try {
+      const data = await exportUser();
+      await Share.share({ title: 'Mes données Valtheria', message: JSON.stringify(data, null, 2) });
+    } catch (err) {
+      Alert.alert('Export impossible', err instanceof Error ? err.message : 'Réessaie dans un instant.');
+    }
+  };
+
+  const handleLogout = async () => {
+    // Avant logout() : il déconnecte même si la requête échoue
+    await clearLastProfile();
+    await logout();
+    router.dismissTo('/apprendre');
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Supprimer le compte', 'Cette action est définitive. Confirmer ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteAccount();
+            await clearLastProfile();
+            router.dismissTo('/apprendre');
+          } catch (err) {
+            Alert.alert('Erreur', err instanceof Error ? err.message : 'Réessaie dans un instant.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const pseudoNow = user?.pseudo ?? '';
+  const version = Constants.expoConfig?.version ?? '';
+
+  return (
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <View style={styles.bar}>
+        <BackButton onBack={() => router.back()} />
+        <AppText variant="bodyMedium" accessibilityRole="header" style={styles.barTitle}>
+          Réglages
+        </AppText>
+        <View style={styles.barSpacer} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={[styles.identity, { backgroundColor: colors.optionFace }]}>
+          <ProfileAvatar size={AVATAR} initial={initialOf(pseudoNow)} ratio={p.level.ratio} accessibilityLabel={levelA11y(p.level)} />
+          <AppText variant="bodyMedium" style={styles.identityName} numberOfLines={1}>
+            {pseudoNow}
+          </AppText>
+        </View>
+
+        <SettingsSection title="Compte">
+          <SettingsRow icon="person-outline" label="Pseudo" value={pseudoNow} onPress={openPseudo} accessibilityHint="Modifier ton pseudo" />
+          <SettingsRow icon="mail-outline" label="E-mail" value={truncateEmail(user?.email)} />
+          <SettingsRow
+            icon="lock-closed-outline"
+            label="Mot de passe"
+            onPress={() => {
+              setResetSent(false);
+              setResetError(null);
+              open('password');
+            }}
+            last
+          />
+        </SettingsSection>
+
+        <SettingsSection title="Préférences">
+          <SettingsRow icon="flag-outline" label="Ton objectif" value={p.objectiveLabel} onPress={() => open('objective')} />
+          <ReminderSettingRow {...rowStyles} iconSize={20} />
+          <SoundSettingRow {...rowStyles} iconSize={20} />
+          <SettingsRow
+            icon={colorScheme === 'dark' ? 'moon-outline' : 'sunny-outline'}
+            label="Thème"
+            value={colorScheme === 'dark' ? 'Sombre' : 'Clair'}
+            onPress={toggleTheme}
+            accessibilityHint="Passer au thème clair ou sombre"
+            last
+          />
+        </SettingsSection>
+
+        <SettingsSection title="Données et compte">
+          <SettingsRow icon="download-outline" label="Exporter mes données" onPress={handleExport} />
+          <SettingsRow icon="document-text-outline" label="Confidentialité et conditions" onPress={() => open('legal')} />
+          <SettingsRow icon="log-out-outline" label="Se déconnecter" onPress={handleLogout} chevron={false} />
+          <SettingsRow icon="trash-outline" label="Supprimer mon compte" onPress={handleDelete} muted last />
+        </SettingsSection>
+
+        <AppText variant="caption" tone="subtitle" style={styles.version}>
+          {`Valtheria, version ${version}`}
+        </AppText>
+      </ScrollView>
+
+      {mounted === 'pseudo' ? (
+        <BottomSheet open={sheet === 'pseudo'} onRequestClose={close} onClosed={unmount}>
+          <View style={styles.sheet}>
+            <AppText variant="title3" accessibilityRole="header">
+              Ton pseudo
+            </AppText>
+            <TextField
+              label="Ton pseudo"
+              value={pseudo}
+              onChangeText={(t) => {
+                setPseudo(t);
+                setPseudoServerError(null);
+              }}
+              onBlur={() => setPseudoTouched(true)}
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="nickname"
+              autoComplete="username"
+              returnKeyType="done"
+              onSubmitEditing={savePseudo}
+              maxLength={20}
+              error={pseudoServerError ?? (pseudoTouched && cleanPseudo ? pseudoProblem : null)}
+              hint="Visible seulement si tu partages ta progression."
+            />
+            <Button label="Enregistrer" onPress={savePseudo} loading={pseudoSaving} disabled={!cleanPseudo} />
+          </View>
+        </BottomSheet>
+      ) : null}
+
+      {mounted === 'password' ? (
+        <BottomSheet open={sheet === 'password'} onRequestClose={close} onClosed={unmount}>
+          <View style={styles.sheet}>
+            <AppText variant="title3" accessibilityRole="header">
+              Mot de passe
+            </AppText>
+            <AppText variant="callout" tone="subtitle">
+              {FORGOT_PASSWORD_ENABLED
+                ? `Je t’envoie un lien à ${user?.email ?? 'ton adresse'} pour choisir un nouveau mot de passe.`
+                : 'Pour choisir un nouveau mot de passe, passe par le site : tu y reçois un lien par e-mail.'}
+            </AppText>
+            {resetSent ? (
+              <AppText variant="callout" tone="success" accessibilityRole="alert">
+                Si un compte existe avec cette adresse, un lien vient d’être envoyé.
+              </AppText>
+            ) : null}
+            {resetError ? (
+              <AppText variant="callout" tone="error" accessibilityRole="alert">
+                {resetError}
+              </AppText>
+            ) : null}
+            <Button label={FORGOT_PASSWORD_ENABLED ? 'Recevoir le lien' : 'Ouvrir le site'} onPress={sendReset} disabled={resetSent} />
+          </View>
+        </BottomSheet>
+      ) : null}
+
+      {mounted === 'objective' ? (
+        <ObjectiveSheet
+          open={sheet === 'objective'}
+          current={p.objective}
+          universes={p.universes}
+          onPick={pickObjective}
+          onRequestClose={close}
+          onClosed={unmount}
+        />
+      ) : null}
+
+      {mounted === 'legal' ? (
+        <BottomSheet open={sheet === 'legal'} onRequestClose={close} onClosed={unmount}>
+          <View style={styles.sheet}>
+            <AppText variant="title3" accessibilityRole="header">
+              Confidentialité et conditions
+            </AppText>
+            <Button variant="secondary" label="Politique de confidentialité" onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL).catch(() => {})} />
+            <Button variant="secondary" label="Conditions d’utilisation" onPress={() => WebBrowser.openBrowserAsync(TERMS_URL).catch(() => {})} />
+          </View>
+        </BottomSheet>
+      ) : null}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space[4],
+    minHeight: 48,
+  },
+  barTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 17,
+  },
+  barSpacer: {
+    width: size.tapMin,
+  },
+  content: {
+    paddingHorizontal: space[5],
+    paddingTop: space[2],
+    paddingBottom: space[6],
+    gap: space[5],
+  },
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3] + 2,
+    paddingVertical: space[3] + 2,
+    paddingHorizontal: space[4],
+    borderRadius: radius.card,
+    borderCurve: 'continuous',
+  },
+  identityName: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: 17,
+  },
+  version: {
+    textAlign: 'center',
+  },
+  sheet: {
+    gap: space[4],
+    paddingHorizontal: space[5],
+    paddingBottom: space[2],
+  },
+});

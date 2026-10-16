@@ -63,6 +63,11 @@ export function plainText(raw: unknown): string | null {
   return text === '' ? null : text;
 }
 
+// Mots clés entre crochets retirés : « Le [temps] » devient « Le temps »
+function unmark(text: string | null): string | null {
+  return text === null ? null : text.replace(/\[([^\]]*)\]/g, '$1');
+}
+
 // Réplique de Val : <strong> / <em> deviennent le gras **…** de la bulle
 function valText(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
@@ -381,7 +386,8 @@ export function normalizeLesson(data: unknown): LessonModel {
   return {
     title: plainText(d.title),
     // Phrase clé facultative (le serveur ne l'envoie pas encore)
-    takeaway: plainText(d.takeaway),
+    takeaway: unmark(plainText(d.takeaway)),
+    takeawayMarked: plainText(d.takeaway),
     screens: rawScreens.map((s, i) => normalizeScreen(s, i)),
   };
 }

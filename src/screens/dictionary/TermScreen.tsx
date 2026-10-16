@@ -25,6 +25,8 @@ import { OFFLINE_BANNER } from '@/src/hooks/useLearningData';
 import { learningStore } from '@/src/state/learningStore';
 import { DictionaryLesson, findEntry, neighbors, sameFamily, shareMessage } from '@/src/utils/dictionary';
 import { dictionaryTermHref, termHref } from '@/src/utils/dictionaryLinks';
+import { markDiscovered } from '@/src/state/discoveredWords';
+import { userKeyOf } from '@/src/state/userMemory';
 import { feedback } from '@/src/utils/feedback';
 import { select, tap } from '@/src/utils/haptics';
 import IconButton from '@/src/components/common/IconButton';
@@ -63,6 +65,11 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
   useEffect(() => {
     if (openedTerm) addRecent(openedTerm);
   }, [openedTerm, addRecent]);
+  // … et le compte parmi les mots découverts (la première fois seulement)
+  const userKey = userKeyOf(user?.id);
+  useEffect(() => {
+    if (openedTerm) markDiscovered(userKey, openedTerm).catch(() => {});
+  }, [openedTerm, userKey]);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/dictionary'));
   const href = (t: string, c?: string | null) => (standalone ? termHref(t, c) : dictionaryTermHref(t, c));

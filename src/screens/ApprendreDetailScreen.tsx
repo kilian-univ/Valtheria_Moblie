@@ -39,6 +39,9 @@ import { normalizeLesson } from '@/src/lesson/normalize';
 import { learningStore } from '@/src/state/learningStore';
 import { feedback } from '@/src/utils/feedback';
 import { error as errorHaptic } from '@/src/utils/haptics';
+import { addToNotebook } from '@/src/state/notebook';
+import { userKeyOf } from '@/src/state/userMemory';
+import { declicForLesson } from '@/src/utils/notebook';
 import { preloadSounds } from '@/src/utils/sound';
 import { comboReached, SOFT_GAIN } from '@/src/utils/soundRules';
 import {
@@ -117,6 +120,12 @@ function introLine(screen: LessonScreen, discovery: boolean, isLast: boolean): V
 export type DiscoveryMode = {
   lesson: LessonModel;
   onFinished: (summary: LessonSummary) => void;
+  // Pastille du premier écran (« LEÇON DÉCOUVERTE » par défaut)
+  badge?: string;
+  // false : pas de rattrapage des questions ratées (test du carnet)
+  retry?: boolean;
+  // Sortie sans écran précédent (choix de l'objectif par défaut)
+  exitTo?: '/bienvenue/objectif' | '/client/carnet';
 };
 
 export default function ApprendreDetailScreen({ discovery }: { discovery?: DiscoveryMode } = {}) {
@@ -125,13 +134,14 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const navigation = useNavigation();
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const { getLesson, completeLesson, getModules, getProgress } = useApi();
+  const { getLesson, completeLesson, getModules, getProgress, user } = useApi();
 
   const [screens, setScreens] = useState<LessonScreen[]>(() => discovery?.lesson.screens ?? []);
   // Titre et phrase clé de la leçon (bilan de fin)
-  const [lessonInfo, setLessonInfo] = useState<{ title: string | null; takeaway: string | null }>(() => ({
+  const [lessonInfo, setLessonInfo] = useState<{ title: string | null; takeaway: string | null; marked: string | null }>(() => ({
     title: discovery?.lesson.title ?? null,
     takeaway: discovery?.lesson.takeaway ?? null,
+    marked: discovery?.lesson.takeawayMarked ?? null,
   }));
   const [index, setIndex] = useState(0);
   // Rattrapage : questions ratées rejouées après la leçon (at null :
@@ -214,7 +224,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
           });
 
         setScreens(lesson.screens);
-        setLessonInfo({ title: lesson.title, takeaway: lesson.takeaway });
+        setLessonInfo({ title: lesson.title, takeaway: lesson.takeaway, marked: lesson.takeawayMarked });
       })
       .catch((err: any) => {
         console.log('ERREUR LEÇON:', err?.message);
@@ -277,7 +287,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   // leçon découverte), le choix de l'objectif ou l'accueil
   const leave = useCallback(() => {
     if (router.canGoBack()) router.back();
-    else router.replace(discovery ? '/bienvenue/objectif' : '/apprendre');
+    else router.replace(discovery ? (discovery.exitTo ?? '/bienvenue/objectif') : '/apprendre');
   }, [router, discovery]);
 
   const handleClose = () => {
@@ -334,7 +344,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   // puis la fin de leçon
   const endOfLesson = () => {
     const missed = missedScreens(answers, screens);
-    if (retry === null && missed.length > 0) {
+    if (retry === null && missed.length > 0 && discovery?.retry !== false) {
       setSheetOpen(false);
       setRetry({ queue: missed, at: null });
       return;
@@ -405,6 +415,11 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
           });
         })
         .catch(() => {});
+
+      // Sa phrase « À retenir » entre au carnet de déclics (une seule fois)
+      const { modules: known, universes } = learningStore.getState();
+      const declic = declicForLesson(Number(id), lessonInfo.marked, lessonInfo.title, known, universes, new Date().toISOString());
+      if (declic) addToNotebook(userKeyOf(user?.id), declic).catch(() => {});
 
       setModuleTitle(finishedModuleTitle(res ?? {}, learningStore.getState().modules, Number(id)));
       setResult(res ?? {});
@@ -600,7 +615,13 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                       {/* Pastille seulement sur le premier écran d'une leçon découverte */}
                       {discovery && index === 0 && !retrying ? (
                         <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.discoveryHead}>
-                          <Pill size="badge" label="LEÇON DÉCOUVERTE" accessibilityLabel="Leçon découverte" background={colors.goldSoft} color={colors.gold} />
+                          <Pill
+                            size="badge"
+                            label={discovery.badge ?? 'LEÇON DÉCOUVERTE'}
+                            accessibilityLabel={(discovery.badge ?? 'Leçon découverte').toLowerCase()}
+                            background={colors.goldSoft}
+                            color={colors.gold}
+                          />
                         </Cascade>
                       ) : null}
                       {valLine && showsVal(current) ? (

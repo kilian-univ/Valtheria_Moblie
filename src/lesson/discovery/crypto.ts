@@ -8,7 +8,7 @@ import { PARI_INTRO, TRUE_FALSE_QUESTION } from './shared';
 export const crypto = {
   title: 'Le grand huit',
   // Déclic du document : carte « À RETENIR » de la fin de leçon
-  takeaway: 'La crypto peut perdre les trois quarts de sa valeur en un an ; on n’y met que ce qu’on peut se permettre de perdre.',
+  takeaway: 'La crypto peut perdre les trois quarts de sa [valeur] en un an ; on n’y met que ce qu’on peut se permettre de [perdre].',
   // Phrase d'accroche : carte de l'accueil sans compte
   hook: 'Ce que la crypto peut faire en un an',
   screens: [

@@ -38,9 +38,23 @@ export const REMINDER_MESSAGES: readonly { title: string; body: string }[] = [
   { title: 'Un pas de plus', body: 'Ce que tu apprends aujourd’hui, tu le gardes pour toujours.' },
 ];
 
-// Texte du jour : change chaque jour, revient au bout d'une semaine
-export function reminderMessageFor(date: Date): { title: string; body: string } {
+// Un texte par objectif, dans le ton de Val : la prochaine leçon du sujet
+// choisi, jamais de morale
+export const OBJECTIVE_REMINDERS: Readonly<Record<string, { title: string; body: string }>> = {
+  epargner: { title: 'Val t’attend', body: 'Ta prochaine leçon sur l’épargne t’attend. Une minute, promis.' },
+  investir: { title: 'Val t’attend', body: 'Ta prochaine leçon sur l’investissement t’attend.' },
+  crypto: { title: 'Val t’attend', body: 'Ta prochaine leçon sur la crypto t’attend. Sans le bruit autour.' },
+  logement: { title: 'Val t’attend', body: 'Ta prochaine leçon sur le logement t’attend. Un pas de plus vers chez toi.' },
+  impots: { title: 'Val t’attend', body: 'Ta prochaine leçon sur les impôts t’attend. Moins de mystère en une minute.' },
+  decouvrir: { title: 'Val t’attend', body: 'Un nouveau sujet t’attend. On le découvre ensemble ?' },
+};
+
+// Texte du jour : change chaque jour, revient au bout d'une semaine.
+// Objectif connu : un jour sur deux, le texte de l'objectif.
+export function reminderMessageFor(date: Date, objective?: string | null): { title: string; body: string } {
   const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
+  const own = objective ? OBJECTIVE_REMINDERS[objective] : undefined;
+  if (own && day % 2 === 0) return own;
   return REMINDER_MESSAGES[((day % REMINDER_MESSAGES.length) + REMINDER_MESSAGES.length) % REMINDER_MESSAGES.length];
 }
 

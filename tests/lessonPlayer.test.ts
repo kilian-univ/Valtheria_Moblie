@@ -258,7 +258,8 @@ test('bilan : justes du premier coup sur les questions notées, et rattrapées �
 
 test('bilan : la phrase à retenir des leçons découvertes est le déclic du document', () => {
   const plainText = (t: string) => t.replace(/[’‘]/g, "'").replace(/[  ]/g, ' ').toLowerCase();
-  const doc = plainText(readFileSync(new URL('../src/lesson/discovery/lecons-decouvertes.md', import.meta.url), 'utf8'));
+  // Mots clés entre crochets dans le document : retirés pour comparer
+  const doc = plainText(readFileSync(new URL('../src/lesson/discovery/lecons-decouvertes.md', import.meta.url), 'utf8')).replace(/\[([^\]]*)\]/g, '$1');
   for (const objective of ['epargner', 'investir', 'crypto', 'logement', 'impots', 'decouvrir'] as const) {
     const takeaway = discoveryLesson(objective).takeaway;
     assert.ok(takeaway, objective);

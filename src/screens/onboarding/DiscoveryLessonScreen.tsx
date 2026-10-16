@@ -1,7 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
 
-import { discoveryLesson, toObjective } from '@/src/lesson/discovery';
+import { useApi } from '@/src/context/ApiContext';
+import { DISCOVERY, discoveryLesson, toObjective } from '@/src/lesson/discovery';
+import { learningStore } from '@/src/state/learningStore';
+import { addToNotebook } from '@/src/state/notebook';
+import { userKeyOf } from '@/src/state/userMemory';
 import ApprendreDetailScreen from '@/src/screens/ApprendreDetailScreen';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { recordLessonDone } from '@/src/utils/discoveryHome';
@@ -21,6 +25,7 @@ export default function DiscoveryLessonScreen() {
   const fromHome = params.depuis === 'accueil';
   const objective = (fromHome ? toObjective(params.objectif) : null) ?? state.objective;
   const lesson = useMemo(() => discoveryLesson(objective), [objective]);
+  const { user } = useApi();
 
   useEffect(() => {
     track('decouverte_commencee', { objectif: objective, depuis: fromHome ? 'accueil' : 'premiere-ouverture' });
@@ -29,6 +34,19 @@ export default function DiscoveryLessonScreen() {
 
   const onFinished = useCallback((summary: LessonSummary) => {
     track('decouverte_terminee', { objectif: objective });
+    // Le déclic du document entre au carnet (une seule fois), avec l'univers
+    // conseillé (nom du serveur s'il est chargé)
+    if (objective && lesson.takeawayMarked) {
+      const plan = DISCOVERY[objective].universe;
+      const known = learningStore.getState().universes.find((u) => u.slug === plan.slug);
+      addToNotebook(userKeyOf(user?.id), {
+        text: lesson.takeawayMarked,
+        universeSlug: plan.slug,
+        universeName: known?.name ?? plan.name,
+        lessonTitle: lesson.title,
+        at: new Date().toISOString(),
+      }).catch(() => {});
+    }
     // Leçon et jour de série mémorisés ; la fin de leçon reçoit la série
     // d'avant (flamme qui grandit) et, la sixième fois, la célébration
     const done = recordLessonDone(onboardingStore.get().state, objective);
@@ -50,7 +68,7 @@ export default function DiscoveryLessonScreen() {
     }
     onboardingStore.update({ ...done.patch, step: 'fin' });
     router.replace({ pathname: '/bienvenue/fin', params });
-  }, [objective, fromHome, router]);
+  }, [objective, fromHome, router, lesson, user?.id]);
 
   const discovery = useMemo(() => ({ lesson, onFinished }), [lesson, onFinished]);
 

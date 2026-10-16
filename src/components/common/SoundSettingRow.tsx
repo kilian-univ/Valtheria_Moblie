@@ -11,11 +11,13 @@ type SoundSettingRowProps = {
   rowStyle: StyleProp<ViewStyle>;
   leftStyle: StyleProp<ViewStyle>;
   labelStyle: StyleProp<TextStyle>;
+  // Taille de l'icône (18 par défaut, 20 dans les Réglages)
+  iconSize?: number;
 };
 
 // Réglage du profil : les sons des leçons, activés par défaut. Même mémoire
 // que la feuille « Quitter la leçon ? » et l'écran de connexion.
-export default function SoundSettingRow({ rowStyle, leftStyle, labelStyle }: SoundSettingRowProps) {
+export default function SoundSettingRow({ rowStyle, leftStyle, labelStyle, iconSize = 18 }: SoundSettingRowProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { enabled, toggle } = useSoundToggle();
@@ -23,7 +25,7 @@ export default function SoundSettingRow({ rowStyle, leftStyle, labelStyle }: Sou
   return (
     <View style={rowStyle}>
       <View style={leftStyle}>
-        <Ionicons name={enabled ? 'volume-medium-outline' : 'volume-mute-outline'} size={18} color={colors.subtitle} />
+        <Ionicons name={enabled ? 'volume-medium-outline' : 'volume-mute-outline'} size={iconSize} color={colors.subtitle} />
         <AppText style={labelStyle}>Sons</AppText>
       </View>
       <SoundSwitch enabled={enabled} onChange={toggle} />

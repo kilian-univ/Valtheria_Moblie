@@ -13,6 +13,7 @@ import ReminderPicker from '@/src/components/onboarding/ReminderPicker';
 import ReminderPromise from '@/src/components/onboarding/ReminderPromise';
 import SocialButtons from '@/src/components/onboarding/SocialButtons';
 import StepHeader from '@/src/components/onboarding/StepHeader';
+import { PRIVACY_URL, TERMS_URL } from '@/src/constants/links';
 import { palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -39,9 +40,6 @@ import { postAuth } from '@/src/utils/authProbe';
 import { DEFAULT_REMINDER, ReminderTime } from '@/src/utils/reminder';
 import { track } from '@/src/utils/track';
 
-// Pages légales du site (routes web cgu et politique, routes/web.php)
-const TERMS_URL = 'https://valtheria.fr/cgu';
-const PRIVACY_URL = 'https://valtheria.fr/politique-confidentialite';
 const VAL_DIAMETER = 64;
 
 type Step = SignupStep;

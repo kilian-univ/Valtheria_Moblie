@@ -8,7 +8,7 @@ import { PARI_INTRO } from './shared';
 export const logement = {
   title: 'Le vrai prix d’un crédit',
   // Déclic du document : carte « À RETENIR » de la fin de leçon
-  takeaway: 'Avec un crédit, un logement coûte bien plus que son prix, et la durée change tout.',
+  takeaway: 'Avec un [crédit], un logement coûte bien plus que son prix, et la [durée] change tout.',
   // Phrase d'accroche : carte de l'accueil sans compte
   hook: 'Ce que coûte vraiment un emprunt',
   screens: [

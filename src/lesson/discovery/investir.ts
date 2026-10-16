@@ -8,7 +8,7 @@ import { PARI_INTRO } from './shared';
 export const investir = {
   title: 'La machine à intérêts',
   // Déclic du document : carte « À RETENIR » de la fin de leçon
-  takeaway: 'Le temps fait plus que le montant ; placés 30 ans, 100 € par mois peuvent plus que doubler.',
+  takeaway: 'Le [temps] fait plus que le [montant] ; placés 30 ans, 100 € par mois peuvent plus que doubler.',
   // Phrase d'accroche : carte de l'accueil sans compte
   hook: 'Ce que le temps fait à 100 € par mois',
   screens: [

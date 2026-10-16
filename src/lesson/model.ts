@@ -221,8 +221,12 @@ export type LessonScreen =
 
 export type LessonModel = {
   title: string | null;
-  // La phrase clé de la leçon (carte « À RETENIR » de la fin), si elle existe
+  // La phrase clé de la leçon (carte « À RETENIR » de la fin), si elle
+  // existe, telle qu'affichée (sans crochets)
   takeaway: string | null;
+  // La même avec ses mots clés entre crochets (« Le [temps] fait plus… ») :
+  // carnet de déclics et son test
+  takeawayMarked: string | null;
   screens: LessonScreen[];
 };
 
