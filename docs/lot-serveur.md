@@ -172,6 +172,21 @@ Ce n'est pas un manque du site, mais il faut choisir un seul format avant d'écr
 
 ---
 
+### 4.6 Dernière activité par module et par leçon
+- **Manque** :
+  - `GET /api/modules` ne renvoie que `lessons[].completed` (booléen) et `lessons_completed` : aucune date ;
+  - le site connaît pourtant `user_progress.completed_at` et `updated_at` (par leçon) et `module_user.updated_at` (par module), et le web s'en sert pour trier « en cours, du plus récent au plus ancien » (`ThemeController`, `last_activity`) ;
+  - une leçon seulement commencée (`status = en_cours`) n'apparaît pas non plus.
+- **Souhaité** : dans `GET /api/modules`,
+  - par leçon : `completed_at` (ISO 8601 ou `null`) ;
+  - par module : `last_activity_at` (la plus récente activité sur ses leçons, ou `null`).
+- **En attendant** : l'app note sur le téléphone, par compte, la date de chaque leçon terminée sur ce téléphone, et le dernier module ouvert. La leçon du jour et l'ordre des univers « en cours » s'appuient sur cette mémoire ; sur un autre téléphone, ils retombent sur l'ordre du serveur.
+
+### 4.7 Niveaux de difficulté des modules
+- **Rien ne manque pour l'affichage** : `difficulty` est renvoyé par `GET /api/modules`, parmi `entree, debutant, inter, avance, expert` (et l'ancienne valeur `intermediaire`, lue comme `inter`). L'app suit l'ordre du site et la même règle de déblocage que la page web d'un thème (un niveau s'ouvre quand tous les modules des niveaux précédents sont terminés).
+- **Souhaité, plus tard** : que l'API dise elle-même si un niveau est verrouillé, pour que la règle ne vive qu'à un endroit.
+- **En attendant** : la règle est recopiée dans l'app (`src/utils/levels.ts`).
+
 ## 5. Dictionnaire
 - **Manque** :
   - `GET /api/dictionary/terms` (connecté) ne renvoie que `term`, `definition` et `category`, sans identifiant ;

@@ -89,6 +89,7 @@ export const palette = {
     panelStrong: 'rgba(255,255,255,0.05)', // bande de chiffres du profil
     cardSurface: 'rgba(255,255,255,0.03)', // carte de couleur (UniverseCard) : fond
     cardBorder: 'rgba(255,255,255,0.07)',  // son filet
+    artFrame: '#121216',                   // cadre arrondi d'une illustration d'univers (UniverseArt)
     track: 'rgba(255,255,255,0.08)',       // piste d'une barre de progression sur une carte
     goldPill: 'rgba(201,168,76,0.14)',     // pastille du niveau
     goldTile: 'rgba(201,168,76,0.16)',     // carré d'une icône dorée (carnet)
@@ -169,6 +170,7 @@ export const palette = {
     panelStrong: 'rgba(0,0,0,0.05)',
     cardSurface: 'rgba(0,0,0,0.03)',
     cardBorder: 'rgba(0,0,0,0.08)',
+    artFrame: '#F0EFF4',
     track: 'rgba(0,0,0,0.08)',
     goldPill: 'rgba(201,168,76,0.18)',
     goldTile: 'rgba(201,168,76,0.18)',
@@ -215,6 +217,20 @@ export const universeCard = {
   radius: 20,
   bar: 4,
   barInset: 14,
+} as const;
+
+// Illustration d'un univers (UniverseArt) : halo radial de la couleur de
+// l'univers (centre, mi-chemin, éteint à `fade`, centré un peu au-dessus du
+// milieu), part de la zone occupée par l'image, rayon du cadre en part de la
+// taille
+export const universeArt = {
+  haloCenter: 0.33,
+  haloMid: 0.06,
+  haloMidAt: 0.6,
+  fade: 0.8,
+  haloY: 0.45,
+  imageScale: 0.92,
+  frameRadius: 0.21,
 } as const;
 
 // Lueur dorée derrière l'en-tête du profil : or au cœur, diamètre

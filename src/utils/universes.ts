@@ -68,6 +68,68 @@ export function universeDecor(slug: string): DecorName {
   return Object.hasOwn(UNIVERSE_DECORS, slug) ? UNIVERSE_DECORS[slug] : 'plante';
 }
 
+// Illustration peinte de chaque univers (assets/images/univers/<slug>.webp,
+// détourée sur fond transparent ; les images : constants/universeImages).
+// Un univers sans illustration garde son décor peint.
+export const UNIVERSE_ARTS = [
+  'avant-d-investir',
+  'bourse',
+  'crypto',
+  'immobilier',
+  'investir-autrement',
+  'paie-primes-et-aides',
+  'revenus-annexes',
+  'entreprendre',
+  'garder-la-main',
+  'se-loger',
+  'savoir-s-endetter',
+  'impots',
+  'macroeconomie',
+  'prix-marches',
+  'analyser-une-entreprise',
+] as const;
+export type UniverseArtName = (typeof UNIVERSE_ARTS)[number];
+
+export type UniverseArtRef = { kind: 'art'; name: UniverseArtName } | { kind: 'decor'; name: DecorName };
+
+export function universeArt(slug: string): UniverseArtRef {
+  const name = UNIVERSE_ARTS.find((s) => s === slug);
+  return name ? { kind: 'art', name } : { kind: 'decor', name: universeDecor(slug) };
+}
+
+// Les quatre familles du site, dans leur ordre, avec leurs univers
+export type UniverseFamily = { key: string; title: string; slugs: readonly string[] };
+
+export const UNIVERSE_FAMILIES: readonly UniverseFamily[] = [
+  {
+    key: 'investir',
+    title: 'Investir',
+    slugs: ['avant-d-investir', 'bourse', 'crypto', 'immobilier', 'investir-autrement'],
+  },
+  { key: 'gagner', title: 'Gagner de l’argent', slugs: ['paie-primes-et-aides', 'revenus-annexes', 'entreprendre'] },
+  { key: 'gerer', title: 'Gérer au quotidien', slugs: ['garder-la-main', 'se-loger', 'savoir-s-endetter', 'impots'] },
+  {
+    key: 'comprendre',
+    title: 'Comprendre l’économie',
+    slugs: ['macroeconomie', 'prix-marches', 'analyser-une-entreprise'],
+  },
+];
+
+export function universeFamily(slug: string): UniverseFamily | null {
+  return UNIVERSE_FAMILIES.find((f) => f.slugs.includes(slug)) ?? null;
+}
+
+// Univers rangés par famille (ordre reçu dans chaque famille) ; ceux d'aucune
+// famille connue, à la fin sous « Autres univers ». Familles vides omises.
+export function groupByFamily<T extends { universe: Universe }>(entries: T[]): { title: string; entries: T[] }[] {
+  const groups = UNIVERSE_FAMILIES.map((family) => ({
+    title: family.title,
+    entries: entries.filter((e) => family.slugs.includes(e.universe.slug)),
+  }));
+  const others = entries.filter((e) => !universeFamily(e.universe.slug));
+  return [...groups, { title: 'Autres univers', entries: others }].filter((g) => g.entries.length > 0);
+}
+
 export function universeIcon(slug: string): IoniconName {
   return Object.hasOwn(UNIVERSE_ICONS, slug) ? UNIVERSE_ICONS[slug] : DEFAULT_UNIVERSE_ICON;
 }

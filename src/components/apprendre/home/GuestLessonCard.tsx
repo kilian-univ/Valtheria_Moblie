@@ -1,13 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import Pill from '@/src/components/common/Pill';
 import ProgressDots from '@/src/components/common/ProgressDots';
 import GoldHalo from '@/src/components/common/GoldHalo';
 import ValFullBody, { ValPose } from '@/src/components/common/ValFullBody';
-import { DECOR_IMAGES } from '@/src/constants/decorImages';
 import {
   fonts,
   ModuleColors,
@@ -20,10 +19,10 @@ import {
 } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { HomeCard, HomeCardAction } from '@/src/utils/discoveryHome';
-import { universeDecor } from '@/src/utils/universes';
 import Button from '@/src/components/common/Button';
 import IvoryButton from '@/src/components/common/IvoryButton';
 import Sheen from '@/src/components/common/Sheen';
+import UniverseArt from '@/src/components/common/UniverseArt';
 
 const RADIUS = 22;
 const DEPTH = 8;
@@ -50,9 +49,10 @@ const TEXT_RIGHT = 175;
 // Lueur de la couleur de l'univers derrière la carte, sur le fond
 const GLOW_OUTSET = 44;
 const GLOW_OPACITY = 0.2;
-// Décor peint de l'univers, en grand dans la carte, en bas à gauche
+// Illustration de l'univers (UniverseArt), en grand dans la carte, en bas à
+// gauche, estompée pour ne pas gêner la lecture
 const DECOR_SIZE = 190;
-const DECOR_OPACITY = 0.12;
+const DECOR_OPACITY = 0.22;
 
 // Libellés lus par le lecteur d'écran (les capitales s'épellent parfois)
 const SPOKEN: Record<HomeCardAction, string> = {
@@ -79,7 +79,7 @@ type GuestLessonCardProps = {
 };
 
 // Grande carte de l'accueil sans compte : relief à la couleur de l'univers
-// (tranche de 8, reflet, ombre douce, lueur derrière, décor peint en fond),
+// (tranche de 8, reflet, ombre douce, lueur derrière, illustration en fond),
 // Val qui en sort par le haut, pastille, titre, phrase, progression des six
 // sujets, bouton ivoire en relief. Six sur six : carte dorée, Val fier.
 export default function GuestLessonCard({ card, tint, universeSlug, onAction, onLogin }: GuestLessonCardProps) {
@@ -110,13 +110,7 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
         {six ? <Sheen spots={[{ cx: 0.78, cy: 0.48, r: 0.42, color: colors.nodeShade, opacity: 0.18 }]} /> : null}
 
         {six ? null : (
-          <Image
-            source={DECOR_IMAGES[universeDecor(universeSlug)]}
-            resizeMode="contain"
-            style={styles.decor}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          />
+          <UniverseArt slug={universeSlug} color={look.deep} size={DECOR_SIZE} style={styles.decor} />
         )}
 
         <View

@@ -10,6 +10,11 @@ import { MODULE_COLOR_ORDER, moduleColorKey, universeColorKey } from '../src/uti
 import {
   DEFAULT_UNIVERSE_ICON,
   fetchUniverses,
+  groupByFamily,
+  UNIVERSE_ARTS,
+  UNIVERSE_FAMILIES,
+  universeArt,
+  universeFamily,
   modulesOutsideUniverses,
   modulesProgressLabel,
   UNIVERSE_ICONS,
@@ -227,4 +232,44 @@ test('les 15 univers de l’app suivent l’ordre du serveur (champ ordre)', () 
     'prix-marches', // 14
     'analyser-une-entreprise', // 15
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Illustrations et familles
+// ---------------------------------------------------------------------------
+
+test('chacun des 15 univers a son illustration ; un inconnu garde un décor', () => {
+  assert.equal(UNIVERSE_ARTS.length, 15);
+  for (const slug of Object.keys(UNIVERSE_ICONS)) {
+    assert.deepEqual(universeArt(slug), { kind: 'art', name: slug });
+  }
+  assert.deepEqual(universeArt('inconnu'), { kind: 'decor', name: 'plante' });
+});
+
+test('les quatre familles couvrent les 15 univers, sans doublon', () => {
+  assert.deepEqual(
+    UNIVERSE_FAMILIES.map((f) => f.title),
+    ['Investir', 'Gagner de l’argent', 'Gérer au quotidien', 'Comprendre l’économie']
+  );
+  const all = UNIVERSE_FAMILIES.flatMap((f) => f.slugs);
+  assert.equal(new Set(all).size, 15);
+  assert.deepEqual([...all].sort(), Object.keys(UNIVERSE_ICONS).sort());
+  assert.equal(universeFamily('bourse')?.key, 'investir');
+  assert.equal(universeFamily('entreprendre')?.key, 'gagner');
+  assert.equal(universeFamily('impots')?.key, 'gerer');
+  assert.equal(universeFamily('analyser-une-entreprise')?.key, 'comprendre');
+  assert.equal(universeFamily('inconnu'), null);
+});
+
+test('groupByFamily : ordre des familles, ordre reçu dedans, inconnus à la fin', () => {
+  const u = (id: number, slug: string) => ({ universe: { id, slug, name: slug, description: null, position: id, moduleIds: [] } });
+  const groups = groupByFamily([u(1, 'impots'), u(2, 'nouveau'), u(3, 'crypto'), u(4, 'bourse'), u(5, 'se-loger')]);
+  assert.deepEqual(
+    groups.map((g) => [g.title, g.entries.map((e) => e.universe.slug)]),
+    [
+      ['Investir', ['crypto', 'bourse']],
+      ['Gérer au quotidien', ['impots', 'se-loger']],
+      ['Autres univers', ['nouveau']],
+    ]
+  );
 });
