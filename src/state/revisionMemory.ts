@@ -1,23 +1,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useSyncExternalStore } from 'react';
 
-import type { CachedLesson, DailyPlan, RawScreen, SeenHistory } from '@/src/utils/revision';
+import type { CachedLesson, DailyPlan, RawScreen, SeenHistory, ServerRevision } from '@/src/utils/revision';
 import { gradableScreens, recordLessonResults } from '@/src/utils/revision';
 import type { UserKey } from './userMemory';
 
 // Mémoire de la révision quotidienne, par compte, sur le téléphone :
 // - les écrans notés des leçons terminées (relus par l'API au besoin) ;
 // - le dernier passage de chaque écran et déclic (date, résultat) ;
-// - les révisions des derniers jours (celle du jour reste la même).
+// - les révisions des derniers jours (celle du jour reste la même) : celles
+//   tirées par l'app, et celles du serveur (session, déclics ajoutés, fin).
 // Tout échec de stockage est ignoré : la révision repart de zéro.
 
 export type RevisionMemory = {
   lessons: Record<string, CachedLesson>;
   history: SeenHistory;
   plans: DailyPlan[];
+  servers: ServerRevision[];
 };
 
-const EMPTY: RevisionMemory = { lessons: {}, history: {}, plans: [] };
+const EMPTY: RevisionMemory = { lessons: {}, history: {}, plans: [], servers: [] };
 // Révisions gardées : aujourd'hui et la veille suffisent
 const PLANS_KEPT = 3;
 
@@ -35,6 +37,9 @@ function parse(raw: string | null): RevisionMemory {
       lessons: v.lessons && typeof v.lessons === 'object' ? v.lessons : {},
       history: v.history && typeof v.history === 'object' ? v.history : {},
       plans: Array.isArray(v.plans) ? v.plans.filter((p) => p && typeof p.day === 'string' && Array.isArray(p.items)) : [],
+      servers: Array.isArray(v.servers)
+        ? v.servers.filter((r) => r && typeof r.day === 'string' && typeof r.fetchedAt === 'string' && Array.isArray(r.extras))
+        : [],
     };
   } catch {
     return EMPTY;
@@ -70,7 +75,8 @@ export function updateRevisionMemory(user: UserKey, change: (m: RevisionMemory) 
     const current = await loadRevisionMemory(user);
     const next = change(current);
     if (next === current) return;
-    const trimmed = { ...next, plans: [...next.plans].sort((a, b) => (a.day < b.day ? -1 : 1)).slice(-PLANS_KEPT) };
+    const byDay = <T extends { day: string }>(list: T[]) => [...list].sort((a, b) => (a.day < b.day ? -1 : 1)).slice(-PLANS_KEPT);
+    const trimmed = { ...next, plans: byDay(next.plans), servers: byDay(next.servers) };
     cache.set(user, trimmed);
     emit();
     try {

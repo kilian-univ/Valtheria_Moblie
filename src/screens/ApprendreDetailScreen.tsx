@@ -124,8 +124,14 @@ function introLine(screen: LessonScreen, discovery: boolean, isLast: boolean): V
 // fin, onFinished prend la main (bilan, puis écran de fin du parcours).
 export type DiscoveryMode = {
   lesson: LessonModel;
-  // results : premier essai de chaque écran noté (révision quotidienne)
-  onFinished: (summary: LessonSummary, results: { index: number; correct: boolean }[]) => void;
+  // results : premier essai de chaque écran noté (révision quotidienne) ;
+  // responses : tentatives brutes par écran noté, au format de /complete
+  // (révision du serveur)
+  onFinished: (
+    summary: LessonSummary,
+    results: { index: number; correct: boolean }[],
+    responses: Record<string, unknown[]>
+  ) => void;
   // Pastille du premier écran (« LEÇON DÉCOUVERTE » par défaut)
   badge?: string;
   // false : pas de rattrapage des questions ratées (test du carnet, révision)
@@ -381,12 +387,14 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const onDiscoveryFinished = discovery?.onFinished;
   const summaryRef = useRef(summary);
   const resultsRef = useRef(firstTryResults(answers, screens));
+  const responsesRef = useRef(buildResponses(answers, screens));
   useEffect(() => {
     summaryRef.current = summary;
     resultsRef.current = firstTryResults(answers, screens);
+    responsesRef.current = buildResponses(answers, screens);
   });
   useEffect(() => {
-    if (discoveryDone) onDiscoveryFinished?.(summaryRef.current, resultsRef.current);
+    if (discoveryDone) onDiscoveryFinished?.(summaryRef.current, resultsRef.current, responsesRef.current);
   }, [discoveryDone, onDiscoveryFinished]);
 
   const handleFinish = async () => {

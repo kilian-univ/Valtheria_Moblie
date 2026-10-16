@@ -11,6 +11,8 @@ type Props = {
   children: ReactNode;
   // Dernier bouton : retour là d'où l'on vient
   onDone: () => void;
+  // Fin d'une révision : « Révision terminée ! »
+  revision?: boolean;
 };
 
 type State = { failed: boolean };
@@ -31,23 +33,23 @@ export default class EndFlowBoundary extends Component<Props, State> {
   }
 
   render() {
-    if (this.state.failed) return <EndFallback onDone={this.props.onDone} />;
+    if (this.state.failed) return <EndFallback onDone={this.props.onDone} revision={this.props.revision ?? false} />;
     return this.props.children;
   }
 }
 
 const VAL_SIZE = 90;
 
-function EndFallback({ onDone }: { onDone: () => void }) {
+function EndFallback({ onDone, revision }: { onDone: () => void; revision: boolean }) {
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.center}>
         <ValAvatar mood="celebrant" diameter={VAL_SIZE} />
         <AppText variant="title1" accessibilityRole="header" style={styles.text}>
-          Leçon terminée !
+          {revision ? 'Révision terminée !' : 'Leçon terminée !'}
         </AppText>
         <AppText variant="body" tone="subtitle" style={styles.text}>
-          Ta leçon est bien enregistrée.
+          {revision ? 'Ta révision est bien enregistrée.' : 'Ta leçon est bien enregistrée.'}
         </AppText>
       </View>
       <View style={styles.footer}>

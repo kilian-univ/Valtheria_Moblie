@@ -21,8 +21,11 @@ type DailyProgramProps = {
   lesson: LessonOfDay | null;
   // Couleur de l'univers de la leçon (face de moduleColors)
   color: string;
-  // Écrans de la révision du jour ; null : en préparation
+  // Écrans de la révision du jour (null : en préparation), phrase quand il
+  // n'y a rien à réviser, ligne cochée une fois faite
   revisionCount: number | null;
+  revisionEmptyText: string | null;
+  revisionDoneText: string;
   offline: boolean;
   starting: boolean;
   launchError: string | null;
@@ -39,6 +42,8 @@ export default function DailyProgram({
   lesson,
   color,
   revisionCount,
+  revisionEmptyText,
+  revisionDoneText,
   offline,
   starting,
   launchError,
@@ -102,9 +107,9 @@ export default function DailyProgram({
       )}
 
       {program.revisionDone ? (
-        <DoneRow text="Révision du jour faite" />
+        <DoneRow text={revisionDoneText} />
       ) : (
-        <RevisionRow count={revisionCount} primary={reviseFirst} onRevise={onRevise} />
+        <RevisionRow count={revisionCount} emptyText={revisionEmptyText} primary={reviseFirst} onRevise={onRevise} />
       )}
     </View>
   );
@@ -142,16 +147,19 @@ function DoneRow({
 // principale). Rien à réviser : la phrase d'attente, sans bouton.
 function RevisionRow({
   count,
+  emptyText,
   primary,
   onRevise,
 }: {
   count: number | null;
+  emptyText: string | null;
   primary: boolean;
   onRevise: () => void;
 }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const empty = count === 0;
+  const emptyLine = emptyText ?? '';
   return (
     <View
       style={[
@@ -160,7 +168,7 @@ function RevisionRow({
       ]}
     >
       <CardStack />
-      <View style={styles.rowText} accessible accessibilityLabel={`La révision. ${empty ? 'Ta première révision arrive après ta première leçon.' : count === null ? 'En préparation' : revisionLabel(count)}`}>
+      <View style={styles.rowText} accessible accessibilityLabel={`La révision. ${empty ? emptyLine : count === null ? 'En préparation' : revisionLabel(count)}`}>
         <AppText maxFontSizeMultiplier={1.3} style={[styles.kicker, { color: colors.gold }]}>
           2 · LA RÉVISION
         </AppText>
@@ -168,7 +176,7 @@ function RevisionRow({
           <Skeleton width={130} height={14} style={styles.skeleton} />
         ) : (
           <AppText variant={empty ? 'callout' : 'bodyMedium'} tone={empty ? 'subtitle' : 'text'} style={!empty && styles.revisionLine}>
-            {empty ? 'Ta première révision arrive après ta première leçon.' : revisionLabel(count)}
+            {empty ? emptyLine : revisionLabel(count)}
           </AppText>
         )}
       </View>

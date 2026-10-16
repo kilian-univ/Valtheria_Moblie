@@ -286,3 +286,130 @@ export function revisionVerdict(correct: number, total: number, dayDone: boolean
   if (correct * 2 >= total) return { line: 'Bien révisé. Les autres reviendront demain.', mood: 'fier' };
   return { line: 'Ça arrive. On les revoit très vite.', mood: 'rassurant' };
 }
+
+// ---------------------------------------------------------------------------
+// Révision du serveur (GET /api/revision, POST /api/revision/{id}/complete),
+// utilisée en priorité pour un compte connecté. Le serveur choisit ses
+// écrans (un par notion à revoir, 10 au plus) et garde la session 6 h ; il
+// crédite XP et série à la fin. Les déclics du carnet s'y ajoutent après ses
+// écrans : il ignore les positions qu'il n'a pas servies.
+// ---------------------------------------------------------------------------
+
+// Déclics ajoutés à la révision du serveur, au plus
+export const DECLIC_EXTRAS = 2;
+// Le serveur garde la session 360 min : au-delà de 330, on en demande une autre
+export const SESSION_SAFE_MINUTES = 330;
+
+export type ServerSession = {
+  id: string;
+  screens: RawScreen[];
+  notions: { notion: string; name: string; lessonTitle: string | null; due: boolean }[];
+};
+
+// Rien à réviser côté serveur : y a-t-il déjà des notions, et quand revient
+// la prochaine révision (« demain », « lundi »…)
+export type ServerEmpty = { hasNotions: boolean; nextLabel: string | null };
+
+export type ServerRevision = {
+  day: string;
+  fetchedAt: string;
+  session: ServerSession | null;
+  empty: ServerEmpty | null;
+  // Déclics du carnet joués après les écrans du serveur
+  extras: PlanItem[];
+  // Fin : score (écrans du serveur et déclics), XP et série renvoyés par le
+  // serveur ; counted : enregistrée par le serveur
+  done: { at: string; correct: number; total: number; xp: number | null; streak: number | null; counted: boolean } | null;
+};
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+// Réponse de GET /api/revision (enveloppe { data } déjà retirée) ; null si
+// elle n'a pas la forme attendue
+export function parseServerRevision(data: unknown): { session: ServerSession | null; empty: ServerEmpty | null } | null {
+  if (!isObject(data) || !('session' in data)) return null;
+  const s = data.session;
+  if (s === null) {
+    const e = isObject(data.empty) ? data.empty : {};
+    const next = isObject(e.next) ? e.next : null;
+    return {
+      session: null,
+      empty: { hasNotions: e.has_notions === true, nextLabel: next && typeof next.label === 'string' ? next.label : null },
+    };
+  }
+  if (!isObject(s) || typeof s.id !== 'string' || !Array.isArray(s.screens)) return null;
+  const items = Array.isArray(s.items) ? s.items : [];
+  return {
+    session: {
+      id: s.id,
+      screens: s.screens.filter(isObject),
+      notions: items.filter(isObject).map((it) => ({
+        notion: typeof it.notion === 'string' ? it.notion : '',
+        name: typeof it.notion_nom === 'string' ? it.notion_nom : '',
+        lessonTitle: typeof it.lesson_title === 'string' ? it.lesson_title : null,
+        due: it.due === true,
+      })),
+    },
+    empty: null,
+  };
+}
+
+// La révision du serveur gardée sur le téléphone vaut-elle pour maintenant ?
+// Celle du jour, terminée, sans session, ou dont la session n'a pas expiré.
+export function serverRevisionUsable(rec: ServerRevision | null | undefined, today: string, now: Date): boolean {
+  if (!rec || rec.day !== today) return false;
+  if (rec.done || !rec.session) return true;
+  const age = (now.getTime() - new Date(rec.fetchedAt).getTime()) / 60000;
+  return Number.isFinite(age) && age >= 0 && age < SESSION_SAFE_MINUTES;
+}
+
+// Déclics ajoutés : mêmes priorités que la révision de l'app (ratés, puis
+// les plus anciens), sans ceux de la veille sauf ratés, DECLIC_EXTRAS au plus
+export function pickDeclicExtras({
+  declics,
+  history,
+  yesterdayKeys,
+  random,
+  max = DECLIC_EXTRAS,
+}: {
+  declics: readonly Declic[];
+  history: SeenHistory;
+  yesterdayKeys: readonly string[];
+  random: () => number;
+  max?: number;
+}): PlanItem[] {
+  const candidates = buildCandidates({ lessons: [], declics, history, lessonDoneAt: () => null, random });
+  return pickRevision({ candidates, lessonsDone: 0, yesterday: { keys: yesterdayKeys }, random })
+    .slice(0, max)
+    .map((c) => c.item);
+}
+
+// Écrans joués : ceux du serveur (positions 0…n-1, celles qu'attend
+// /complete), puis les déclics
+export function serverRevisionLesson(rec: ServerRevision): { title: string; screens: unknown[]; serverCount: number; extraKeys: string[] } {
+  const own = rec.session?.screens ?? [];
+  const extras = rec.extras.filter((i): i is Extract<PlanItem, { kind: 'declic' }> => i.kind === 'declic');
+  return {
+    title: 'Révision',
+    screens: [...own, ...extras.map((item, i) => quizScreen(item.question, own.length + i))],
+    serverCount: own.length,
+    extraKeys: extras.map((i) => i.key),
+  };
+}
+
+// Réponses pour /complete : seulement les positions servies par le serveur
+export function serverResponses(responses: Record<string, unknown[]>, serverCount: number): Record<string, unknown[]> {
+  const out: Record<string, unknown[]> = {};
+  for (const [pos, tries] of Object.entries(responses)) {
+    const n = Number(pos);
+    if (Number.isInteger(n) && n >= 0 && n < serverCount) out[pos] = tries;
+  }
+  return out;
+}
+
+// « Rien à réviser aujourd'hui. Prochaine révision : demain. »
+export function nothingDueLabel(nextLabel: string | null): string {
+  return nextLabel ? `Rien à réviser aujourd’hui. Prochaine révision : ${nextLabel}.` : 'Rien à réviser aujourd’hui.';
+}

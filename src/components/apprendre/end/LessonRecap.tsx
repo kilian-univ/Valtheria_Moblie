@@ -53,6 +53,8 @@ export type LessonRecapProps = {
   takeaway: string | null;
   onContinue: () => void;
   buttonLabel?: string;
+  // Petites capitales au-dessus du titre (« RÉVISION TERMINÉE » pour une révision)
+  kicker?: string;
 };
 
 // Bilan de fin de leçon : le décor du coffre et Val qui arrive en sautant
@@ -72,6 +74,7 @@ export default function LessonRecap({
   takeaway,
   onContinue,
   buttonLabel = 'Continuer',
+  kicker = 'LEÇON TERMINÉE',
 }: LessonRecapProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -135,7 +138,7 @@ export default function LessonRecap({
 
           <View style={[styles.body, { marginTop: -SCENE_OVERLAP }]}>
             <Cascade index={TEXT_RANK} skip={fast} style={styles.texts}>
-              <AppText style={[styles.kicker, { color: colors.gold }]}>LEÇON TERMINÉE</AppText>
+              <AppText style={[styles.kicker, { color: colors.gold }]}>{kicker}</AppText>
               <AppText accessibilityRole="header" maxFontSizeMultiplier={1.3} style={styles.title}>
                 {name ? `Bravo, ${name}${NBSP}!` : `Bravo${NBSP}!`}
               </AppText>

@@ -65,6 +65,8 @@ type LessonEndFlowProps = {
   moduleTitle: string | null;
   // Dernier bouton : retour là d'où l'on vient
   onDone: () => void;
+  // Fin d'une révision (du serveur) : « RÉVISION TERMINÉE »
+  revision?: boolean;
 };
 
 // Suite d'écrans de fin, en sautant ceux qui ne s'appliquent pas.
@@ -76,6 +78,7 @@ export default function LessonEndFlow({
   streakBefore,
   moduleTitle,
   onDone,
+  revision = false,
 }: LessonEndFlowProps) {
   const { user } = useApi();
   const [baseSteps] = useState<EndStep[]>(() => endSteps(result, streakBefore));
@@ -123,7 +126,14 @@ export default function LessonEndFlow({
   return (
     <EndLayout key={step}>
       {step === 'done' ? (
-        <DoneStep result={result} summary={summary} lessonTitle={lessonTitle} takeaway={takeaway} onNext={next} />
+        <DoneStep
+          result={result}
+          summary={summary}
+          lessonTitle={lessonTitle}
+          takeaway={takeaway}
+          kicker={revision ? 'RÉVISION TERMINÉE' : undefined}
+          onNext={next}
+        />
       ) : null}
       {step === 'streak' && gain ? <StreakStep from={gain.from} to={gain.to} onNext={next} /> : null}
       {step === 'medal' && medal ? <MedalStep medal={medal} onNext={next} /> : null}
@@ -190,12 +200,14 @@ function DoneStep({
   summary,
   lessonTitle,
   takeaway,
+  kicker,
   onNext,
 }: {
   result: LessonResult;
   summary: LessonSummary;
   lessonTitle: string | null;
   takeaway: string | null;
+  kicker?: string;
   onNext: () => void;
 }) {
   const { state } = useOnboarding();
@@ -212,6 +224,7 @@ function DoneStep({
       recovered={summary.recovered}
       streak={typeof result.user?.streak === 'number' ? result.user.streak : null}
       takeaway={takeaway}
+      kicker={kicker}
       onContinue={onNext}
     />
   );

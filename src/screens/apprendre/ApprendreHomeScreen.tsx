@@ -274,7 +274,9 @@ export default function ApprendreHomeScreen() {
                 program={program}
                 lesson={lessonOfDay}
                 color={lessonColor}
-                revisionCount={revision.ready ? revision.count : null}
+                revisionCount={revision.count}
+                revisionEmptyText={revision.emptyText}
+                revisionDoneText={revision.doneText}
                 offline={data.offline}
                 starting={lessonOfDay !== null && startingId === lessonOfDay.lesson.id}
                 launchError={launchError}

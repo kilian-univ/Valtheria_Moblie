@@ -12,6 +12,9 @@ import {
   type CachedLesson,
   type Candidate,
   gradableScreens,
+  nothingDueLabel,
+  parseServerRevision,
+  pickDeclicExtras,
   pickRevision,
   recordLessonResults,
   recordResults,
@@ -20,6 +23,10 @@ import {
   revisionVerdict,
   screenKey,
   seededRandom,
+  type ServerRevision,
+  serverResponses,
+  serverRevisionLesson,
+  serverRevisionUsable,
 } from '../src/utils/revision';
 
 const choice = (q: string) => ({
@@ -182,4 +189,83 @@ test('bilan de Val', () => {
   assert.equal(revisionVerdict(5, 5, false).mood, 'celebrant');
   assert.equal(revisionVerdict(3, 5, false).mood, 'fier');
   assert.equal(revisionVerdict(1, 5, false).mood, 'rassurant');
+});
+
+// ---------------------------------------------------------------------------
+// Révision du serveur
+// ---------------------------------------------------------------------------
+
+test('réponse du serveur : une session, l’état vide, ou une forme inattendue', () => {
+  const session = parseServerRevision({
+    session: { id: 'abc', screens: [choice('a'), choice('b')], items: [{ notion: 'n1', notion_nom: 'Notion 1', lesson_title: 'L', due: true }] },
+    empty: null,
+  });
+  assert.equal(session?.session?.id, 'abc');
+  assert.equal(session?.session?.screens.length, 2);
+  assert.deepEqual(session?.session?.notions[0], { notion: 'n1', name: 'Notion 1', lessonTitle: 'L', due: true });
+
+  const empty = parseServerRevision({ session: null, empty: { has_notions: true, next: { date: '2026-10-17', count: 2, in_days: 1, label: 'demain' } } });
+  assert.deepEqual(empty, { session: null, empty: { hasNotions: true, nextLabel: 'demain' } });
+  assert.deepEqual(parseServerRevision({ session: null, empty: { has_notions: false, next: null } })?.empty, { hasNotions: false, nextLabel: null });
+
+  assert.equal(parseServerRevision(null), null);
+  assert.equal(parseServerRevision({ message: 'Unauthenticated.' }), null);
+  assert.equal(parseServerRevision({ session: { screens: [] } }), null);
+});
+
+function record(extra: Partial<ServerRevision> = {}): ServerRevision {
+  return {
+    day: '2026-10-16',
+    fetchedAt: '2026-10-16T08:00:00Z',
+    session: { id: 's1', screens: [choice('a'), choice('b'), choice('c')], notions: [] },
+    empty: null,
+    extras: [],
+    done: null,
+    ...extra,
+  };
+}
+
+test('la session du serveur sert toute la journée, jusqu’à 5 h 30 (le serveur la garde 6 h)', () => {
+  const at = (h: string) => new Date(`2026-10-16T${h}:00Z`);
+  assert.equal(serverRevisionUsable(record(), '2026-10-16', at('13:00')), true);
+  assert.equal(serverRevisionUsable(record(), '2026-10-16', at('13:31')), false);
+  assert.equal(serverRevisionUsable(record({ done: { at: 'x', correct: 1, total: 2, xp: 10, streak: 3, counted: true } }), '2026-10-16', at('23:00')), true);
+  assert.equal(serverRevisionUsable(record({ session: null, empty: { hasNotions: true, nextLabel: 'demain' } }), '2026-10-16', at('23:00')), true);
+  assert.equal(serverRevisionUsable(record(), '2026-10-17', at('09:00')), false, 'un autre jour');
+  assert.equal(serverRevisionUsable(null, '2026-10-16', at('09:00')), false);
+});
+
+test('déclics ajoutés : 2 au plus, ratés d’abord, rien de la veille sauf raté', () => {
+  const d = (text: string, at: string): Declic => ({ text, universeSlug: 'bourse', universeName: 'Bourse', lessonTitle: null, at });
+  const declics = [d('Le [temps] compte', '2026-10-01T00:00:00Z'), d('Le [risque] se paie', '2026-10-02T00:00:00Z'), d('La [diversification] protège', '2026-10-03T00:00:00Z')];
+  const history = recordResults({}, [{ key: 'd:La [diversification] protège', correct: false }], '2026-10-10T00:00:00Z');
+  const extras = pickDeclicExtras({ declics, history, yesterdayKeys: ['d:Le [temps] compte'], random: fixed });
+  assert.deepEqual(extras.map((e) => e.key), ['d:La [diversification] protège', 'd:Le [risque] se paie']);
+  assert.ok(extras.every((e) => e.kind === 'declic'));
+  assert.deepEqual(pickDeclicExtras({ declics: [], history: {}, yesterdayKeys: [], random: fixed }), []);
+});
+
+test('écrans joués : ceux du serveur d’abord, puis les déclics ; /complete ne reçoit que les positions du serveur', () => {
+  const rec = record({
+    extras: [
+      {
+        key: 'd:x',
+        kind: 'declic',
+        universe: null,
+        question: { prompt: 'Le _____ compte', answer: 'temps', choices: ['temps', 'prix', 'risque'], full: 'Le temps compte', lessonTitle: null },
+      },
+    ],
+  });
+  const built = serverRevisionLesson(rec);
+  assert.equal(built.serverCount, 3);
+  assert.equal(built.screens.length, 4);
+  assert.deepEqual(built.extraKeys, ['d:x']);
+  const model = normalizeLesson({ title: built.title, screens: built.screens });
+  assert.ok(model.screens.every((s) => s.kind === 'choice' && s.scored));
+  assert.deepEqual(serverResponses({ '0': ['a'], '2': ['b', 'a'], '3': ['c0'], x: ['?'] }, 3), { '0': ['a'], '2': ['b', 'a'] });
+});
+
+test('rien à réviser : phrase avec la prochaine révision', () => {
+  assert.equal(nothingDueLabel('demain'), 'Rien à réviser aujourd’hui. Prochaine révision : demain.');
+  assert.equal(nothingDueLabel(null), 'Rien à réviser aujourd’hui.');
 });
