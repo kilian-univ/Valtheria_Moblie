@@ -40,8 +40,11 @@ import { learningStore } from '@/src/state/learningStore';
 import { feedback } from '@/src/utils/feedback';
 import { error as errorHaptic } from '@/src/utils/haptics';
 import { addToNotebook } from '@/src/state/notebook';
+import { recordLessonDone } from '@/src/state/learningLog';
+import { cachedLesson, rememberLesson } from '@/src/state/revisionMemory';
 import { recordLessonXp } from '@/src/state/weekJournal';
 import { userKeyOf } from '@/src/state/userMemory';
+import { universeOfModule } from '@/src/utils/modulePath';
 import { declicForLesson } from '@/src/utils/notebook';
 import { preloadSounds } from '@/src/utils/sound';
 import { comboReached, SOFT_GAIN } from '@/src/utils/soundRules';
@@ -52,6 +55,7 @@ import {
   hasPrimaryButton,
   estimateFor,
   finishedModuleTitle,
+  firstTryResults,
   firstTryRun,
   isFirstTryCorrect,
   isGradable,
@@ -120,13 +124,14 @@ function introLine(screen: LessonScreen, discovery: boolean, isLast: boolean): V
 // fin, onFinished prend la main (bilan, puis écran de fin du parcours).
 export type DiscoveryMode = {
   lesson: LessonModel;
-  onFinished: (summary: LessonSummary) => void;
+  // results : premier essai de chaque écran noté (révision quotidienne)
+  onFinished: (summary: LessonSummary, results: { index: number; correct: boolean }[]) => void;
   // Pastille du premier écran (« LEÇON DÉCOUVERTE » par défaut)
   badge?: string;
-  // false : pas de rattrapage des questions ratées (test du carnet)
+  // false : pas de rattrapage des questions ratées (test du carnet, révision)
   retry?: boolean;
   // Sortie sans écran précédent (choix de l'objectif par défaut)
-  exitTo?: '/bienvenue/objectif' | '/client/carnet';
+  exitTo?: '/bienvenue/objectif' | '/client/carnet' | '/apprendre';
 };
 
 export default function ApprendreDetailScreen({ discovery }: { discovery?: DiscoveryMode } = {}) {
@@ -138,6 +143,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const { getLesson, completeLesson, getModules, getProgress, user } = useApi();
 
   const [screens, setScreens] = useState<LessonScreen[]>(() => discovery?.lesson.screens ?? []);
+  // Leçon telle que servie : ses écrans notés sont gardés pour la révision
+  const rawLesson = useRef<unknown>(null);
   // Titre et phrase clé de la leçon (bilan de fin)
   const [lessonInfo, setLessonInfo] = useState<{ title: string | null; takeaway: string | null; marked: string | null }>(() => ({
     title: discovery?.lesson.title ?? null,
@@ -212,6 +219,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       .then((data: unknown) => {
         // Forme du serveur → format interne : tout se passe dans lesson/normalize.ts
         const lesson = normalizeLesson(data);
+        rawLesson.current = data;
 
         // DIAGNOSTIC : résumé de la leçon + JSON complet des types pas encore construits
         console.log(
@@ -372,11 +380,13 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   // parcours prennent la main
   const onDiscoveryFinished = discovery?.onFinished;
   const summaryRef = useRef(summary);
+  const resultsRef = useRef(firstTryResults(answers, screens));
   useEffect(() => {
     summaryRef.current = summary;
+    resultsRef.current = firstTryResults(answers, screens);
   });
   useEffect(() => {
-    if (discoveryDone) onDiscoveryFinished?.(summaryRef.current);
+    if (discoveryDone) onDiscoveryFinished?.(summaryRef.current, resultsRef.current);
   }, [discoveryDone, onDiscoveryFinished]);
 
   const handleFinish = async () => {
@@ -423,6 +433,18 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       if (declic) addToNotebook(userKeyOf(user?.id), declic).catch(() => {});
       // … et la leçon au journal de la semaine (graphique du profil)
       recordLessonXp(userKeyOf(user?.id), typeof res?.xp_gained === 'number' ? res.xp_gained : 0).catch(() => {});
+      // Mémoire du téléphone : leçon du jour faite, module en cours le plus
+      // récent, et écrans gardés pour la révision (premier essai de chacun)
+      const lessonId = Number(id);
+      const owner = known.find((m) => (m.lessons ?? []).some((l) => l.id === lessonId));
+      const at = new Date();
+      if (owner) recordLessonDone(userKeyOf(user?.id), lessonId, owner.id, at).catch(() => {});
+      const slug = owner ? (universeOfModule(owner, universes)?.slug ?? null) : null;
+      rememberLesson(
+        userKeyOf(user?.id),
+        cachedLesson(lessonId, rawLesson.current, slug, at.toISOString()),
+        firstTryResults(answers, screens)
+      ).catch(() => {});
 
       setModuleTitle(finishedModuleTitle(res ?? {}, learningStore.getState().modules, Number(id)));
       setResult(res ?? {});

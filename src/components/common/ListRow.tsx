@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { opacityDisabled, palette, size, space } from '@/src/constants/style/Style';
+import { fonts, opacityDisabled, palette, size, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import AppText, { TextTone } from './AppText';
 
@@ -33,6 +33,8 @@ type BaseProps = {
   // Marge horizontale du conteneur : la ligne déborde d'autant, pour que
   // l'appui s'éclaire jusqu'aux bords (le texte reste aligné sur la marge)
   bleed?: number;
+  // Titre en Fraunces 17 (liste des modules d'un univers)
+  serif?: boolean;
 };
 
 // Verrouillée : estompée, non touchable, et la raison est obligatoire.
@@ -50,6 +52,7 @@ const VALUE_TONE: Record<ValueTone, TextTone> = {
 };
 
 const CHEVRON_SIZE = 18;
+const SERIF_SIZE = 17;
 
 // Ligne de liste : titre, sous-titre, valeur à droite. Le lecteur d'écran la
 // lit d'un seul bloc. Pas d'échelle à l'appui : une ligne pleine largeur
@@ -71,6 +74,7 @@ export default function ListRow({
   accessibilityLabel: labelOverride,
   compact = false,
   bleed,
+  serif = false,
 }: ListRowProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -105,7 +109,7 @@ export default function ListRow({
       {leading ? <View style={styles.leading}>{leading}</View> : null}
 
       <View style={[styles.texts, compact && styles.compactTexts]}>
-        <AppText variant="bodyMedium" numberOfLines={compact ? 2 : undefined}>
+        <AppText variant="bodyMedium" numberOfLines={compact ? 2 : undefined} style={serif && styles.serifTitle}>
           {title}
         </AppText>
         {shownSubtitle ? (
@@ -130,6 +134,12 @@ export default function ListRow({
 }
 
 const styles = StyleSheet.create({
+  serifTitle: {
+    fontFamily: fonts.title,
+    fontSize: SERIF_SIZE,
+    lineHeight: 21,
+    letterSpacing: titleLetterSpacing(SERIF_SIZE),
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

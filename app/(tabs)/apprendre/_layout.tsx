@@ -10,6 +10,7 @@ export default function ApprendreTabLayout() {
     // opaques (OpaqueScreen) et ne laissent jamais voir celle du dessous.
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="univers/index" />
       <Stack.Screen name="univers/[universeId]" />
       <Stack.Screen name="module/[moduleId]" />
     </Stack>

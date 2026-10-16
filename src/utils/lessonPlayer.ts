@@ -155,6 +155,14 @@ function firstAttempts(answers: CollectedAnswer[], screens: Screen[]): Collected
   return firsts;
 }
 
+// Premier essai de chaque écran noté que le lecteur sait rejouer : la
+// mémoire de la révision quotidienne (écrans ratés en priorité)
+export function firstTryResults(answers: CollectedAnswer[], screens: Screen[]): { index: number; correct: boolean }[] {
+  return firstAttempts(answers, screens)
+    .filter((a) => isGradable(screens[a.screenIndex]))
+    .map((a) => ({ index: a.screenIndex, correct: a.correct }));
+}
+
 // Bonne réponse dès la première tentative sur cet écran
 export function isFirstTryCorrect(answers: CollectedAnswer[], screens: Screen[], screenIndex: number): boolean {
   return firstAttempts(answers, screens).find((a) => a.screenIndex === screenIndex)?.correct ?? false;

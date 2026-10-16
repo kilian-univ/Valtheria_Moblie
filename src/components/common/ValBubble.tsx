@@ -291,11 +291,13 @@ type ValBesideProps = {
   maxWidth?: number;
   // false : le texte s'affiche d'un coup (réplique qui change souvent)
   typing?: boolean;
+  // Petit texte doré après la réplique (« 1 sur 2 »)
+  accent?: string;
 };
 
 // Val, puis sa bulle à droite : la pointe à hauteur de bouche, dirigée vers
 // elle, longue de 55 % de l'écart jusqu'à la tête
-export function ValBeside({ figure, width, height, face, text, title, gap = BESIDE_GAP, delay, maxWidth, typing }: ValBesideProps) {
+export function ValBeside({ figure, width, height, face, text, title, gap = BESIDE_GAP, delay, maxWidth, typing, accent }: ValBesideProps) {
   const layout = besideLayout(face, width, height, gap, DEFAULT_ANCHOR);
   return (
     <View style={[styles.row, { gap }]}>
@@ -304,9 +306,10 @@ export function ValBeside({ figure, width, height, face, text, title, gap = BESI
       </View>
       {/* key : un nouveau texte remonte la bulle et relance l'écriture */}
       <SpeechBubble
-        key={`${title ?? ''}|${text}`}
+        key={`${title ?? ''}|${text}|${accent ?? ''}`}
         text={text}
         title={title}
+        accent={accent}
         side="left"
         anchor={layout.anchor}
         aim={layout.aim}
@@ -341,6 +344,9 @@ type SpeechBubbleProps = {
   typing?: boolean;
   // false : le parent porte le libellé lu
   accessible?: boolean;
+  // Petit texte doré en gras après la réplique (« 1 sur 2 »), écrit avec le
+  // dernier mot
+  accent?: string;
   onLayout?: (width: number, height: number) => void;
 };
 
@@ -362,6 +368,7 @@ export function SpeechBubble({
   accessible = true,
   onLayout,
   typing = true,
+  accent,
 }: SpeechBubbleProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -420,7 +427,7 @@ export function SpeechBubble({
     <Animated.View
       style={[styles.bubbleWrap, { transformOrigin: origin }, style, animatedStyle]}
       accessible={accessible}
-      accessibilityLabel={accessible ? valAccessibilityLabel(text, title) : undefined}
+      accessibilityLabel={accessible ? valAccessibilityLabel(accent ? `${text} ${accent}` : text, title) : undefined}
       onLayout={onLayout ? (e) => onLayout(e.nativeEvent.layout.width, e.nativeEvent.layout.height) : undefined}
     >
       <Pressable
@@ -444,6 +451,11 @@ export function SpeechBubble({
               {word.text}
             </Text>
           ))}
+          {accent ? (
+            <Text style={[styles.accent, { color: colors.goldDeep }, shown < words.length && styles.hidden]}>
+              {` ${accent}`}
+            </Text>
+          ) : null}
         </Text>
         <Tail side={side} anchor={at} aim={aim} length={tailLength} color={colors.bubble} />
       </Pressable>
@@ -507,6 +519,9 @@ const styles = StyleSheet.create({
   },
   emphasis: {
     fontFamily: fonts.bodyEmphasis,
+  },
+  accent: {
+    fontFamily: fonts.bodyBold,
   },
   tail: {
     position: 'absolute',

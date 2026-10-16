@@ -6,18 +6,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import GuestHome from '@/src/components/apprendre/home/GuestHome';
 import { StatusBarShade } from '@/src/components/common/AppBackground';
 import HomeHeader from '@/src/components/apprendre/home/HomeHeader';
-import { ModuleRowsSkeleton, UpNextSkeleton } from '@/src/components/apprendre/home/HomeSkeleton';
+import DailyProgram from '@/src/components/apprendre/home/DailyProgram';
+import { CarouselSkeleton, ProgramSkeleton } from '@/src/components/apprendre/home/HomeSkeleton';
+import LearnTopBar from '@/src/components/apprendre/home/LearnTopBar';
 import ModuleRow from '@/src/components/apprendre/home/ModuleRow';
 import StreakSheet from '@/src/components/apprendre/home/StreakSheet';
-import UniverseRow from '@/src/components/apprendre/home/UniverseRow';
-import UpNextSection from '@/src/components/apprendre/home/UpNextSection';
+import UniverseCarousel from '@/src/components/apprendre/home/UniverseCarousel';
+import WordOfDayLine from '@/src/components/apprendre/home/WordOfDayLine';
 import AppText from '@/src/components/common/AppText';
+import Button from '@/src/components/common/Button';
 import PageState from '@/src/components/common/PageState';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { StaggerItem } from '@/src/components/common/Stagger';
-import { palette, space } from '@/src/constants/style/Style';
+import { moduleColors, palette, space } from '@/src/constants/style/Style';
 import { Lesson, Module, useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useDailyRevision } from '@/src/hooks/useDailyRevision';
+import { useDictionary } from '@/src/hooks/useDictionary';
 import { loadErrorMessage, OFFLINE_BANNER, OFFLINE_REASON, useLearningData } from '@/src/hooks/useLearningData';
 import { useKnownPseudo } from '@/src/hooks/useKnownPseudo';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
@@ -25,7 +30,16 @@ import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { useDailyIgnite } from '@/src/state/flameIgnition';
 import { useBestStreak } from '@/src/state/streakRewards';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
-import { DISCOVERY } from '@/src/lesson/discovery';
+import { DISCOVERY, toObjective } from '@/src/lesson/discovery';
+import { dayCelebrated, markDayCelebrated } from '@/src/state/dayCelebration';
+import { useStoredObjective } from '@/src/state/objective';
+import { userKeyOf } from '@/src/state/userMemory';
+import { carouselOrder, pickLessonOfDay, programState } from '@/src/utils/dailyProgram';
+import { localDay } from '@/src/utils/day';
+import { wordOfTheDay } from '@/src/utils/dictionary';
+import { termHref } from '@/src/utils/dictionaryLinks';
+import { celebrate } from '@/src/utils/haptics';
+import { moduleColorKey } from '@/src/utils/modulePath';
 import {
   allTopicsDone,
   discoveryXp,
@@ -35,10 +49,10 @@ import {
   homeCard,
 } from '@/src/utils/discoveryHome';
 import { feedback } from '@/src/utils/feedback';
-import { inProgressModules, pickUpNext, resolveHomeSituation } from '@/src/utils/learning';
+import { resolveHomeSituation } from '@/src/utils/learning';
 import { isSignupClosed } from '@/src/utils/onboarding';
 import { simulateStreak } from '@/src/utils/streakRewards';
-import { modulesOutsideUniverses, visibleUniverses } from '@/src/utils/universes';
+import { visibleUniverses } from '@/src/utils/universes';
 
 export default function ApprendreHomeScreen() {
   const router = useRouter();
@@ -76,13 +90,7 @@ export default function ApprendreHomeScreen() {
     [data.modules, memory.lastModuleId, memory.celebrated]
   );
 
-  // La fin d'un module n'est fêtée qu'une fois : affichée maintenant,
-  // mémorisée pour les prochaines visites.
-  const celebratedId = situation.kind === 'moduleDone' ? situation.finished.id : null;
-  const { markCelebrated, markOpened } = memory;
-  useEffect(() => {
-    if (celebratedId !== null && !loading) markCelebrated(celebratedId);
-  }, [celebratedId, loading, markCelebrated]);
+  const { markOpened } = memory;
 
   const openModule = (module: Module) =>
     router.push({ pathname: '/apprendre/module/[moduleId]', params: { moduleId: module.id } });
@@ -112,13 +120,46 @@ export default function ApprendreHomeScreen() {
     setStreakMounted(true);
     setStreakOpen(true);
   };
-  const upNext = pickUpNext(data.modules, memory.lastModuleId);
+  // Programme du jour : leçon du jour et révision (mémoire du téléphone)
+  const revision = useDailyRevision(data.isAuthenticated ? user?.id : null);
+  const storedObjective = useStoredObjective(userKeyOf(user?.id));
+  const objective = storedObjective ?? toObjective(user?.objective) ?? onboarding.state.objective ?? null;
+  const objectiveSlug = objective ? DISCOVERY[objective].universe.slug : null;
+  const lessonOfDay = pickLessonOfDay({
+    modules: data.modules,
+    universes: data.universes,
+    log: revision.log,
+    lastModuleId: memory.lastModuleId,
+    objectiveSlug,
+  });
+  const program = programState(revision.lessonDone, revision.revisionDone);
+  const dictionary = useDictionary();
+  const word = wordOfTheDay(dictionary.entries, new Date());
+
+  // Journée faite (leçon et révision) : fêtée une fois, avec la phrase de Val
+  const bothDone = data.isAuthenticated && program.lessonDone && program.revisionDone;
+  useEffect(() => {
+    if (!bothDone || !user) return;
+    const key = userKeyOf(user.id);
+    const today = localDay(new Date());
+    dayCelebrated(key, today).then((done) => {
+      if (done) return;
+      markDayCelebrated(key, today);
+      celebrate();
+    });
+  }, [bothDone, user]);
+
+  const openRevision = () => {
+    feedback.openLesson();
+    router.push('/apprendre/revision');
+  };
+
   const continueStreak = () => {
-    if (!upNext) return;
+    if (!lessonOfDay) return;
     // La feuille (un Modal) doit être fermée avant d'ouvrir le lecteur
     setStreakOpen(false);
     setStreakMounted(false);
-    startLesson(upNext.module, upNext.lesson);
+    startLesson(lessonOfDay.module, lessonOfDay.lesson);
   };
 
   const isGuest = !data.isAuthenticated && !data.authPending;
@@ -143,6 +184,17 @@ export default function ApprendreHomeScreen() {
       statsLoading={data.isAuthenticated && loading}
       onStreak={openStreak}
       onAccount={() => router.push(data.isAuthenticated ? '/client/profil' : '/client/login')}
+    />
+  );
+
+  // En-tête du compte connecté : logo, série, Vals, photo dans l'anneau de niveau
+  const topBar = (
+    <LearnTopBar
+      pseudo={known.pseudo}
+      stats={loading ? null : { xp: data.xp, streak: data.streak, vals: data.vals }}
+      ignite={ignite}
+      onStreak={openStreak}
+      onProfile={() => router.push('/client/profil')}
     />
   );
 
@@ -182,7 +234,7 @@ export default function ApprendreHomeScreen() {
   } else if (!loading && data.error) {
     body = (
       <View style={styles.stack}>
-        {header}
+        {topBar}
         <StaggerItem index={0}>
           <PageState
             variant="error"
@@ -197,104 +249,88 @@ export default function ApprendreHomeScreen() {
     // Le cadre (en-tête, intitulés) est réel tout de suite. Pendant le
     // chargement, ses emplacements reçoivent des squelettes (après 300 ms) ;
     // à l'arrivée, le contenu apparaît en cascade dans le même ordre.
-    const upNextId = situation.kind === 'upNext' ? situation.module.id : null;
-    const others = loading ? [] : inProgressModules(data.modules, upNextId);
-    const showModules = loading || situation.kind !== 'empty';
-    // Univers ayant au moins un module ; aucun (route absente, échec) : la
-    // liste des modules, comme avant
-    const universes = loading ? [] : visibleUniverses(data.universes, data.modules);
-    const outside = modulesOutsideUniverses(universes, data.modules);
+    const universes = loading ? [] : carouselOrder(visibleUniverses(data.universes, data.modules), objectiveSlug, revision.log);
+    const lessonColor = lessonOfDay
+      ? moduleColors[moduleColorKey(data.modules, lessonOfDay.module.id, data.universes)].face
+      : colors.gold;
 
     body = (
       <>
-        {header}
+        {topBar}
         {data.offline ? (
           <StaggerItem index={0}>
             <PageState variant="offline" text={OFFLINE_BANNER} style={styles.offline} />
           </StaggerItem>
         ) : null}
 
-        <Section label="À suivre" spacing={space[6]}>
+        <View style={styles.program}>
           {loading ? (
             <SkeletonGroup>
-              <UpNextSkeleton />
+              <ProgramSkeleton />
             </SkeletonGroup>
           ) : (
             <StaggerItem index={0}>
-              <UpNextSection
-                situation={situation}
+              <DailyProgram
+                program={program}
+                lesson={lessonOfDay}
+                color={lessonColor}
+                revisionCount={revision.ready ? revision.count : null}
                 offline={data.offline}
-                startingId={startingId}
+                starting={lessonOfDay !== null && startingId === lessonOfDay.lesson.id}
                 launchError={launchError}
-                onStartLesson={startLesson}
-                onOpenModule={openModule}
-                onOpenArticles={() => router.push('/article')}
+                onStartLesson={() => lessonOfDay && startLesson(lessonOfDay.module, lessonOfDay.lesson)}
+                onRevise={openRevision}
               />
             </StaggerItem>
           )}
-        </Section>
+        </View>
 
-        {others.length > 0 ? (
+        {word && !loading ? (
           <StaggerItem index={1}>
-            <Section label="Aussi en cours" spacing={space[8]}>
-              <View style={styles.rows}>
-                {others.map((module, i) => (
-                  <ModuleRow key={module.id} module={module} last={i === others.length - 1} onPress={() => openModule(module)} />
-                ))}
-              </View>
-            </Section>
+            <View style={styles.word}>
+              <WordOfDayLine term={word.term} onPress={() => router.push(termHref(word.term))} />
+            </View>
           </StaggerItem>
         ) : null}
 
-        {showModules && universes.length > 0 ? (
+        {loading || universes.length > 0 ? (
           <StaggerItem index={2}>
-            <Section label="Univers" spacing={space[6]}>
+            <View style={styles.sectionHead}>
+              <AppText variant="sectionLabel" accessibilityRole="header">
+                Tes univers
+              </AppText>
+              {loading ? null : (
+                <Button variant="link" label="Tout voir" strong onPress={() => router.push('/apprendre/univers')} />
+              )}
+            </View>
+            {loading ? (
+              <SkeletonGroup>
+                <CarouselSkeleton />
+              </SkeletonGroup>
+            ) : (
+              <UniverseCarousel
+                entries={universes}
+                objectiveSlug={objectiveSlug}
+                bleed={space[5]}
+                onOpen={(u) => openUniverse(u.id)}
+              />
+            )}
+          </StaggerItem>
+        ) : situation.kind !== 'empty' ? (
+          // Pas d'univers (route absente, échec) : la liste des modules
+          <Section label="Modules" spacing={space[8]}>
+            <StaggerItem index={2}>
               <View style={styles.rows}>
-                {universes.map((entry, i) => (
-                  <UniverseRow
-                    key={entry.universe.id}
-                    entry={entry}
-                    last={i === universes.length - 1}
-                    onPress={() => openUniverse(entry.universe.id)}
+                {data.modules.map((module, i) => (
+                  <ModuleRow
+                    key={module.id}
+                    module={module}
+                    last={i === data.modules.length - 1}
+                    onPress={() => openModule(module)}
                   />
                 ))}
               </View>
-            </Section>
-            {outside.length > 0 ? (
-              <Section label="Autres modules" spacing={space[6]}>
-                <View style={styles.rows}>
-                  {outside.map((module, i) => (
-                    <ModuleRow
-                      key={module.id}
-                      module={module}
-                      last={i === outside.length - 1}
-                      onPress={() => openModule(module)}
-                    />
-                  ))}
-                </View>
-              </Section>
-            ) : null}
-          </StaggerItem>
-        ) : showModules ? (
-          <Section label="Modules" spacing={space[6]}>
-            {loading ? (
-              <SkeletonGroup>
-                <ModuleRowsSkeleton />
-              </SkeletonGroup>
-            ) : (
-              <StaggerItem index={2}>
-                <View style={styles.rows}>
-                  {data.modules.map((module, i) => (
-                    <ModuleRow
-                      key={module.id}
-                      module={module}
-                      last={i === data.modules.length - 1}
-                      onPress={() => openModule(module)}
-                    />
-                  ))}
-                </View>
-              </StaggerItem>
-            )}
+            </StaggerItem>
           </Section>
         ) : null}
       </>
@@ -329,7 +365,7 @@ export default function ApprendreHomeScreen() {
           open={streakOpen}
           onRequestClose={closeStreak}
           onClosed={unmountStreak}
-          onContinue={upNext ? continueStreak : undefined}
+          onContinue={lessonOfDay ? continueStreak : undefined}
           continueDisabled={data.offline}
           continueDisabledReason={OFFLINE_REASON}
         />
@@ -365,6 +401,19 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     marginBottom: space[3],
+  },
+  program: {
+    marginTop: space[4],
+  },
+  word: {
+    marginTop: space[3],
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: space[5],
+    marginBottom: space[2],
   },
   offline: {
     marginTop: space[4],

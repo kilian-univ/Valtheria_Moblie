@@ -21,18 +21,22 @@ type ProfileAvatarProps = {
   // Petit bouton appareil photo : seulement si l'envoi d'une photo est
   // possible (pas de route serveur pour l'instant, docs/lot-serveur.md)
   onCamera?: () => void;
+  // Épaisseur de l'anneau et écart jusqu'à la photo (4 et 8 par défaut ;
+  // en-tête de l'accueil : 3 et 5)
+  ring?: number;
+  inset?: number;
 };
 
 // Photo de profil ronde dans un anneau doré qui montre la progression vers
 // le niveau suivant. Sans photo (le serveur ne l'envoie pas encore à l'app) :
 // l'initiale sur un fond doux. L'anneau se remplit à l'apparition.
-export default function ProfileAvatar({ size, initial, ratio, accessibilityLabel, onCamera }: ProfileAvatarProps) {
+export default function ProfileAvatar({ size, initial, ratio, accessibilityLabel, onCamera, ring = RING, inset = INSET }: ProfileAvatarProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const inner = size - 2 * INSET;
+  const inner = size - 2 * inset;
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={accessibilityLabel}>
-      <ProgressRing progress={ratio} diameter={size} stroke={RING} animated>
+      <ProgressRing progress={ratio} diameter={size} stroke={ring} animated>
         <View
           style={[styles.photo, { width: inner, height: inner, borderRadius: inner / 2, backgroundColor: colors.goldSoft }]}
         >

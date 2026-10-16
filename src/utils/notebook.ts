@@ -177,40 +177,76 @@ function blankOut(text: string, keyword: string): string {
   return i < 0 ? plain : `${plain.slice(0, i)}${BLANK}${plain.slice(i + keyword.length)}`;
 }
 
-// Questions du test : QUIZ_MAX au plus (moins si le carnet en a moins),
-// chacune un déclic avec un mot clé masqué et trois choix : le bon mot, et
-// deux mots clés d'autres déclics ou des mots proches, jamais deux fois le
-// même mot.
-export function buildQuiz(list: readonly Declic[], random: () => number = Math.random): QuizQuestion[] {
-  const usable = list
+type Usable = { d: Declic; keywords: string[] };
+
+function usableDeclics(list: readonly Declic[]): Usable[] {
+  return list
     .map((d) => {
       const marked = declicKeywords(d.text);
       const keywords = marked.length > 0 ? marked : [guessKeyword(d.text)].filter((w): w is string => !!w);
       return { d, keywords };
     })
     .filter((x) => x.keywords.length > 0);
-  const picked = shuffle(usable, random).slice(0, QUIZ_MAX);
-  const allKeywords = usable.flatMap((x) => x.keywords);
+}
 
-  return picked.map(({ d, keywords }) => {
-    const answer = keywords[Math.floor(random() * keywords.length)];
-    const taken = new Set([key(answer), ...keywords.map(key)]);
-    const others: string[] = [];
-    const candidates = [...shuffle(allKeywords, random), ...shuffle([...NEAR_WORDS], random)];
-    for (const w of candidates) {
-      if (others.length === 2) break;
-      if (taken.has(key(w))) continue;
-      taken.add(key(w));
-      others.push(w);
-    }
-    return {
-      prompt: blankOut(d.text, answer),
-      answer,
-      choices: shuffle([answer, ...others], random),
-      full: plainDeclic(d.text),
-      lessonTitle: d.lessonTitle,
-    };
-  });
+// Une question : le déclic avec un mot clé masqué et trois choix : le bon
+// mot, et deux mots clés d'autres déclics du carnet ou des mots proches,
+// jamais deux fois le même mot
+function questionFrom({ d, keywords }: Usable, allKeywords: string[], random: () => number): QuizQuestion {
+  const answer = keywords[Math.floor(random() * keywords.length)];
+  const taken = new Set([key(answer), ...keywords.map(key)]);
+  const others: string[] = [];
+  const candidates = [...shuffle(allKeywords, random), ...shuffle([...NEAR_WORDS], random)];
+  for (const w of candidates) {
+    if (others.length === 2) break;
+    if (taken.has(key(w))) continue;
+    taken.add(key(w));
+    others.push(w);
+  }
+  return {
+    prompt: blankOut(d.text, answer),
+    answer,
+    choices: shuffle([answer, ...others], random),
+    full: plainDeclic(d.text),
+    lessonTitle: d.lessonTitle,
+  };
+}
+
+// Questions du test : QUIZ_MAX au plus (moins si le carnet en a moins),
+// chacune un déclic différent
+export function buildQuiz(list: readonly Declic[], random: () => number = Math.random): QuizQuestion[] {
+  const usable = usableDeclics(list);
+  const allKeywords = usable.flatMap((x) => x.keywords);
+  return shuffle(usable, random)
+    .slice(0, QUIZ_MAX)
+    .map((u) => questionFrom(u, allKeywords, random));
+}
+
+// Question d'un déclic donné (révision quotidienne), les autres mots venant
+// du carnet entier ; null si la phrase n'a aucun mot clé utilisable
+export function quizQuestionFor(declic: Declic, all: readonly Declic[], random: () => number = Math.random): QuizQuestion | null {
+  const [own] = usableDeclics([declic]);
+  if (!own) return null;
+  return questionFrom(own, usableDeclics(all).flatMap((x) => x.keywords), random);
+}
+
+// Un écran du test, au format d'une leçon du serveur (choix unique)
+export function quizScreen(q: QuizQuestion, i: number): unknown {
+  return {
+    type: 'choice',
+    scored: true,
+    val: {
+      intro: { line: i === 0 ? 'Un mot manque. Lequel ?' : 'Et celui-ci ?', mood: 'complice' },
+      correct: { line: 'Tu l’as gardé en tête.', mood: 'fier' },
+      wrong: { line: 'Il revient vite, tu vas voir.', mood: 'rassurant' },
+    },
+    explanation: q.lessonTitle ? `« ${q.full} » (${q.lessonTitle})` : `« ${q.full} »`,
+    payload: {
+      question: q.prompt,
+      mode: 'single',
+      options: q.choices.map((c, j) => ({ id: `c${j}`, text: c, ...(c === q.answer ? { correct: true } : {}) })),
+    },
+  };
 }
 
 // Le test au format d'une leçon du serveur (GET /lessons/{id}) : il passe par
@@ -219,21 +255,7 @@ export function quizLesson(questions: readonly QuizQuestion[]): unknown {
   return {
     title: 'Mes déclics',
     takeaway: null,
-    screens: questions.map((q, i) => ({
-      type: 'choice',
-      scored: true,
-      val: {
-        intro: { line: i === 0 ? 'Un mot manque. Lequel ?' : 'Et celui-ci ?', mood: 'complice' },
-        correct: { line: 'Tu l’as gardé en tête.', mood: 'fier' },
-        wrong: { line: 'Il revient vite, tu vas voir.', mood: 'rassurant' },
-      },
-      explanation: q.lessonTitle ? `« ${q.full} » (${q.lessonTitle})` : `« ${q.full} »`,
-      payload: {
-        question: q.prompt,
-        mode: 'single',
-        options: q.choices.map((c, j) => ({ id: `c${j}`, text: c, ...(c === q.answer ? { correct: true } : {}) })),
-      },
-    })),
+    screens: questions.map((q, i) => quizScreen(q, i)),
   };
 }
 

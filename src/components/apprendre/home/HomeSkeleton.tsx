@@ -13,19 +13,27 @@ const BUBBLE_HEIGHT = 72;
 // réel : seules les parties qui attendent des données sont des blocs, aux
 // dimensions exactes du contenu qui les remplacera.
 
-// Sous « À SUIVRE » : Val, sa bulle, le module et la leçon, le bouton
-export function UpNextSkeleton() {
+// Programme du jour : Val et sa bulle, la carte de la leçon, la ligne de la
+// révision ; puis le carrousel des univers
+export function ProgramSkeleton() {
   return (
-    <View>
-      <View style={styles.valRow}>
-        <Skeleton width={120} height={150} shape="block" />
+    <View style={styles.program}>
+      <View style={styles.programVal}>
+        <Skeleton width={118} height={122} shape="block" />
         <Skeleton width="100%" height={BUBBLE_HEIGHT} shape="block" style={styles.bubble} />
       </View>
-      <View style={styles.meta}>
-        <Skeleton width={180} height={13} />
-        <Skeleton width="65%" height={22} />
-      </View>
-      <Skeleton width="100%" height={size.buttonHeight} shape="button" style={styles.button} />
+      <Skeleton width="100%" height={176} shape="block" />
+      <Skeleton width="100%" height={66} shape="block" />
+    </View>
+  );
+}
+
+export function CarouselSkeleton() {
+  return (
+    <View style={styles.carousel}>
+      <Skeleton width={168} height={236} shape="block" />
+      <Skeleton width={168} height={236} shape="block" />
+      <Skeleton width={168} height={236} shape="block" />
     </View>
   );
 }
@@ -54,22 +62,22 @@ export function ModuleRowsSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  valRow: {
-    paddingTop: space[4],
+  program: {
+    gap: 14,
+  },
+  programVal: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: space[2],
   },
+  carousel: {
+    flexDirection: 'row',
+    gap: space[3],
+    overflow: 'hidden',
+  },
   bubble: {
     flex: 1,
     marginBottom: space[4],
-  },
-  meta: {
-    marginTop: 18,
-    gap: space[2],
-  },
-  button: {
-    marginTop: 14,
   },
   // Même retrait que les vraies lignes (ListRow) pour que rien ne bouge
   rows: {

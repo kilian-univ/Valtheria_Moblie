@@ -233,6 +233,31 @@ export const universeArt = {
   frameRadius: 0.21,
 } as const;
 
+// Couleur de la pastille d'un niveau de difficulté (accueil, page d'un
+// univers) : un ton de la palette par niveau du site ; inconnu : l'or
+export const levelTone: Record<string, 'success' | 'gold' | 'streak' | 'frostInk'> = {
+  entree: 'success',
+  debutant: 'success',
+  inter: 'gold',
+  avance: 'streak',
+  expert: 'frostInk',
+};
+
+// Accueil d'Apprendre : carte de la leçon du jour, ligne de la révision,
+// carrousel des univers
+export const learnHome = {
+  valWidth: 118,
+  valHeight: 122,
+  lessonArt: 76,
+  lessonTitle: 20,
+  rowRadius: 18,
+  tileWidth: 168,
+  tileArt: 150,
+  tileRadius: 20,
+  tileGap: 12,
+  tileName: 18,
+} as const;
+
 // Lueur dorée derrière l'en-tête du profil : or au cœur, diamètre
 export const headerGlow = { opacity: 0.16, size: 300 } as const;
 

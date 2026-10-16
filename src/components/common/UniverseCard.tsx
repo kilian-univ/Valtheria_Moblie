@@ -31,6 +31,14 @@ type UniverseCardProps = {
   finished?: { title: string; link?: { label: string; onPress: () => void } } | null;
   // Aucune leçon publiée : ce message à la place de la barre et du compte
   emptyMessage?: string | null;
+  // À gauche du libellé et du titre (illustration de l'univers)
+  leading?: ReactNode;
+  // false : pas de barre ni de compte (la lueur suit toujours done / total)
+  showProgress?: boolean;
+  // Taille du titre (22 par défaut)
+  titleSize?: number;
+  // Sous le reste (bouton…)
+  children?: ReactNode;
 };
 
 // Carte de couleur sombre : fond blanc à 3 %, filet fin, liseré vertical à la
@@ -38,7 +46,21 @@ type UniverseCardProps = {
 // PROGRESSION (utils/universeGlow). La lueur glisse vers sa nouvelle position
 // quand la progression change (animations réduites : directement). Texte
 // toujours ivoire ou atténué, jamais sombre sur un aplat de couleur.
-export default function UniverseCard({ color, label, labelAction, title, done, total, next, finished, emptyMessage }: UniverseCardProps) {
+export default function UniverseCard({
+  color,
+  label,
+  labelAction,
+  title,
+  done,
+  total,
+  next,
+  finished,
+  emptyMessage,
+  leading,
+  showProgress = true,
+  titleSize = TITLE_SIZE,
+  children,
+}: UniverseCardProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const ratio = total > 0 ? Math.min(1, done / total) : 0;
@@ -59,21 +81,37 @@ export default function UniverseCard({ color, label, labelAction, title, done, t
       />
       <View style={[styles.bar, { backgroundColor: color }]} />
 
-      <View style={styles.head}>
-        <AppText maxFontSizeMultiplier={1.3} style={[styles.label, { color }]}>
-          {label.toUpperCase()}
-        </AppText>
-        {labelAction}
+      <View style={leading ? styles.leadRow : undefined}>
+        {leading}
+        <View style={leading ? styles.leadTexts : undefined}>
+          <View style={styles.head}>
+            <AppText maxFontSizeMultiplier={1.3} style={[styles.label, { color }]}>
+              {label.toUpperCase()}
+            </AppText>
+            {labelAction}
+          </View>
+          <AppText
+            maxFontSizeMultiplier={1.3}
+            style={[
+              styles.title,
+              titleSize !== TITLE_SIZE && {
+                fontSize: titleSize,
+                lineHeight: Math.round(titleSize * 1.2),
+                letterSpacing: titleLetterSpacing(titleSize),
+              },
+            ]}
+            accessibilityRole="header"
+          >
+            {title}
+          </AppText>
+        </View>
       </View>
-      <AppText maxFontSizeMultiplier={1.3} style={styles.title} accessibilityRole="header">
-        {title}
-      </AppText>
 
       {emptyMessage ? (
         <AppText variant="callout" tone="subtitle" style={styles.empty}>
           {emptyMessage}
         </AppText>
-      ) : (
+      ) : showProgress ? (
         <View
           style={styles.progress}
           accessible
@@ -86,7 +124,7 @@ export default function UniverseCard({ color, label, labelAction, title, done, t
             {`${done} / ${total}`}
           </AppText>
         </View>
-      )}
+      ) : null}
 
       {finished ? (
         <View style={styles.finished}>
@@ -103,6 +141,7 @@ export default function UniverseCard({ color, label, labelAction, title, done, t
       ) : next ? (
         <NextRow color={color} onColor={onColor} title={next.title} onPress={next.onPress} spoken={next.accessibilityLabel} />
       ) : null}
+      {children}
     </View>
   );
 }
@@ -150,6 +189,16 @@ const styles = StyleSheet.create({
     width: universeCard.bar,
     borderTopRightRadius: universeCard.bar,
     borderBottomRightRadius: universeCard.bar,
+  },
+  // Illustration à gauche, libellé et titre à droite
+  leadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3] + 2,
+  },
+  leadTexts: {
+    flex: 1,
+    minWidth: 0,
   },
   head: {
     flexDirection: 'row',

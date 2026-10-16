@@ -108,13 +108,6 @@ export function pickUpNext(modules: Module[], lastModuleId: number | null): UpNe
   return null;
 }
 
-// Modules commencés et non terminés, hors celui d'« À suivre », 3 au plus
-export function inProgressModules(modules: Module[], excludeId: number | null, max = 3): Module[] {
-  return playable(modules)
-    .filter((m) => m.id !== excludeId && moduleState(m) === 'started')
-    .slice(0, max);
-}
-
 // Premier module non terminé après `moduleId` dans l'ordre du serveur, en
 // repartant du début si besoin. null si tous les autres sont terminés.
 export function nextModuleAfter(modules: Module[], moduleId: number): Module | null {

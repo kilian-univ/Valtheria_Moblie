@@ -22,10 +22,25 @@ import AppText, { TextTone } from './AppText';
 // text : bouton texte doré ; textDanger : rouge (action destructrice discrète)
 // link : lien dans une phrase ou une carte (taille 14, sans marge,
 //   souligné ou non, couleur au choix)
-export type ButtonVariant = 'primary' | 'success' | 'danger' | 'secondary' | 'contrast' | 'text' | 'textDanger' | 'link';
+// goldOutline : contour or sur un fond or très léger (action secondaire
+//   d'une ligne, « Réviser »)
+export type ButtonVariant =
+  | 'primary'
+  | 'success'
+  | 'danger'
+  | 'secondary'
+  | 'contrast'
+  | 'text'
+  | 'textDanger'
+  | 'link'
+  | 'goldOutline';
+
+// md : hauteur 52, rayon 12 ; sm : pastille de 36 (dans une ligne)
+export type ButtonSize = 'md' | 'sm';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 const ICON_SIZE = 20;
+const SMALL_HEIGHT = 36;
 
 type ReliefColors = { face: 'gold' | 'success' | 'error'; edge: 'goldDeep' | 'successDeep' | 'dangerDeep' };
 
@@ -60,6 +75,7 @@ type ButtonProps = {
   underline?: boolean;
   strong?: boolean;
   accessibilityRole?: 'button' | 'link';
+  size?: ButtonSize;
 };
 
 const LABEL_TONE: Record<ButtonVariant, TextTone> = {
@@ -71,6 +87,7 @@ const LABEL_TONE: Record<ButtonVariant, TextTone> = {
   text: 'gold',
   textDanger: 'error',
   link: 'gold',
+  goldOutline: 'gold',
 };
 
 const PRESSED_SCALE = 0.97; // secondary et boutons texte
@@ -82,7 +99,8 @@ export default function Button({
   disabled = false,
   disabledReason,
   loading = false,
-  fullWidth = variant !== 'text' && variant !== 'textDanger' && variant !== 'link',
+  size = 'md',
+  fullWidth = variant !== 'text' && variant !== 'textDanger' && variant !== 'link' && size !== 'sm',
   accessibilityHint,
   silent = false,
   style,
@@ -132,14 +150,21 @@ export default function Button({
     onPress();
   };
 
-  const iconNode = icon ? <Ionicons name={icon} size={ICON_SIZE} color={labelColor} /> : null;
+  const small = size === 'sm';
+  const iconNode = icon ? <Ionicons name={icon} size={small ? 14 : ICON_SIZE} color={labelColor} /> : null;
   const content = (
     <>
       {loading ? <ActivityIndicator size="small" color={labelColor} /> : null}
       {iconPosition === 'left' ? iconNode : null}
       <AppText
         variant={isLink ? 'callout' : 'button'}
-        style={[styles.label, { color: labelColor }, strong && styles.strong, underline && styles.underline]}
+        style={[
+          styles.label,
+          { color: labelColor },
+          strong && styles.strong,
+          underline && styles.underline,
+          small && styles.smallLabel,
+        ]}
       >
         {label}
       </AppText>
@@ -164,11 +189,18 @@ export default function Button({
         {relief ? (
           <>
             {/* Tranche : visible sous la face, recouverte quand la face s'enfonce */}
-            <View style={[styles.edge, { backgroundColor: dimmedRelief ? colors.disabledEdge : colors[relief.edge] }]} />
+            <View
+              style={[
+                styles.edge,
+                small && styles.smallShape,
+                { backgroundColor: dimmedRelief ? colors.disabledEdge : colors[relief.edge] },
+              ]}
+            />
             <Animated.View
               style={[
                 styles.base,
                 styles.primaryFace,
+                small && [styles.smallShape, styles.smallFace],
                 { backgroundColor: dimmedRelief ? colors.disabledFace : colors[relief.face] },
                 faceStyle,
               ]}
@@ -184,7 +216,10 @@ export default function Button({
                 ? [styles.textFace, isLink && styles.linkFace]
                 : variant === 'contrast'
                   ? [styles.primaryFace, { backgroundColor: colors.text }]
-                  : [styles.secondaryFace, { borderColor: colors.controlBorder }],
+                  : variant === 'goldOutline'
+                    ? [styles.secondaryFace, styles.goldOutline, { borderColor: colors.gold, backgroundColor: colors.goldSoft }]
+                    : [styles.secondaryFace, { borderColor: colors.controlBorder }],
+              small && [styles.smallShape, styles.smallFace],
               faceStyle,
             ]}
           >
@@ -251,6 +286,22 @@ const styles = StyleSheet.create({
   },
   strong: {
     fontFamily: fonts.bodySemibold,
+  },
+  goldOutline: {
+    borderWidth: 1.5,
+  },
+  // Petite pastille : 36 de haut, arrondie
+  smallShape: {
+    borderRadius: radius.pill,
+  },
+  smallFace: {
+    minHeight: SMALL_HEIGHT,
+    paddingHorizontal: space[4],
+  },
+  smallLabel: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 14,
+    lineHeight: 18,
   },
   underline: {
     textDecorationLine: 'underline',
