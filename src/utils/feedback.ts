@@ -54,9 +54,10 @@ export const feedback = {
   },
   // gain < 1 : verdict adouci (feuille finale du vrai ou faux et d'associer,
   // chaque carte ou paire ayant déjà eu le sien)
-  right(gain = 1) {
+  // rate : hauteur du son dans une série d'affilée (correctRate)
+  right(gain = 1, rate = 1) {
     haptics.success();
-    playSound('correct', { gain });
+    playSound('correct', { gain, rate });
   },
   wrong(gain = 1) {
     haptics.error();

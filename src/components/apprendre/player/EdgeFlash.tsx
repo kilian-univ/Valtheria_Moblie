@@ -15,6 +15,8 @@ import { useTheme } from '@/src/context/ThemeContext';
 // Halo intérieur sur les bords de l'écran
 const GLOW_BLUR = 60;
 const GLOW_SPREAD = 6;
+// Halo doré de la série d'affilée, un peu plus long que celui du verdict
+const GOLD_FLASH = 400;
 
 // Flash de réussite (vert) ou d'erreur (rouge) sur les bords de l'écran du
 // lecteur, déclenché par un écran (carte de vrai ou faux) ou par le lecteur
@@ -29,11 +31,14 @@ type EdgeFlashProps = {
   // Change à chaque flash (le même résultat deux fois rejoue le flash)
   flashKey: number;
   right: boolean;
+  // Halo doré de la série d'affilée (400 ms) à la place du vert ou du rouge
+  gold?: boolean;
 };
 
 // Bords de l'écran qui s'allument de la couleur du résultat : 300 ms en tout,
-// ease-out. Ne capte aucun toucher. Animations réduites : rien.
-export default function EdgeFlash({ flashKey, right }: EdgeFlashProps) {
+// ease-out (or : 400 ms, série d'affilée). Ne capte aucun toucher.
+// Animations réduites : rien.
+export default function EdgeFlash({ flashKey, right, gold = false }: EdgeFlashProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
@@ -41,11 +46,12 @@ export default function EdgeFlash({ flashKey, right }: EdgeFlashProps) {
 
   useEffect(() => {
     if (flashKey === 0 || reduced) return;
-    glow.set(withSequence(withTiming(1, timing(motion.tap)), withTiming(0, timing(motion.screen - motion.tap))));
-  }, [flashKey, reduced, glow]);
+    const total = gold ? GOLD_FLASH : motion.screen;
+    glow.set(withSequence(withTiming(1, timing(motion.tap)), withTiming(0, timing(total - motion.tap))));
+  }, [flashKey, reduced, glow, gold]);
 
   const style = useAnimatedStyle(() => ({ opacity: glow.get() }));
-  const color = right ? colors.success : colors.error;
+  const color = gold ? colors.gold : right ? colors.success : colors.error;
 
   return (
     <Animated.View

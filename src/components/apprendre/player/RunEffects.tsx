@@ -1,27 +1,28 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSequence,
+  withSpring,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
-import { timing } from '@/src/constants/motion';
-import { fonts, palette, runBadgeFx, withOpacity } from '@/src/constants/style/Style';
+import { springs, timing } from '@/src/constants/motion';
+import { fonts, palette, runBadgeFx, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 
 const SPARK = 5;
 // Décalage vertical de chaque étincelle de la traînée (px), pour un effet vivant
 const TRAIL_JITTER = [0, -3, 3, -1, 2, -2, 1];
 const TRAIL_GAP = 11;
-const WORD_BOX = 120;
-// Marge du haut à partir de laquelle il y a de la place au-dessus de la barre (encoche)
-const ROOMY_TOP_INSET = 30;
+const SHOUT_SIZE = 32;
+// Montée du grand texte pendant qu'il s'efface (px)
+const SHOUT_RISE = 14;
 
 // Effets de la pastille ⚡ (jamais rendus quand les animations sont
 // réduites). Chacun joue une fois, à son montage : le parent les remonte
@@ -93,38 +94,40 @@ function BurstSpark({ angle, progress, index }: { angle: number; progress: Share
   return <Animated.View style={[styles.spark, { backgroundColor: index % 3 === 0 ? colors.ivory : colors.gold }, style]} />;
 }
 
-// Mot bref au-dessus de la pastille (« En feu ! »), qui apparaît puis
-// s'efface. Sans encoche (iPhone SE), la barre d'état est collée à la barre
-// du lecteur : le mot passe juste sous la pastille, pour ne pas couvrir
-// l'heure ni la batterie.
-export function RunWord({ word }: { word: string }) {
+// Grand texte doré sous la barre (« 3 d'affilée ! »), au déclenchement de
+// la série et à ses paliers : surgit avec un ressort (0,6 → 1,1 → 1), reste
+// 800 ms, puis s'efface en montant. Ne bloque rien : la question reste
+// jouable dessous. Animations réduites : apparaît et disparaît sans mouvement.
+export function RunShout({ text, reduced }: { text: string; reduced: boolean }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const above = useSafeAreaInsets().top >= ROOMY_TOP_INSET;
-  const p = useSharedValue(0);
+  const scale = useSharedValue(reduced ? 1 : 0.6);
+  const opacity = useSharedValue(reduced ? 1 : 0);
+  const lift = useSharedValue(0);
   useEffect(() => {
-    const third = runBadgeFx.word / 3;
-    p.set(withSequence(withTiming(1, timing(third)), withTiming(1, { duration: third }), withTiming(2, timing(third))));
-  }, [p]);
-  const style = useAnimatedStyle(() => {
-    const v = p.get();
-    return {
-      opacity: interpolate(v, [0, 1, 2], [0, 1, 0]),
-      transform: [{ translateY: interpolate(v, [0, 1, 2], [4, 0, -6]) }, { scale: interpolate(v, [0, 1], [0.8, 1], 'clamp') }],
-    };
-  });
+    const hold = runBadgeFx.shoutHold;
+    if (reduced) {
+      opacity.set(withDelay(hold + runBadgeFx.shoutIn, withTiming(0, { duration: 0 })));
+      return;
+    }
+    opacity.set(withSequence(withTiming(1, timing(runBadgeFx.shoutIn)), withDelay(hold, withTiming(0, timing(runBadgeFx.shoutOut)))));
+    scale.set(withSequence(withTiming(1.1, timing(runBadgeFx.shoutIn)), withSpring(1, springs.press)));
+    lift.set(withDelay(runBadgeFx.shoutIn + hold, withTiming(-SHOUT_RISE, timing(runBadgeFx.shoutOut))));
+  }, [reduced, scale, opacity, lift]);
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.get(),
+    transform: [{ translateY: lift.get() }, { scale: scale.get() }],
+  }));
   return (
     <Animated.View
       pointerEvents="none"
-      style={[styles.word, above ? styles.wordAbove : styles.wordBelow, style]}
+      style={[styles.shout, style]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <View style={[styles.wordBubble, { backgroundColor: withOpacity(colors.background, 0.85) }]}>
-        <AppText maxFontSizeMultiplier={1.2} numberOfLines={1} style={[styles.wordText, { color: colors.gold }]}>
-          {word}
-        </AppText>
-      </View>
+      <AppText maxFontSizeMultiplier={1.2} numberOfLines={1} style={[styles.shoutText, { color: colors.gold, textShadowColor: withOpacity(colors.streak, 0.6) }]}>
+        {text}
+      </AppText>
     </Animated.View>
   );
 }
@@ -149,28 +152,19 @@ const styles = StyleSheet.create({
     marginLeft: -SPARK / 2,
     marginTop: -SPARK / 2,
   },
-  // Largeur fixe, calé à droite : le mot ne se coupe jamais sur la pastille étroite
-  word: {
+  shout: {
     position: 'absolute',
+    left: 0,
     right: 0,
-    width: WORD_BOX,
-    alignItems: 'flex-end',
+    top: 0,
+    alignItems: 'center',
   },
-  wordAbove: {
-    bottom: '100%',
-    marginBottom: 2,
-  },
-  wordBelow: {
-    top: '100%',
-    marginTop: 4,
-  },
-  wordBubble: {
-    paddingHorizontal: 6,
-    borderRadius: 6,
-  },
-  wordText: {
-    fontFamily: fonts.bodyExtraBold,
-    fontSize: 12,
-    lineHeight: 15,
+  shoutText: {
+    fontFamily: fonts.title,
+    fontSize: SHOUT_SIZE,
+    lineHeight: SHOUT_SIZE + 6,
+    letterSpacing: titleLetterSpacing(SHOUT_SIZE),
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 14,
   },
 });

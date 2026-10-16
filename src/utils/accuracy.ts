@@ -18,6 +18,18 @@ export const RUN_MILESTONES: Record<number, string> = {
   10: 'Inarrêtable !',
 };
 
+// Grand texte sous la barre, au déclenchement et aux paliers
+export function runShout(run: number): string {
+  return `${run}\u00A0d’affilée\u00A0!`;
+}
+
+// Réplique de Val, humeur joyeuse
+export function runValLine(run: number): string {
+  if (run >= 10) return `${run} d’affilée, inarrêtable !`;
+  if (run >= 5) return `${run} d’affilée, tu es en feu !`;
+  return `${run} d’affilée ! Continue !`;
+}
+
 // Ce qui change dans la pastille quand une réponse est validée
 // - appear : la série atteint RUN_MIN (pastille qui surgit, traînée
 //   d'étincelles, Val ravi, son combo, vibration de réussite) ;

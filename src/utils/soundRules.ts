@@ -236,6 +236,25 @@ export function soundAllowed(enabled: boolean, web: boolean, interacted: boolean
   return enabled && (!web || interacted);
 }
 
+// Bonne réponse dans une série d'affilée : le son monte d'une réponse à
+// l'autre. Hauteurs en demi-tons (normale, +2, +4, +5), dont la dernière
+// reste ensuite ; hors série (moins de RUN_START bonnes réponses du premier
+// coup à la suite) : hauteur normale.
+export const RUN_PITCH_SEMITONES = [0, 2, 4, 5] as const;
+const RUN_START = 3;
+
+export function semitoneRate(semitones: number): number {
+  return Math.round(Math.pow(2, semitones / 12) * 10000) / 10000;
+}
+
+// Vitesse (et donc hauteur) du son « correct » pour une série de `run`
+// bonnes réponses du premier coup, celle-ci comprise
+export function correctRate(run: number): number {
+  if (!Number.isFinite(run) || run < RUN_START) return 1;
+  const step = Math.min(RUN_PITCH_SEMITONES.length - 1, Math.floor(run) - RUN_START + 1);
+  return semitoneRate(RUN_PITCH_SEMITONES[step]);
+}
+
 // Variantes préparées d'avance (hauteur et volume fixés à la création de
 // leurs lecteurs, jamais réglés au moment de jouer) : butée, chiffres qui
 // défilent, paliers du coffre, sons adoucis
@@ -252,4 +271,10 @@ export const SOUND_VARIANTS: SoundVariantSpec[] = [
   { name: 'streak', gain: SOFT_GAIN },
   { name: 'correct', gain: SOFT_GAIN },
   { name: 'wrong', gain: SOFT_GAIN },
+  // Son qui monte dans une série d'affilée : un lecteur par hauteur, réglé
+  // une fois au chargement (et la version adoucie de la feuille finale)
+  ...RUN_PITCH_SEMITONES.slice(1).flatMap((st) => [
+    { name: 'correct' as const, rate: semitoneRate(st) },
+    { name: 'correct' as const, rate: semitoneRate(st), gain: SOFT_GAIN },
+  ]),
 ];

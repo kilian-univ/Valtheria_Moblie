@@ -3,9 +3,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withRepeat,
   withSequence,
   withSpring,
   withTiming,
@@ -14,11 +16,11 @@ import Animated, {
 import AppText from '@/src/components/common/AppText';
 import IconButton from '@/src/components/common/IconButton';
 import { motion, springs, timing } from '@/src/constants/motion';
-import { fonts, palette, radius, runBadgeFx, size, space } from '@/src/constants/style/Style';
+import { fonts, palette, radius, runBadgeFx, size, space, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { runEvent } from '@/src/utils/accuracy';
 import { runAccessibilityLabel, runBadge } from '@/src/utils/lessonPlayer';
-import { RunWord, SparkBurst, SparkTrail } from './RunEffects';
+import { SparkBurst, SparkTrail } from './RunEffects';
 
 const CLOSE_ICON = 26;
 const BAR_HEIGHT = 14;
@@ -27,9 +29,12 @@ const SHINE_HEIGHT = 3;
 const SHINE_INSET_X = 6;
 const SHINE_INSET_TOP = 3;
 // Pastille d'affilée
-const RUN_HEIGHT = 28;
-const RUN_ICON = 14;
-const RUN_FONT_SIZE = 14;
+const RUN_HEIGHT = 32;
+const RUN_ICON = 16;
+const RUN_FONT_SIZE = 16;
+// Reflet de la barre en feu : bande claire qui la parcourt en boucle
+const FIRE_SHINE_WIDTH = 48;
+const FIRE_GLOW_BLUR = 10;
 // Éclat doré : bande qui traverse la barre une fois
 const GLINT_WIDTH = 64;
 
@@ -46,7 +51,6 @@ type Fx = {
   appear: number;
   pulse: number;
   burst: number;
-  word: string | null;
   // Chiffre affiché pendant que la pastille s'efface (série cassée)
   leaving: number | null;
 };
@@ -57,10 +61,14 @@ type Fx = {
 // - à 3, elle surgit (0 → 1,2 → 1, ressort) et une traînée d'étincelles
 //   dorées parcourt la barre de gauche à droite ;
 // - à chaque bonne réponse de plus, le chiffre pulse (1,15 → 1) ;
-// - à 5 et à 10, une gerbe d'étincelles et un mot bref au-dessus d'elle ;
+// - à 5 et à 10, une gerbe d'étincelles autour d'elle ;
+// - tant que la série dure, la barre « prend feu » : remplissage de l'or
+//   vers l'orange, reflet qui la parcourt lentement en boucle, lueur
+//   autour ; retour à l'or en 300 ms quand la série se casse ;
 // - série cassée : elle rétrécit et s'efface (200 ms).
 // Animations réduites : la pastille apparaît, change et disparaît
-// directement, sans étincelles ni mot. Les sons et vibrations sont joués par
+// directement, la barre change de couleur sans reflet animé, sans
+// étincelles. Les sons et vibrations sont joués par
 // le lecteur (ApprendreDetailScreen).
 export default function LessonTopBar({ progress, run, onClose }: LessonTopBarProps) {
   const { colorScheme } = useTheme();
@@ -78,16 +86,30 @@ export default function LessonTopBar({ progress, run, onClose }: LessonTopBarPro
 
   // Ce que change la nouvelle valeur de la série (ajusté pendant le rendu)
   const [prevRun, setPrevRun] = useState(run);
-  const [fx, setFx] = useState<Fx>({ appear: 0, pulse: 0, burst: 0, word: null, leaving: null });
+  const [fx, setFx] = useState<Fx>({ appear: 0, pulse: 0, burst: 0, leaving: null });
   if (run !== prevRun) {
     const event = runEvent(prevRun, run);
     setPrevRun(run);
     if (event?.kind === 'appear') setFx((f) => ({ ...f, appear: f.appear + 1, leaving: null }));
     else if (event?.kind === 'grow') setFx((f) => ({ ...f, pulse: f.pulse + 1 }));
-    else if (event?.kind === 'milestone') setFx((f) => ({ ...f, pulse: f.pulse + 1, burst: f.burst + 1, word: event.word }));
+    else if (event?.kind === 'milestone') setFx((f) => ({ ...f, pulse: f.pulse + 1, burst: f.burst + 1 }));
     else if (event?.kind === 'break') setFx((f) => ({ ...f, leaving: runBadge(prevRun) }));
   }
   const shown = badge ?? fx.leaving;
+  const onFire = badge !== null;
+
+  // Barre en feu : passage de l'or à l'orange (et retour), reflet en boucle
+  const fire = useSharedValue(onFire ? 1 : 0);
+  const shine = useSharedValue(0);
+  useEffect(() => {
+    fire.set(reduced ? (onFire ? 1 : 0) : withTiming(onFire ? 1 : 0, timing(runBadgeFx.fireFade)));
+    if (onFire && !reduced) {
+      shine.set(0);
+      shine.set(withRepeat(withTiming(1, { duration: runBadgeFx.fireShine, easing: Easing.inOut(Easing.quad) }), -1));
+    } else {
+      shine.set(0);
+    }
+  }, [onFire, reduced, fire, shine]);
 
   useEffect(() => {
     if (trackWidth === 0) return;
@@ -130,6 +152,11 @@ export default function LessonTopBar({ progress, run, onClose }: LessonTopBarPro
   }, [leaving, reduced, scale, opacity]);
 
   const fillStyle = useAnimatedStyle(() => ({ width: fillWidth.get() }));
+  const fireStyle = useAnimatedStyle(() => ({ opacity: fire.get() }));
+  const shineStyle = useAnimatedStyle(() => ({
+    opacity: fire.get(),
+    transform: [{ translateX: -FIRE_SHINE_WIDTH + shine.get() * (fillWidth.get() + FIRE_SHINE_WIDTH) }],
+  }));
   const badgeStyle = useAnimatedStyle(() => ({ opacity: opacity.get(), transform: [{ scale: scale.get() }] }));
   const glintStyle = useAnimatedStyle(() => ({ transform: [{ translateX: glint.get() }] }));
 
@@ -148,6 +175,15 @@ export default function LessonTopBar({ progress, run, onClose }: LessonTopBarPro
       />
 
       <View style={styles.trackSlot}>
+        {/* Lueur orangée autour de la barre en feu */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.fireGlow,
+            { boxShadow: [{ offsetX: 0, offsetY: 0, blurRadius: FIRE_GLOW_BLUR, color: withOpacity(colors.streak, runBadgeFx.fireGlow) }] },
+            fireStyle,
+          ]}
+        />
         <View
           onLayout={onLayout}
           accessibilityRole="progressbar"
@@ -158,6 +194,23 @@ export default function LessonTopBar({ progress, run, onClose }: LessonTopBarPro
           style={[styles.track, { backgroundColor: colors.surface }]}
         >
           <Animated.View style={[styles.fill, { backgroundColor: colors.gold }, fillStyle]}>
+            {/* En feu : dégradé de l'or vers l'orange, par-dessus l'or */}
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, fireStyle]}>
+              <LinearGradient
+                colors={[colors.gold, colors.streak]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
+            <Animated.View pointerEvents="none" style={[styles.fireShine, shineStyle]}>
+              <LinearGradient
+                colors={['transparent', colors.goldGlint, 'transparent']}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
             <View style={[styles.shine, { backgroundColor: colors.progressShine }]} />
           </Animated.View>
           <Animated.View pointerEvents="none" style={[styles.glint, glintStyle]}>
@@ -176,16 +229,22 @@ export default function LessonTopBar({ progress, run, onClose }: LessonTopBarPro
       {shown !== null ? (
         <View>
           <Animated.View
-            style={[styles.run, { backgroundColor: colors.goldSoft }, badgeStyle]}
+            style={[styles.run, badgeStyle]}
             accessible={badge !== null}
             accessibilityLabel={runAccessibilityLabel(shown)}
             accessibilityLiveRegion="polite"
           >
-            <Ionicons name="flash" size={RUN_ICON} color={colors.gold} />
-            <AppText style={[styles.runText, { color: colors.gold }]}>{shown}</AppText>
+            {/* Fond or-orangé tant que la série dure */}
+            <LinearGradient
+              colors={[colors.gold, colors.streak]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[StyleSheet.absoluteFill, styles.runFace]}
+            />
+            <Ionicons name="flash" size={RUN_ICON} color={colors.onGold} />
+            <AppText style={[styles.runText, { color: colors.onGold }]}>{shown}</AppText>
           </Animated.View>
           {!reduced && fx.burst > 0 && badge !== null ? <SparkBurst key={`b${fx.burst}`} /> : null}
-          {!reduced && fx.word && fx.burst > 0 && badge !== null ? <RunWord key={`w${fx.burst}`} word={fx.word} /> : null}
         </View>
       ) : null}
     </View>
@@ -209,6 +268,24 @@ const styles = StyleSheet.create({
   },
   trackSlot: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  fireGlow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: BAR_HEIGHT,
+    borderRadius: radius.pill,
+  },
+  fireShine: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: FIRE_SHINE_WIDTH,
+  },
+  runFace: {
+    borderRadius: radius.pill,
   },
   track: {
     height: BAR_HEIGHT,
@@ -221,6 +298,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     borderRadius: radius.pill,
+    overflow: 'hidden',
   },
   shine: {
     position: 'absolute',
@@ -238,6 +316,7 @@ const styles = StyleSheet.create({
     width: GLINT_WIDTH,
   },
   run: {
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     gap: space[1],

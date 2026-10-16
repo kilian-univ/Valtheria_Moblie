@@ -258,20 +258,38 @@ export const learnHome = {
   tileName: 18,
 } as const;
 
-// Pastille ⚡ des bonnes réponses d'affilée (lecteur de leçon) : échelles
-// de l'apparition et de la pulsation, durées (ms) de la traînée
-// d'étincelles, de la gerbe des paliers, du mot bref et de la sortie ;
-// nombre d'étincelles et portée de la gerbe
+// Série de bonnes réponses d'affilée (lecteur de leçon) : échelles de la
+// pastille ⚡ (apparition, pulsation), durées (ms) de la traînée
+// d'étincelles, de la gerbe des paliers et de la sortie ; nombre
+// d'étincelles et portée de la gerbe ; grand texte et barre en feu
 export const runBadgeFx = {
   peak: 1.2,
   pulse: 1.15,
   trail: 650,
   burst: 700,
-  word: 1200,
   exit: 200,
   trailSparks: 7,
   burstSparks: 10,
   burstReach: 30,
+  // Grand texte « 3 d'affilée ! » : arrivée, tenue, sortie (ms)
+  shoutIn: 180,
+  shoutHold: 800,
+  shoutOut: 300,
+  // Barre qui « prend feu » : passage de l'or à l'orange et retour (ms),
+  // reflet qui la parcourt en boucle (ms par passage), lueur autour
+  fireFade: 300,
+  fireShine: 1800,
+  fireGlow: 0.55,
+} as const;
+
+// Lumière du coffre ouvert, selon sa rareté : couleur et intensité du halo
+// et des rayons (pâle et douce pour commun, bleutée pour rare, violette
+// pour épique, or intense pour légendaire)
+export const chestLight = {
+  commun: { color: '#EFE6CC', strength: 0.55 },
+  rare: { color: '#7FB6F2', strength: 0.75 },
+  epique: { color: '#B387F2', strength: 0.85 },
+  legendaire: { color: '#F5BF36', strength: 1 },
 } as const;
 
 // Lueur dorée derrière l'en-tête du profil : or au cœur, diamètre

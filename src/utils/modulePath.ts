@@ -42,6 +42,40 @@ export function moduleColorKey(modules: Module[], moduleId: number, universes: U
 }
 
 // ---------------------------------------------------------------------------
+// Défilement de la page module
+// ---------------------------------------------------------------------------
+
+// Marge laissée au-dessus et au-dessous d'une zone qu'on fait apparaître
+export const REVEAL_MARGIN = 16;
+
+// Défilement qui montre la zone [top, bottom] (coordonnées du contenu) : null
+// si elle est déjà entièrement visible (on ne bouge pas) ; sinon la position
+// la plus proche qui la montre entière, avec une marge (juste assez), bornée
+// au contenu. Zone plus haute que l'écran : on en montre le haut.
+export function revealScroll({
+  top,
+  bottom,
+  scrollY,
+  viewport,
+  maxScroll,
+  margin = REVEAL_MARGIN,
+}: {
+  top: number;
+  bottom: number;
+  scrollY: number;
+  viewport: number;
+  maxScroll: number;
+  margin?: number;
+}): number | null {
+  if (viewport <= 0) return null;
+  if (top >= scrollY && bottom <= scrollY + viewport) return null;
+  const tooTall = bottom - top + 2 * margin > viewport;
+  const target = tooTall || top < scrollY ? top - margin : bottom + margin - viewport;
+  const clamped = Math.min(Math.max(0, maxScroll), Math.max(0, target));
+  return Math.abs(clamped - scrollY) < 1 ? null : clamped;
+}
+
+// ---------------------------------------------------------------------------
 // Géométrie
 // ---------------------------------------------------------------------------
 export const PATH_OFFSETS = [0, 58, 84, 58, 0, -58, -84, -58] as const;

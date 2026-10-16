@@ -5,7 +5,7 @@ import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 // Défilement du gestionnaire de gestes : un curseur ou une carte qui prend
 // le geste l'interrompt, au lieu de défiler en même temps
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
-import Animated, { SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import Animated, { SlideInRight, SlideOutLeft, useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import EndFlowBoundary from '@/src/components/apprendre/end/EndFlowBoundary';
@@ -47,8 +47,9 @@ import { userKeyOf } from '@/src/state/userMemory';
 import { universeOfModule } from '@/src/utils/modulePath';
 import { declicForLesson } from '@/src/utils/notebook';
 import { preloadSounds } from '@/src/utils/sound';
-import { SOFT_GAIN } from '@/src/utils/soundRules';
-import { bestRunOf, type Challenge, isPerfectLesson, runEvent } from '@/src/utils/accuracy';
+import { correctRate, SOFT_GAIN } from '@/src/utils/soundRules';
+import { bestRunOf, type Challenge, isPerfectLesson, runEvent, runShout, runValLine } from '@/src/utils/accuracy';
+import { RunShout } from '@/src/components/apprendre/player/RunEffects';
 import { recordLessonAccuracy } from '@/src/state/accuracy';
 import {
   buildResponses,
@@ -193,6 +194,10 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const [valOverride, setValOverride] = useState<ValLine | null>(null);
   // Petit bond de Val quand la série d'affilée démarre ou passe un palier
   const [valHop, setValHop] = useState(0);
+  // Grand texte « 3 d'affilée ! » sous la barre, et halo doré des bords
+  const [shout, setShout] = useState<{ key: number; text: string }>({ key: 0, text: '' });
+  const [goldFlash, setGoldFlash] = useState(0);
+  const reducedMotion = useReducedMotion();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Dernier « Continuer » donné : la barre de progression est pleine
@@ -502,11 +507,12 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     const arrival = introLine(current, !!discovery, isLast);
     // Bonnes réponses du premier coup d'affilée : la pastille surgit à 3, un
     // palier à 5 et à 10 (premières tentatives seulement)
-    const run = retrying ? null : runEvent(firstTryRun(answers, screens), firstTryRun(nextAnswers, screens));
+    const runAfter = retrying ? 0 : firstTryRun(nextAnswers, screens);
+    const run = retrying ? null : runEvent(firstTryRun(answers, screens), runAfter);
     const cheer = run?.kind === 'appear' || run?.kind === 'milestone';
     const reactionLine = reaction ?? { line: arrival.line, mood: draft.correct ? ('celebrant' as const) : ('rassurant' as const) };
-    // Série qui démarre ou palier : Val ravi, avec un petit bond
-    setValOverride(cheer ? { line: reactionLine.line, mood: 'celebrant' } : reactionLine);
+    // Série qui démarre ou palier : Val ravi le dit dans sa bulle, avec un petit bond
+    setValOverride(cheer ? { line: runValLine(runAfter), mood: 'celebrant' } : reactionLine);
     if (cheer) setValHop((n) => n + 1);
     const nextVerdict: Verdict = {
       correct: draft.correct,
@@ -525,13 +531,19 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     const gain = current.kind === 'true_false' || current.kind === 'match' ? SOFT_GAIN : 1;
     const signal = () => {
       flashEdges(nextVerdict.correct);
-      if (nextVerdict.correct) feedback.right(gain);
+      // Dans une série d'affilée, le son de la bonne réponse monte d'un cran
+      if (nextVerdict.correct) feedback.right(gain, retrying ? 1 : correctRate(runAfter));
       else feedback.wrong(gain);
+      // Série qui démarre ou palier : « 3 d'affilée ! » sous la barre, tout
+      // de suite (rien ne bloque la question)
+      if (cheer) setShout((sh) => ({ key: sh.key + 1, text: runShout(runAfter) }));
       // Pastille qui surgit : son « combo » et vibration de réussite, juste
       // après le son de la bonne réponse ; palier (5, 10) : combo et grande
       // vibration de fête. Série cassée : rien de plus que la mauvaise réponse.
       if (cheer) {
         comboTimer.current = setTimeout(() => {
+          // Halo doré bref sur les bords, après celui du verdict
+          setGoldFlash((n) => n + 1);
           feedback.combo();
           if (run?.kind === 'milestone') celebrate();
           else successHaptic();
@@ -619,6 +631,10 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
         <EdgeFlashContext.Provider value={flashEdges}>
           <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
             <LessonTopBar progress={progress} run={run} onClose={handleClose} />
+            {/* Sous la barre, par-dessus le haut de l'écran : ne capte aucun toucher */}
+            <View style={styles.shoutSlot} pointerEvents="none">
+              {shout.key > 0 ? <RunShout key={shout.key} text={shout.text} reduced={reducedMotion} /> : null}
+            </View>
 
             {loadError || notFound ? (
               <View style={styles.state}>
@@ -776,6 +792,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
             ) : null}
           </SafeAreaView>
           <EdgeFlash flashKey={flash.key} right={flash.right} />
+          <EdgeFlash flashKey={goldFlash} right gold />
         </EdgeFlashContext.Provider>
       </ScrollLockContext.Provider>
     </GestureHandlerRootView>
@@ -785,6 +802,12 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+  // Place du grand texte de la série : hauteur nulle, au-dessus du reste
+  shoutSlot: {
+    height: 0,
+    zIndex: 10,
+    elevation: 10,
   },
   // Scène des écrans : l'ancien et le nouveau s'y croisent en glissant
   stage: {

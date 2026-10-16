@@ -1,7 +1,14 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
+import { NativeScrollEvent, NativeSyntheticEvent, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, {
+  scrollTo,
+  useAnimatedReaction,
+  useAnimatedRef,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GuestState from '@/src/components/apprendre/home/GuestState';
@@ -23,7 +30,7 @@ import UniverseCard from '@/src/components/common/UniverseCard';
 import ValBubble from '@/src/components/common/ValBubble';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { StaggerItem } from '@/src/components/common/Stagger';
-import { durations } from '@/src/constants/motion';
+import { durations, motion, timing } from '@/src/constants/motion';
 import { moduleColors, palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useBestStreak } from '@/src/state/streakRewards';
@@ -37,6 +44,7 @@ import { levelGroups } from '@/src/utils/levels';
 import {
   moduleColorKey,
   Rect,
+  revealScroll,
   Unlock,
   unlockTransition,
   universeOfModule,
@@ -47,9 +55,12 @@ import { universeEntry } from '@/src/utils/universes';
 
 // Au-delà, les titres débordent : on passe en liste verticale
 const LIST_MODE_FONT_SCALE = 1.35;
-// Carte de leçon : le rond visé est amené à 22 % de la hauteur visible
-const CARD_ANCHOR = 0.22;
 const CARD_GAP = 12;
+// Hauteur prévue de la carte de leçon (libellé, titre sur deux lignes,
+// bouton) : avec le rond, la zone à montrer quand on le touche
+const CARD_HEIGHT = 200;
+// Anneau autour du rond en cours : il dépasse un peu au-dessus
+const NODE_RING_PAD = 18;
 // Défilement automatique vers la leçon en cours, une fois les ronds apparus
 const ARRIVAL_SCROLL_DELAY = durations.stagger * 5;
 
@@ -119,7 +130,16 @@ export default function ModuleScreen() {
   // ---------------------------------------------------------------------------
   // Mesures du défilement
   // ---------------------------------------------------------------------------
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  // Défilement en douceur (300 ms, ease-out) : la position visée glisse sur
+  // le fil d'interface et la liste la suit (-1 : au repos)
+  const glide = useSharedValue(-1);
+  useAnimatedReaction(
+    () => glide.get(),
+    (y) => {
+      if (y >= 0) scrollTo(scrollRef, 0, y, false);
+    }
+  );
   // L'en-tête est fixe, posé sur le haut du ScrollView : la zone utile
   // commence sous lui
   const viewport = useRef(0);
@@ -146,13 +166,41 @@ export default function ModuleScreen() {
     updateSide();
   };
 
-  const scrollToFocus = useCallback(
-    (animated: boolean) => {
-      if (pathTop === null || !focusRect) return;
-      const target = pathTop + focusRect.y - viewport.current / 3;
-      scrollRef.current?.scrollTo({ y: Math.max(0, target), animated });
+  // Glisse jusqu'à y en 300 ms (animations réduites : directement)
+  const smoothScroll = useCallback(
+    (y: number) => {
+      if (reduced) {
+        glide.set(-1);
+        scrollRef.current?.scrollTo({ y, animated: false });
+        return;
+      }
+      glide.set(scrollY.current);
+      glide.set(withTiming(y, timing(motion.screen)));
     },
-    [pathTop, focusRect]
+    [reduced, glide, scrollRef]
+  );
+
+  const maxScroll = () => Math.max(0, contentHeight.current - viewport.current);
+
+  // Arrivée : la leçon en cours au tiers de l'écran ; bouton « leçon en
+  // cours » : juste assez pour la montrer entière (rien si elle l'est déjà)
+  const scrollToFocus = useCallback(
+    (mode: 'arrive' | 'reveal') => {
+      if (pathTop === null || !focusRect) return;
+      const top = pathTop + focusRect.y;
+      const target =
+        mode === 'arrive'
+          ? Math.max(0, top - viewport.current / 3)
+          : revealScroll({
+              top: top - NODE_RING_PAD,
+              bottom: top + focusRect.h + NODE_RING_PAD,
+              scrollY: scrollY.current,
+              viewport: viewport.current,
+              maxScroll: Math.max(0, contentHeight.current - viewport.current),
+            });
+      if (target !== null) smoothScroll(target);
+    },
+    [pathTop, focusRect, smoothScroll]
   );
 
   // Arrivée : une seule fois, après la cascade des ronds
@@ -160,7 +208,7 @@ export default function ModuleScreen() {
   useEffect(() => {
     if (arrived.current || pathTop === null || !focusRect || listMode) return;
     arrived.current = true;
-    const timer = setTimeout(() => scrollToFocus(!reduced), reduced ? 0 : ARRIVAL_SCROLL_DELAY);
+    const timer = setTimeout(() => scrollToFocus('arrive'), reduced ? 0 : ARRIVAL_SCROLL_DELAY);
     return () => clearTimeout(timer);
   }, [pathTop, focusRect, listMode, reduced, scrollToFocus]);
 
@@ -176,12 +224,17 @@ export default function ModuleScreen() {
   const openCard = (view: LessonView, rect: Rect) => {
     if (pathTop === null) return;
     const nodeTop = pathTop + rect.y;
-    const maxScroll = Math.max(0, contentHeight.current - viewport.current);
-    const anchor = viewport.current * CARD_ANCHOR;
-    const target = Math.min(maxScroll, Math.max(0, nodeTop - anchor));
-    scrollRef.current?.scrollTo({ y: target, animated: false });
-    scrollY.current = target;
-    scrollSV.set(target);
+    // Le rond et sa carte déjà entièrement visibles : on ne bouge pas ;
+    // sinon, juste assez, en douceur
+    const wanted = revealScroll({
+      top: nodeTop - NODE_RING_PAD,
+      bottom: nodeTop + rect.h + CARD_GAP + CARD_HEIGHT,
+      scrollY: scrollY.current,
+      viewport: viewport.current,
+      maxScroll: maxScroll(),
+    });
+    const target = wanted ?? scrollY.current;
+    if (wanted !== null) smoothScroll(wanted);
     setCard({
       view,
       // La carte est posée dans l'écran : sous l'en-tête
@@ -349,7 +402,7 @@ export default function ModuleScreen() {
     <View style={styles.screen}>
       {/* Le contenu défile sous l'en-tête, sans passer derrière lui : aucune
           bande de couleur, le fond commun se voit partout */}
-      <ScrollView
+      <Animated.ScrollView
         ref={scrollRef}
         style={{ marginTop: headerH }}
         onScroll={onScroll}
@@ -379,7 +432,7 @@ export default function ModuleScreen() {
         </View>
 
         {after}
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* En-tête fixe : retour, pastilles, bannière, sur le fond commun */}
       <View style={styles.header} onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
@@ -428,7 +481,7 @@ export default function ModuleScreen() {
 
       {showJump ? (
         <View style={[styles.jump, { bottom: (bar ? barHeight : 0) + space[4] }]}>
-          <JumpButton direction={focusSide === 'above' ? 'up' : 'down'} onPress={() => scrollToFocus(!reduced)} />
+          <JumpButton direction={focusSide === 'above' ? 'up' : 'down'} onPress={() => scrollToFocus('reveal')} />
         </View>
       ) : null}
 

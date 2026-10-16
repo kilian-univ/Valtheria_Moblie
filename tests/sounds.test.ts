@@ -462,7 +462,8 @@ test('ajustements validés de l’audit', () => {
   // 1. Feuille finale adoucie pour le vrai ou faux et associer
   const player = read('src/screens/ApprendreDetailScreen.tsx');
   assert.ok(player.includes("current.kind === 'true_false' || current.kind === 'match' ? SOFT_GAIN : 1"));
-  assert.ok(player.includes('feedback.right(gain)') && player.includes('feedback.wrong(gain)'));
+  // (la bonne réponse prend aussi la hauteur de la série d'affilée)
+  assert.ok(player.includes('feedback.right(gain, ') && player.includes('feedback.wrong(gain)'));
   // 2. Bilan : les chiffres comptent après lesson-complete
   // Les chiffres défilent dès leur apparition ; seuls les ticks attendent
   const recap = read('src/components/apprendre/end/LessonRecap.tsx');

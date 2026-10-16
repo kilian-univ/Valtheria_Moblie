@@ -1,29 +1,27 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { ImageSourcePropType, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withDelay,
-  withRepeat,
   withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Line } from 'react-native-svg';
 
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import GoldHalo from '@/src/components/common/GoldHalo';
 import ValsCoin from '@/src/components/common/ValsCoin';
-import { loops, motion, springs, timing } from '@/src/constants/motion';
-import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
+import { motion, springs, timing } from '@/src/constants/motion';
+import { chestLight, fonts, palette, radius, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useCountUp } from '@/src/hooks/useCountUp';
 import { formatInteger } from '@/src/utils/format';
+import { CHEST_COUNT_MS, CHEST_FLASH_MS, CHEST_FOUNTAIN_MS, chestTimeline, growingShake } from '@/src/utils/chestTimeline';
 import { feedback } from '@/src/utils/feedback';
+import { tap } from '@/src/utils/haptics';
+import { ChestFountain, ChestLight, LidLight } from './ChestEffects';
 import { CHEST_RARITIES, ChestRarity, chestEvolution, chestLabel } from '@/src/utils/lessonPlayer';
 
 export const CHEST_IMAGES: Record<ChestRarity, ImageSourcePropType> = {
@@ -46,26 +44,25 @@ const NBSP = ' ';
 export const CHEST_SIZE = 200;
 // Pièce à côté du montant (« + X Vals »)
 export const COIN_LG = 44;
-// Carré du halo et des rayons : au plus 1,5 fois le coffre
+// Carré du coffre et de son halo
 const HALO = 290;
+// Rayons de la lumière douce : un peu plus larges que le halo
+const LIGHT = 340;
 const CLOSED_TILT = -4;
-const SHAKE_DEG = 5;
-const BREATH_SCALE = 1.03;
-const OPEN_POP = 1.1;
-const FLASH_PEAK = 0.3;
-const RAYS = 9;
-const RAY_WIDTH = 10;
-const RAY_OPACITY = 0.35;
+// Tremblement de l'anticipation : de plus en plus fort (degrés), oscillation (ms)
+const SHAKE_MIN = 1.5;
+const SHAKE_MAX = 7;
+const SHAKE_PERIOD = 90;
+// Rebond à l'ouverture (squash) : écrasé puis étiré
+const SQUASH_X = 1.12;
+const SQUASH_Y = 0.86;
+// Tampon de la rareté : arrive à 1,6, frappe à 0,94, se pose à 1
+const STAMP_FROM = 1.6;
+const STAMP_HIT = 0.94;
 const TITLE_SIZE = 30;
 const AMOUNT_SIZE = 44;
-// Étoiles autour du coffre ouvert : position (fraction du carré), taille
-const STARS = [
-  { x: 0.16, y: 0.22, size: 16 },
-  { x: 0.84, y: 0.18, size: 20 },
-  { x: 0.1, y: 0.62, size: 12 },
-  { x: 0.9, y: 0.58, size: 14 },
-  { x: 0.5, y: 0.04, size: 12 },
-];
+// Départ de la gerbe : le haut du coffre, sous le couvercle
+const FOUNTAIN_FROM = HALO / 2 - 24;
 
 const RARITY_NAMES: Record<ChestRarity, string> = {
   commun: 'COMMUN',
@@ -74,7 +71,7 @@ const RARITY_NAMES: Record<ChestRarity, string> = {
   legendaire: 'LÉGENDAIRE',
 };
 
-type Phase = 'climb' | 'ready' | 'open';
+type Phase = 'anticipation' | 'open';
 
 type ChestRevealProps = {
   rarity: ChestRarity;
@@ -87,104 +84,155 @@ type ChestRevealProps = {
   onDone: () => void;
 };
 
-// Le coffre : fermé, légèrement penché sous un halo, il monte en rareté sous
-// les yeux (450 ms par palier, tremblement et cran), puis attend en
-// respirant. Un toucher sur lui ou sur « Ouvrir le coffre » l'ouvre : coffre
-// ouvert en fondu, éclat, rayons dorés, étoiles, vibration de fête, puis le
-// montant qui défile. Animations réduites : coffre de la bonne rareté déjà
-// ouvert, montant final.
+// Le coffre, en trois temps (3 s au plus, utils/chestTimeline) :
+// 1. anticipation : fermé, il tremble de plus en plus en montant en rareté
+//    (un cran par palier), puis la lumière filtre par les fentes du couvercle ;
+// 2. moment fort : il s'ouvre avec un léger rebond, un flash blanc doré de
+//    120 ms et une gerbe de pièces et d'étincelles qui jaillit en arc ;
+// 3. retombée : les pièces retombent et s'estompent, la rareté s'inscrit
+//    d'un petit tampon, le montant défile (son des pièces), puis le coffre
+//    reste posé dans une lumière douce de la couleur de sa rareté (halo qui
+//    respire, rayons flous qui tournent en 20 s).
+// Un toucher, n'importe où, passe directement à la fin. Animations réduites :
+// coffre ouvert tout de suite, lumière fixe, sans gerbe ni flash.
 export default function ChestReveal({ rarity, amount, total, firstName, surprise = false, onDone }: ChestRevealProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
   const [steps] = useState(() => (surprise ? [rarity] : chestEvolution(rarity)));
+  const [plan] = useState(() => chestTimeline(steps.length));
+  const light = chestLight[rarity];
 
-  const [phase, setPhase] = useState<Phase>(reduced ? 'open' : steps.length > 1 ? 'climb' : 'ready');
+  const [phase, setPhase] = useState<Phase>(reduced ? 'open' : 'anticipation');
   const [stage, setStage] = useState(reduced ? steps.length - 1 : 0);
+  // Retombée : rareté inscrite, montant qui défile, déroulé fini
+  const [stamped, setStamped] = useState(reduced);
+  const [counting, setCounting] = useState(reduced);
+  const [settled, setSettled] = useState(reduced);
+  const [fountain, setFountain] = useState(false);
   const current = steps[stage];
   const name = firstName?.trim();
 
   const tilt = useSharedValue(reduced ? 0 : CLOSED_TILT);
-  const breath = useSharedValue(1);
-  const pop = useSharedValue(1);
-  const flash = useSharedValue(0);
+  const squashX = useSharedValue(1);
+  const squashY = useSharedValue(1);
   const opened = useSharedValue(reduced ? 1 : 0);
-  const rays = useSharedValue(reduced ? 1 : 0);
+  const leak = useSharedValue(0);
+  const flash = useSharedValue(0);
+  const glow = useSharedValue(reduced ? 1 : 0);
 
-  // Montée en rareté, palier par palier
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const played = useRef({ open: reduced, coins: false });
+
+  // Sons de l'ouverture et des pièces : une fois chacun, même si on passe
+  const playOpen = () => {
+    if (played.current.open) return;
+    played.current.open = true;
+    feedback.chestOpen();
+  };
+  const playCoins = () => {
+    if (played.current.coins || amount <= 0) return;
+    played.current.coins = true;
+    feedback.coins();
+  };
+
   useEffect(() => {
-    if (phase !== 'climb') return;
-    const timers = steps.slice(1).map((_, i) =>
-      setTimeout(() => {
+    const list = timers.current;
+    if (reduced) {
+      // Coffre ouvert d'emblée : le son de l'ouverture, puis celui des pièces
+      feedback.chestOpen();
+      if (amount > 0) list.push(setTimeout(() => feedback.coins(), motion.sheet));
+      return () => list.forEach(clearTimeout);
+    }
+    const at = (ms: number, run: () => void) => list.push(setTimeout(run, ms));
+
+    // 1. Anticipation : tremblement qui grandit, paliers de rareté, lumière
+    const shakes = growingShake(plan.open, SHAKE_PERIOD, SHAKE_MIN, SHAKE_MAX);
+    const half = timing(SHAKE_PERIOD / 2);
+    tilt.set(
+      withSequence(
+        ...shakes.flatMap((amp) => [withTiming(CLOSED_TILT - amp, half), withTiming(CLOSED_TILT + amp, half)]),
+        withTiming(0, timing(motion.tap))
+      )
+    );
+    plan.steps.forEach((ms, i) =>
+      at(ms, () => {
         setStage(i + 1);
         // Un peu plus aigu à chaque palier
         feedback.chestStep(i + 1);
-        const quarter = timing(motion.tap / 2);
-        tilt.set(
-          withSequence(
-            withTiming(CLOSED_TILT - SHAKE_DEG, quarter),
-            withTiming(CLOSED_TILT + SHAKE_DEG, quarter),
-            withTiming(CLOSED_TILT - SHAKE_DEG / 2, quarter),
-            withTiming(CLOSED_TILT, quarter)
-          )
-        );
-      }, (i + 1) * motion.chestStep)
+      })
     );
-    timers.push(setTimeout(() => setPhase('ready'), steps.length * motion.chestStep));
-    return () => timers.forEach(clearTimeout);
-  }, [phase, steps, tilt]);
+    at(plan.leak, () => leak.set(withTiming(1, timing(motion.screen))));
 
-  // En attente : le coffre respire doucement
-  useEffect(() => {
-    if (phase !== 'ready' || reduced) return;
-    const half = { duration: loops.breath / 2, easing: Easing.inOut(Easing.sin) };
-    breath.set(withRepeat(withSequence(withTiming(BREATH_SCALE, half), withTiming(1, half)), -1));
-  }, [phase, reduced, breath]);
+    // 2. Moment fort
+    at(plan.open, () => {
+      setPhase('open');
+      setFountain(true);
+      playOpen();
+      leak.set(withTiming(0, timing(CHEST_FLASH_MS)));
+      opened.set(withTiming(1, { duration: 60 }));
+      squashX.set(withSequence(withTiming(SQUASH_X, timing(70)), withSpring(1, springs.celebrate)));
+      squashY.set(withSequence(withTiming(SQUASH_Y, timing(70)), withSpring(1, springs.celebrate)));
+      flash.set(withSequence(withTiming(1, { duration: CHEST_FLASH_MS / 3 }), withTiming(0, timing((CHEST_FLASH_MS * 2) / 3))));
+      glow.set(withTiming(1, timing(motion.max)));
+    });
 
-  const open = () => {
-    if (phase === 'open') return;
-    setStage(steps.length - 1);
-    setPhase('open');
-    feedback.chestOpen();
-    breath.set(withTiming(1, timing(motion.state)));
-    tilt.set(withTiming(0, timing(motion.state)));
-    opened.set(withTiming(1, timing(motion.state)));
-    pop.set(withSequence(withTiming(OPEN_POP, timing(motion.tap)), withSpring(1, springs.celebrate)));
-    flash.set(withSequence(withTiming(FLASH_PEAK, timing(motion.state)), withTiming(0, timing(motion.max))));
-    rays.set(withTiming(1, timing(motion.max)));
-  };
-
-  // Animations réduites : coffre déjà ouvert, son de l'ouverture à l'arrivée
-  useEffect(() => {
-    if (reduced) feedback.chestOpen();
+    // 3. Retombée
+    at(plan.stamp, () => {
+      setStamped(true);
+      tap();
+    });
+    at(plan.count, () => {
+      setCounting(true);
+      playCoins();
+    });
+    at(plan.open + CHEST_FOUNTAIN_MS, () => setFountain(false));
+    at(plan.end, () => setSettled(true));
+    return () => list.forEach(clearTimeout);
     // Une seule fois, à l'arrivée
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Les Vals défilent (et tintent) une fois le coffre ouvert
-  useEffect(() => {
-    if (phase !== 'open' || amount <= 0) return;
-    const timer = setTimeout(feedback.coins, reduced ? 0 : motion.sheet);
-    return () => clearTimeout(timer);
-  }, [phase, amount, reduced]);
+  // Un toucher : directement la fin (coffre ouvert dans sa lumière, rareté
+  // inscrite, montant final), sans rejouer ce qui a déjà sonné
+  const skip = () => {
+    if (settled) return;
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    tilt.set(withTiming(0, timing(motion.tap)));
+    leak.set(0);
+    flash.set(0);
+    squashX.set(1);
+    squashY.set(1);
+    opened.set(1);
+    glow.set(withTiming(1, timing(motion.state)));
+    setStage(steps.length - 1);
+    setPhase('open');
+    setFountain(false);
+    setStamped(true);
+    setCounting(true);
+    setSettled(true);
+    playOpen();
+    playCoins();
+  };
 
-  // Le montant défile une fois le coffre ouvert
-  const shownAmount = Math.round(useCountUp(phase === 'open' ? amount : 0, { delay: reduced ? 0 : motion.sheet }));
-  const counted = shownAmount === amount;
+  // Le montant défile pendant la retombée ; passé : le montant final
+  const rolling = Math.round(useCountUp(counting ? amount : 0, { duration: CHEST_COUNT_MS }));
+  const shownAmount = settled ? amount : rolling;
 
   const chestStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${tilt.get()}deg` }, { scale: breath.get() * pop.get() }],
+    transform: [{ rotate: `${tilt.get()}deg` }, { scaleX: squashX.get() }, { scaleY: squashY.get() }],
   }));
   const closedStyle = useAnimatedStyle(() => ({ opacity: 1 - opened.get() }));
   const openStyle = useAnimatedStyle(() => ({ opacity: opened.get() }));
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.get() }));
-  const raysStyle = useAnimatedStyle(() => ({ opacity: rays.get(), transform: [{ scale: 0.7 + 0.3 * rays.get() }] }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.get() }));
 
   const isOpen = phase === 'open';
 
   return (
-    <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <Pressable style={styles.screen} onPress={skip} disabled={settled} accessible={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} scrollEnabled={settled}>
         <View style={styles.texts}>
           <AppText variant="sectionLabel" style={styles.kicker}>
             {isOpen ? (surprise ? 'COFFRE SURPRISE' : chestLabel(rarity).toUpperCase()) : surprise ? 'UNE SURPRISE' : 'TA RÉCOMPENSE'}
@@ -202,42 +250,56 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
           </AppText>
         </View>
 
-        <Pressable
-          onPress={open}
-          disabled={isOpen}
-          accessibilityRole="button"
-          accessibilityLabel={isOpen ? `${surprise ? 'Coffre surprise' : chestLabel(rarity)} ouvert` : 'Ouvrir le coffre'}
+        <View
           style={styles.haloBox}
+          accessible
+          accessibilityLabel={isOpen ? `${surprise ? 'Coffre surprise' : chestLabel(rarity)} ouvert` : 'Le coffre s’ouvre'}
         >
-          <GoldHalo />
-          <Animated.View
-            pointerEvents="none"
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={[StyleSheet.absoluteFill, raysStyle]}
-          >
-            <Rays color={colors.gold} />
+          {/* Lumière douce de la rareté (rayons fondus, halo qui respire) */}
+          <Animated.View pointerEvents="none" style={[styles.lightBox, glowStyle]}>
+            <ChestLight size={LIGHT} color={light.color} strength={light.strength} still={reduced} />
           </Animated.View>
-          <Animated.View pointerEvents="none" style={[styles.flash, { backgroundColor: colors.gold }, flashStyle]} />
           <Animated.View style={chestStyle}>
             <Animated.Image source={CHEST_IMAGES[current]} resizeMode="contain" style={[styles.chest, closedStyle]} />
             {/* Toujours monté (image prête) ; visible à l'ouverture */}
             <Animated.Image source={CHEST_OPEN_IMAGES[rarity]} resizeMode="contain" style={[styles.chest, styles.overlay, openStyle]} />
+            {reduced ? null : <LidLight size={CHEST_SIZE} color={light.color} progress={leak} />}
           </Animated.View>
-          {isOpen && !reduced ? STARS.map((star, i) => <Star key={i} {...star} index={i} color={colors.gold} />) : null}
-        </Pressable>
+          {/* Flash blanc doré, très bref */}
+          <Animated.View pointerEvents="none" style={[styles.flash, flashStyle]}>
+            <GoldHalo color={withOpacity(colors.ivory, 0.95)} />
+          </Animated.View>
+          {fountain && !reduced ? <ChestFountain originY={FOUNTAIN_FROM} /> : null}
+        </View>
 
-        {surprise ? null : <RarityLadder stage={CHEST_RARITIES.indexOf(current)} />}
+        {surprise ? (
+          stamped ? (
+            <Stamp>
+              <View style={[styles.rung, { backgroundColor: colors.gold, borderColor: colors.gold }]}>
+                <AppText maxFontSizeMultiplier={1.2} style={[styles.rungText, { color: colors.onGold }]}>
+                  SURPRISE
+                </AppText>
+              </View>
+            </Stamp>
+          ) : null
+        ) : (
+          <RarityLadder stage={CHEST_RARITIES.indexOf(current)} stamped={stamped} />
+        )}
 
         {isOpen ? (
-          <View style={styles.texts} accessible accessibilityLabel={`${amount} Vals${total !== null ? `. Tu en as maintenant ${total}.` : ''}`}>
+          // Place gardée dès l'ouverture (rien ne saute), montant visible quand il défile
+          <View
+            style={[styles.texts, !counting && styles.waiting]}
+            accessible
+            accessibilityLabel={`${amount} Vals${total !== null ? `. Tu en as maintenant ${total}.` : ''}`}
+          >
             <View style={styles.amountRow}>
               <ValsCoin size={COIN_LG} />
               <AppText tone="gold" maxFontSizeMultiplier={1.2} style={styles.amount}>
                 {`+${NBSP}${formatInteger(shownAmount)}${NBSP}Vals`}
               </AppText>
             </View>
-            {total !== null && counted ? (
+            {total !== null && shownAmount === amount && counting ? (
               <AppText variant="body" tone="subtitle" style={styles.centerText}>
                 Tu en as maintenant {formatInteger(total)}.
               </AppText>
@@ -245,21 +307,39 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
           </View>
         ) : (
           <AppText variant="callout" tone="subtitle" style={styles.centerText}>
-            {surprise ? 'Touche-le pour l’ouvrir' : 'Il monte en rareté… touche-le pour l’ouvrir'}
+            {surprise ? 'Il va s’ouvrir…' : 'Il monte en rareté…'}
           </AppText>
         )}
       </ScrollView>
 
       <View style={styles.footer}>
-        {isOpen ? <Button label="Super" onPress={onDone} /> : <Button label="Ouvrir le coffre" onPress={open} silent />}
+        {settled ? (
+          <Button label="Super" onPress={onDone} />
+        ) : (
+          <Button variant="text" label="Passer" onPress={skip} accessibilityHint="Ouvre le coffre tout de suite" />
+        )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
+// La rareté s'inscrit d'un petit tampon : arrive grande, frappe, se pose
+function Stamp({ children }: { children: ReactNode }) {
+  const reduced = useReducedMotion();
+  const scale = useSharedValue(reduced ? 1 : STAMP_FROM);
+  const opacity = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    if (reduced) return;
+    opacity.set(withTiming(1, timing(motion.tap)));
+    scale.set(withSequence(withTiming(STAMP_HIT, timing(motion.tap)), withSpring(1, springs.press)));
+  }, [reduced, scale, opacity]);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.get(), transform: [{ scale: scale.get() }] }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
+
 // Échelle de rareté : atteintes en or pâle, l'actuelle en or plein, les
-// suivantes en contour
-function RarityLadder({ stage }: { stage: number }) {
+// suivantes en contour ; à la retombée, l'actuelle s'inscrit d'un tampon
+function RarityLadder({ stage, stamped }: { stage: number; stamped: boolean }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   return (
@@ -271,55 +351,16 @@ function RarityLadder({ stage }: { stage: number }) {
             : i === stage
               ? { backgroundColor: colors.gold, color: colors.onGold, borderColor: colors.gold }
               : { backgroundColor: 'transparent', color: colors.subtitle, borderColor: colors.border };
-        return (
+        const rung = (
           <View key={r} style={[styles.rung, { backgroundColor: look.backgroundColor, borderColor: look.borderColor }]}>
             <AppText maxFontSizeMultiplier={1.2} style={[styles.rungText, { color: look.color }]}>
               {RARITY_NAMES[r]}
             </AppText>
           </View>
         );
+        return i === stage && stamped ? <Stamp key={`${r}-tampon`}>{rung}</Stamp> : rung;
       })}
     </View>
-  );
-}
-
-// Rayons dorés qui partent du centre du coffre
-function Rays({ color }: { color: string }) {
-  const c = HALO / 2;
-  return (
-    <Svg width={HALO} height={HALO}>
-      {Array.from({ length: RAYS }, (_, i) => {
-        // Éventail vers le haut, de 200° à 340°
-        const angle = ((200 + (140 * i) / (RAYS - 1)) * Math.PI) / 180;
-        return (
-          <Line
-            key={i}
-            x1={c}
-            y1={c}
-            x2={c + Math.cos(angle) * c}
-            y2={c + Math.sin(angle) * c}
-            stroke={color}
-            strokeWidth={RAY_WIDTH}
-            strokeLinecap="round"
-            strokeOpacity={RAY_OPACITY}
-          />
-        );
-      })}
-    </Svg>
-  );
-}
-
-// Une étoile qui apparaît d'un petit bond autour du coffre ouvert
-function Star({ x, y, size, index, color }: { x: number; y: number; size: number; index: number; color: string }) {
-  const scale = useSharedValue(0);
-  useEffect(() => {
-    scale.set(withDelay(motion.state + index * motion.stagger * 2, withSpring(1, springs.celebrate)));
-  }, [index, scale]);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }], opacity: Math.min(1, scale.get()) }));
-  return (
-    <Animated.View pointerEvents="none" style={[styles.star, { left: x * HALO - size / 2, top: y * HALO - size / 2 }, style]}>
-      <Ionicons name="star" size={size} color={color} />
-    </Animated.View>
   );
 }
 
@@ -356,6 +397,9 @@ const styles = StyleSheet.create({
   centerText: {
     textAlign: 'center',
   },
+  waiting: {
+    opacity: 0,
+  },
   haloBox: {
     width: HALO,
     height: HALO,
@@ -373,12 +417,18 @@ const styles = StyleSheet.create({
   },
   flash: {
     position: 'absolute',
-    width: CHEST_SIZE,
-    height: CHEST_SIZE,
-    borderRadius: radius.pill,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  star: {
+  // Lumière douce : un peu plus large que le coffre et son halo, centrée
+  lightBox: {
     position: 'absolute',
+    left: (HALO - LIGHT) / 2,
+    top: (HALO - LIGHT) / 2,
+    width: LIGHT,
+    height: LIGHT,
   },
   ladder: {
     flexDirection: 'row',
