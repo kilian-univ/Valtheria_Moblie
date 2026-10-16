@@ -31,6 +31,9 @@ Pour chaque point :
 | 3 | Historique du portefeuille dans l'app (8.6) | Corrigé dans l'app ; une réponse non dépliée rendrait la correction inutile |
 | 2 | Positions regroupées, PRU, opérations et ventes (8.1 à 8.3) | Chaque ajout crée une ligne de plus ; pas de prix de revient moyen, pas d'historique des achats, pas de vente ni de plus-value réalisée |
 | 3 | Logos des actifs (8.5) | Une icône par type (la pièce 🪙 pour toutes les cryptos) |
+| 1 | Écrans `number` et `live_month` non joués par l'app (9.1) | S'ils apparaissent dans une leçon ou une révision, l'écran compte comme raté : score plus bas, XP réduits, notion qui recule |
+| 1 | Formats de l'app pour `dialogue` et `allocate` (9.2, 9.3) | Impossible d'écrire ces écrans pour l'app sur le site |
+| 2 | Révélation, sous-titre, document, difficulté des leçons (9.4 à 9.7) | Écrans de l'app refusés par le validateur, coffres faussés pour certains niveaux |
 | 3 | Connexion Apple et Google | Boutons masqués |
 | 3 | Dictionnaire enrichi, notifications poussées, date d'inscription, étapes du chemin | Champs prévus mais vides |
 
@@ -163,9 +166,8 @@ Pour chaque point :
 - **En attendant** : ces types n'existent que dans les leçons découvertes, corrigées sur le téléphone et jamais envoyées. Dans une leçon du serveur, un type inconnu de l'app s'affiche en écran de secours, et la leçon continue.
 
 ### 4.3 Types du site que l'app ne lit pas encore
-Ce n'est pas un manque du site, mais il faut choisir un seul format avant d'écrire de nouvelles leçons :
 - `number`, `live_month`, `allocate` à cibles (`target, tolerance`) et `dialogue` à une réplique (`speaker, line`) arrivent dans l'app en écran de secours.
-- À décider : le site adopte les formats du tableau 4.2, ou l'app apprend aussi ceux du site.
+- **Décidé le 16 octobre 2026 : le format de l'app fait foi.** Le site adopte les formats du tableau 4.2. Les modifications sont détaillées en section 9, et les formats dans `docs/reference-technique-lecons.md`.
 
 ### 4.4 Étapes du chemin
 - **Manque** : `GET /api/modules` ne renvoie pas le genre de chaque étape.
@@ -197,7 +199,7 @@ Ce n'est pas un manque du site, mais il faut choisir un seul format avant d'écr
 - **En production** (vérifié le 16 octobre 2026 : 401 sans jeton, alors qu'une route inconnue répond 404) : `GET /api/revision`, `GET /api/revision/count` et `POST /api/revision/{session}/complete`.
 - **Utilisé par l'app** pour un compte connecté :
   - la session du serveur est demandée une fois, gardée sur le téléphone pour la journée, et redemandée si elle a plus de 5 h 30 (le serveur la garde 6 h) ;
-  - jusqu'à 2 déclics du carnet sont joués après ses écrans ; `/complete` ne reçoit que les positions servies par le serveur ;
+  - jusqu'à 3 ajouts de l'app sont joués après ses écrans (2 déclics du carnet et 2 mots du dictionnaire au plus) ; `/complete` ne reçoit que les positions servies par le serveur ;
   - la fin envoie les tentatives à `/complete`, puis la fin de leçon habituelle montre les XP gagnés et la série ;
   - rien à réviser (`session: null` avec des notions) : « Rien à réviser aujourd'hui. Prochaine révision : … », et la révision du jour compte comme faite.
 - **Repli** (sans compte, route en erreur, hors ligne) : la révision construite par l'app, sans XP.
@@ -366,3 +368,78 @@ Relevé du 16 octobre 2026 (site, branche `main`, lu en lecture seule). Le déta
 - **Journaux de débogage** : `PortfolioController::index` écrit à chaque appel un journal `Portfolio livePrices`, et un journal propre à SOL (`Prix SOL utilisé pour total`). `CryptoPriceProvider` écrit la réponse brute de CoinGecko à chaque appel. À retirer ;
 - **instantané à la connexion** : `TakePortfolioSnapshot` écoute l'événement `Login`, que la connexion de l'app par jeton (`createToken`) ne déclenche pas. Les comptes de l'app n'ont que les instantanés planifiés (toutes les 4 h, 24 h d'écart pour un compte gratuit) ;
 - **recherche** : `formatResult` interroge un cours pour chacun des 12 résultats ; un seul appel groupé suffirait.
+
+## 9. Leçons : aligner le site sur le format de l'app
+
+Décidé le 16 octobre 2026 : **le format de l'app fait foi.** Les formats exacts, avec un exemple complet par type, sont dans `docs/reference-technique-lecons.md` (partie 2). Les points 4.1 (`takeaway`), 4.2 (`true_false`, `order`, `match`, `simulator`), 4.4 (`kind`) et 4.9 (`best_run`) en font aussi partie.
+
+**Le web est gelé.** Le lecteur web ne saura pas jouer les écrans au format de l'app. Proposition : le validateur et le correcteur acceptent ces formats, et une leçon qui en contient est signalée « à jouer dans l'app » sur le web, jusqu'à la refonte. Ce petit affichage web demandera ton accord.
+
+### 9.1 Types que l'app ne joue pas : `number` et `live_month`
+- **Manque** :
+  - l'app n'a pas d'écran pour ces deux types : elle affiche l'écran de secours et n'envoie aucune réponse ;
+  - le serveur compte alors l'écran comme raté. Le score baisse, la leçon peut passer en « ratée » (XP à 25 %), et la notion recule de 2 paliers ;
+  - `number` est en plus rejouable en révision ;
+  - aucune leçon réelle n'en contient aujourd'hui (vérifié sur les quatre leçons du module « Avant d'investir »).
+- **Souhaité** :
+  - le validateur refuse `number` et `live_month` dans une leçon publiée ;
+  - `servableScreens` ne sert en révision que les types joués par l'app : `choice`, `slider`, `document`, `dialogue`, `true_false`, `order`, `match`, `allocate` ;
+  - une estimation à saisir s'écrit en `slider` noté (`answer`, `tolerance`).
+- **En attendant** : rien à faire tant qu'aucune leçon n'utilise ces types.
+
+### 9.2 `dialogue` au format de l'app
+- **Manque** : le site n'accepte que `speaker`, `line` et `replies[{id, text, cost, correct}]`. L'app lit `character`, `messages` et `replies[{id, text, correct, reaction}]`.
+- **Souhaité** :
+  - **validateur** :
+    - `character{name (obligatoire), role}` ;
+    - `messages` : liste de textes, au moins 1 ;
+    - `replies` : 2 à 5 réponses `{id, text, correct, reaction}`, au moins une juste si l'écran est noté ;
+  - **correcteur** : inchangé (la réponse choisie est `correct`) ;
+  - l'ancien format est retiré : seule la leçon de démonstration des tests l'utilise.
+
+### 9.3 `allocate` au format de l'app (règles)
+- **Manque** :
+  - le site attend des cibles (`target`, `tolerance`, `locked`, `max`) et corrige sur ces cibles. L'app attend des règles et met le format à cibles en écran de secours ;
+  - le site impose `review: false`, alors que l'app révise ce type.
+- **Souhaité** :
+  - **validateur** :
+    - `total` (nombre), `step` (> 0), `unit`, `base` et `base_unit` ;
+    - `buckets` : 2 à 5 pots `{key, label, hint, start, reservoir, live}`, avec **exactement un réservoir** et une somme des `start` égale à `total` ;
+    - `rules` : au moins une règle `{bucket (clé existante), min, val}` ;
+  - **correcteur** : chaque règle respectée (`valeur ≥ min`) et somme égale à `total` ;
+  - `allocate` sort de `NOT_REVIEWABLE` ;
+  - l'ancien format est retiré : aucune leçon réelle ne l'utilise.
+
+### 9.4 Révélation
+- **Manque** :
+  - `start{label, value}` est refusé (clé inconnue) ;
+  - une ligne `dim` doit avoir une valeur non vide, alors que l'app admet `""` pour une ligne de commentaire.
+- **Souhaité** : admettre `start`, et une valeur vide ou absente sur une ligne `dim`.
+
+### 9.5 Sous-titre sur tous les écrans
+- **Manque** : `subtitle` n'est admis que pour `choice`, `number`, `slider`, `document` et `allocate`. L'app le lit sur tous les types.
+- **Souhaité** : admettre `subtitle` sur tous les types.
+
+### 9.6 Document
+- **Manque** : le site peut produire un bulletin de paie (`entete.vue: "bulletin"`, `conges`, `brut`…) et des cellules de récapitulatif marquées justes. L'app n'affiche ni l'un ni l'autre : une cellule juste rendrait l'écran impossible à réussir.
+- **Souhaité** : le contrôle de cohérence refuse, dans une leçon publiée, la vue bulletin et une cellule de récapitulatif marquée juste, tant que l'app n'a pas de rendu pour eux.
+
+### 9.7 Difficulté des leçons
+- **Manque** :
+  - `lessons.difficulty` n'a que 3 valeurs (`debutant`, `intermediaire`, `avance`), contre 5 pour les modules (`entree`, `debutant`, `inter`, `avance`, `expert`) ;
+  - l'import recopie le niveau du module dans la leçon, ce qui échoue pour `entree`, `inter` et `expert` ;
+  - cette difficulté fixe le montant des coffres.
+- **Souhaité** :
+  - la difficulté de la leçon prend les 5 valeurs du module, ou se déduit du module ;
+  - montant des coffres : `entree` comme `debutant`, `inter` comme `intermediaire`, `expert` comme `avance`.
+
+### 9.8 Bornes des nouveaux types
+- **Souhaité** : garder les bornes actuelles du site (`choice` 2 à 8 options, `reveal` 8 lignes, `dialogue` 5 réponses, `allocate` 5 pots), et ajouter :
+  - `true_false` : 2 à 6 cartes, `pass` entre 1 et le nombre de cartes ;
+  - `order` : 2 à 6 éléments, `start` permutation des ids ;
+  - `match` : 2 à 5 paires, `right_order` permutation, `max_errors ≥ 0` ;
+  - `simulator` : toujours non noté, formule `savings_from_age` ou `loan_over_years`, 1 à 4 sorties.
+
+### 9.9 Niveau et documentation
+- **Niveau** : le défi du jour, les quêtes et les cartes de module ajoutent des XP sans recalculer le niveau du serveur. L'en-tête de l'app (niveau du serveur) et le profil (calculé depuis les XP) peuvent alors différer. Souhaité : un seul point de crédit des XP, qui recalcule toujours le niveau.
+- **Documentation du site** : `API.md` donne un exemple `true_false` d'une autre forme et annonce « 3 tentatives au plus » (le serveur n'en garde qu'une). `config/valtheria.php` et `docs/FORMAT_ECRANS.md` disent « échec → palier 0 » (le code retire 2 paliers, avec un plancher à 1). Souhaité : les remettre au format de l'app, avec les exemples de `docs/reference-technique-lecons.md`.
