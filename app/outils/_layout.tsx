@@ -7,6 +7,7 @@ export default function OutilsLayout() {
       <Stack.Screen name="portefeuille" />
       <Stack.Screen name="actif/[id]" />
       <Stack.Screen name="operation" />
+      <Stack.Screen name="recherche" />
       <Stack.Screen name="analyse" />
       <Stack.Screen name="cashflow" />
       <Stack.Screen name="epargne" />

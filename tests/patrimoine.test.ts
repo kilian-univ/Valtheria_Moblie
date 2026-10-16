@@ -305,3 +305,68 @@ test('le lien de Val mène au module concerné, sinon à l’univers, sinon à A
   assert.deepEqual(lessonHref(tip('bourse', ['inconnu']), modules, universes), { pathname: '/apprendre/univers/[universeId]', params: { universeId: '2' } });
   assert.deepEqual(lessonHref(tip('crypto', ['inconnu']), modules, universes), { pathname: '/apprendre' });
 });
+
+// ── Formulaires (lot 2) ────────────────────────────────────────────────
+
+test('dates : un cran à la fois, jamais après aujourd’hui ni avant 1990', async () => {
+  const { stepDay, isoDay } = await import('../src/utils/patrimoine/forms');
+  const today = { y: 2026, m: 10, d: 16 };
+  assert.equal(isoDay(stepDay(today, 'd', -1, today)), '2026-10-15');
+  assert.equal(isoDay(stepDay(today, 'd', 1, today)), '2026-10-16', 'pas dans le futur');
+  assert.equal(isoDay(stepDay({ y: 2026, m: 3, d: 31 }, 'm', -1, today)), '2026-02-28');
+  assert.equal(isoDay(stepDay({ y: 2026, m: 1, d: 10 }, 'm', -1, today)), '2025-12-10');
+  assert.equal(isoDay(stepDay({ y: 1990, m: 1, d: 1 }, 'y', -1, today)), '1990-01-01');
+  assert.equal(isoDay(stepDay({ y: 2026, m: 3, d: 1 }, 'd', -1, today)), '2026-02-28');
+});
+
+test('requête d’un achat ou d’une vente', async () => {
+  const { operationPayload, operationPatch } = await import('../src/utils/patrimoine/forms');
+  const form = { side: 'buy' as const, ticker: 'sol', name: 'Solana', type: 'crypto' as const, quantity: '2', unitPrice: '160,5', fees: '', currency: 'EUR', day: { y: 2026, m: 6, d: 2 } };
+  assert.deepEqual(operationPayload(form), {
+    ok: true,
+    body: { ticker: 'SOL', name: 'Solana', type: 'crypto', side: 'buy', quantity: 2, unit_price: 160.5, currency: 'EUR', fees: 0, executed_at: '2026-06-02' },
+  });
+  assert.deepEqual(operationPatch({ ...form, side: 'sell', fees: '1,5' }), {
+    ok: true,
+    body: { side: 'sell', quantity: 2, unit_price: 160.5, currency: 'EUR', fees: 1.5, executed_at: '2026-06-02' },
+  });
+  const bad = operationPayload({ ...form, quantity: '0' });
+  assert.ok(!bad.ok && bad.field === 'quantity');
+  assert.ok(!operationPayload({ ...form, ticker: '' }).ok);
+});
+
+test('livret : une part au prix du montant, le taux dans rate', async () => {
+  const { livretPayload } = await import('../src/utils/patrimoine/forms');
+  assert.deepEqual(livretPayload({ ticker: 'LIVRET_A', name: 'Livret A', amount: '12 000', ratePct: '2,4' }, 1), {
+    ok: true,
+    body: { ticker: 'LIVRET_A', name: 'Livret A', type: 'livret', quantity: 1, buy_price: 12000, buy_currency: 'EUR', is_livret: true, rate: 2.4 },
+  });
+  const custom = livretPayload({ ticker: null, name: 'Livret Bleu', amount: '500', ratePct: '' }, 123);
+  assert.ok(custom.ok && custom.body.ticker === 'LIVRET_123' && !('rate' in custom.body));
+  assert.ok(!livretPayload({ ticker: null, name: 'X', amount: '10', ratePct: '150' }, 1).ok);
+});
+
+test('bien estimé à la main : valeur estimée, montant payé facultatif', async () => {
+  const { manualPayload, manualPatch, livretDeposit } = await import('../src/utils/patrimoine/forms');
+  const p = manualPayload({ name: 'Appartement (part)', value: '8 245', paid: '' }, 'immobilier', 7);
+  assert.ok(p.ok);
+  if (p.ok) {
+    assert.equal(p.body.ticker, 'CUSTOM_IMMOBILIER_7');
+    assert.equal(p.body.buy_price, 8245);
+    assert.equal(p.body.current_value_override, 8245);
+    assert.equal(p.body.is_manual, true);
+  }
+  assert.deepEqual(manualPatch({ name: 'Montre', value: '900', paid: '' }), { ok: true, body: { name: 'Montre', current_value_override: 900 } });
+  assert.equal(livretDeposit(null, 500), 500);
+  assert.equal(livretDeposit(500, 700), 200);
+  assert.equal(livretDeposit(700, 500), 0, 'un retrait n’est pas un versement');
+});
+
+test('préférences : versements sur les livrets gardés, lecture prudente', async () => {
+  const { parsePrefs, addLivretDeposit } = await import('../src/utils/patrimoine/prefs');
+  const p = parsePrefs({ discreet: true, livretDeposits: [{ at: '2026-10-01', amount: 50 }, { at: 3 }, { at: '2026-10-02', amount: -1 }] });
+  assert.equal(p.discreet, true);
+  assert.equal(p.livretDeposits.length, 1);
+  assert.equal(addLivretDeposit(p, { at: '2026-10-03', amount: 0, positionId: null }), p, 'un retrait ne s’ajoute pas');
+  assert.equal(addLivretDeposit(p, { at: '2026-10-03', amount: 20, positionId: 3 }).livretDeposits.length, 2);
+});

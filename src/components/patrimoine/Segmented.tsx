@@ -45,6 +45,8 @@ export default function Segmented<K extends string>({ options, value, onChange, 
             <AppText
               maxFontSizeMultiplier={1.3}
               numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
               style={[styles.label, { color: active ? (activeColor ?? colors.text) : o.disabled ? colors.textFaint : colors.subtitle }]}
             >
               {o.label}
@@ -68,7 +70,7 @@ const styles = StyleSheet.create({
   fill: { alignSelf: 'stretch' },
   tab: {
     minHeight: 34,
-    paddingHorizontal: space[3],
+    paddingHorizontal: space[2],
     borderRadius: 9,
     borderCurve: 'continuous',
     alignItems: 'center',

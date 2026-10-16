@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
 import BigNumber from '@/src/components/common/BigNumber';
+import Button from '@/src/components/common/Button';
+import ValBubble from '@/src/components/common/ValBubble';
 import IconButton from '@/src/components/common/IconButton';
 import AllocationBar from '@/src/components/patrimoine/AllocationBar';
 import Figure from '@/src/components/patrimoine/Figure';
@@ -101,6 +103,27 @@ export default function PatrimoineScreen() {
 
   if (!portfolio) return null;
   const positions = portfolio.positions;
+
+  // Premier pas : patrimoine vide
+  if (positions.length === 0 && portfolio.closed.length === 0) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
+        <View style={styles.bar}>
+          <BackButton onBack={() => router.back()} />
+        </View>
+        <View style={[styles.firstStep, { paddingBottom: insets.bottom + space[8] }]}>
+          <AppText accessibilityRole="header" style={styles.title}>
+            Mon patrimoine
+          </AppText>
+          <ValBubble mood="complice" diameter={96} text="Suivre ton patrimoine, c’est voir où va ton argent, et le faire grandir." />
+          <Button label="Ajouter mon premier actif" icon="add" onPress={() => router.push('/outils/recherche')} />
+          <AppText variant="caption" tone="subtitle" style={styles.center}>
+            Valtheria ne donne pas de conseil en investissement.
+          </AppText>
+        </View>
+      </View>
+    );
+  }
   const shares = byType(positions);
   const tip = chooseValTip({ positions, now: new Date(now), monthlyExpenses: null });
   const v = variation(points);
@@ -349,4 +372,5 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   left: { textAlign: 'left' },
   disclaimer: { marginTop: space[6] },
+  firstStep: { flex: 1, justifyContent: 'center', paddingHorizontal: space[5], gap: space[6] },
 });
