@@ -44,6 +44,7 @@ export const DEFAULT_PREFS: PatrimoinePrefs = {
 
 const DEPOSITS_KEPT = 400;
 export const GOALS_MAX = 20;
+const LINKS_MAX = 100;
 const ICONS_MAX = 200;
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -67,7 +68,15 @@ export function parsePrefs(raw: unknown): PatrimoinePrefs {
       const id = str(g.id);
       const name = str(g.name);
       return id && name && typeof g.amount === 'number' && g.amount > 0
-        ? { id, name, amount: g.amount, date: str(g.date), createdAt: str(g.createdAt) ?? new Date(0).toISOString(), reachedAt: str(g.reachedAt) }
+        ? {
+            id,
+            name,
+            amount: g.amount,
+            date: str(g.date),
+            createdAt: str(g.createdAt) ?? new Date(0).toISOString(),
+            reachedAt: str(g.reachedAt),
+            positionIds: Array.isArray(g.positionIds) ? [...new Set(g.positionIds.filter((x): x is number => Number.isInteger(x)))].slice(0, LINKS_MAX) : null,
+          }
         : null;
     })
     .filter((g): g is Goal => g !== null)

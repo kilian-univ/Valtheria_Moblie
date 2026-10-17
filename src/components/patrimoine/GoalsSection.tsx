@@ -8,16 +8,16 @@ import { fonts, palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { tap } from '@/src/utils/haptics';
 import { longDate, money } from '@/src/utils/patrimoine/format';
-import { emergencyGauge, goalGauge, monthsCovered } from '@/src/utils/patrimoine/goals';
+import { emergencyGauge, goalGauge, linkedPositions, measuredOnText, monthsCovered } from '@/src/utils/patrimoine/goals';
 import type { Position } from '@/src/utils/patrimoine/model';
 import type { PatrimoinePrefs } from '@/src/utils/patrimoine/prefs';
 import HelpTerm from './HelpTerm';
 
-type Props = { positions: Position[]; totalEur: number; prefs: PatrimoinePrefs; hidden: boolean };
+type Props = { positions: Position[]; prefs: PatrimoinePrefs; hidden: boolean };
 
 // Tes objectifs : l'épargne de précaution (proposée d'emblée), puis les
-// objectifs personnels, chacun avec sa jauge
-export default function GoalsSection({ positions, totalEur, prefs, hidden }: Props) {
+// objectifs personnels, chacun avec sa jauge mesurée sur ses placements
+export default function GoalsSection({ positions, prefs, hidden }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const emergency = emergencyGauge(prefs.emergency, positions);
@@ -74,17 +74,21 @@ export default function GoalsSection({ positions, totalEur, prefs, hidden }: Pro
       </Pressable>
 
       {prefs.goals.map((g) => {
-        const gg = goalGauge(g, totalEur);
+        const gg = goalGauge(g, positions);
+        const measuredOn = measuredOnText(linkedPositions(g, positions));
+        const status = gg
+          ? `${hidden ? 'montants masqués' : `${money(gg.current)} sur ${money(gg.target)}`}${gg.reached ? ', atteint' : ''}, ${measuredOn}`
+          : `${hidden ? 'montant masqué' : money(g.amount)} à atteindre, relie un placement pour suivre cet objectif`;
         return (
           <Pressable
             key={g.id}
             onPress={() => open({ kind: 'goal', id: g.id })}
             accessibilityRole="button"
-            accessibilityLabel={`Objectif ${g.name} : ${hidden ? 'montants masqués' : `${money(gg.current)} sur ${money(gg.target)}`}${gg.reached ? ', atteint' : ''}${g.date ? `, pour le ${longDate(`${g.date}T12:00:00`)}` : ''}`}
+            accessibilityLabel={`Objectif ${g.name} : ${status}${g.date ? `, pour le ${longDate(`${g.date}T12:00:00`)}` : ''}`}
             style={({ pressed }) => [styles.card, { backgroundColor: colors.panel }, pressed && { opacity: 0.8 }]}
           >
             <View style={styles.titleRow}>
-              <Ionicons name={gg.reached ? 'checkmark-circle' : 'flag-outline'} size={18} color={gg.reached ? colors.success : colors.gold} />
+              <Ionicons name={gg?.reached ? 'checkmark-circle' : 'flag-outline'} size={18} color={gg?.reached ? colors.success : colors.gold} />
               <AppText style={styles.title} numberOfLines={1}>
                 {g.name}
               </AppText>
@@ -94,11 +98,22 @@ export default function GoalsSection({ positions, totalEur, prefs, hidden }: Pro
                 </AppText>
               ) : null}
             </View>
-            <ProgressBar progress={gg.ratio} height={6} accessibilityLabel={`Progression de l’objectif ${g.name}`} />
-            <AppText variant="caption" tone="subtitle">
-              {m(gg.current)} sur {m(gg.target)}
-              {gg.reached ? ' · atteint' : ''}
-            </AppText>
+            {gg ? (
+              <>
+                <ProgressBar progress={gg.ratio} height={6} accessibilityLabel={`Progression de l’objectif ${g.name}`} />
+                <AppText variant="caption" tone="subtitle">
+                  {m(gg.current)} sur {m(gg.target)}
+                  {gg.reached ? ' · atteint' : ''}
+                </AppText>
+                <AppText variant="caption" tone="subtitle" numberOfLines={2}>
+                  {measuredOn ? measuredOn.charAt(0).toUpperCase() + measuredOn.slice(1) : null}
+                </AppText>
+              </>
+            ) : (
+              <AppText variant="caption" style={{ color: colors.gold }}>
+                Relie un placement pour suivre cet objectif
+              </AppText>
+            )}
           </Pressable>
         );
       })}

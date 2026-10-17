@@ -417,20 +417,72 @@ test('épargne de précaution : dépenses × 3 à 6 mois, comptée sur les actif
   assert.equal(clampMonths(1), 3);
 });
 
-test('objectifs personnels : jauge, première atteinte fêtée une seule fois', async () => {
+test('objectifs personnels : jauge sur les placements reliés, première atteinte fêtée une seule fois', async () => {
   const { goalGauge, newlyReached, markReached, validateGoal } = await import('../src/utils/patrimoine/goals');
+  const livretA = pos('livret', 4000, { id: 1, name: 'Livret A' });
+  const ldds = pos('livret', 1000, { id: 2, name: 'LDDS' });
+  const etf = pos('etf', 6000, { id: 3, name: 'MSCI World' });
+  const list = [livretA, ldds, etf];
   const goals = [
-    { id: 'a', name: 'Apport', amount: 20000, date: '2028-01-01', createdAt: '2026-01-01', reachedAt: null },
-    { id: 'b', name: 'Voyage', amount: 3000, date: null, createdAt: '2026-01-01', reachedAt: null },
+    { id: 'a', name: 'Apport', amount: 20000, date: '2028-01-01', createdAt: '2026-01-01', reachedAt: null, positionIds: [1, 3] },
+    { id: 'b', name: 'Voyage', amount: 3000, date: null, createdAt: '2026-01-01', reachedAt: null, positionIds: [2] },
+    { id: 'c', name: 'Vélo', amount: 800, date: null, createdAt: '2026-01-01', reachedAt: null, positionIds: null },
   ];
-  assert.equal(goalGauge(goals[0], 10000).ratio, 0.5);
-  assert.deepEqual(newlyReached(goals, 5000).map((g) => g.id), ['b']);
-  const marked = markReached(goals, ['b'], '2026-10-16');
-  assert.deepEqual(newlyReached(marked, 5000), [], 'déjà fêté');
-  assert.equal(marked[1].reachedAt, '2026-10-16');
+  // Mesuré sur ses placements, jamais sur la valeur totale (11 000 €)
+  assert.equal(goalGauge(goals[0], list)!.current, 10000);
+  assert.equal(goalGauge(goals[0], list)!.ratio, 0.5);
+  assert.equal(goalGauge(goals[1], list)!.reached, false);
+  // null : les placements sans risque (Livret A et LDDS)
+  assert.equal(goalGauge(goals[2], list)!.current, 5000);
+  assert.deepEqual(newlyReached(goals, list).map((g) => g.id), ['c']);
+  const marked = markReached(goals, ['c'], '2026-10-16');
+  assert.deepEqual(newlyReached(marked, list), [], 'déjà fêté');
+  assert.equal(marked[2].reachedAt, '2026-10-16');
   assert.ok(validateGoal({ name: 'Apport', amount: '20 000', date: null }).ok);
   assert.ok(!validateGoal({ name: '', amount: '100', date: null }).ok);
   assert.ok(!validateGoal({ name: 'X', amount: '0', date: null }).ok);
+});
+
+test('objectifs : sans placement relié, rien à suivre', async () => {
+  const { goalGauge, newlyReached } = await import('../src/utils/patrimoine/goals');
+  const etf = pos('etf', 6000, { id: 3 });
+  const none = { id: 'a', name: 'Apport', amount: 100, date: null, createdAt: '2026-01-01', reachedAt: null, positionIds: [] };
+  assert.equal(goalGauge(none, [etf]), null);
+  // Placement vendu depuis : il n'est plus compté
+  const sold = { ...none, positionIds: [99] };
+  assert.equal(goalGauge(sold, [etf]), null);
+  // Sans placement sans risque, l'objectif par défaut n'a rien à suivre
+  assert.equal(goalGauge({ ...none, positionIds: null }, [etf]), null);
+  assert.deepEqual(newlyReached([none, sold], [etf]), []);
+});
+
+test('objectifs : placements par défaut, liens et texte de la jauge', async () => {
+  const { defaultGoalPositionIds, linkedPositions, measuredOnText, sameLinks } = await import('../src/utils/patrimoine/goals');
+  const list = [pos('livret', 4000, { id: 1, name: 'Livret A' }), pos('etf', 6000, { id: 3 }), pos('autre', 50, { id: 4, risk: 'sans_risque', name: 'LDDS' })];
+  assert.deepEqual(defaultGoalPositionIds(list), [1, 4]);
+  assert.deepEqual(linkedPositions({ positionIds: null }, list).map((p) => p.id), [1, 4]);
+  assert.deepEqual(linkedPositions({ positionIds: [3] }, list).map((p) => p.id), [3]);
+  assert.equal(measuredOnText([{ name: 'Livret A', ticker: 'LA' }, { name: 'LDDS', ticker: 'LDDS' }]), 'mesuré sur ton Livret A et ton LDDS');
+  assert.equal(measuredOnText([{ name: 'Livret A', ticker: 'LA' }]), 'mesuré sur ton Livret A');
+  assert.equal(measuredOnText([{ name: '', ticker: 'BTC' }]), 'mesuré sur ton BTC');
+  const four = ['A', 'B', 'C', 'D'].map((n) => ({ name: n, ticker: n }));
+  assert.equal(measuredOnText(four.slice(0, 3)), 'mesuré sur ton A, ton B et ton C');
+  assert.equal(measuredOnText(four), 'mesuré sur ton A, ton B et 2 autres placements');
+  assert.equal(measuredOnText([]), null);
+  assert.ok(sameLinks([1, 2], [2, 1]));
+  assert.ok(!sameLinks([1, 2], [1]));
+  assert.ok(!sameLinks(null, [1]));
+  assert.ok(sameLinks(null, null));
+});
+
+test('objectifs : placements reliés relus prudemment ; objectif ancien sur les placements sans risque', async () => {
+  const { parsePrefs } = await import('../src/utils/patrimoine/prefs');
+  const base = { id: 'g', name: 'Voyage', amount: 100 };
+  const read = (extra: object) => parsePrefs({ goals: [{ ...base, ...extra }] }).goals[0].positionIds;
+  assert.equal(read({}), null);
+  assert.deepEqual(read({ positionIds: [3, 3, 'x', 1.5, 7] }), [3, 7]);
+  assert.deepEqual(read({ positionIds: [] }), []);
+  assert.equal(read({ positionIds: 'tout' }), null);
 });
 
 test('étapes : gagnées une fois, jamais liées aux gains ni au nombre d’opérations', async () => {

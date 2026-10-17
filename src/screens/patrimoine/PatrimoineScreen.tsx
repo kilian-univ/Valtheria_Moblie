@@ -151,7 +151,7 @@ export default function PatrimoineScreen() {
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   useEffect(() => {
     if (!portfolio || !prefs || !progress.ready) return;
-    const reached = newlyReached(prefs.goals, portfolio.totalEur);
+    const reached = newlyReached(prefs.goals, portfolio.positions);
     const emergency = emergencyGauge(prefs.emergency, portfolio.positions);
     const at = new Date().toISOString();
     const { earned, fresh } = earn(
@@ -408,7 +408,7 @@ export default function PatrimoineScreen() {
           </View>
         </View>
 
-        {prefs ? <GoalsSection positions={positions} totalEur={portfolio.totalEur} prefs={prefs} hidden={hidden} /> : null}
+        {prefs ? <GoalsSection positions={positions} prefs={prefs} hidden={hidden} /> : null}
 
         {portfolio.closed.length > 0 ? (
           <View style={styles.section}>

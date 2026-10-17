@@ -1,7 +1,10 @@
 // Reprise des objectifs de l'ancien outil Épargne du site (GET /savings)
 // dans les objectifs du patrimoine : même nom, montant et échéance, une
-// seule fois par compte. Sans React : testable avec Node.
+// seule fois par compte. Reliés aux placements sans risque ; ceux déjà
+// dépassés arrivent atteints, sans célébration. Sans React : testable avec Node.
 
+import { defaultGoalPositionIds, goalGauge, type Goal } from './goals';
+import type { Position } from './model';
 import { GOALS_MAX, type PatrimoinePrefs } from './prefs';
 
 export type SavingsGoalIn = { name: string; amount: number; date: string | null };
@@ -25,14 +28,22 @@ export function readSavingsGoals(raw: unknown): SavingsGoalIn[] | null {
 }
 
 // Ajoute les objectifs du site (sans doublon, dans la limite des objectifs)
-// et note la reprise faite ; rien ne change si elle l'est déjà
-export function importSavingsGoals(prefs: PatrimoinePrefs, goals: readonly SavingsGoalIn[], now: Date): PatrimoinePrefs {
+// et note la reprise faite ; rien ne change si elle l'est déjà. Un objectif
+// déjà dépassé est noté atteint, et l'étape « Premier objectif atteint »
+// gagnée sans être fêtée
+export function importSavingsGoals(prefs: PatrimoinePrefs, goals: readonly SavingsGoalIn[], positions: readonly Position[], now: Date): PatrimoinePrefs {
   if (prefs.savingsImported) return prefs;
   const at = now.toISOString();
-  const added = goals
+  const positionIds = defaultGoalPositionIds(positions);
+  const added: Goal[] = goals
     .filter((g, i) => goals.findIndex((o) => o.name === g.name && o.amount === g.amount && o.date === g.date) === i)
     .filter((g) => !prefs.goals.some((o) => o.name === g.name && o.amount === g.amount && o.date === g.date))
     .slice(0, Math.max(0, GOALS_MAX - prefs.goals.length))
-    .map((g, i) => ({ id: `s${now.getTime()}-${i}`, name: g.name, amount: g.amount, date: g.date, createdAt: at, reachedAt: null }));
-  return { ...prefs, goals: [...prefs.goals, ...added], savingsImported: true };
+    .map((g, i) => {
+      const goal: Goal = { id: `s${now.getTime()}-${i}`, name: g.name, amount: g.amount, date: g.date, createdAt: at, reachedAt: null, positionIds };
+      return goalGauge(goal, positions)?.reached ? { ...goal, reachedAt: at } : goal;
+    });
+  const anyReached = added.some((g) => g.reachedAt);
+  const milestones = anyReached && !prefs.milestones.premier_objectif ? { ...prefs.milestones, premier_objectif: at } : prefs.milestones;
+  return { ...prefs, goals: [...prefs.goals, ...added], milestones, savingsImported: true };
 }
