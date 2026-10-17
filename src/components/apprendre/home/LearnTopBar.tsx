@@ -18,6 +18,8 @@ type LearnTopBarProps = {
   pseudo: string | undefined;
   // Chiffres pas encore chargés : pastilles en squelette
   stats: { xp: number; streak: number; vals: number } | null;
+  // Chiffres impossibles à charger (hors ligne) : ni chiffres ni squelette
+  unavailable?: boolean;
   ignite?: boolean | null;
   onStreak: () => void;
   onProfile: () => void;
@@ -26,7 +28,7 @@ type LearnTopBarProps = {
 // En-tête de l'accueil connecté : le logo à gauche ; à droite la série, les
 // Vals et la photo de profil (initiale en attendant) dans un anneau doré qui
 // montre la progression vers le niveau suivant
-export default function LearnTopBar({ pseudo, stats, ignite = false, onStreak, onProfile }: LearnTopBarProps) {
+export default function LearnTopBar({ pseudo, stats, unavailable = false, onStreak, onProfile, ignite = false }: LearnTopBarProps) {
   const level = levelInfo(stats?.xp ?? 0);
   return (
     <View style={styles.row}>
@@ -41,7 +43,7 @@ export default function LearnTopBar({ pseudo, stats, ignite = false, onStreak, o
       <View style={styles.right}>
         {stats ? (
           <StatPills streak={stats.streak} vals={stats.vals} onStreak={onStreak} ignite={ignite} />
-        ) : (
+        ) : unavailable ? null : (
           <StatPillsSkeleton />
         )}
         {stats ? (

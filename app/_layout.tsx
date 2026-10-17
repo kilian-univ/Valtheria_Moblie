@@ -16,8 +16,10 @@ import { View } from 'react-native';
 import 'react-native-reanimated';
 
 import AppBackground from '@/src/components/common/AppBackground';
+import { RootErrorBoundary, ScreenErrorBoundary } from '@/src/components/common/AppErrorScreen';
 import { SkeletonProvider } from '@/src/components/common/Skeleton';
 import OnboardingGate from '@/src/components/onboarding/OnboardingGate';
+import SessionRecovery from '@/src/components/common/SessionRecovery';
 import StartupGate from '@/src/components/splash/StartupGate';
 import { VAL_SALUT_GLOW, valPose } from '@/src/components/common/ValFullBody';
 import { LOGO } from '@/src/constants/brand';
@@ -59,6 +61,8 @@ function RootLayoutContent() {
   return (
     <NavigationThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : CustomLightTheme}>
       <ApiProvider>
+        {/* Profil manquant au démarrage (hors ligne, serveur en panne) : relu dès que possible */}
+        <SessionRecovery />
         {/* Une seule animation de reflet, partagée par tous les squelettes */}
         <SkeletonProvider>
           <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -95,7 +99,13 @@ function RootLayoutContent() {
 
 export const unstable_settings = {
   anchor: '(tabs)',
+  // Filet de chaque écran : un écran qui plante affiche Val, « Réessayer »
+  // et « Retour à l'accueil » au lieu de fermer l'app
+  screenErrorBoundary: ScreenErrorBoundary,
 };
+
+// Filet global : le layout lui-même (fournisseurs, navigation) a planté
+export const ErrorBoundary = RootErrorBoundary;
 
 export default function RootLayout() {
   // Session audio d'iOS configurée une seule fois, au démarrage

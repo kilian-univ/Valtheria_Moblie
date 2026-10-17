@@ -179,7 +179,7 @@ export default function ApprendreHomeScreen() {
       pseudo={isGuest ? undefined : known.pseudo}
       pseudoPending={known.pending}
       stats={
-        data.isAuthenticated && !loading
+        data.isAuthenticated && !loading && data.loaded
           ? { level: data.level, xp: data.xp, streak: data.streak, vals: data.vals }
           : undefined
       }
@@ -193,7 +193,8 @@ export default function ApprendreHomeScreen() {
   const topBar = (
     <LearnTopBar
       pseudo={known.pseudo}
-      stats={loading ? null : { xp: data.xp, streak: data.streak, vals: data.vals }}
+      stats={loading || !data.loaded ? null : { xp: data.xp, streak: data.streak, vals: data.vals }}
+      unavailable={!!data.error}
       ignite={ignite}
       onStreak={openStreak}
       onProfile={() => router.push('/client/profil')}

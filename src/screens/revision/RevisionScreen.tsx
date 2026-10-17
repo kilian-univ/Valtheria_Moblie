@@ -14,6 +14,8 @@ import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { isNetworkError } from '@/src/hooks/useLearningData';
+import { loadErrorKind, type LoadError } from '@/src/utils/loadError';
+import LoadErrorState from '@/src/components/common/LoadErrorState';
 import { normalizeLesson } from '@/src/lesson/normalize';
 import ApprendreDetailScreen from '@/src/screens/ApprendreDetailScreen';
 import { markDayCelebrated } from '@/src/state/dayCelebration';
@@ -117,6 +119,26 @@ export default function RevisionScreen() {
 
   const record = memory?.servers.find((r) => r.day === today) ?? null;
   const expired = !!record && !serverRevisionUsable(record, today, new Date());
+  const plan = memory?.plans.find((p) => p.day === today) ?? null;
+  // Ni révision du serveur ni révision de l'app pour aujourd'hui (téléphone
+  // neuf, hors ligne au démarrage) : on la demande ici. Seule la réponse du
+  // serveur peut dire « première révision » ; un échec reste une erreur.
+  const [missing, setMissing] = useState<{ status: 'loading' | 'failed'; kind: LoadError } | null>(null);
+  const needsFetch = !!memory && declics !== null && !record && (!plan || plan.items.length === 0);
+  const askServer = useCallback(() => {
+    if (!memory || declics === null) return;
+    setMissing({ status: 'loading', kind: 'server' });
+    fetchServerRevision(get, key, memory, declics, words ?? []).then(
+      () => setMissing(null),
+      (err: unknown) => setMissing({ status: 'failed', kind: loadErrorKind(err) })
+    );
+  }, [memory, declics, words, get, key]);
+  const asked = useRef(false);
+  useEffect(() => {
+    if (!needsFetch || asked.current) return;
+    asked.current = true;
+    askServer();
+  }, [needsFetch, askServer]);
   useEffect(() => {
     if (!memory || declics === null || !expired || refreshFailed || refreshing.current) return;
     refreshing.current = true;
@@ -176,14 +198,17 @@ export default function RevisionScreen() {
   if (record && expired && !refreshFailed) return <Waiting text="Préparation de ta révision…" />;
 
   // Révision de l'app
-  const plan = memory.plans.find((p) => p.day === today) ?? null;
   if (plan?.done) {
     return <RevisionRecap recap={{ correct: plan.done.correct, total: plan.done.total, dayDone: false }} />;
   }
   if (!plan || plan.items.length === 0) {
     // Session du serveur expirée et impossible d'en avoir une autre
     if (record && refreshFailed) {
-      return <EmptyState text="Impossible de préparer ta révision pour l’instant. Réessaie dans un moment." />;
+      return <ErrorState kind="server" onRetry={() => setRefreshFailed(false)} />;
+    }
+    if (!record) {
+      if (missing?.status === 'failed') return <ErrorState kind={missing.kind} onRetry={askServer} />;
+      return <Waiting text="Préparation de ta révision…" />;
     }
     return <EmptyState text={FIRST_REVISION} />;
   }
@@ -194,6 +219,15 @@ function EmptyState({ text }: { text: string }) {
   return (
     <View style={styles.state}>
       <PageState variant="empty" mood="complice" text={text} actionLabel="Retour" onAction={leave} />
+    </View>
+  );
+}
+
+function ErrorState({ kind, onRetry }: { kind: LoadError; onRetry: () => void }) {
+  return (
+    <View style={styles.state}>
+      <LoadErrorState title="Révision indisponible" what="ta révision" kind={kind} onRetry={onRetry} />
+      <Button variant="text" label="Retour" onPress={leave} />
     </View>
   );
 }

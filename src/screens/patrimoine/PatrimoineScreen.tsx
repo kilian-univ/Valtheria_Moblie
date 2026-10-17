@@ -11,6 +11,7 @@ import BigNumber from '@/src/components/common/BigNumber';
 import Button from '@/src/components/common/Button';
 import ValBubble from '@/src/components/common/ValBubble';
 import IconButton from '@/src/components/common/IconButton';
+import PageState from '@/src/components/common/PageState';
 import Pill from '@/src/components/common/Pill';
 import AllocationBar from '@/src/components/patrimoine/AllocationBar';
 import CelebrationSheet from '@/src/components/patrimoine/CelebrationSheet';
@@ -32,6 +33,7 @@ import { updatePatrimoinePrefs, usePatrimoinePrefs } from '@/src/state/patrimoin
 import { userKeyOf } from '@/src/state/userMemory';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
+import { staleDataText } from '@/src/utils/loadError';
 import { splitAnomalies } from '@/src/utils/patrimoine/anomalies';
 import { byType } from '@/src/utils/patrimoine/analysis';
 import {
@@ -70,6 +72,8 @@ export default function PatrimoineScreen() {
   const prefs = usePatrimoinePrefs(userKey);
   const hidden = prefs?.discreet ?? false;
   const portfolio = data.portfolio;
+  // Dernier rechargement en échec : les chiffres affichés sont les derniers connus
+  const stale = data.error !== null;
 
   const [mode, setMode] = useState<ChartMode>('valeur');
   const [period, setPeriod] = useState<Period>(DEFAULT_PERIOD);
@@ -275,6 +279,7 @@ export default function PatrimoineScreen() {
             />
           ) : null}
         </View>
+        {stale ? <PageState variant="offline" text={staleDataText(data.errorKind ?? 'server', 'Tes derniers chiffres connus')} /> : null}
 
         <View style={styles.hero} accessible accessibilityLabel={`Valeur totale : ${hidden ? 'masquée' : money(portfolio.totalEur)}`}>
           <AppText variant="caption" tone="subtitle">

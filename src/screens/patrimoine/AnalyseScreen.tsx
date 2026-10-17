@@ -15,7 +15,8 @@ import ValRemark from '@/src/components/patrimoine/ValRemark';
 import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { usePatrimoine } from '@/src/state/patrimoineData';
+import { usePatrimoineView } from '@/src/hooks/usePatrimoineView';
+import PatrimoineStateScreen from '@/src/components/patrimoine/PatrimoineStateScreen';
 import { usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
 import { userKeyOf } from '@/src/state/userMemory';
 import { byRisk, byType, riskProfile, roundedShares, type Share } from '@/src/utils/patrimoine/analysis';
@@ -38,9 +39,10 @@ export default function AnalyseScreen() {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const insets = useSafeAreaInsets();
-  const { user, getPortfolio } = useApi();
-  const userKey = userKeyOf(user?.id);
-  const data = usePatrimoine(userKey, getPortfolio);
+  const { user } = useApi();
+  const v = usePatrimoineView();
+  const userKey = v.userKey ?? userKeyOf(user?.id);
+  const data = v.data;
   const prefs = usePatrimoinePrefs(userKey);
   const hidden = prefs?.discreet ?? false;
   const [tab, setTab] = useState<Tab>('risque');
@@ -62,6 +64,10 @@ export default function AnalyseScreen() {
     const length = Math.max(0, s.share * circumference - (list.length > 1 ? 3 : 0));
     return { key: s.key, color: tints[s.key] ?? colors.subtitle, dash: `${length} ${circumference - length}`, offset: -start };
   });
+
+  // Pas encore de patrimoine : chargement, sans compte, ou erreur (jamais
+  // « Ajoute un premier actif » à tort)
+  if (v.view !== 'ready') return <PatrimoineStateScreen view={v.view} title="Analyse" errorKind={v.errorKind} onRetry={v.retry} />;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>

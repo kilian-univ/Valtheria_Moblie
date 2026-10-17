@@ -46,3 +46,19 @@ test('diagnostic des curseurs : développement seulement', () => {
   // Au lâcher, l'écran reçoit toujours la valeur finale
   assert.match(slider, /onChange\(final\);\s*onCommit\?\.\(final\);/);
 });
+
+test('filets d’erreur : un global et un par écran, au layout racine', () => {
+  const layout = read('app/_layout.tsx');
+  assert.match(layout, /export const ErrorBoundary = RootErrorBoundary;/);
+  assert.match(layout, /screenErrorBoundary: ScreenErrorBoundary,/);
+  const screen = read('src/components/common/AppErrorScreen.tsx');
+  assert.ok(screen.includes('Quelque chose s’est mal passé'));
+  assert.ok(screen.includes('label="Réessayer"'));
+  assert.ok(screen.includes('label="Retour à l’accueil"'));
+  assert.ok(screen.includes('logError('), 'l’erreur part dans le journal');
+});
+
+test('l’app ne se déclare pas compatible iPad', () => {
+  const config = JSON.parse(read('app.json'));
+  assert.equal(config.expo.ios.supportsTablet, false);
+});

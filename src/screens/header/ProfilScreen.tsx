@@ -7,7 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import StreakSheet from '@/src/components/apprendre/home/StreakSheet';
 import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
+import Button from '@/src/components/common/Button';
 import IconButton from '@/src/components/common/IconButton';
+import LoadErrorState from '@/src/components/common/LoadErrorState';
+import PageState from '@/src/components/common/PageState';
 import { ProfileSkeleton } from '@/src/components/common/ScreenSkeletons';
 import UniverseCard from '@/src/components/common/UniverseCard';
 import AccessTile, { IconSquare } from '@/src/components/profile/AccessTile';
@@ -24,6 +27,7 @@ import { useProfile } from '@/src/hooks/useProfile';
 import PatrimoineStepsCard from '@/src/components/profile/PatrimoineStepsCard';
 import MedalsCard from '@/src/components/profile/MedalsCard';
 import { useAccuracy } from '@/src/state/accuracy';
+import { useSession } from '@/src/state/session';
 import { wordCountsLabel } from '@/src/utils/wordStates';
 import { discoveryLesson, type Objective } from '@/src/lesson/discovery';
 import { initialOf, lastMedalDays, levelA11y, medalsEarned } from '@/src/utils/profile';
@@ -43,6 +47,7 @@ const GLOW_TOP = -space[8];
 // États vides engageants, jamais un « 0 » seul. Défile sur les petits écrans.
 export default function ProfileScreen() {
   const { isLoading } = useApi();
+  const session = useSession();
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const p = useProfile();
@@ -72,7 +77,23 @@ export default function ProfileScreen() {
         <View style={styles.bar}>
           <BackButton onBack={() => router.back()} />
         </View>
-        <ProfileSkeleton />
+        {session.profile === 'error' ? (
+          // Profil introuvable (hors ligne, serveur en panne) : la cause,
+          // « Réessayer », et les réglages restent ouverts (déconnexion)
+          <View style={styles.stateWrap}>
+            <LoadErrorState title="Profil indisponible" what="ton profil" kind={session.errorKind} onRetry={session.retryProfile} />
+            <Button variant="secondary" label="Ouvrir les réglages" onPress={() => router.push('/client/reglages')} />
+          </View>
+        ) : session.profile === 'guest' ? (
+          <PageState
+            variant="empty"
+            text="Ton profil, ta série et tes médailles apparaissent dès que tu te connectes."
+            actionLabel="Se connecter"
+            onAction={() => router.push('/client/login')}
+          />
+        ) : (
+          <ProfileSkeleton />
+        )}
       </SafeAreaView>
     );
   }
@@ -254,6 +275,10 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  stateWrap: {
+    gap: space[2],
+    paddingHorizontal: space[4],
+  },
   screen: {
     flex: 1,
   },

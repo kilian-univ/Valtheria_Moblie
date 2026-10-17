@@ -5,17 +5,11 @@ import { devSlowLoading } from '@/src/constants/dev';
 import { Module, Progress, useApi } from '@/src/context/ApiContext';
 import type { Universe } from '@/src/lesson/model';
 import { learningStore } from '@/src/state/learningStore';
+import { isNetworkError, type LoadError } from '@/src/utils/loadError';
 import { fetchUniverses } from '@/src/utils/universes';
 
-export type LoadError = 'network' | 'server';
-
-// fetch lève un TypeError ("Network request failed") quand il n'y a pas de
-// réseau ; toute autre erreur vient du serveur.
-export function isNetworkError(err: unknown): boolean {
-  if (err instanceof TypeError) return true;
-  const message = err instanceof Error ? err.message : '';
-  return /network|internet|offline|timed? ?out/i.test(message);
-}
+export type { LoadError } from '@/src/utils/loadError';
+export { isNetworkError } from '@/src/utils/loadError';
 
 // Aucun texte anglais ni technique à l'écran
 export function loadErrorMessage(kind: LoadError): string {
@@ -86,6 +80,9 @@ export function useLearningData() {
     vals: store.vals,
     isAuthenticated,
     authPending,
+    // Modules et chiffres (série, Vals) vraiment reçus : sans cela, jamais
+    // de « 0 » affiché comme une vraie valeur
+    loaded: store.loaded,
     // Rien à montrer encore : squelette (token pas encore lu, ou premières
     // données en route)
     isLoading: (authPending && !isAuthenticated) || (isAuthenticated && !store.loaded && error === null),

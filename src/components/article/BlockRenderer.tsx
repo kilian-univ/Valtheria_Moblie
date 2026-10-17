@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
 import { Linking, Pressable, Text, View } from 'react-native';
 
 import { ColorScheme, fonts, getBlockStyles, palette } from '../../constants/style/Style';
@@ -43,7 +44,12 @@ function linkifyDictionaryTerms(
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let key = 0;
-  const regex = new RegExp(termRegex.source, termRegex.flags); // instance dédiée (lastIndex isolé)
+  // Une seule instance pour tout l'article : recompiler cette expression (tous
+  // les termes, \p{L}, lookbehind) à chaque fragment coûtait cher sur Hermes,
+  // dont le moteur d'expressions régulières est interprété. Le parcours est
+  // synchrone : remettre lastIndex à zéro suffit.
+  const regex = termRegex;
+  regex.lastIndex = 0;
 
   while ((match = regex.exec(text))) {
     if (match.index > lastIndex) {
@@ -74,7 +80,9 @@ function linkifyDictionaryTerms(
 // Parseur inline : gère **gras**, [texte](url), et maintenant les termes
 // du dictionnaire dans le texte brut restant.
 // -----------------------------------------------------------------------
-function parseInline(text: string, colors: any, styles: any, termRegex: RegExp | null, blockKey: number) {
+function parseInline(raw: unknown, colors: any, styles: any, termRegex: RegExp | null, blockKey: number) {
+  // Contenu absent ou d'un autre type : rien plutôt qu'un plantage
+  const text = typeof raw === 'string' ? raw : raw == null ? '' : String(raw);
   const regex = /(\*\*(.+?)\*\*)|(\[(.+?)\]\((.+?)\))/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -104,7 +112,8 @@ function parseInline(text: string, colors: any, styles: any, termRegex: RegExp |
         <Text
           key={key++}
           style={{ color: colors.gold, textDecorationLine: 'underline' }}
-          onPress={() => Linking.openURL(url).catch(() => {})}
+          accessibilityRole="link"
+          onPress={() => openArticleLink(url)}
         >
           {label}
         </Text>
@@ -121,6 +130,17 @@ function parseInline(text: string, colors: any, styles: any, termRegex: RegExp |
   return parts;
 }
 
+// Liens des articles : seulement le web sécurisé (navigateur intégré) et le
+// courriel ; tel:, intent:, javascript: et le reste sont ignorés
+export function openArticleLink(url: string) {
+  const u = url.trim();
+  if (/^https:\/\//i.test(u)) {
+    WebBrowser.openBrowserAsync(u).catch(() => {});
+  } else if (/^mailto:/i.test(u)) {
+    Linking.openURL(u).catch(() => {});
+  }
+}
+
 function calloutColor(colors: any, color?: string) {
   if (color === 'gold') return colors.gold;
   if (color === 'green') return colors.success;
@@ -135,12 +155,15 @@ function QuizBlock({ quiz, colorScheme }: { quiz: any; colorScheme: ColorScheme 
   const colors = palette[colorScheme];
   const s = getBlockStyles(colorScheme);
   const [selected, setSelected] = useState<number | null>(null);
+  // Quiz mal formé (sans choix) : on ne l'affiche pas, l'article reste lisible
+  const choices: unknown[] = Array.isArray(quiz?.choices) ? quiz.choices : [];
+  if (choices.length === 0) return null;
 
   return (
     <View style={s.quizCard}>
-      <Text style={s.quizQuestion}>{quiz.question}</Text>
+      <Text style={s.quizQuestion}>{String(quiz.question ?? '')}</Text>
 
-      {quiz.choices.map((choice: string, i: number) => {
+      {choices.map((choice: unknown, i: number) => {
         const isSelected = selected === i;
         const isCorrect = i === quiz.correct;
         const showResult = selected !== null;
@@ -163,13 +186,13 @@ function QuizBlock({ quiz, colorScheme }: { quiz: any; colorScheme: ColorScheme 
                 showResult && isSelected && !isCorrect && { color: colors.error },
               ]}
             >
-              {choice}
+              {String(choice)}
             </Text>
           </Pressable>
         );
       })}
 
-      {selected !== null && <Text style={s.quizExplanation}>{quiz.explanation}</Text>}
+      {selected !== null && quiz.explanation ? <Text style={s.quizExplanation}>{String(quiz.explanation)}</Text> : null}
     </View>
   );
 }
@@ -181,6 +204,7 @@ function renderBlock(block: any, colorScheme: ColorScheme, key: number, termRege
   const colors = palette[colorScheme];
   const s = getBlockStyles(colorScheme);
 
+  if (!block || typeof block !== 'object') return null;
   switch (block.type) {
     case 'heading': {
       const sizeStyle = block.level === 2 ? s.h2 : s.h3;
@@ -204,8 +228,8 @@ function renderBlock(block: any, colorScheme: ColorScheme, key: number, termRege
     case 'quote':
       return (
         <View key={key} style={s.quoteBlock}>
-          <Text style={s.quoteText}>"{block.content}"</Text>
-          {block.author && <Text style={s.quoteAuthor}>— {block.author}</Text>}
+          <Text style={s.quoteText}>{`«\u00A0${String(block.content ?? '')}\u00A0»`}</Text>
+          {block.author ? <Text style={s.quoteAuthor}>— {String(block.author)}</Text> : null}
         </View>
       );
 
@@ -223,7 +247,7 @@ function renderBlock(block: any, colorScheme: ColorScheme, key: number, termRege
     case 'list':
       return (
         <View key={key} style={s.listBlock}>
-          {block.items.map((item: string, i: number) => (
+          {(Array.isArray(block.items) ? block.items : []).map((item: unknown, i: number) => (
             <View key={i} style={s.listRow}>
               <Text style={s.listBullet}>•</Text>
               <Text style={s.listItemText}>{parseInline(item, colors, s, termRegex, key * 100 + i)}</Text>
@@ -236,9 +260,9 @@ function renderBlock(block: any, colorScheme: ColorScheme, key: number, termRege
       return (
         <View key={key} style={s.statCard}>
           <Text style={[s.statValue, { color: calloutColor(colors, block.color) }]}>
-            {block.value}
+            {String(block.value ?? '')}
           </Text>
-          <Text style={s.statLabel}>{block.label}</Text>
+          <Text style={s.statLabel}>{String(block.label ?? '')}</Text>
         </View>
       );
 
@@ -246,10 +270,10 @@ function renderBlock(block: any, colorScheme: ColorScheme, key: number, termRege
       return (
         <View key={key} style={s.twoColumns}>
           <View style={s.column}>
-            {(block.left ?? []).map((b: any, i: number) => renderBlock(b, colorScheme, i, termRegex))}
+            {(Array.isArray(block.left) ? block.left : []).map((b: any, i: number) => renderBlock(b, colorScheme, i, termRegex))}
           </View>
           <View style={s.column}>
-            {(block.right ?? []).map((b: any, i: number) => renderBlock(b, colorScheme, i, termRegex))}
+            {(Array.isArray(block.right) ? block.right : []).map((b: any, i: number) => renderBlock(b, colorScheme, i, termRegex))}
           </View>
         </View>
       );

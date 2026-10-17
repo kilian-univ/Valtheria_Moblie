@@ -12,17 +12,20 @@ import Button from '@/src/components/common/Button';
 import PageState from '@/src/components/common/PageState';
 import AssetIcon from '@/src/components/common/AssetIcon';
 import Figure from '@/src/components/patrimoine/Figure';
+import PatrimoineStateScreen from '@/src/components/patrimoine/PatrimoineStateScreen';
 import ChartMenu from '@/src/components/patrimoine/ChartMenu';
 import LineChart from '@/src/components/patrimoine/LineChart';
 import PeriodPicker from '@/src/components/patrimoine/PeriodPicker';
 import { fonts, palette, radius, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { loadPatrimoine, usePatrimoine } from '@/src/state/patrimoineData';
+import { usePatrimoineView } from '@/src/hooks/usePatrimoineView';
+import { loadPatrimoine } from '@/src/state/patrimoineData';
 import { updatePatrimoinePrefs, usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
 import { userKeyOf } from '@/src/state/userMemory';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
+import { actionErrorText } from '@/src/utils/loadError';
 import { splitAnomalies } from '@/src/utils/patrimoine/anomalies';
 import { TYPE_LABELS } from '@/src/utils/patrimoine/analysis';
 import { clipPrices, DEFAULT_PERIOD, operationMarks, periodLabel, priceRange, priceSummary, tickLabel, type Period } from '@/src/utils/patrimoine/chart';
@@ -38,8 +41,9 @@ export default function ActifScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const positionId = Number(id);
   const { user, get, del, getPortfolio } = useApi();
-  const userKey = userKeyOf(user?.id);
-  const data = usePatrimoine(userKey, getPortfolio);
+  const v = usePatrimoineView();
+  const userKey = v.userKey ?? userKeyOf(user?.id);
+  const data = v.data;
   const prefs = usePatrimoinePrefs(userKey);
   const hidden = prefs?.discreet ?? false;
   // Taux du jour de la liste : tout s'affiche en euros, converti de la même façon
@@ -114,13 +118,17 @@ export default function ActifScreen() {
         await loadPatrimoine(userKey, getPortfolio, true);
       } catch (e: unknown) {
         feedback.wrong(0.6);
-        setError(e instanceof Error ? e.message : 'Suppression impossible pour l’instant.');
+        setError(actionErrorText(e, 'Suppression impossible pour l’instant. Réessaie dans un instant.'));
       } finally {
         setBusy(false);
       }
     },
     [del, userKey, getPortfolio]
   );
+
+  // Pas encore de patrimoine à montrer : chargement, sans compte, ou erreur
+  // (hors ligne, serveur) ; jamais « n'est plus dans ton patrimoine » à tort
+  if (v.view !== 'ready') return <PatrimoineStateScreen view={v.view} errorKind={v.errorKind} onRetry={v.retry} />;
 
   if (!position && !closed) {
     return (

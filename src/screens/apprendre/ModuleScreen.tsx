@@ -440,9 +440,9 @@ export default function ModuleScreen() {
           <View style={styles.topRow}>
             <BackButton onBack={goBack} />
             <View style={styles.pills}>
-              {showStats && !data.isLoading ? (
+              {showStats && !data.isLoading && data.loaded ? (
                 <StatPills streak={data.streak} vals={data.vals} onStreak={openStreak} />
-              ) : showStats ? (
+              ) : showStats && !data.error ? (
                 <StatPillsSkeleton />
               ) : null}
             </View>

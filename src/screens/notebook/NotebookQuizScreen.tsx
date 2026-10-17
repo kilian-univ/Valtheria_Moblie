@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
+import PageState from '@/src/components/common/PageState';
 import ValBubble from '@/src/components/common/ValBubble';
 import { fonts, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
@@ -30,6 +31,8 @@ export default function NotebookQuizScreen() {
   const [result, setResult] = useState<LessonSummary | null>(null);
 
   if (declics === null) return null;
+  // Carnet vide : rien à tester (et pas « Je ne trouve pas cette leçon »)
+  if (declics.length === 0) return <EmptyNotebook />;
   if (result) {
     return (
       <QuizRecap
@@ -42,6 +45,21 @@ export default function NotebookQuizScreen() {
     );
   }
   return <QuizPlayer key={round} declics={declics} onFinished={setResult} />;
+}
+
+function EmptyNotebook() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.emptyScreen, { paddingTop: insets.top + space[8] }]}>
+      <PageState
+        variant="empty"
+        mood="complice"
+        text="Ton carnet est encore vide : termine une leçon, et on se teste sur tes déclics."
+        actionLabel="Retour"
+        onAction={() => router.back()}
+      />
+    </View>
+  );
 }
 
 function QuizPlayer({ declics, onFinished }: { declics: Declic[]; onFinished: (s: LessonSummary) => void }) {
@@ -79,6 +97,9 @@ function QuizRecap({ summary, onAgain }: { summary: LessonSummary; onAgain: () =
 }
 
 const styles = StyleSheet.create({
+  emptyScreen: {
+    flex: 1,
+  },
   recap: {
     flex: 1,
     paddingHorizontal: space[5],

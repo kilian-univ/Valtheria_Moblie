@@ -15,8 +15,10 @@ import Segmented from '@/src/components/patrimoine/Segmented';
 import { fonts, palette, radius, space, withOpacity } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { usePatrimoineView } from '@/src/hooks/usePatrimoineView';
+import { actionErrorText } from '@/src/utils/loadError';
 import { usePickedAsset, type PickedAsset } from '@/src/state/assetPick';
-import { loadPatrimoine, markPositionPulse, usePatrimoine } from '@/src/state/patrimoineData';
+import { loadPatrimoine, markPositionPulse } from '@/src/state/patrimoineData';
 import { updatePatrimoinePrefs, usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
 import { userKeyOf } from '@/src/state/userMemory';
 import { feedback } from '@/src/utils/feedback';
@@ -76,8 +78,9 @@ export default function OperationScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<Params>();
   const { user, get, post, patch, getPortfolio } = useApi();
-  const userKey = userKeyOf(user?.id);
-  const data = usePatrimoine(userKey, getPortfolio);
+  const v = usePatrimoineView();
+  const userKey = v.userKey ?? userKeyOf(user?.id);
+  const data = v.data;
   const prefs = usePatrimoinePrefs(userKey);
   const hidden = prefs?.discreet ?? false;
   const [mountedAt] = useState(() => Date.now());
@@ -232,7 +235,7 @@ export default function OperationScreen() {
       else router.replace({ pathname: '/outils/actif/[id]', params: { id: String(positionId) } });
     } catch (e: unknown) {
       feedback.wrong(0.6);
-      setError(e instanceof Error ? e.message : 'Enregistrement impossible pour l’instant.');
+      setError(actionErrorText(e, 'Enregistrement impossible pour l’instant. Réessaie dans un instant.'));
     } finally {
       setBusy(false);
     }

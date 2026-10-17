@@ -1,7 +1,7 @@
 import { getCashflowStyles, getFormStyles, palette } from '@/src/constants/style/Style';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import AddEntryForm from '@/src/components/outils/cashflow/AddEntryForm';
@@ -11,16 +11,12 @@ import TypeTabs, { TabKey } from '@/src/components/outils/cashflow/TypeTabs';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { CashflowSkeleton } from '@/src/components/common/ScreenSkeletons';
+import LoadErrorState from '@/src/components/common/LoadErrorState';
+import PageState from '@/src/components/common/PageState';
+import { normalizeCashflow, type CashflowData as CashflowDataOf } from '@/src/utils/cashflow';
+import { actionErrorText, loadErrorKind, type LoadError } from '@/src/utils/loadError';
 
-type CashflowData = {
-  period_month: string;
-  entries: Record<TabKey, CashflowEntry[]>;
-  by_category: { depenses: { category: string; total: number; color: string }[] };
-  totals: { revenus: number; depenses: number; epargne: number; budget: number; reste: number };
-  default_categories: string[];
-  revenu_suggestions: string[];
-  guide_done: boolean;
-};
+type CashflowData = CashflowDataOf<CashflowEntry>;
 
 function formatMonth(period?: string): string {
   if (!period) return '';
@@ -52,43 +48,50 @@ export default function CashflowScreen() {
   const [data, setData] = useState<CashflowData | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('depenses');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // Chargement en échec (rien à montrer), et échec d'une action
+  const [loadError, setLoadError] = useState<LoadError | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () => {
-    setIsLoading(true);
-    getCashflow()
-      .then(setData)
-      .catch((err: any) => setError(err.message || 'Impossible de charger le cash-flow.'))
-      .finally(() => setIsLoading(false));
-  };
-
+  // Réponse lue une fois (normalizeCashflow) : jamais de champ manquant.
+  // Relue à chaque tentative (ouverture, ajout, suppression, « Réessayer »)
+  const [attempt, setAttempt] = useState(0);
+  const load = useCallback(() => setAttempt((n) => n + 1), []);
   useEffect(() => {
-    if (apiLoading) return;
-    if (!isAuthenticated) {
-      setError('Tu dois être connecté.');
-      setIsLoading(false);
-      return;
-    }
-    load();
-  }, [apiLoading, isAuthenticated]);
+    if (apiLoading || !isAuthenticated) return;
+    let active = true;
+    getCashflow().then(
+      (raw: unknown) => {
+        if (!active) return;
+        setData(normalizeCashflow<CashflowEntry>(raw));
+        setLoadError(null);
+      },
+      (err: unknown) => {
+        if (active) setLoadError(loadErrorKind(err));
+      }
+    );
+    return () => {
+      active = false;
+    };
+  }, [apiLoading, isAuthenticated, getCashflow, attempt]);
 
   const handleAdd = async (payload: any) => {
     try {
       await addCashflowEntry(payload);
       setShowAddForm(false);
+      setError(null);
       load();
-    } catch (err: any) {
-      setError(err.message || "Impossible d'ajouter l'entrée.");
+    } catch (err: unknown) {
+      setError(actionErrorText(err, 'Impossible d’ajouter l’entrée pour l’instant.'));
     }
   };
 
   const handleDelete = async (id: number) => {
     try {
       await deleteCashflowEntry(id);
+      setError(null);
       load();
-    } catch (err: any) {
-      setError(err.message || 'Suppression impossible.');
+    } catch (err: unknown) {
+      setError(actionErrorText(err, 'Suppression impossible pour l’instant.'));
     }
   };
 
@@ -99,6 +102,7 @@ export default function CashflowScreen() {
     });
     return map;
   }, [data]);
+  const isLoading = !data && !loadError;
 
   const totals = data?.totals;
   const reste = totals?.reste ?? 0;
@@ -114,13 +118,22 @@ export default function CashflowScreen() {
         <Text style={styles.headerTitle}>Cash-flow</Text>
       </View>
 
-      {isLoading || apiLoading ? (
+      {!apiLoading && !isAuthenticated ? (
+        <PageState
+          variant="empty"
+          text="Connecte-toi pour suivre ce qui entre et ce qui sort chaque mois."
+          actionLabel="Se connecter"
+          onAction={() => router.push('/client/login')}
+        />
+      ) : !data && loadError ? (
+        <LoadErrorState title="Cash-flow indisponible" what="ton cash-flow" kind={loadError} onRetry={() => { setLoadError(null); load(); }} />
+      ) : isLoading || apiLoading || !data ? (
         <CashflowSkeleton />
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          {data?.period_month && <Text style={styles.periodText}>{formatMonth(data.period_month)}</Text>}
+          {data.period_month ? <Text style={styles.periodText}>{formatMonth(data.period_month)}</Text> : null}
 
           <View style={styles.resteCard}>
             <Text style={styles.resteLabel}>Reste à vivre</Text>
@@ -136,7 +149,7 @@ export default function CashflowScreen() {
             <SummaryPill label="Épargne" value={totals?.epargne ?? 0} color={colors.gold} styles={styles} />
           </View>
 
-          {activeTab === 'depenses' && data && <CategoryBreakdown items={data.by_category.depenses} styles={styles} />}
+          {activeTab === 'depenses' ? <CategoryBreakdown items={data.by_category.depenses} styles={styles} /> : null}
 
           <TypeTabs active={activeTab} onChange={setActiveTab} styles={styles} />
 
