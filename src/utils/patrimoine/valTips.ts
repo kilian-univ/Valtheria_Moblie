@@ -4,6 +4,7 @@
 // acheter, aucun « vends » ni « achète »). Sans React : testable avec Node.
 
 import { riskOf } from './analysis';
+import { NBSP } from '@/src/utils/frenchSpaces';
 import { valueEurOf, type Position } from './model';
 
 export type TipKey = 'no_emergency' | 'emergency_low' | 'concentration' | 'crypto_heavy' | 'all_safe_long' | 'regular';
@@ -28,7 +29,7 @@ const TARGETS: Record<TipKey, LessonTarget> = {
   regular: { universe: 'avant-d-investir', keywords: ['plan', 'régul', 'regul'], label: 'Revoir « Ton premier plan »' },
 };
 
-const pct = (share: number) => `${Math.round(share * 100)}${' '}%`;
+const pct = (share: number) => `${Math.round(share * 100)}${NBSP}%`;
 
 export type TipContext = {
   positions: Position[];

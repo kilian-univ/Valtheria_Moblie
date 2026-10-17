@@ -2,7 +2,8 @@ import { getCashflowStyles, getFormStyles, palette } from '@/src/constants/style
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 
 import AddEntryForm from '@/src/components/outils/cashflow/AddEntryForm';
 import CategoryBreakdown from '@/src/components/outils/cashflow/CategoryBreakdown';

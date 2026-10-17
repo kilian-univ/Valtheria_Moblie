@@ -1,14 +1,7 @@
 import { ReactNode, useEffect, useId, useMemo, useState } from 'react';
-import {
-  ImageSourcePropType,
-  ImageStyle,
-  Pressable,
-  StyleProp,
-  StyleSheet,
-  Text,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { ImageSourcePropType, ImageStyle, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { frenchSpaces } from '@/src/utils/frenchSpaces';
+import Text from '@/src/components/common/Text';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -374,7 +367,8 @@ export function SpeechBubble({
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
 
-  const words = useMemo(() => parseWords(noOrphan(text)), [text]);
+  // Espaces insécables posées sur la phrase entière, avant le découpage en mots
+  const words = useMemo(() => parseWords(noOrphan(frenchSpaces(text))), [text]);
   const [shown, setShown] = useState(reduced || !typing ? words.length : 0);
   const at = anchor ?? (side === 'bottom' ? bubble.radius + bubble.tailBase : DEFAULT_ANCHOR);
 

@@ -44,7 +44,7 @@ export function declicForLesson(
 
 // Phrase affichée : sans les crochets
 export function plainDeclic(text: string): string {
-  return text.replace(/\[([^\]]*)\]/g, '$1').replace(/\s+/g, ' ').trim();
+  return text.replace(/\[([^\]]*)\]/g, '$1').replace(/[^\S\u00A0\u202F]+/g, ' ').trim();
 }
 
 // Mots clés marqués

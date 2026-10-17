@@ -1,7 +1,7 @@
+import { NBSP } from '@/src/utils/frenchSpaces';
 // Bulle de Val : texte sans mot orphelin, géométrie de la pointe, placement à
 // côté de la tête. Fonctions pures, sans React : testables avec Node.
 
-const NBSP = ' ';
 
 // Pas de mot seul sur la dernière ligne : le dernier mot est collé au
 // précédent par une espace insécable ; une ponctuation finale isolée (« ? »,

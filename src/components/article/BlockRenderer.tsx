@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import { Linking, Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 
 import { ColorScheme, fonts, getBlockStyles, palette } from '../../constants/style/Style';
 import { termHref } from '../../utils/dictionaryLinks';

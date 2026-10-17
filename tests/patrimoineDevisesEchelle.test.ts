@@ -53,7 +53,7 @@ test('repères : trois valeurs rondes dans la plage affichée', () => {
   const log = niceTicks(makeScale([60, 3000], 2, FRAME, { log: true }));
   assert.ok(log.length >= 2 && log.length <= 3, String(log));
   assert.ok(log.every((v) => /^[125]0*$/.test(String(v))), `valeurs 1, 2, 5 × 10^n : ${log}`);
-  assert.equal(tickLabel(27000, 'eur'), '27 000 €');
+  assert.equal(tickLabel(27000, 'eur'), '27\u202F000\u00A0€');
   assert.equal(tickLabel(10, 'pct'), '+\u00a010\u00a0%');
   assert.equal(tickLabel(0, 'pct'), '0\u00a0%');
   assert.equal(tickLabel(-2.5, 'pct'), '−\u00a02,5\u00a0%');
@@ -104,11 +104,11 @@ test('devises : le taux de la liste (valeur en euros ÷ valeur), pour tout', () 
   assert.equal(rates.EUR, 1);
   assert.ok(Math.abs(toEur(81.4566, 'USD', rates)! - 72.45) < 0.01, 'prix de revient en euros');
   assert.equal(toEur(10, 'CHF', rates), null, 'devise inconnue : pas d’invention');
-  assert.equal(moneyEur(81.4566, 'USD', rates, { exact: true }), '81,46 $, soit 72,45 €');
-  assert.equal(moneyEur(79, 'USD', rates, { exact: true }), '79,00 $, soit 70,26 €');
-  assert.equal(moneyEur(105.34, 'EUR', rates, { exact: true }), '105,34 €');
-  assert.equal(moneyEur(10, 'CHF', rates, { exact: true }), '10,00 CHF');
-  assert.equal(originalNote(81.4566, 'USD', { exact: true }), '81,46 $');
+  assert.equal(moneyEur(81.4566, 'USD', rates, { exact: true }), '81,46\u00A0$, soit 72,45\u00A0€');
+  assert.equal(moneyEur(79, 'USD', rates, { exact: true }), '79,00\u00A0$, soit 70,26\u00A0€');
+  assert.equal(moneyEur(105.34, 'EUR', rates, { exact: true }), '105,34\u00A0€');
+  assert.equal(moneyEur(10, 'CHF', rates, { exact: true }), '10,00\u00A0CHF');
+  assert.equal(originalNote(81.4566, 'USD', { exact: true }), '81,46\u00A0$');
   assert.equal(originalNote(5, 'EUR'), null);
   // Sans position en dollars : le taux EUR/USD du serveur
   assert.ok(Math.abs(ratesOf([], 1.25).USD - 0.8) < 1e-12);
@@ -122,9 +122,9 @@ test('livrets réglementés : le taux du site seulement, avec sa date', () => {
   assert.equal(livret.interestRatePct, 1.7, 'jamais le taux gardé dans la position');
   assert.equal(livret.interestRateSource, 'regulatory');
   assert.equal(parsePosition({ id: 11, ticker: 'LIVRET_A', type: 'livret', is_livret: true, rate: 3 })!.interestRatePct, null, 'pas de copie de secours');
-  assert.equal(rateDateLabel(livret.interestRateEffectiveAt, livret.interestRateVerifiedAt), 'taux au 1er août 2026');
-  assert.equal(rateDateLabel('2027-02-12', null), 'taux au 12 février 2027');
-  assert.equal(rateDateLabel(null, '2026-10-17T01:17:07+00:00'), 'taux vérifié le 17 octobre 2026');
+  assert.equal(rateDateLabel(livret.interestRateEffectiveAt, livret.interestRateVerifiedAt), 'taux au 1er\u00A0août 2026');
+  assert.equal(rateDateLabel('2027-02-12', null), 'taux au 12\u00A0février 2027');
+  assert.equal(rateDateLabel(null, '2026-10-17T01:17:07+00:00'), 'taux vérifié le 17\u00A0octobre 2026');
   assert.equal(rateDateLabel(null, null), null);
 
   for (const t of ['LIVRET_A', 'ldds', 'LEP', 'LIVRET_JEUNE', 'PEL', 'CEL']) assert.ok(isRegulatedLivret(t), t);

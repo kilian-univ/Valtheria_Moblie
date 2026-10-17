@@ -24,7 +24,7 @@ function isRecord(v: unknown): v is AnyRecord {
 
 function text(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
-  const t = raw.replace(/\s+/g, ' ').trim();
+  const t = raw.replace(/[^\S\u00A0\u202F]+/g, ' ').trim();
   return t === '' ? null : t;
 }
 
@@ -519,7 +519,7 @@ export function removeExpansion(definition: string, term: string): string {
 // sigle si `term` en est un, première phrase seulement. Vide si la
 // définition n'était que le développé (« Produit intérieur brut. »).
 export function cleanDefinition(definition: string, term?: string): string {
-  let text = definition.replace(/\s+/g, ' ').trim();
+  let text = definition.replace(/[^\S\u00A0\u202F]+/g, ' ').trim();
   if (term && isAcronym({ term, definition: text })) text = removeExpansion(text, term);
   const prefix = text.match(/^([^—–:.]{1,40}?)\s*[—–:]\s+(.+)$/);
   if (prefix && prefix[1].trim().split(' ').length <= 5) text = capitalize(prefix[2].trim());

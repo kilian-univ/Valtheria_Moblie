@@ -13,13 +13,13 @@ import { feedback } from '@/src/utils/feedback';
 import { formatInteger } from '@/src/utils/format';
 import { daysLabel, freezesLabel, MEDALS, type WeekDay } from '@/src/utils/streakRewards';
 import StreakWeek from './StreakWeek';
+import { NBSP } from '@/src/utils/frenchSpaces';
 
 // Emoji de 64 au palier le plus haut
 const FLAME_BOX = 64 / 0.8;
 const MEDAL = 60;
 // La feuille ne dépasse pas les trois quarts de l'écran : au-delà, elle défile
 const MAX_HEIGHT_RATIO = 0.78;
-const NBSP = ' ';
 
 type StreakSheetProps = {
   streak: number;

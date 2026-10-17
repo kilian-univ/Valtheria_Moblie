@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getHeaderStyles, palette } from '../../constants/style/Style';

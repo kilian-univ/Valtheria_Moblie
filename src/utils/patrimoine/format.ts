@@ -3,18 +3,29 @@
 // Sans React : testable avec Node.
 
 import { formatVariationPercent } from '@/src/utils/format';
+import { NBSP, NNBSP } from '@/src/utils/frenchSpaces';
 
-const NBSP = ' ';
-const NNBSP = ' ';
 const MINUS = '−';
 
 // Points qui remplacent un montant en mode discret
 export const HIDDEN = '•••••';
 
+// Formateurs gardés en cache : en créer un à chaque montant coûte cher sur
+// iPhone (Hermes s'appuie sur ceux du système)
+const formats = new Map<string, Intl.NumberFormat>();
+function formatter(min: number, max: number): Intl.NumberFormat {
+  const key = `${min}-${max}`;
+  let f = formats.get(key);
+  if (!f) {
+    f = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: min, maximumFractionDigits: max });
+    formats.set(key, f);
+  }
+  return f;
+}
+
+// Toute espace d'Intl (normale, insécable ou fine) devient une fine insécable
 function grouped(value: number, decimals: number): string {
-  return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
-    .format(Math.abs(value))
-    .replace(/[\s  ]/g, NNBSP);
+  return formatter(decimals, decimals).format(Math.abs(value)).replace(/\s/g, NNBSP);
 }
 
 function symbol(currency: string): string {
@@ -48,9 +59,7 @@ export function signedPercent(value: number | null, hidden = false): string {
 
 // 5 ; 0,12 ; 0,0012 ; 1 234,5678 (jusqu'à 8 décimales, sans zéros inutiles)
 export function quantity(value: number): string {
-  const text = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 8 })
-    .format(Math.abs(value))
-    .replace(/[\s  ]/g, NNBSP);
+  const text = formatter(0, 8).format(Math.abs(value)).replace(/\s/g, NNBSP);
   return value < 0 ? `${MINUS}${text}` : text;
 }
 

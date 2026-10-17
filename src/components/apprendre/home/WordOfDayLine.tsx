@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
+import Text from '@/src/components/common/Text';
 
 import { fonts, palette, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';

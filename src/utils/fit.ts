@@ -33,7 +33,7 @@ export function windowFitHeight(full: number, min: number, windowHeight: number)
 
 // Largeur approximative de chaque signe, en fraction de la taille de police
 // (Fraunces, chiffres tabulaires), un peu large pour ne jamais déborder
-const NARROW = /[\s  .,:;'’]/;
+const NARROW = /[\s.,:;'’]/;
 const WIDE = /[%€$]/;
 const DIGIT_WIDTH = 0.62;
 const NARROW_WIDTH = 0.3;

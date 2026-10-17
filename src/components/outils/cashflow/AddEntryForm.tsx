@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 import { TabKey } from './TypeTabs';
 
 const TYPE_LABELS: Record<TabKey, string> = {

@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 
 import AppText from '@/src/components/common/AppText';
 import Skeleton from '@/src/components/common/Skeleton';
@@ -9,6 +10,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { formatInteger } from '@/src/utils/format';
 import StatPills, { PILL_HEIGHT, StatPillsSkeleton } from './StatPills';
 import IconButton from '@/src/components/common/IconButton';
+import { NBSP } from '@/src/utils/frenchSpaces';
 
 const LOGO_HEIGHT = 26;
 // Bloc à la place du pseudo pas encore connu (titre de 30 / 36)
@@ -17,7 +19,6 @@ const NAME_SKELETON_HEIGHT = 28;
 const PERSON_ICON_SIZE = 18;
 const INITIAL_SIZE = 16;
 const LEVEL_TEXT = { fontFamily: fonts.bodySemibold, fontSize: 14, lineHeight: 20 } as const;
-const NBSP = '\u00A0';
 
 // « Bonjour » de 5 h à 18 h, « Bonsoir » sinon
 export function greeting(date: Date = new Date()): string {

@@ -16,6 +16,7 @@ import { tap } from '@/src/utils/haptics';
 import { SOUND_LENGTH } from '@/src/utils/soundRules';
 import { daysLabel, freezesLabel, medalProgress } from '@/src/utils/streakRewards';
 import { useReliefPress } from '@/src/hooks/useReliefPress';
+import { NBSP } from '@/src/utils/frenchSpaces';
 
 const DEPTH = 6;
 const RADIUS = 20;
@@ -23,7 +24,6 @@ const FLAME = 64;
 const VALUE_SIZE = 28;
 const TARGET_MEDAL = 32;
 const BAR = 8;
-const NBSP = ' ';
 
 type GuestStreakCardProps = {
   streak: number;

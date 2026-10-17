@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 
 import { getEpargneStyles } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';

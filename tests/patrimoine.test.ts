@@ -206,29 +206,29 @@ test('achats et ventes placés sur la courbe du cours', () => {
 
 test('phrase lue par VoiceOver', () => {
   const m = (v: number) => money(v);
-  assert.equal(chartSummary(SERIES, 'Tout', m), 'Ton patrimoine est passé de 1 000 € à 3 500 € depuis le début.');
+  assert.equal(chartSummary(SERIES, 'Tout', m), 'Ton patrimoine est passé de 1\u202F000\u00A0€ à 3\u202F500\u00A0€ depuis le début.');
   assert.ok(chartSummary(SERIES.slice(0, 1), '1A', m).includes('pas encore assez'));
 });
 
 // ── Format ──────────────────────────────────────────────────────────────
 
 test('montants, mode discret, quantités, initiales', () => {
-  assert.equal(money(48320), '48 320 €');
-  assert.equal(money(805.4), '805 €');
-  assert.equal(money(805.4, { exact: true }), '805,40 €');
-  assert.equal(money(12.4), '12,40 €');
-  assert.equal(money(48320, { hidden: true }), '••••• €');
-  assert.equal(signedMoney(6320), '+ 6 320 €');
-  assert.equal(signedMoney(-95), '− 95,00 €');
-  assert.equal(signedMoney(410), '+ 410 €');
+  assert.equal(money(48320), '48\u202F320\u00A0€');
+  assert.equal(money(805.4), '805\u00A0€');
+  assert.equal(money(805.4, { exact: true }), '805,40\u00A0€');
+  assert.equal(money(12.4), '12,40\u00A0€');
+  assert.equal(money(48320, { hidden: true }), '•••••\u00A0€');
+  assert.equal(signedMoney(6320), '+\u00A06\u202F320\u00A0€');
+  assert.equal(signedMoney(-95), '−\u00A095,00\u00A0€');
+  assert.equal(signedMoney(410), '+\u00A0410\u00A0€');
   assert.equal(quantity(0.0012), '0,0012');
-  assert.equal(quantityLabel(5, 'SOL', 'crypto'), '5 SOL');
-  assert.equal(quantityLabel(42, 'CW8.PA', 'etf'), '42 parts');
+  assert.equal(quantityLabel(5, 'SOL', 'crypto'), '5\u00A0SOL');
+  assert.equal(quantityLabel(42, 'CW8.PA', 'etf'), '42\u00A0parts');
   assert.equal(initials('Solana', 'SOL'), 'SO');
   assert.equal(initials('Livret A', 'LIVRET_A'), 'LA');
   assert.equal(initials('Appartement (part)', ''), 'AP');
   const now = Date.parse('2026-10-16T12:00:00Z');
-  assert.equal(updatedLabel(now - 3 * 60_000, now), 'Mis à jour il y a 3 min');
+  assert.equal(updatedLabel(now - 3 * 60_000, now), 'Mis à jour il y a 3\u00A0min');
   assert.equal(updatedLabel(now - 10_000, now), "Mis à jour à l'instant");
 });
 
@@ -273,7 +273,7 @@ test('remarque de Val : une seule, par priorité, toujours avec une leçon', () 
   assert.equal(ctx([]), null);
 
   const concentration = ctx([pos('livret', 500), pos('etf', 400, { name: 'ETF Monde' }), pos('action', 100)])!;
-  assert.ok(concentration.text.includes('ETF Monde pèse 40 %'));
+  assert.ok(concentration.text.includes('ETF Monde pèse 40\u00A0%'));
   for (const list of [[pos('etf', 1)], [pos('crypto', 5), pos('livret', 1)], [pos('livret', 1, { openedAt: '2020-01-01' })]]) {
     const tip = ctx(list)!;
     assert.ok(tip.link.universe && tip.link.keywords.length > 0, 'chaque remarque mène à une leçon');

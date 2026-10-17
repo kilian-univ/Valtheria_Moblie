@@ -6,6 +6,7 @@ import type { Universe, ValMood } from '@/src/lesson/model';
 import { currentLesson, moduleState, totalCount } from './learning';
 import { availableModules } from './levels';
 import { type UniverseEntry, universeEntry } from './universes';
+import { NBSP } from '@/src/utils/frenchSpaces';
 
 // Leçon terminée sur ce téléphone (mémoire locale : le serveur ne renvoie
 // aucune date, voir docs/lot-serveur.md, 4.6)
@@ -138,7 +139,6 @@ export function revisionMinutes(screens: number): number {
 }
 
 // « 6 écrans · environ 3 min » (espaces insécables : « 3 min » jamais coupé)
-const NBSP = '\u00A0';
 export function revisionLabel(screens: number): string {
   return `${screens}${NBSP}${screens >= 2 ? 'écrans' : 'écran'} · environ${NBSP}${revisionMinutes(screens)}${NBSP}min`;
 }

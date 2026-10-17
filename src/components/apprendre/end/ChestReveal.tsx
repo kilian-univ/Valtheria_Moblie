@@ -32,6 +32,7 @@ import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
 import { ChestFountain, ChestLight, LidLight } from './ChestEffects';
 import { CHEST_RARITIES, ChestRarity, chestEvolution, chestLabel } from '@/src/utils/lessonPlayer';
+import { NBSP } from '@/src/utils/frenchSpaces';
 
 export const CHEST_IMAGES: Record<ChestRarity, ImageSourcePropType> = {
   commun: require('@/assets/images/chests/chest-commun.webp'),
@@ -49,7 +50,6 @@ export const CHEST_OPEN_IMAGES: Record<ChestRarity, ImageSourcePropType> = {
   legendaire: require('@/assets/images/chests/chest-legendaire-ouvert.webp'),
 };
 
-const NBSP = ' ';
 export const CHEST_SIZE = 200;
 // Pièce à côté du montant (« + X Vals »)
 export const COIN_LG = 44;

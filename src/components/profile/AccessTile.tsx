@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
+import { NBSP } from '@/src/utils/frenchSpaces';
 import AppText from '@/src/components/common/AppText';
 import { fonts, palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -42,7 +43,7 @@ export default function AccessTile({ icon, value, unit, caption, onPress, access
         {value ? (
           <AppText maxFontSizeMultiplier={1.3} style={styles.value}>
             {value}
-            {unit ? <AppText style={[styles.unit, { color: colors.subtitle }]}>{` ${unit}`}</AppText> : null}
+            {unit ? <AppText style={[styles.unit, { color: colors.subtitle }]}>{`${NBSP}${unit}`}</AppText> : null}
           </AppText>
         ) : null}
         {/* Jamais coupée : elle passe sur plusieurs lignes s'il le faut */}

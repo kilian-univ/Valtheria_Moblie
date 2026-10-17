@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 
 import AppText from '@/src/components/common/AppText';
 import { fonts, palette, space } from '@/src/constants/style/Style';

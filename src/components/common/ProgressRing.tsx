@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 import Svg, { Circle } from 'react-native-svg';
 
 import { fonts, palette } from '@/src/constants/style/Style';

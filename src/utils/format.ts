@@ -3,8 +3,9 @@
 // l'espace des milliers renvoyée par Intl varie selon le moteur (U+00A0 ou
 // U+202F selon la version d'ICU embarquée par iOS, Android ou Hermes).
 
-const NNBSP = ' '; // espace fine insécable : séparateur des milliers
-const NBSP = ' '; // espace insécable : avant €, %, XP et après un signe
+// Espaces insécables : source unique, écrites en échappement (frenchSpaces.ts)
+import { NBSP, NNBSP } from './frenchSpaces';
+
 const MINUS = '−'; // vrai signe moins
 
 export type Currency = 'EUR' | 'USD';
@@ -26,7 +27,7 @@ function digits(value: number, minDecimals: number, maxDecimals: number): string
     numberFormats.set(key, formatter);
   }
   // Toute espace (normale, insécable ou fine) devient une espace fine insécable
-  return formatter.format(Math.abs(value)).replace(/[\s  ]/g, NNBSP);
+  return formatter.format(Math.abs(value)).replace(/\s/g, NNBSP);
 }
 
 // Évite d'afficher "−0,00 €" pour un -0,001 arrondi

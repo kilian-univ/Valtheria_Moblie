@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { GestureResponderEvent, StyleSheet, Text, View } from 'react-native';
+import { GestureResponderEvent, StyleSheet, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 
 import { fonts, palette } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';

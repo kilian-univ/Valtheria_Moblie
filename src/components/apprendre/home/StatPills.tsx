@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Text from '@/src/components/common/Text';
 
 import Skeleton from '@/src/components/common/Skeleton';
 import StreakFlame from '@/src/components/common/StreakFlame';

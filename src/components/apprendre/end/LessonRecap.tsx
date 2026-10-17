@@ -19,10 +19,10 @@ import Pill from '@/src/components/common/Pill';
 import { BEST_RUN_SHOWN_FROM, bestRunLine } from '@/src/utils/accuracy';
 import Cascade from '../player/Cascade';
 import CelebrationScene from './CelebrationScene';
+import { NBSP } from '@/src/utils/frenchSpaces';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-const NBSP = ' ';
 const TITLE_SIZE = 34;
 const TILE_VALUE_SIZE = 26;
 const TILE_DEPTH = 5;
