@@ -2,6 +2,16 @@
 
 Oct 10, 2026 · @Luce Quentin
 
+## Chiffres réglementaires
+
+Les chiffres qui changent avec la loi viennent du site (`GET /regulatory-figures`, route publique, gardée sur le téléphone et relue au plus toutes les 12 heures ; valeurs de secours dans `src/utils/regulatoryFigures.ts` si elle n'a jamais répondu). Ce document montre les textes avec les valeurs du 17 octobre 2026 :
+- leçon 1 : l'inflation de l'exemple (`inflation_annuelle`, 2 %) et ce que 1 000 € achètent encore dans 10 ans, calculé à partir d'elle ;
+- leçon 3 : le taux d'imposition des gains en crypto (`crypto_taux_imposition`, 31,4 %) et le seuil des ventes (`crypto_seuil_exoneration`, 305 €) ;
+- leçon 4 : la durée maximale d'un crédit immobilier (`credit_duree_max`, 25 ans), dont découlent le curseur, le total, les intérêts et la mensualité ;
+- leçon 5 : le barème de l'impôt (`ir_bareme_taux`, `ir_bareme_seuils`) et tous les montants qui en découlent.
+
+Restent écrits en dur, parce que ce ne sont pas des chiffres réglementaires : les hypothèses annoncées (5 % par an pour investir, 3,5 % pour le crédit), les cours historiques du bitcoin et les montants de la fiche de paie de référence.
+
 ## Le principe
 
 Six objectifs qui font vraiment installer une app d'argent, et pour chacun une leçon découverte de 5 écrans, sans jamais deux fois le même type d'écran.
@@ -107,7 +117,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - « Une crypto est garantie par une banque centrale. » Faux : « Aucune banque centrale ne garantit le bitcoin ni les autres cryptos. »
    - « Si une plateforme fait faillite, tu peux perdre ce que tu y avais déposé. » Vrai : « C'est arrivé à des millions de clients en 2022. »
    - « Le nombre total de bitcoins est limité à l'avance. » Vrai : « Il n'y en aura jamais plus de 21 millions. »
-   - « En France, les gains en crypto ne sont jamais imposés. » Faux : « Quand tu revends avec un gain, il est imposé. »
+   - « En France, les gains en crypto ne sont jamais imposés. » Faux : « Quand tu revends contre des euros avec un gain, il est imposé à 31,4 %, sauf si tes ventes de l'année ne dépassent pas 305 €. »
    - Val, réussi (célébrant) : « Tu en sais plus que la moitié des gens qui en achètent. » Pas réussi (rassurant) : « Rien de grave, la crypto est pleine d'idées reçues. »
 4. **Le dialogue** (nouveau, noté)
    - Personnage : Léo, ton pote, très enthousiaste.
@@ -130,7 +140,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 **Déclic : avec un [crédit], un logement coûte bien plus que son prix, et la [durée] change tout.**
 
 1. **Le pari** (`slider`, non noté)
-   - « Tu empruntes 200 000 € sur 25 ans à 3,5 %. Combien rembourses-tu en tout ? »
+   - « Tu empruntes 200 000 € sur 25 ans, la durée maximale d'un crédit immobilier, à 3,5 %. Combien rembourses-tu en tout ? »
    - Curseur de 200 000 à 400 000 €, pas de 5 000, départ 230 000 €.
    - Val (complice) : « Petit pari, sans mauvaise réponse. À ton avis ? »
 2. **La révélation** (`reveal`)
@@ -157,16 +167,16 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 
 ## Leçon 5 : Payer moins d'impôts, « Le mythe de la tranche »
 
-**Déclic : changer de [tranche] ne fait jamais perdre d'argent ; seule la partie au-dessus du [seuil] est taxée plus.** Pour que les calculs restent simples, la leçon utilise un barème simplifié, annoncé comme tel : 0 % jusqu'à 11 000 €, 11 % de 11 000 à 30 000 €, 30 % au-delà, pour une personne seule.
+**Déclic : changer de [tranche] ne fait jamais perdre d'argent ; seule la partie au-dessus du [seuil] est taxée plus.** La leçon utilise le vrai barème de l'impôt pour une part, lu dans les chiffres réglementaires. Ses trois premières tranches suffisent à l'exemple : 0 % jusqu'à 11 600 €, 11 % jusqu'à 29 579 €, 30 % au-delà. La prime franchit le seuil de la troisième tranche de 1 000 € de chaque côté, et tous les montants se calculent à partir du barème.
 
 1. **Le pari** (`slider`, non noté)
-   - « Une prime fait passer ton revenu imposable de 29 000 € à 31 000 €, et tu changes de tranche : de 11 % à 30 %. De combien augmente ton impôt ? »
-   - Sous la question, en petit : « Barème simplifié : 0 % jusqu'à 11 000 €, 11 % jusqu'à 30 000 €, 30 % au-delà. »
+   - « Une prime de 2 000 € fait passer ton revenu imposable de 28 579 € à 30 579 €, et tu changes de tranche : de 11 % à 30 %. De combien augmente ton impôt ? »
+   - Sous la question, en petit : « Barème de l'impôt pour une part : 0 % jusqu'à 11 600 €, 11 % jusqu'à 29 579 €, 30 % au-delà (puis deux tranches plus hautes). »
    - Curseur de 0 à 3 000 €, pas de 10, départ 1 500 €.
    - Val (complice) : « Petit pari, sans mauvaise réponse. À ton avis ? »
 2. **La révélation** (`reveal`)
    - 410 €.
-   - Lignes : les 1 000 € sous le seuil, taxés à 11 %, font 110 € ; les 1 000 € au-dessus, taxés à 30 %, font 300 € ; au total, 410 € d'impôt en plus pour 2 000 € de prime (clé) ; barème simplifié pour l'exemple (atténuée).
+   - Lignes : les 1 000 € sous le seuil, taxés à 11 %, font 110 € ; les 1 000 € au-dessus, taxés à 30 %, font 300 € ; au total, 410 € d'impôt en plus pour 2 000 € de prime (clé) ; barème de l'impôt pour une part, sans décote ni réduction (atténuée).
    - Val (alerte) : « Beaucoup refusent une augmentation par peur de changer de tranche. C'est une erreur : tu gardes toujours la plus grosse partie. »
 3. **Vrai ou faux en rafale** (nouveau, noté)
    - « Changer de tranche peut faire baisser ton revenu après impôt. » Faux : « Seule la partie au-dessus du seuil est taxée plus. »
@@ -182,9 +192,9 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - Déduction : une somme retirée de ton revenu imposable.
    - Val, réussi (fier) : « Ces quatre mots, et ta feuille d'impôts devient lisible. » Pas réussi (rassurant) : « Ils se ressemblent, c'est normal de les mélanger au début. »
 5. **Question sans aide** (`choice`, noté)
-   - « Avec ce barème, Léa gagne 40 000 €. Son taux moyen est-il aussi de 30 % ? »
+   - « Avec ce barème, Léa a un revenu imposable de 40 000 €. Son taux moyen est-il aussi de 30 % ? »
    - Oui, tout son revenu est taxé à 30 % ; non, il est plus bas, car ses premiers euros sont moins taxés (bonne) ; non, il est plus haut que 30 %.
-   - Explication : « Ses 11 000 premiers euros ne sont pas taxés, les suivants le sont à 11 %. Son taux moyen est d'environ 12,7 %, bien en dessous de 30 %. »
+   - Explication : « Ses 11 600 premiers euros ne sont pas taxés, les suivants le sont à 11 % jusqu'à 29 579 €. Son taux moyen est d'environ 12,8 %, bien en dessous de 30 %. »
    - Val, bonne réponse (célébrant) : « Exactement. Et c'est ça qui compte vraiment. » Erreur (rassurant) : « C'est le piège classique : les 30 % ne touchent que le haut de son revenu. »
 
 ## Leçon 6 : Je découvre, « Ton vrai salaire »

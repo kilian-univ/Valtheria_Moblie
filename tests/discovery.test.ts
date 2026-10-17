@@ -404,16 +404,16 @@ test('répartir de la leçon 1 : 1 800 € en pourcentages, pots et règles du d
   assert.equal(line, '15 % de ta paie, c’est 270 € par mois et 3240 € dans un an, sans y penser.');
 });
 
-test('impôts : le barème simplifié donne bien 410 € et un taux moyen de 12,7 % pour Léa', () => {
-  const tax = (income: number) =>
-    Math.max(0, Math.min(income, 30000) - 11000) * 0.11 + Math.max(0, income - 30000) * 0.3;
-  assert.equal(Math.round(tax(31000) - tax(29000)), 410);
-  assert.equal(Math.round((tax(40000) / 40000) * 1000) / 10, 12.7);
-  // Le barème est annoncé comme simplifié, sous la question du pari
+test('impôts : le vrai barème donne 410 € pour la prime et 12,8 % de taux moyen pour Léa', () => {
+  // Barème de secours (production au 17/10/2026) : 0 % / 11 % / 30 %, seuils 11 600 € et 29 579 €
+  const tax = (income: number) => Math.max(0, Math.min(income, 29579) - 11600) * 0.11 + Math.max(0, income - 29579) * 0.3;
+  assert.equal(Math.round(tax(30579) - tax(28579)), 410);
+  assert.equal(Math.round((tax(40000) / 40000) * 1000) / 10, 12.8);
   const pari = screens('impots')[0];
-  assert.ok(pari.subtitle?.startsWith('Barème simplifié'));
+  assert.ok(pari.subtitle?.startsWith('Barème de l’impôt pour une part'));
+  const revelation = screens('impots')[1];
+  assert.equal(revelation.kind === 'reveal' && revelation.value, 410);
 });
-
 test('format des écrans interactifs : un écran mal formé tombe sur l’écran de secours', () => {
   const bad = normalizeLesson({
     screens: [

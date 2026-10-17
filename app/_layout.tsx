@@ -30,6 +30,7 @@ import { palette } from '@/src/constants/style/Style';
 import { CustomDarkTheme, CustomLightTheme } from '@/src/constants/theme';
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext';
 import { configureSoundSession } from '@/src/utils/sound';
+import { loadRegulatoryFigures } from '@/src/state/regulatoryFigures';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Démarrage : le splash natif (fond + logo, voir app.json) reste jusqu'à ce
@@ -118,6 +119,9 @@ export default function RootLayout() {
   // Session audio d'iOS configurée une seule fois, au démarrage
   useEffect(() => {
     configureSoundSession();
+    // Chiffres réglementaires des leçons découvertes (route publique, gardés
+    // sur le téléphone) : chargés tôt, sans attendre ni bloquer
+    loadRegulatoryFigures();
   }, []);
   return (
     <SafeAreaProvider>

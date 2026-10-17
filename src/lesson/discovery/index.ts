@@ -6,14 +6,15 @@
 // leçons en reprennent les textes et les chiffres.
 
 import type { Module } from '@/src/context/ApiContext';
+import { FALLBACK_FIGURES, fillFiguresDeep, type Figures } from '@/src/utils/regulatoryFigures';
 import type { LessonModel, Universe } from '../model';
 import { normalizeLesson } from '../normalize';
 import { crypto } from './crypto';
 import { decouvrir } from './decouvrir';
-import { epargner } from './epargner';
-import { impots } from './impots';
+import { buildEpargner, epargner } from './epargner';
+import { buildImpots, impots } from './impots';
 import { investir } from './investir';
-import { logement } from './logement';
+import { buildLogement, logement } from './logement';
 
 export const OBJECTIVES = ['epargner', 'investir', 'crypto', 'logement', 'impots', 'decouvrir'] as const;
 export type Objective = (typeof OBJECTIVES)[number];
@@ -49,8 +50,11 @@ export const OBJECTIVE_OPTIONS: readonly { value: Objective; label: string; subj
 ];
 
 export type DiscoveryPlan = {
-  // Leçon au format du serveur (GET /lessons/{id})
+  // Leçon au format du serveur (GET /lessons/{id}), construite sur les
+  // valeurs de secours des chiffres réglementaires
   lesson: unknown;
+  // Leçon dont des montants se calculent à partir des chiffres réglementaires
+  build?: (figures: Figures) => unknown;
   // Univers conseillé : slug et nom exacts du serveur (seeder des univers,
   // ThemesResetSeeder du site), utilisés tant que GET /universes n'est pas chargé
   universe: { slug: string; name: string };
@@ -63,6 +67,7 @@ export type DiscoveryPlan = {
 export const DISCOVERY: Record<Objective, DiscoveryPlan> = {
   epargner: {
     lesson: epargner,
+    build: buildEpargner,
     universe: { slug: 'avant-d-investir', name: 'Avant d’investir' },
     valLead: 'Mettre de l’argent de côté ?',
   },
@@ -78,11 +83,13 @@ export const DISCOVERY: Record<Objective, DiscoveryPlan> = {
   },
   logement: {
     lesson: logement,
+    build: buildLogement,
     universe: { slug: 'se-loger', name: 'Se loger' },
     valLead: 'Un logement à toi, un jour ?',
   },
   impots: {
     lesson: impots,
+    build: buildImpots,
     universe: { slug: 'impots', name: 'Impôts, déclarations et remboursements' },
     valLead: 'Payer moins d’impôts ?',
   },
@@ -111,9 +118,13 @@ export function discoveryPlan(objective: Objective | null | undefined): Discover
   return DISCOVERY[toObjective(objective) ?? 'decouvrir'];
 }
 
-// Leçon prête pour le lecteur
-export function discoveryLesson(objective: Objective | null | undefined): LessonModel {
-  return normalizeLesson(discoveryPlan(objective).lesson);
+// Leçon prête pour le lecteur, avec les chiffres réglementaires reçus du site
+// (state/regulatoryFigures) ; sans eux, les valeurs de secours. Les montants
+// qui en dépendent sont recalculés, puis les repères {{cle}} remplacés.
+export function discoveryLesson(objective: Objective | null | undefined, figures: Figures = FALLBACK_FIGURES): LessonModel {
+  const plan = discoveryPlan(objective);
+  const lesson = plan.build ? plan.build(figures) : plan.lesson;
+  return normalizeLesson(fillFiguresDeep(lesson, figures));
 }
 
 function firstLessonTitle(module: Module | undefined): string | null {

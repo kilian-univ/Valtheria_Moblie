@@ -75,7 +75,9 @@ export const crypto = {
             id: 'impot',
             statement: 'En France, les gains en crypto ne sont jamais imposés.',
             answer: false,
-            explanation: 'Quand tu revends avec un gain, il est imposé.',
+            // Repères résolus par discoveryLesson (chiffres réglementaires du site)
+            explanation:
+              'Quand tu revends contre des euros avec un gain, il est imposé à {{crypto_taux_imposition}}, sauf si tes ventes de l’année ne dépassent pas {{crypto_seuil_exoneration}}.',
           },
         ],
       },

@@ -1,11 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useApi } from '@/src/context/ApiContext';
 import { DISCOVERY, discoveryLesson, toObjective } from '@/src/lesson/discovery';
 import { recordLessonAccuracy } from '@/src/state/accuracy';
 import { learningStore } from '@/src/state/learningStore';
 import { addToNotebook } from '@/src/state/notebook';
+import { getRegulatoryFigures } from '@/src/state/regulatoryFigures';
 import { recordLessonXp } from '@/src/state/weekJournal';
 import { userKeyOf } from '@/src/state/userMemory';
 import ApprendreDetailScreen from '@/src/screens/ApprendreDetailScreen';
@@ -27,7 +28,10 @@ export default function DiscoveryLessonScreen() {
   const { state } = useOnboarding();
   const fromHome = params.depuis === 'accueil';
   const objective = (fromHome ? toObjective(params.objectif) : null) ?? state.objective;
-  const lesson = useMemo(() => discoveryLesson(objective), [objective]);
+  // Chiffres réglementaires pris une fois, à l'ouverture : la leçon ne change
+  // pas en cours de route si de nouveaux chiffres arrivent
+  const [figures] = useState(getRegulatoryFigures);
+  const lesson = useMemo(() => discoveryLesson(objective, figures), [objective, figures]);
   const { user } = useApi();
 
   useEffect(() => {

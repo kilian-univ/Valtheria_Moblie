@@ -193,28 +193,42 @@ Aussi :
   - staging déployé, puis vérifié sur la base : 20 chiffres créés avec leur source, définitions résolues, écran 7 servi avec la bonne réponse, leçon valide au contrôle de format.
 - **App** : tsc et 424 tests, dont 2 nouveaux sur Crypto et Salaire.
 
+### Suite du chantier 2 (17 octobre 2026, en production)
+
+[PR n° 10](https://github.com/Valtheraa/Valtheria/pull/10) du site, fusionnée (commit `780dc18`), vérifiée sur staging, puis déployée en production. La sauvegarde prise juste avant est `db-20261017-194627.sql.gz` ; l'archive est lisible et les données y sont. **La CI du site repasse au vert**, ce qui n'était plus arrivé depuis la PR n° 6. Toutes ses étapes tournent : tests, Pint, Prettier, Blade, z-index, harnais des scripts.
+
+- **Route publique `GET /api/regulatory-figures`** : lecture seule, sans compte. Elle renvoie la clé, la valeur, le format, la date d'effet et la date de vérification, jamais la source interne. Cache de 10 minutes, vidé à chaque écriture d'un chiffre, en-tête `Cache-Control`, limite de 60 appels par minute. En production, elle répond avec 89 chiffres.
+- **App** :
+  - elle lit les chiffres au démarrage, les garde sur le téléphone et les redemande au plus une fois toutes les 12 heures ; si la route n'a jamais répondu, elle prend des valeurs de secours ;
+  - une leçon prend les chiffres à son ouverture et ne change pas en cours de route ;
+  - leçons découvertes : Impôts suit le vrai barème (prime de 28 579 à 30 579 €, 410 € d'impôt en plus, taux moyen de Léa de 12,8 %, chaque montant calculé à partir du barème) ; Épargner calcule ses 820 € à partir de l'inflation (`inflation_annuelle`) ; Logement prend sa durée dans `credit_duree_max` (curseur, total, intérêts, mensualité) ; Crypto donne le taux et le seuil (31,4 %, 305 €).
+- **Chat de Val** :
+  - plus aucun chiffre en dur dans ses règles : des repères résolus à la construction du prompt, avec l'empreinte de la table dans la clé de cache ;
+  - corrigés : PER après un accident de la vie à 18,6 % (et non 17,2 %), PEL ouvert depuis 2018 au cas général, 31,4 % (et non 30 %).
+- **Usure du découvert** : 23,60 % pour un particulier, au lieu de 19,05 %, le seuil des professionnels. Le libellé et la requête de rafraîchissement sont corrigés, et la définition « Découvert autorisé » cite ce taux.
+- **Parcours de vie** :
+  - sept scénarios réécrits avec des repères : Livret A à 3 %, PEA « sans impôt après 5 ans », intérêts calculés sur ces taux ;
+  - les repères sont résolus à la lecture ; l'éditeur garde le texte brut, et l'enregistrement refuse un chiffre en dur ;
+  - en production, le n° 20 affiche « au taux de 1,7 % ».
+- **Articles** :
+  - brouillon n° 282 supprimé (suppression douce) : sa thèse, « seul le LEP suit encore l'inflation », dépendait des taux du jour, ce qu'aucun repère ne garde juste ;
+  - articles de démonstration en repères.
+- **Contrôle** : deux faux signalements corrigés.
+  - Une virgule coupe désormais l'attribution : dans « Inflation à 2,4 %, Livret A », le 2,4 % n'est plus pris pour le taux du Livret A.
+  - Entre deux clés possibles, celle dont la valeur est le nombre l'emporte : 1 600 € est le plafond du Livret jeune.
+- **Relevé en production** : 4 leçons, 203 définitions, 2 articles et 31 parcours de vie examinés ; **0 chiffre en dur, code de sortie 0**.
+- **Vérifications** : site, 531 tests, 75 tests JavaScript et la CI complète ; app, tsc, ESLint et 431 tests (7 nouveaux sur les chiffres).
+
 ### Reste à faire
 
-1. **Production** : fait (voir l'état ci-dessus).
-2. **Articles** : en production, un seul brouillon en cause, le n° 282, à réécrire avec des repères ou à supprimer. Sur staging, 85 chiffres en dur dans des brouillons plus anciens, absents de la production. Ils sont maintenant refusés à la publication.
-3. **Leçons découvertes de l'app** : elles ne peuvent pas lire les chiffres réglementaires. Seul le taux des livrets arrive avec le patrimoine, et `/api/internal/regulatory-figures` est réservé aux agents. Restent donc en dur, à revoir à chaque changement :
-   - Impôts : barème simplifié 0 / 11 / 30 %, seuils de 11 000 et 30 000 € ;
-   - Épargner : inflation à 2 % (hypothèse) ;
-   - Logement : 25 ans à 3,5 % (hypothèse) ;
-   - Investir : 5 % par an (hypothèse) ;
-   - Salaire : montants de la fiche de paie, millésime 2026.
-
-   Il faudrait un endpoint public des chiffres (lot API), ou servir ces leçons depuis le site.
-4. **Parcours de vie** : Livret A à 3 % dans `life_path_scenarios.json` et un scénario en base (n° 20 en production, n° 21 sur staging). Ils ne résolvent pas les repères : correction du texte à faire.
-5. **PEL** : `LivretRates` estime tout PEL au taux de l'année. Il faudrait le taux de l'année d'ouverture.
-6. **`decouvert_taux_usure`** vaut 19,08 %, le seuil des professionnels. Pour un particulier, le découvert suit l'usure des crédits à la consommation de sa tranche (23,60 % jusqu'à 3 000 €). Le libellé et la valeur sont à revoir avant de citer ce chiffre.
-7. **Chat de Val** : `AiSystemPrompt` garde ses chiffres en dur (12,8 %, 18,6 %, 30 %), exigés par ses tests. Le PER en cas d'accident de la vie est à 18,6 %, et non 17,2 %.
-8. **Contenu de démonstration** : `SeedDemoArticle` (flat tax à 30 %) et `DemoArticlesSeeder` (Livret A à 2,4 %).
-9. **CI du site** : l'étape Pint échoue sur `main` depuis la PR n° 6, à cause de deux fichiers hors de ce lot (`2026_10_17_110000_regulatory_rates_single_source.php`, `PortfolioSnapshotTest.php`). Les étapes suivantes de la CI (Prettier, Blade, z-index, harnais) ne tournent donc plus.
-10. **Limites du contrôle** :
+1. **PEL** : `LivretRates` estime tout PEL au taux de l'année. Il faudrait le taux de l'année d'ouverture.
+2. **Défis du jour** : ils ne résolvent pas les repères. Leur prompt reçoit les valeurs exactes, mais un défi généré garde la valeur du jour. La production n'en compte aucun aujourd'hui.
+3. **Staging** : 81 chiffres en dur dans d'anciens brouillons d'articles, absents de la production.
+4. **Hypothèses en dur dans l'app**, qui ne sont pas des chiffres réglementaires : 5 % par an pour investir, 3,5 % pour le crédit, cours historiques du bitcoin, montants de la fiche de paie.
+5. **Limites du contrôle** :
    - les durées (« après 5 ans ») ne sont pas contrôlées ;
-   - un chiffre sans terme déclencheur à proximité passe ;
-   - une clé voisine peut être proposée à tort (un revenu fiscal pris pour un plafond).
+   - un chiffre sans terme déclencheur à proximité passe : c'est pour cela que le Livret A à 3 % de quatre parcours avait échappé au relevé ;
+   - une clé voisine peut encore être proposée à tort quand aucune valeur ne départage.
 
 ## Méthode
 
