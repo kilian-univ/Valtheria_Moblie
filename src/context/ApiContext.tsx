@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Platform } from "react-native";
 
 // ---------------------------------------------------------------------------
 // Constante d'API — à adapter selon l'environnement (dev / prod)
@@ -8,6 +10,104 @@ export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || "https://valtheria.fr/api";
 
 const TOKEN_KEY = "api_token";
+
+// ---------------------------------------------------------------------------
+// Jeton de connexion : dans le trousseau du téléphone (expo-secure-store),
+// lisible après le premier déverrouillage, jamais copié dans les sauvegardes
+// iCloud ni sur un autre appareil. Sur le web, où le trousseau n'existe pas :
+// AsyncStorage, comme avant. L'ancien jeton gardé dans AsyncStorage (versions
+// d'avant le 17 octobre 2026) est repris dans le trousseau, puis effacé.
+// ---------------------------------------------------------------------------
+const USE_KEYCHAIN = Platform.OS !== "web";
+const KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+};
+
+async function readStoredToken(): Promise<string | null> {
+  if (!USE_KEYCHAIN) return AsyncStorage.getItem(TOKEN_KEY);
+  const secure = await SecureStore.getItemAsync(TOKEN_KEY, KEYCHAIN_OPTIONS);
+  if (secure) return secure;
+  const legacy = await AsyncStorage.getItem(TOKEN_KEY);
+  if (legacy) {
+    try {
+      await SecureStore.setItemAsync(TOKEN_KEY, legacy, KEYCHAIN_OPTIONS);
+      await AsyncStorage.removeItem(TOKEN_KEY);
+    } catch {
+      // trousseau indisponible : l'ancien jeton reste en place, repris plus tard
+    }
+  }
+  return legacy;
+}
+
+async function writeStoredToken(token: string | null): Promise<void> {
+  if (!USE_KEYCHAIN) {
+    if (token) await AsyncStorage.setItem(TOKEN_KEY, token);
+    else await AsyncStorage.removeItem(TOKEN_KEY);
+    return;
+  }
+  if (token) await SecureStore.setItemAsync(TOKEN_KEY, token, KEYCHAIN_OPTIONS);
+  else await SecureStore.deleteItemAsync(TOKEN_KEY, KEYCHAIN_OPTIONS);
+  // Jamais de copie en clair à côté du trousseau
+  await AsyncStorage.removeItem(TOKEN_KEY).catch(() => {});
+}
+
+// Lecture du jeton au démarrage : une lecture qui échoue (stockage abîmé,
+// app relancée avant le premier déverrouillage) est retentée une fois, puis
+// l'app démarre sans session au lieu d'attendre pour toujours
+const TOKEN_RETRY_MS = 500;
+async function readStoredTokenSafely(): Promise<string | null> {
+  try {
+    return await readStoredToken();
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, TOKEN_RETRY_MS));
+    try {
+      return await readStoredToken();
+    } catch {
+      return null;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Requêtes : délai maximal, et réponse lue sans jamais planter
+// ---------------------------------------------------------------------------
+// Au-delà de ce délai, l'échec est traité comme une coupure du réseau
+const REQUEST_TIMEOUT_MS = 15_000;
+
+type ApiResponse = {
+  response: Response;
+  json: any;
+  // false : un corps non vide qui n'est pas du JSON (page HTML d'un portail
+  // Wi-Fi, d'une erreur 502…)
+  readable: boolean;
+};
+
+async function request(url: string, init: RequestInit = {}): Promise<ApiResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    if (response.status === 204 || response.headers.get("content-length") === "0") {
+      return { response, json: null, readable: true };
+    }
+    const text = await response.text();
+    if (text.trim() === "") return { response, json: null, readable: true };
+    try {
+      return { response, json: JSON.parse(text), readable: true };
+    } catch {
+      return { response, json: null, readable: false };
+    }
+  } catch (e) {
+    // Délai dépassé : même erreur qu'une coupure du réseau (TypeError)
+    if (e instanceof Error && e.name === "AbortError") throw new TypeError("Network request timed out");
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Réponse « réussie » qui n'est pas du JSON : jamais prise pour un succès
+const UNREADABLE = "Le serveur a répondu de façon inattendue.";
 
 export type User = {
   id: number;
@@ -140,51 +240,55 @@ export function ApiProvider({ children }: any) {
 
   // Écrit/efface le token à la fois dans le state React et AsyncStorage.
   const saveToken = useCallback(async (newToken: string | null) => {
-    if (newToken) {
-      await AsyncStorage.setItem(TOKEN_KEY, newToken);
-    } else {
-      await AsyncStorage.removeItem(TOKEN_KEY);
+    try {
+      await writeStoredToken(newToken);
+    } finally {
+      // La session suit toujours la demande, même si le stockage échoue
+      setToken(newToken);
     }
-    setToken(newToken);
   }, []);
 
   // Au montage : relit le token stocké, et si présent, recharge le profil
   // utilisateur associé (le token seul est persisté, pas les infos user).
   useEffect(() => {
     (async () => {
-      const stored = await AsyncStorage.getItem(TOKEN_KEY);
-      setToken(stored);
+      try {
+        const stored = await readStoredTokenSafely();
+        setToken(stored);
 
-      if (stored) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/user`, {
-            headers: {
-              Accept: "application/json",
-              Authorization: `Bearer ${stored}`,
-            },
-          });
-          const json = await response.json();
+        if (stored) {
+          try {
+            const { response, json, readable } = await request(`${API_BASE_URL}/user`, {
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${stored}`,
+              },
+            });
 
-          if (response.ok) {
-            setUser(unwrap(json));
-          } else {
-            // Token expiré/invalide -> on nettoie tout
-            await AsyncStorage.removeItem(TOKEN_KEY);
-            setToken(null);
+            if (response.ok && readable && json) {
+              setUser(unwrap(json));
+            } else if (response.status === 401) {
+              // Token expiré/invalide -> on nettoie tout
+              await writeStoredToken(null).catch(() => {});
+              setToken(null);
+            }
+            // Autre erreur (500, 503 : maintenance, surcharge ; réponse
+            // illisible) : on garde le token, le profil sera rechargé plus
+            // tard (SessionRecovery)
+          } catch {
+            // Pas de réseau au démarrage : on garde le token, on retentera
+            // plus tard via une requête authentifiée classique.
           }
-        } catch {
-          // Pas de réseau au démarrage : on garde le token, on retentera
-          // plus tard via une requête authentifiée classique.
         }
+      } finally {
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
     })();
   }, []);
 
   const register = useCallback(
     async (name: string, email: string, password: string, password_confirmation: string) => {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const { response, json, readable } = await request(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -193,11 +297,10 @@ export function ApiProvider({ children }: any) {
         body: JSON.stringify({ name, email, password, password_confirmation }),
       });
 
-      const json = await response.json();
-
       if (!response.ok) {
         throw new Error(json?.message || "Échec de l'inscription");
       }
+      if (!readable || !json) throw new Error(UNREADABLE);
 
       const { token: newToken, user: newUser } = unwrap(json);
       await saveToken(newToken);
@@ -209,7 +312,7 @@ export function ApiProvider({ children }: any) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const { response, json, readable } = await request(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -218,11 +321,10 @@ export function ApiProvider({ children }: any) {
         body: JSON.stringify({ email, password }),
       });
 
-      const json = await response.json();
-
       if (!response.ok) {
         throw new Error(json?.message || "Identifiants incorrects");
       }
+      if (!readable || !json) throw new Error(UNREADABLE);
 
       const { token: newToken, user: newUser } = unwrap(json);
       await saveToken(newToken);
@@ -235,7 +337,7 @@ export function ApiProvider({ children }: any) {
   // Wrapper générique pour toutes les routes protégées par auth:sanctum
   const authRequest = useCallback(
     async (path: string, method: "GET" | "POST" | "PATCH" | "DELETE" = "GET", body?: any) => {
-      const response = await fetch(`${API_BASE_URL}${path}`, {
+      const { response, json, readable } = await request(`${API_BASE_URL}${path}`, {
         method,
         headers: {
           Accept: "application/json",
@@ -245,9 +347,6 @@ export function ApiProvider({ children }: any) {
         body: body ? JSON.stringify(body) : undefined,
       });
 
-      const hasBody = response.headers.get("content-length") !== "0";
-      const json = hasBody ? await response.json().catch(() => null) : null;
-
       if (!response.ok) {
         if (response.status === 401) {
           await saveToken(null);
@@ -255,6 +354,9 @@ export function ApiProvider({ children }: any) {
         }
         throw new Error(json?.message || "Erreur API");
       }
+      // Succès qui n'est pas du JSON (portail Wi-Fi captif) : une erreur, pas
+      // un succès vide (leçon fêtée sans être enregistrée, modules effacés…)
+      if (!readable) throw new Error(UNREADABLE);
 
       return unwrap(json);
     },
@@ -315,31 +417,31 @@ export function ApiProvider({ children }: any) {
 
   // GET /articles — publique, pas besoin de token
   const getArticles = useCallback(async (): Promise<Article[]> => {
-    const response = await fetch(`${API_BASE_URL}/articles`, {
+    const { response, json, readable } = await request(`${API_BASE_URL}/articles`, {
       headers: { Accept: "application/json" },
     });
-    const json = await response.json();
     if (!response.ok) throw new Error(json?.message || "Erreur lors du chargement des articles");
+    if (!readable) throw new Error(UNREADABLE);
     return unwrap(json);
   }, []);
 
   // GET /articles/latest — publique
   const getLatestArticles = useCallback(async (): Promise<Article[]> => {
-    const response = await fetch(`${API_BASE_URL}/articles/latest`, {
+    const { response, json, readable } = await request(`${API_BASE_URL}/articles/latest`, {
       headers: { Accept: "application/json" },
     });
-    const json = await response.json();
     if (!response.ok) throw new Error(json?.message || "Erreur lors du chargement des articles");
+    if (!readable) throw new Error(UNREADABLE);
     return unwrap(json);
   }, []);
 
   // GET /articles/{slug} — publique
   const getArticle = useCallback(async (slug: string): Promise<Article> => {
-    const response = await fetch(`${API_BASE_URL}/articles/${slug}`, {
+    const { response, json, readable } = await request(`${API_BASE_URL}/articles/${slug}`, {
       headers: { Accept: "application/json" },
     });
-    const json = await response.json();
     if (!response.ok) throw new Error(json?.message || "Article introuvable");
+    if (!readable) throw new Error(UNREADABLE);
     return unwrap(json);
   }, []);
 
