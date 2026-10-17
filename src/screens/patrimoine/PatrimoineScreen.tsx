@@ -16,6 +16,7 @@ import AllocationBar from '@/src/components/patrimoine/AllocationBar';
 import CelebrationSheet from '@/src/components/patrimoine/CelebrationSheet';
 import ChartMenu from '@/src/components/patrimoine/ChartMenu';
 import GoalsSection from '@/src/components/patrimoine/GoalsSection';
+import HelpTerm from '@/src/components/patrimoine/HelpTerm';
 import Figure from '@/src/components/patrimoine/Figure';
 import LineChart from '@/src/components/patrimoine/LineChart';
 import PeriodPicker from '@/src/components/patrimoine/PeriodPicker';
@@ -39,9 +40,10 @@ import {
   clipPoints,
   DEFAULT_PERIOD,
   depositIndexes,
-  modeValue,
+  modeSeries,
   periodLabel,
   portfolioRange,
+  tickLabel,
   variation,
   type ChartMode,
   type Period,
@@ -205,7 +207,8 @@ export default function PatrimoineScreen() {
   const tip = chooseValTip({ positions, now: new Date(now), monthlyExpenses: prefs?.emergency.monthlyExpenses ?? null });
   const regularity = streakLabel(progress.streak);
   const v = variation(points);
-  const values = points.map((p) => modeValue(p, mode));
+  const values = modeSeries(points, mode);
+  const logScale = (prefs?.logScale ?? false) && mode === 'valeur';
   const deposits = mode === 'valeur' ? depositIndexes(points) : [];
   const m = (x: number) => money(x, { hidden });
   const summary = hidden
@@ -216,7 +219,7 @@ export default function PatrimoineScreen() {
     const p = points[i];
     const date = shortDate(p.date, new Date(now));
     if (mode === 'performance') {
-      return { title: signedPercent(modeValue(p, 'performance'), hidden), caption: date };
+      return { title: signedPercent(values[i], hidden), caption: date };
     }
     if (mode === 'plus-value') return { title: signedMoney(p.value - p.invested, { hidden }), caption: date };
     return { title: m(p.value), caption: date, extra: `investi ${m(p.invested)}` };
@@ -310,7 +313,11 @@ export default function PatrimoineScreen() {
               color={colors.gold}
               dashed={mode === 'valeur' ? points.map((p) => p.invested) : null}
               dashedColor={colors.frostInk}
-              level={mode === 'valeur' ? null : { value: 0, color: colors.textFaint }}
+              dashedLabel={(x) => `montant investi : ${m(x)}`}
+              level={mode === 'valeur' ? null : { value: 0, label: mode === 'performance' ? '0 %' : '0 €', color: colors.subtitle }}
+              signColors={mode === 'valeur' ? null : { above: colors.success, below: colors.error }}
+              log={logScale}
+              formatTick={hidden ? undefined : (x) => tickLabel(x, mode === 'performance' ? 'pct' : 'eur')}
               dots={deposits.map((index) => ({ index, color: colors.success }))}
               area={mode === 'valeur'}
               tip={tipFor}
@@ -332,6 +339,14 @@ export default function PatrimoineScreen() {
             {deposits.length > 0 ? <Legend color={colors.success} label="tes versements" dot /> : null}
           </View>
         ) : null}
+        {mode === 'performance' ? (
+          <View style={styles.explain}>
+            <AppText variant="caption" tone="subtitle" style={styles.flex}>
+              Ce qu’ont rapporté tes placements, sans compter l’argent que tu as ajouté.
+            </AppText>
+            <HelpTerm term="Rendement" />
+          </View>
+        ) : null}
         <View style={styles.periodRow}>
           <View style={styles.flex}>
             <PeriodPicker value={period} onChange={setPeriod} />
@@ -341,6 +356,8 @@ export default function PatrimoineScreen() {
             onChange={(hide) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, hideAnomalies: hide }))}
             anomalies={anomalies.filter((p) => p.id !== null).map((p) => ({ key: String(p.id), label: `${shortDate(p.date, new Date(now))} · ${m(p.value)}` }))}
             onDelete={(key) => askDelete(anomalies.find((p) => String(p.id) === key))}
+            log={prefs?.logScale ?? false}
+            onLogChange={(log) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, logScale: log }))}
           />
         </View>
 
@@ -462,6 +479,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   flex: { flex: 1 },
   periodRow: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
+  explain: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   sheet: { gap: space[3], paddingTop: space[2] },
   sheetActions: { gap: space[2] },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space[4], minHeight: 52 },

@@ -14,18 +14,20 @@ type Props = {
   // Terme du Dictionnaire derrière le « ? »
   term?: string;
   big?: boolean;
+  // Petite ligne sous la valeur : montant d'origine (« 81,46 $ »), date d'un taux
+  note?: string | null;
   style?: StyleProp<ViewStyle>;
 };
 
 // Chiffre clé : petit libellé, valeur dessous (Fraunces si `big`)
-export default function Figure({ label, value, spoken, tone = 'text', term, big, style }: Props) {
+export default function Figure({ label, value, spoken, tone = 'text', term, big, note, style }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const color = { text: colors.text, success: colors.success, error: colors.error, gold: colors.gold }[tone];
   return (
     <View style={[styles.tile, { backgroundColor: colors.panel }, style]}>
       <View style={styles.labelRow}>
-        <AppText variant="caption" tone="subtitle" numberOfLines={2} style={styles.label} accessible accessibilityLabel={`${label} : ${spoken ?? value}`}>
+        <AppText variant="caption" tone="subtitle" numberOfLines={2} style={styles.label} accessible accessibilityLabel={`${label} : ${spoken ?? value}${note ? `, ${note}` : ''}`}>
           {label}
         </AppText>
         {term ? <HelpTerm term={term} /> : null}
@@ -40,6 +42,11 @@ export default function Figure({ label, value, spoken, tone = 'text', term, big,
       >
         {value}
       </AppText>
+      {note ? (
+        <AppText variant="caption" tone="subtitle" numberOfLines={2} accessibilityElementsHidden importantForAccessibility="no">
+          {note}
+        </AppText>
+      ) : null}
     </View>
   );
 }

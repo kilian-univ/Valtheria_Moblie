@@ -96,6 +96,15 @@ export function shortDate(iso: string | number, now: Date = new Date()): string 
   return d.getFullYear() === now.getFullYear() ? base : `${base} ${d.getFullYear()}`;
 }
 
+// Date d'un taux réglementaire : « taux au 1er août 2026 » (date d'effet),
+// sinon « taux vérifié le 17 octobre 2026 » ; null sans date
+export function rateDateLabel(effectiveAt: string | null, verifiedAt: string | null): string | null {
+  const at = effectiveAt ?? verifiedAt;
+  if (!at) return null;
+  const day = longDate(effectiveAt ? `${effectiveAt.slice(0, 10)}T12:00:00` : at).replace(/^1(?=[\s\u00a0\u202f])/, '1er');
+  return day ? (effectiveAt ? `taux au ${day}` : `taux vérifié le ${day}`) : null;
+}
+
 // « 2 juin 2026 »
 export function longDate(iso: string | number): string {
   const d = new Date(iso);

@@ -22,9 +22,11 @@ import { userKeyOf } from '@/src/state/userMemory';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
 import { isIconKey, type IconKey } from '@/src/utils/patrimoine/assetIcons';
-import { money, quantityLabel, signedMoney } from '@/src/utils/patrimoine/format';
+import { moneyEur, ratesOf, toEur, type Rates } from '@/src/utils/patrimoine/currency';
+import { money, quantityLabel, rateDateLabel, signedMoney } from '@/src/utils/patrimoine/format';
 import {
   dayOf,
+  isRegulatedLivret,
   livretDeposit,
   livretPayload,
   manualPatch,
@@ -112,6 +114,14 @@ export default function OperationScreen() {
     ? positions.find((p) => !p.isLivret && !p.isManual && p.ticker.toUpperCase() === asset.ticker.toUpperCase()) ?? null
     : null;
   const currency = holdingPosition?.currency ?? 'EUR';
+  // Taux du jour de la liste : montants montrés aussi en euros
+  const rates = ratesOf(positions, data.portfolio?.eurUsd ?? null);
+  const inEur = (v: number) => {
+    const e = toEur(v, currency, rates);
+    return money(e ?? v, { hidden, currency: e === null ? currency : 'EUR' });
+  };
+  // Livret réglementé : taux du site, jamais saisi
+  const regulated = kind === 'livret' && (existing ? existing.interestRateSource === 'regulatory' || isRegulatedLivret(existing.ticker) : isRegulatedLivret(params.ticker));
 
   // Opération modifiée
   const editingId = params.operationId ? Number(params.operationId) : null;
@@ -184,8 +194,8 @@ export default function OperationScreen() {
     if (preview?.ok) {
       const p = preview.preview;
       return p.side === 'buy'
-        ? `Enregistrer l’achat · ${money(p.total, { hidden, currency })}`
-        : `Enregistrer la vente · ${money(p.proceeds, { hidden, currency })}`;
+        ? `Enregistrer l’achat · ${inEur(p.total)}`
+        : `Enregistrer la vente · ${inEur(p.proceeds)}`;
     }
     return side === 'buy' ? 'Enregistrer l’achat' : 'Enregistrer la vente';
   })();
@@ -310,6 +320,11 @@ export default function OperationScreen() {
                   />
                 </View>
               </View>
+              {currency !== 'EUR' && parseDecimal(unitPriceText) > 0 && toEur(parseDecimal(unitPriceText), currency, rates) !== null ? (
+                <AppText variant="caption" tone="subtitle">
+                  {`Soit ${money(toEur(parseDecimal(unitPriceText), currency, rates)!, { hidden, exact: true })} l’unité, au taux du jour.`}
+                </AppText>
+              ) : null}
               {priceNow !== null && !editing ? (
                 <AppText variant="caption" tone="subtitle">
                   Prérempli avec le cours actuel, modifiable.
@@ -324,7 +339,7 @@ export default function OperationScreen() {
 
               {preview ? (
                 preview.ok ? (
-                  <PreviewBox preview={preview.preview} hidden={hidden} currency={currency} unit={asset ? (q: number) => quantityLabel(q, asset.ticker, asset.type) : (q) => String(q)} />
+                  <PreviewBox preview={preview.preview} hidden={hidden} currency={currency} rates={rates} unit={asset ? (q: number) => quantityLabel(q, asset.ticker, asset.type) : (q) => String(q)} />
                 ) : (
                   <View style={[styles.warning, { backgroundColor: withOpacity(colors.error, 0.1), borderColor: withOpacity(colors.error, 0.35) }]}>
                     <AppText variant="callout" style={{ color: colors.error }} accessibilityRole="alert" accessibilityLiveRegion="polite">
@@ -345,10 +360,19 @@ export default function OperationScreen() {
                 <View style={styles.flex}>
                   <TextField label="Montant sur le livret (€)" value={amountText} onChangeText={(t) => edit({ amount: t })} keyboardType="decimal-pad" placeholder="0" />
                 </View>
-                <View style={styles.flex}>
-                  <TextField label="Taux par an (%)" value={rateText} onChangeText={(t) => edit({ ratePct: t })} keyboardType="decimal-pad" placeholder="Facultatif" />
-                </View>
+                {regulated ? null : (
+                  <View style={styles.flex}>
+                    <TextField label="Taux par an (%)" value={rateText} onChangeText={(t) => edit({ ratePct: t })} keyboardType="decimal-pad" placeholder="Facultatif" />
+                  </View>
+                )}
               </View>
+              {regulated ? (
+                <AppText variant="caption" tone="subtitle">
+                  {existing?.interestRatePct !== null && existing?.interestRatePct !== undefined
+                    ? `Taux réglementé : ${String(existing.interestRatePct).replace('.', ',')}\u00a0% (${rateDateLabel(existing.interestRateEffectiveAt, existing.interestRateVerifiedAt) ?? 'taux en vigueur'}), mis à jour automatiquement.`
+                    : 'Taux réglementé : le taux en vigueur est appliqué automatiquement.'}
+                </AppText>
+              ) : null}
               <AppText variant="caption" tone="subtitle">
                 Le montant total aujourd’hui. Un versement compte pour ta régularité.
               </AppText>
@@ -400,16 +424,19 @@ function PreviewBox({
   preview,
   hidden,
   currency,
+  rates,
   unit,
 }: {
   preview: ReturnType<typeof previewOperation> extends infer R ? (R extends { ok: true; preview: infer P } ? P : never) : never;
   hidden: boolean;
   currency: string;
+  rates: Rates;
   unit: (q: number) => string;
 }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const m = (v: number, exact = false) => money(v, { hidden, currency, exact });
+  // Euros, avec le montant d'origine s'il est dans une autre devise
+  const m = (v: number, exact = false) => moneyEur(v, currency, rates, { hidden, exact });
   const line = (label: string, before: string | null, after: string, tone?: string) => (
     <View style={styles.previewLine} accessible accessibilityLabel={`${label} : ${before ? `${before} puis ` : ''}${after}`}>
       <AppText variant="callout" tone="subtitle">
@@ -437,7 +464,12 @@ function PreviewBox({
       ) : (
         <>
           {line('Position restante', unit(preview.quantityBefore), preview.closes ? 'soldée' : unit(preview.quantityAfter))}
-          {line('Plus-value réalisée', null, signedMoney(preview.realizedGain, { hidden, currency }), preview.realizedGain >= 0 ? colors.success : colors.error)}
+          {line(
+            'Plus-value réalisée',
+            null,
+            toEur(preview.realizedGain, currency, rates) !== null ? signedMoney(toEur(preview.realizedGain, currency, rates)!, { hidden }) : signedMoney(preview.realizedGain, { hidden, currency }),
+            preview.realizedGain >= 0 ? colors.success : colors.error
+          )}
           <AppText variant="caption" tone="subtitle">
             Indicatif : l’impôt se calcule autrement.
           </AppText>

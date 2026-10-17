@@ -19,7 +19,7 @@ import { usePatrimoine } from '@/src/state/patrimoineData';
 import { usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
 import { userKeyOf } from '@/src/state/userMemory';
 import { byRisk, byType, riskProfile, roundedShares, type Share } from '@/src/utils/patrimoine/analysis';
-import { signedMoney } from '@/src/utils/patrimoine/format';
+import { rateDateLabel, signedMoney } from '@/src/utils/patrimoine/format';
 import { chooseValTip } from '@/src/utils/patrimoine/valTips';
 
 type Tab = 'type' | 'risque' | 'zone';
@@ -165,12 +165,24 @@ export default function AnalyseScreen() {
                 accessibilityLabel={`Intérêts de ${p.name} : ${hidden ? 'montant masqué' : signedMoney(p.interestEur ?? 0)} sur un an, estimés`}
               >
                 <AssetIcon logoUrl={p.logoUrl} name={p.name} ticker={p.ticker} type={p.type} size={32} />
-                <AppText style={styles.shareLabel}>Intérêts de {p.name}</AppText>
+                <View style={styles.incomeText}>
+                  <AppText style={styles.shareLabel}>Intérêts de {p.name}</AppText>
+                  {p.interestRatePct !== null ? (
+                    <AppText variant="caption" tone="subtitle">
+                      {[
+                        `${String(p.interestRatePct).replace('.', ',')}\u00a0% par an`,
+                        p.interestRateSource === 'regulatory' ? rateDateLabel(p.interestRateEffectiveAt, p.interestRateVerifiedAt) : 'taux saisi',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </AppText>
+                  ) : null}
+                </View>
                 <AppText style={[styles.sharePct, { color: colors.gold }]}>{signedMoney(p.interestEur ?? 0, { hidden })}</AppText>
               </View>
             ))}
             <AppText variant="caption" tone="subtitle">
-              Estimation sur un an au taux actuel de chaque livret.
+              Estimation sur un an au taux en vigueur de chaque livret.
             </AppText>
           </View>
         ) : null}
@@ -183,6 +195,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[4], minHeight: 52 },
   content: { paddingHorizontal: space[5], gap: space[4] },
+  incomeText: { flex: 1 },
   title: { fontFamily: fonts.title, fontSize: 28, lineHeight: 34, letterSpacing: titleLetterSpacing(28) },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: space[4] },
   ring: { width: RING, height: RING },

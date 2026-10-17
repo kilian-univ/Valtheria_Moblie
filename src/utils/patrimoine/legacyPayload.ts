@@ -7,6 +7,8 @@
 // `rate`. (Avant, le montant partait en quantité et le taux en prix : la
 // valeur affichée valait montant × taux.)
 
+import { isRegulatedLivret } from './forms';
+
 const decimal = (text: string): number => parseFloat(text.replace(/\s/g, '').replace(',', '.'));
 
 export type LegacyForm = { type: string; ticker: string; name: string; first: string; second: string; currency: 'EUR' | 'USD' };
@@ -22,7 +24,8 @@ export function positionPayload(form: LegacyForm): Record<string, unknown> {
       buy_price: first,
       buy_currency: 'EUR',
       is_livret: true,
-      ...(Number.isFinite(second) && second > 0 ? { rate: second } : {}),
+      // Livret réglementé : aucun taux envoyé, le site applique le taux en vigueur
+      ...(Number.isFinite(second) && second > 0 && !isRegulatedLivret(base.ticker) ? { rate: second } : {}),
     };
   }
   return { ...base, quantity: first, buy_price: second, buy_currency: form.currency };

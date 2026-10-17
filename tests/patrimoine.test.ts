@@ -12,7 +12,7 @@ import {
   clipPoints,
   depositIndexes,
   makeScale,
-  modeValue,
+  modeSeries,
   operationMarks,
   periodStart,
   portfolioRange,
@@ -176,16 +176,15 @@ test('périodes : plages du serveur et découpe sur le téléphone', () => {
 });
 
 test('modes, versements et variation', () => {
-  assert.equal(modeValue(SERIES[1], 'plus-value'), 100);
-  assert.equal(modeValue(SERIES[1], 'performance'), 5);
-  assert.equal(modeValue({ ...SERIES[1], invested: 0 }, 'performance'), null);
+  assert.equal(modeSeries(SERIES, 'plus-value')[1], 100);
+  assert.deepEqual(modeSeries(SERIES, 'valeur'), [1000, 2100, 2300, 3500]);
   assert.deepEqual(depositIndexes(SERIES), [1, 3]);
   assert.deepEqual(variation(SERIES), { from: 1000, to: 3500, delta: 2500, pct: 250 });
   assert.equal(variation(SERIES.slice(0, 1)), null);
 });
 
 test('toucher-glisser : l’indice du point le plus proche', () => {
-  const s = makeScale([1, 2, 3, 4], 4, { width: 300, height: 100, padTop: 0, padBottom: 0 });
+  const s = makeScale([1, 2, 3, 4], 4, { width: 300, height: 100, padTop: 0, padBottom: 0 }, { margin: 0 });
   assert.equal(s.index(0), 0);
   assert.equal(s.index(140), 1);
   assert.equal(s.index(160), 2);
@@ -240,7 +239,8 @@ function pos(type: Position['type'], value: number, extra: Partial<Position> = {
     id: Math.round(value), ticker: type.toUpperCase(), name: type, type, logoUrl: null, risk: null, quantity: 1, currency: 'EUR',
     avgCost: value, currentPrice: value, invested: value, value, gain: 0, gainPct: 0, valueEur: value, investedEur: value,
     dailyChangePct: 0, isLive: true, priceSource: 'coingecko', priceUpdatedAt: null, realizedGain: 0, realizedGainEur: 0,
-    operationsCount: 1, openedAt: null, isLivret: type === 'livret', isManual: false, interestEur: null, interestRatePct: null, ...extra,
+    operationsCount: 1, openedAt: null, isLivret: type === 'livret', isManual: false, interestEur: null, interestRatePct: null,
+    interestRateSource: null, interestRateEffectiveAt: null, interestRateVerifiedAt: null, ...extra,
   };
 }
 
@@ -284,9 +284,11 @@ test('remarque de Val : une seule, par priorité, toujours avec une leçon', () 
 // ── Formulaire actuel (repli) : le livret ─────────────────────────────
 
 test('livret : le montant part en prix, le taux dans rate (et plus en prix)', () => {
-  assert.deepEqual(positionPayload({ type: 'livret', ticker: 'livret_a', name: 'Livret A', first: '5 000', second: '2,4', currency: 'USD' }), {
-    ticker: 'LIVRET_A', name: 'Livret A', type: 'livret', quantity: 1, buy_price: 5000, buy_currency: 'EUR', is_livret: true, rate: 2.4,
+  assert.deepEqual(positionPayload({ type: 'livret', ticker: 'livret_bleu', name: 'Livret Bleu', first: '5 000', second: '2,4', currency: 'USD' }), {
+    ticker: 'LIVRET_BLEU', name: 'Livret Bleu', type: 'livret', quantity: 1, buy_price: 5000, buy_currency: 'EUR', is_livret: true, rate: 2.4,
   });
+  // Livret réglementé : le taux saisi n'est pas envoyé (taux du site)
+  assert.equal('rate' in positionPayload({ type: 'livret', ticker: 'livret_a', name: 'Livret A', first: '5 000', second: '2,4', currency: 'EUR' }), false);
   assert.equal('rate' in positionPayload({ type: 'livret', ticker: 'L', name: 'L', first: '100', second: '', currency: 'EUR' }), false);
   assert.deepEqual(positionPayload({ type: 'crypto', ticker: 'sol', name: 'Solana', first: '2', second: '150,5', currency: 'USD' }), {
     ticker: 'SOL', name: 'Solana', type: 'crypto', quantity: 2, buy_price: 150.5, buy_currency: 'USD',
@@ -343,8 +345,10 @@ test('livret : une part au prix du montant, le taux dans rate', async () => {
   const { livretPayload } = await import('../src/utils/patrimoine/forms');
   assert.deepEqual(livretPayload({ ticker: 'LIVRET_A', name: 'Livret A', amount: '12 000', ratePct: '2,4' }, 1), {
     ok: true,
-    body: { ticker: 'LIVRET_A', name: 'Livret A', type: 'livret', quantity: 1, buy_price: 12000, buy_currency: 'EUR', is_livret: true, rate: 2.4 },
+    body: { ticker: 'LIVRET_A', name: 'Livret A', type: 'livret', quantity: 1, buy_price: 12000, buy_currency: 'EUR', is_livret: true },
   });
+  const bank = livretPayload({ ticker: null, name: 'Livret Bleu', amount: '500', ratePct: '2,4' }, 5);
+  assert.ok(bank.ok && bank.body.rate === 2.4);
   const custom = livretPayload({ ticker: null, name: 'Livret Bleu', amount: '500', ratePct: '' }, 123);
   assert.ok(custom.ok && custom.body.ticker === 'LIVRET_123' && !('rate' in custom.body));
   assert.ok(!livretPayload({ ticker: null, name: 'X', amount: '10', ratePct: '150' }, 1).ok);

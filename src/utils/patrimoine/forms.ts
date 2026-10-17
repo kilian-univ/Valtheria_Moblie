@@ -98,13 +98,19 @@ export function operationPatch(form: OperationForm): Payload {
 
 // ── Livret (POST ou PATCH /api/portfolio/positions) ─────────────────────
 
+// Livrets réglementés : leur taux vient uniquement des chiffres réglementaires
+// du site (jamais saisi, jamais gardé sur le téléphone)
+export const REGULATED_LIVRETS: readonly string[] = ['LIVRET_A', 'LDDS', 'LEP', 'LIVRET_JEUNE', 'PEL', 'CEL'];
+export const isRegulatedLivret = (ticker: string | null | undefined): boolean => REGULATED_LIVRETS.includes((ticker ?? '').toUpperCase());
+
 export type LivretForm = { ticker: string | null; name: string; amount: string; ratePct: string };
 
 // Une part au prix du montant, le taux annuel en % dans `rate` (même forme que
 // la page web)
 export function livretPayload(form: LivretForm, now: number): Payload {
   const amount = parseDecimal(form.amount);
-  const rate = form.ratePct.trim() === '' ? null : parseDecimal(form.ratePct);
+  // Livret réglementé : aucun taux envoyé, le site applique le taux en vigueur
+  const rate = form.ratePct.trim() === '' || isRegulatedLivret(form.ticker) ? null : parseDecimal(form.ratePct);
   if (!form.name.trim()) return { ok: false, field: 'name', message: 'Donne un nom à ce livret.' };
   if (!(amount >= 0)) return { ok: false, field: 'amount', message: 'Indique le montant sur ce livret.' };
   if (rate !== null && !(rate >= 0 && rate <= 100)) return { ok: false, field: 'ratePct', message: 'Le taux est un pourcentage, entre 0 et 100.' };

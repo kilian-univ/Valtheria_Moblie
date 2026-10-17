@@ -21,12 +21,15 @@ type Props = {
   // Supprimer un relevé anormal (courbe du patrimoine seulement) : appelé une
   // fois le menu refermé, pour ouvrir la confirmation
   onDelete?: (key: string) => void;
+  // Échelle logarithmique (mémorisée)
+  log: boolean;
+  onLogChange: (log: boolean) => void;
 };
 
 // Petit menu de la courbe : « Masquer les relevés anormaux » ou « Afficher
 // tout », et la liste des relevés anormaux (un chemin pour le lecteur
 // d'écran, qui ne peut pas faire d'appui long sur un point)
-export default function ChartMenu({ hide, onChange, anomalies, onDelete }: Props) {
+export default function ChartMenu({ hide, onChange, anomalies, onDelete, log, onLogChange }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const [open, setOpen] = useState(false);
@@ -69,7 +72,7 @@ export default function ChartMenu({ hide, onChange, anomalies, onDelete }: Props
         >
           <View style={styles.sheet}>
             <AppText variant="title3" accessibilityRole="header">
-              Relevés de la courbe
+              Options de la courbe
             </AppText>
             <View accessibilityRole="radiogroup">
               <Choice label="Masquer les relevés anormaux" caption="Un point qui s’écarte d’un coup de ses voisins, puis revient." selected={hide} onPress={() => choose(true)} />
@@ -78,6 +81,30 @@ export default function ChartMenu({ hide, onChange, anomalies, onDelete }: Props
             <AppText variant="caption" tone="subtitle">
               {status}
             </AppText>
+            <View accessibilityRole="radiogroup">
+              <Choice
+                label="Échelle linéaire"
+                selected={!log}
+                onPress={() => {
+                  if (log) {
+                    select();
+                    onLogChange(false);
+                  }
+                }}
+              />
+              <Choice
+                label="Échelle logarithmique"
+                caption="Un même pourcentage prend la même hauteur, utile sur plusieurs années."
+                selected={log}
+                onPress={() => {
+                  if (!log) {
+                    select();
+                    onLogChange(true);
+                  }
+                }}
+                last
+              />
+            </View>
             {onDelete && count > 0 ? (
               <View style={styles.list}>
                 <AppText variant="sectionLabel" accessibilityRole="header">

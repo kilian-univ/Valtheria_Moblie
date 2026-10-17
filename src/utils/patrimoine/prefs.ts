@@ -21,6 +21,8 @@ export type PatrimoinePrefs = {
   months: string[];
   // Courbes : relevés anormaux masqués (activé par défaut)
   hideAnomalies: boolean;
+  // Courbes de valeur et de cours : échelle logarithmique (désactivée par défaut)
+  logScale: boolean;
   // Icône choisie pour un placement sans cours, par symbole (en majuscules)
   icons: Record<string, IconKey>;
 };
@@ -33,6 +35,7 @@ export const DEFAULT_PREFS: PatrimoinePrefs = {
   milestones: {},
   months: [],
   hideAnomalies: true,
+  logScale: false,
   icons: {},
 };
 
@@ -85,6 +88,7 @@ export function parsePrefs(raw: unknown): PatrimoinePrefs {
     milestones,
     months: [...new Set(months)].sort(),
     hideAnomalies: r.hideAnomalies !== false,
+    logScale: r.logScale === true,
     icons,
   };
 }

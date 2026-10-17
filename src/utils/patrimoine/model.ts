@@ -41,7 +41,13 @@ export type Position = {
   isLivret: boolean;
   isManual: boolean;
   interestEur: number | null; // intérêts estimés sur l'année (livrets)
+  // Taux d'un livret, toujours celui du serveur : chiffre réglementaire
+  // (« regulatory », avec sa date d'effet et de vérification) ou taux saisi
+  // d'un livret bancaire libre (« position »)
   interestRatePct: number | null;
+  interestRateSource: 'regulatory' | 'position' | null;
+  interestRateEffectiveAt: string | null;
+  interestRateVerifiedAt: string | null;
 };
 
 export type ClosedPosition = {
@@ -68,6 +74,8 @@ export type Portfolio = {
   passiveIncomeEur: number;
   positions: Position[];
   closed: ClosedPosition[];
+  // Dollars pour un euro (taux du jour du serveur), pour convertir en euros
+  eurUsd: number | null;
 };
 
 export type Operation = {
@@ -148,7 +156,10 @@ export function parsePosition(raw: unknown): Position | null {
     isLivret,
     isManual: p.is_manual === true,
     interestEur: numOrNull(p.annual_interest_estimate_eur),
-    interestRatePct: numOrNull(p.interest_rate_pct) ?? (isLivret ? numOrNull(p.rate) : null),
+    interestRatePct: numOrNull(p.interest_rate_pct),
+    interestRateSource: p.interest_rate_source === 'regulatory' || p.interest_rate_source === 'position' ? p.interest_rate_source : null,
+    interestRateEffectiveAt: str(p.interest_rate_effective_at),
+    interestRateVerifiedAt: str(p.interest_rate_verified_at),
   };
 }
 
@@ -194,6 +205,7 @@ export function parsePortfolio(raw: unknown): Portfolio | null {
     passiveIncomeEur: num(r.passive_income_estimate_eur),
     positions,
     closed,
+    eurUsd: numOrNull(obj(r.fx)?.eur_usd ?? r.eur_usd_rate),
   };
 }
 

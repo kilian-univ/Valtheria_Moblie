@@ -2,6 +2,7 @@
 // performance), points de versement, toucher-glisser et phrase pour le lecteur
 // d'écran. Sans React : testable avec Node.
 
+import { money } from './format';
 import type { ChartPoint, Operation, PricePoint } from './model';
 
 export type Period = '1J' | '1S' | '1M' | 'YTD' | '1A' | '5A' | 'Tout';
@@ -74,12 +75,29 @@ export function clipPrices(points: PricePoint[], period: Period, now: Date): Pri
   return start === null ? points : points.filter((p) => p.t >= start - 1000);
 }
 
-// Valeur tracée selon le mode ; null quand elle n'a pas de sens (performance
-// sans montant investi)
-export function modeValue(p: ChartPoint, mode: ChartMode): number | null {
-  if (mode === 'valeur') return p.value;
-  if (mode === 'plus-value') return p.value - p.invested;
-  return p.invested > 0 ? ((p.value - p.invested) / p.invested) * 100 : null;
+// Rendement pondéré par le temps, cumulé depuis le premier point (en %) : entre
+// deux relevés, l'argent ajouté ou retiré (variation du montant investi) est
+// retiré du gain avant de calculer le rendement de la sous-période, puis les
+// sous-périodes sont enchaînées. Les versements ne comptent donc jamais comme
+// un gain : c'est ce qu'ont rapporté les placements eux-mêmes.
+export function twrSeries(points: readonly ChartPoint[]): number[] {
+  let growth = 1;
+  return points.map((p, i) => {
+    if (i > 0) {
+      const prev = points[i - 1];
+      const flow = p.invested - prev.invested;
+      if (prev.value > 0) growth *= (p.value - flow) / prev.value;
+    }
+    return (growth - 1) * 100;
+  });
+}
+
+// Valeur tracée à chaque point selon le mode : la valeur ; la plus-value (valeur
+// moins montant investi à cette date, en euros) ; la performance (rendement
+// pondéré par le temps, en %, cumulé sur la période affichée)
+export function modeSeries(points: readonly ChartPoint[], mode: ChartMode): number[] {
+  if (mode === 'performance') return twrSeries(points);
+  return points.map((p) => (mode === 'valeur' ? p.value : p.value - p.invested));
 }
 
 // Points où l'argent investi augmente : un versement (achat, dépôt)
@@ -105,32 +123,104 @@ export function variation(points: ChartPoint[]): Variation | null {
 export type Frame = { width: number; height: number; padTop: number; padBottom: number };
 
 export type Scale = {
+  // Bornes affichées (marge comprise)
   min: number;
   max: number;
+  log: boolean;
   x: (i: number) => number;
   y: (v: number) => number;
   index: (x: number) => number;
+  // La valeur tient-elle dans les bornes affichées ?
+  contains: (v: number) => boolean;
 };
 
-export function makeScale(values: number[], count: number, frame: Frame, extra: number[] = []): Scale {
-  const all = [...values, ...extra].filter((v) => Number.isFinite(v));
-  let min = all.length ? Math.min(...all) : 0;
-  let max = all.length ? Math.max(...all) : 1;
-  if (max - min < 1e-9) {
-    const pad = Math.abs(max) * 0.05 || 1;
-    min -= pad;
-    max += pad;
+// Marge au-dessus et au-dessous de la courbe (part de l'écart affiché)
+export const SCALE_MARGIN = 0.08;
+
+// L'axe s'adapte aux seules valeurs de la courbe affichée (jamais à zéro, ni au
+// prix de revient ou au montant investi, qui ont leur étiquette en bordure),
+// avec une marge. Logarithmique : un même pourcentage prend la même hauteur ;
+// seulement si toutes les valeurs sont positives (sinon linéaire).
+export function makeScale(values: readonly number[], count: number, frame: Frame, opts: { log?: boolean; margin?: number } = {}): Scale {
+  const finite = values.filter((v) => Number.isFinite(v));
+  const log = !!opts.log && finite.length > 0 && finite.every((v) => v > 0);
+  const t = (v: number) => (log ? Math.log(v) : v);
+  const all = finite.map(t);
+  let lo = all.length ? Math.min(...all) : 0;
+  let hi = all.length ? Math.max(...all) : 1;
+  if (hi - lo < 1e-9) {
+    const pad = log ? 0.05 : Math.abs(hi) * 0.05 || 1;
+    lo -= pad;
+    hi += pad;
   }
-  const span = max - min;
+  const margin = (hi - lo) * (opts.margin ?? SCALE_MARGIN);
+  lo -= margin;
+  hi += margin;
+  const span = hi - lo;
   const inner = frame.height - frame.padTop - frame.padBottom;
   const step = count > 1 ? frame.width / (count - 1) : 0;
+  const back = (u: number) => (log ? Math.exp(u) : u);
   return {
-    min,
-    max,
+    min: back(lo),
+    max: back(hi),
+    log,
     x: (i) => (count > 1 ? i * step : frame.width / 2),
-    y: (v) => frame.padTop + (1 - (v - min) / span) * inner,
+    y: (v) => {
+      const u = log ? (v > 0 ? Math.log(v) : lo - span) : v;
+      return frame.padTop + (1 - (u - lo) / span) * inner;
+    },
     index: (x) => (count > 1 ? Math.max(0, Math.min(count - 1, Math.round(x / step))) : 0),
+    contains: (v) => {
+      const u = log ? (v > 0 ? Math.log(v) : -Infinity) : v;
+      return u >= lo && u <= hi;
+    },
   };
+}
+
+// Texte d'un repère de valeur : « 27 000 € » ; « + 10 % », « 0 % », « − 5 % »
+export function tickLabel(v: number, unit: 'eur' | 'pct'): string {
+  if (unit === 'eur') return money(v);
+  const r = Math.round(v * 10) / 10;
+  const abs = String(Math.abs(r)).replace('.', ',');
+  return r === 0 ? '0\u00a0%' : `${r > 0 ? '+' : '−'}\u00a0${abs}\u00a0%`;
+}
+
+// Pas « ronds » : 1, 2, 2,5, 5 × 10^n
+function niceSteps(rough: number): number[] {
+  const p = 10 ** Math.floor(Math.log10(rough));
+  return [1, 2, 2.5, 5, 10, 20].map((m) => m * p);
+}
+
+// Trois repères de valeur arrondis proprement, dans les bornes affichées
+// (deux si la plage est trop étroite). Logarithmique : des valeurs rondes
+// régulières en pourcentage (1, 2, 5 × 10^n), sinon les repères linéaires.
+export function niceTicks(scale: Pick<Scale, 'min' | 'max' | 'log'>, count = 3): number[] {
+  const { min, max } = scale;
+  if (!(max > min)) return [];
+  if (scale.log && min > 0) {
+    const out: number[] = [];
+    for (let e = Math.floor(Math.log10(min)); e <= Math.ceil(Math.log10(max)); e++) {
+      for (const m of [1, 2, 5]) {
+        const v = m * 10 ** e;
+        if (v >= min && v <= max) out.push(v);
+      }
+    }
+    if (out.length >= 2 && out.length <= count) return out;
+    if (out.length > count) {
+      const pick = [0, Math.round((out.length - 1) / 2), out.length - 1];
+      return [...new Set(pick)].map((i) => out[i]);
+    }
+  }
+  const inner = (max - min) / (1 + 2 * SCALE_MARGIN);
+  const lo = min + (max - min - inner) / 2;
+  const hi = lo + inner;
+  for (const step of niceSteps(inner / count)) {
+    const first = Math.ceil(lo / step) * step;
+    const ticks: number[] = [];
+    for (let v = first; v <= hi + step * 1e-9; v += step) ticks.push(Math.round(v / step) * step);
+    if (ticks.length <= count) return ticks.length >= 2 ? ticks : [Math.round(((lo + hi) / 2) / step) * step];
+  }
+  return [];
 }
 
 // Tracé SVG d'une suite de valeurs (les null coupent la ligne)

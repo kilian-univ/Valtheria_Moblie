@@ -25,8 +25,9 @@ import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
 import { splitAnomalies } from '@/src/utils/patrimoine/anomalies';
 import { TYPE_LABELS } from '@/src/utils/patrimoine/analysis';
-import { clipPrices, DEFAULT_PERIOD, operationMarks, priceRange, priceSummary, type Period } from '@/src/utils/patrimoine/chart';
-import { longDate, money, quantity, quantityLabel, shortDate, signedMoney, signedPercent } from '@/src/utils/patrimoine/format';
+import { clipPrices, DEFAULT_PERIOD, operationMarks, periodLabel, priceRange, priceSummary, tickLabel, type Period } from '@/src/utils/patrimoine/chart';
+import { moneyEur, originalNote, ratesOf, toEur } from '@/src/utils/patrimoine/currency';
+import { longDate, money, quantity, quantityLabel, rateDateLabel, shortDate, signedMoney, signedPercent } from '@/src/utils/patrimoine/format';
 import { isStalePrice, parseOperations, parsePriceHistory, type Operation, type PricePoint } from '@/src/utils/patrimoine/model';
 
 // Un actif : son cours avec tes achats et ventes, ta position, tes opérations
@@ -41,6 +42,9 @@ export default function ActifScreen() {
   const data = usePatrimoine(userKey, getPortfolio);
   const prefs = usePatrimoinePrefs(userKey);
   const hidden = prefs?.discreet ?? false;
+  // Taux du jour de la liste : tout s'affiche en euros, converti de la même façon
+  const portfolio = data.portfolio;
+  const rates = useMemo(() => ratesOf(portfolio?.positions ?? [], portfolio?.eurUsd ?? null), [portfolio]);
 
   const position = data.portfolio?.positions.find((p) => p.id === positionId) ?? null;
   const closed = data.portfolio?.closed.find((p) => p.id === positionId) ?? null;
@@ -66,15 +70,15 @@ export default function ActifScreen() {
   const [period, setPeriod] = useState<Period>(DEFAULT_PERIOD);
   const ticker = position?.ticker ?? closed?.ticker ?? '';
   const range = priceRange(period);
-  const [prices, setPrices] = useState<{ range: string; points: PricePoint[] } | null>(null);
+  const [prices, setPrices] = useState<{ range: string; points: PricePoint[]; currency: string } | null>(null);
   useEffect(() => {
     if (!ticker || !market) return;
     let active = true;
     get(`/prices/history?ticker=${encodeURIComponent(ticker)}&range=${range}`)
-      .then((raw: unknown) => parsePriceHistory(raw).points)
-      .catch(() => [] as PricePoint[])
-      .then((points: PricePoint[]) => {
-        if (active) setPrices({ range, points });
+      .then((raw: unknown) => parsePriceHistory(raw))
+      .catch(() => ({ points: [] as PricePoint[], currency: 'EUR' }))
+      .then(({ points, currency }: { points: PricePoint[]; currency: string }) => {
+        if (active) setPrices({ range, points, currency });
       });
     return () => {
       active = false;
@@ -84,7 +88,11 @@ export default function ActifScreen() {
   const now = useMemo(() => new Date(), []);
   // Cours anormaux : jugés sur toute la plage reçue, masqués par défaut
   const hideAnomalies = prefs?.hideAnomalies ?? true;
-  const split = prices?.range === range ? splitAnomalies(prices.points, (p) => p.price, hideAnomalies) : null;
+  // Cours converti en euros comme la liste (taux inconnu : gardé dans sa devise)
+  const seriesRate = prices ? (rates[prices.currency.toUpperCase()] ?? null) : null;
+  const chartCurrency = prices && seriesRate === null ? prices.currency.toUpperCase() : 'EUR';
+  const converted = prices ? prices.points.map((p) => ({ t: p.t, price: p.price * (seriesRate ?? 1) })) : [];
+  const split = prices?.range === range ? splitAnomalies(converted, (p) => p.price, hideAnomalies) : null;
   const points = split ? clipPrices(split.kept, period, now) : [];
   const anomalies = split ? clipPrices(split.hidden, period, now) : [];
   const marks = operationMarks(points, ops?.list ?? []);
@@ -128,21 +136,40 @@ export default function ActifScreen() {
   const name = position?.name ?? closed!.name;
   const type = position?.type ?? closed!.type;
   const currency = position?.currency ?? closed!.currency;
-  const mc = (v: number) => money(v, { hidden, currency });
-  const realized = position ? position.realizedGain : closed!.realizedGain;
+  // Montant de la position en euros (repli : sa devise si le taux manque)
+  const eur = (v: number) => toEur(v, currency, rates);
+  const me = (v: number, exact = false) => {
+    const e = eur(v);
+    return e === null ? money(v, { hidden, currency, exact }) : money(e, { hidden, exact });
+  };
+  // Montant d'origine, sous un montant converti
+  const orig = (v: number, exact = false) => (hidden || eur(v) === null ? null : originalNote(v, currency, { exact }));
+  const realizedEur = position ? position.realizedGainEur : closed!.realizedGainEur;
   const stale = position ? isStalePrice(position) : false;
-  const headline = [ticker.replace(/^(LIVRET_|CUSTOM_).*/, ''), TYPE_LABELS[type], position && market ? `${money(position.currentPrice, { currency, exact: true })} l’unité` : null]
+  const headline = [ticker.replace(/^(LIVRET_|CUSTOM_).*/, ''), TYPE_LABELS[type], position && market ? `${me(position.currentPrice, true)} l’unité` : null]
     .filter(Boolean)
     .join(' · ');
+  // Prix d'une opération dans la devise de la courbe (pour placer son point)
+  const inChart = (amount: number, cur: string) => (chartCurrency === 'EUR' ? toEur(amount, cur, rates) : cur.toUpperCase() === chartCurrency ? amount : null);
+  const pru = position && position.avgCost > 0 ? inChart(position.avgCost, currency) : null;
+  // Valeur de la position et plus-value depuis les achats, en euros
+  const valueShown = position ? (position.valueEur ?? position.value) : 0;
+  const gainShown = position ? (position.valueEur !== null && position.investedEur !== null ? position.valueEur - position.investedEur : position.gain) : 0;
+  // Variation du cours sur la période affichée, appliquée à la quantité détenue
+  const first = points.length >= 2 ? points[0].price : null;
+  const last = points.length >= 2 ? points[points.length - 1].price : null;
+  const periodPct = first !== null && last !== null && first > 0 ? (last / first - 1) * 100 : null;
+  const periodAmount = position && first !== null && last !== null ? (chartCurrency === 'EUR' ? position.quantity * (last - first) : toEur(position.quantity * (last - first), chartCurrency, rates)) : null;
 
   const opLabel = (op: Operation) => `${op.side === 'buy' ? 'Achat' : 'Vente'} de ${quantityLabel(op.quantity, ticker, type)}`;
   const tipFor = (i: number) => {
     const p = points[i];
     const mark = marks.find((m) => m.index === i);
+    const op = mark ? ops?.list.find((o) => o.id === mark.operationId) : undefined;
     return {
-      title: money(p.price, { currency, exact: true }),
+      title: money(p.price, { currency: chartCurrency, exact: true }),
       caption: shortDate(p.t, now),
-      extra: mark ? (mark.side === 'buy' ? 'ton achat' : 'ta vente') : undefined,
+      extra: mark && op ? `${mark.side === 'buy' ? 'ton achat' : 'ta vente'} : ${moneyEur(op.unitPrice, op.currency, rates, { exact: true, hidden })}` : undefined,
     };
   };
 
@@ -170,15 +197,26 @@ export default function ActifScreen() {
         ) : null}
 
         {position ? (
-          <View accessible accessibilityLabel={`Ta position : ${hidden ? 'masquée' : money(position.valueEur ?? position.value)}${market && !hidden ? `, ${signedMoney(position.gain, { currency })} depuis tes achats` : ''}`}>
+          <View
+            accessible
+            accessibilityLabel={`Ta position : ${hidden ? 'masquée' : money(valueShown)}${
+              market && !hidden ? `, ${signedMoney(gainShown)} depuis tes achats` : ''
+            }${market && !hidden && periodPct !== null && periodAmount !== null ? `, ${signedMoney(periodAmount)} ${periodLabel(period)}` : ''}`}
+          >
             <AppText variant="caption" tone="subtitle">
               Ta position
             </AppText>
-            <BigNumber text={mc(position.value)} size={40} tone="text" style={styles.left} />
+            <BigNumber text={money(valueShown, { hidden, currency: position.valueEur !== null ? 'EUR' : currency })} size={40} tone="text" style={styles.left} />
             {market ? (
-              <AppText style={[styles.variation, { color: position.gain >= 0 ? colors.success : colors.error }]}>
-                {signedMoney(position.gain, { hidden, currency })} ({signedPercent(position.gainPct, hidden)}){' '}
+              <AppText style={[styles.variation, { color: gainShown >= 0 ? colors.success : colors.error }]}>
+                {signedMoney(gainShown, { hidden })} ({signedPercent(position.gainPct, hidden)}){' '}
                 <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>depuis tes achats</AppText>
+              </AppText>
+            ) : null}
+            {market && periodPct !== null && periodAmount !== null ? (
+              <AppText style={[styles.variation, { color: periodAmount >= 0 ? colors.success : colors.error }]}>
+                {signedMoney(periodAmount, { hidden })} ({signedPercent(periodPct, hidden)}){' '}
+                <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{periodLabel(period)}</AppText>
               </AppText>
             ) : null}
           </View>
@@ -197,13 +235,20 @@ export default function ActifScreen() {
                   color={colors.gold}
                   area={false}
                   level={
-                    position && position.avgCost > 0
-                      ? { value: position.avgCost, label: hidden ? 'ton prix de revient' : `ton prix de revient ${money(position.avgCost, { currency, exact: true })}`, color: colors.frostInk }
+                    pru !== null
+                      ? { value: pru, label: hidden ? 'ton prix de revient' : `ton prix de revient : ${money(pru, { currency: chartCurrency, exact: true })}`, color: colors.frostInk }
                       : null
                   }
-                  dots={marks.map((m) => ({ index: m.index, color: m.side === 'buy' ? colors.success : colors.error }))}
+                  // Point d'un achat ou d'une vente : à son prix, converti comme la liste
+                  dots={marks.map((m) => {
+                    const op = ops?.list.find((o) => o.id === m.operationId);
+                    const at = op ? inChart(op.unitPrice, op.currency) : null;
+                    return { index: m.index, color: m.side === 'buy' ? colors.success : colors.error, value: at ?? undefined };
+                  })}
+                  log={prefs?.logScale ?? false}
+                  formatTick={hidden ? undefined : (x) => (chartCurrency === 'EUR' ? tickLabel(x, 'eur') : money(x, { currency: chartCurrency }))}
                   tip={tipFor}
-                  summary={priceSummary(points, period, (x) => money(x, { currency }), name)}
+                  summary={priceSummary(points, period, (x) => money(x, { currency: chartCurrency }), name)}
                 />
               ) : (
                 <View style={[styles.chartEmpty, { borderColor: colors.border }]}>
@@ -226,7 +271,9 @@ export default function ActifScreen() {
               <ChartMenu
                 hide={hideAnomalies}
                 onChange={(hide) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, hideAnomalies: hide }))}
-                anomalies={anomalies.map((p) => ({ key: String(p.t), label: `${shortDate(p.t, now)} · ${money(p.price, { currency, exact: true })}` }))}
+                anomalies={anomalies.map((p) => ({ key: String(p.t), label: `${shortDate(p.t, now)} · ${money(p.price, { currency: chartCurrency, exact: true })}` }))}
+                log={prefs?.logScale ?? false}
+                onLogChange={(log) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, logScale: log }))}
               />
             </View>
           </>
@@ -236,33 +283,43 @@ export default function ActifScreen() {
           <View style={styles.grid}>
             <View style={styles.gridRow}>
               <Figure big label="Quantité" value={quantityLabel(position.quantity, ticker, type)} />
-              <Figure big label="Prix de revient moyen" value={money(position.avgCost, { hidden, currency, exact: true })} term="Prix de revient moyen" />
+              <Figure big label="Prix de revient moyen" value={me(position.avgCost, true)} note={orig(position.avgCost, true)} term="Prix de revient moyen" />
             </View>
             <View style={styles.gridRow}>
-              <Figure big label="Investi" value={mc(position.invested)} term="Montant investi" />
+              <Figure big label="Investi" value={money(position.investedEur ?? position.invested, { hidden, currency: position.investedEur !== null ? 'EUR' : currency })} note={orig(position.invested)} term="Montant investi" />
               <Figure
                 big
                 label="Plus-value latente"
-                value={signedMoney(position.gain, { hidden, currency })}
-                tone={position.gain >= 0 ? 'success' : 'error'}
+                value={signedMoney(gainShown, { hidden })}
+                note={hidden || currency === 'EUR' ? null : signedMoney(position.gain, { currency })}
+                tone={gainShown >= 0 ? 'success' : 'error'}
                 term="Plus-value latente"
               />
             </View>
-            {Math.abs(realized) > 0.004 ? (
+            {Math.abs(realizedEur) > 0.004 ? (
               <View style={styles.gridRow}>
-                <Figure big label="Plus-value réalisée" value={signedMoney(realized, { hidden, currency })} tone={realized >= 0 ? 'success' : 'error'} term="Plus-value réalisée" />
+                <Figure big label="Plus-value réalisée" value={signedMoney(realizedEur, { hidden })} tone={realizedEur >= 0 ? 'success' : 'error'} term="Plus-value réalisée" />
               </View>
             ) : null}
           </View>
         ) : position ? (
           <View style={styles.gridRow}>
-            {position.interestRatePct !== null ? <Figure big label="Taux par an" value={`${String(position.interestRatePct).replace('.', ',')} %`} term="Taux d’intérêt" /> : null}
+            {position.interestRatePct !== null ? (
+              <Figure
+                big
+                label="Taux par an"
+                value={`${String(position.interestRatePct).replace('.', ',')}\u00a0%`}
+                // Taux réglementaire : sa date (« taux au 1er août 2026 ») ; taux saisi : rien
+                note={position.interestRateSource === 'regulatory' ? rateDateLabel(position.interestRateEffectiveAt, position.interestRateVerifiedAt) : null}
+                term="Taux d’intérêt"
+              />
+            ) : null}
             {position.interestEur !== null ? <Figure big label="Intérêts sur 1 an" value={signedMoney(position.interestEur, { hidden })} tone="gold" term="Intérêts" /> : null}
-            {position.isManual ? <Figure big label="Valeur estimée" value={mc(position.value)} /> : null}
+            {position.isManual ? <Figure big label="Valeur estimée" value={me(position.value)} /> : null}
           </View>
         ) : (
           <View style={styles.gridRow}>
-            <Figure big label="Plus-value réalisée" value={signedMoney(realized, { hidden, currency })} tone={realized >= 0 ? 'success' : 'error'} term="Plus-value réalisée" />
+            <Figure big label="Plus-value réalisée" value={signedMoney(realizedEur, { hidden })} tone={realizedEur >= 0 ? 'success' : 'error'} term="Plus-value réalisée" />
           </View>
         )}
 
@@ -281,7 +338,7 @@ export default function ActifScreen() {
                   setSheetOpen(true);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`${opLabel(op)}, le ${longDate(op.executedAt)}, ${hidden ? 'montant masqué' : money(op.total, { currency: op.currency })}`}
+                accessibilityLabel={`${opLabel(op)}, le ${longDate(op.executedAt)}, ${hidden ? 'montant masqué' : moneyEur(op.total, op.currency, rates)}`}
                 accessibilityHint="Modifier ou supprimer cette opération"
                 style={({ pressed }) => [
                   styles.opRow,
@@ -295,10 +352,10 @@ export default function ActifScreen() {
                 <View style={styles.opBody}>
                   <AppText style={styles.opTitle}>{opLabel(op)}</AppText>
                   <AppText variant="caption" tone="subtitle">
-                    {longDate(op.executedAt)} · {money(op.unitPrice, { hidden, currency: op.currency, exact: true })} l’unité
+                    {longDate(op.executedAt)} · {moneyEur(op.unitPrice, op.currency, rates, { hidden, exact: true })} l’unité
                   </AppText>
                 </View>
-                <AppText style={styles.opAmount}>{money(op.total, { hidden, currency: op.currency })}</AppText>
+                <AppText style={styles.opAmount}>{money(toEur(op.total, op.currency, rates) ?? op.total, { hidden, currency: toEur(op.total, op.currency, rates) === null ? op.currency : 'EUR' })}</AppText>
                 <Ionicons name="chevron-forward" size={14} color={colors.subtitle} />
               </Pressable>
             ))}
@@ -332,7 +389,7 @@ export default function ActifScreen() {
             <AppText variant="callout" tone="subtitle">
               {sheet.confirm
                 ? 'Ta position et ton prix de revient seront recalculés sans elle.'
-                : `${longDate(sheet.op.executedAt)} · ${quantity(sheet.op.quantity)} × ${money(sheet.op.unitPrice, { hidden, currency: sheet.op.currency })}${sheet.op.fees > 0 ? ` + ${money(sheet.op.fees, { hidden, currency: sheet.op.currency })} de frais` : ''}`}
+                : `${longDate(sheet.op.executedAt)} · ${quantity(sheet.op.quantity)} × ${moneyEur(sheet.op.unitPrice, sheet.op.currency, rates, { hidden, exact: true })}${sheet.op.fees > 0 ? ` + ${moneyEur(sheet.op.fees, sheet.op.currency, rates, { hidden, exact: true })} de frais` : ''}`}
             </AppText>
             {error ? (
               <AppText variant="callout" tone="error" accessibilityRole="alert" accessibilityLiveRegion="polite">
