@@ -431,3 +431,36 @@ test('format des écrans interactifs : un écran mal formé tombe sur l’écran
     Array(6).fill('unsupported')
   );
 });
+
+// Audit du 17/10/2026 (I32) : ne jamais valider l'achat d'une crypto inconnue
+// vantée par un proche ; la bonne réponse refuse d'investir sans comprendre
+test('Crypto : le dialogue avec Léo ne valide pas un achat sur simple conseil', async () => {
+  const { crypto } = await import('../src/lesson/discovery/crypto');
+  const dialogue = crypto.screens.find((s) => s.type === 'dialogue')!;
+  const replies = dialogue.payload.replies as readonly { id: string; text: string; correct?: boolean; reaction: string }[];
+  const right = replies.filter((r) => r.correct);
+  assert.deepEqual(right.map((r) => r.id), ['comprendre']);
+  assert.match(right[0].text, /comprendre ce que j’achète/);
+  assert.match(right[0].text, /jamais plus que ce que je peux perdre/);
+  // Miser « une petite somme pour voir » sans comprendre reste une erreur
+  assert.equal(replies.find((r) => r.id === 'petite')?.correct, undefined);
+  // Plus d'impératif qui pousse à acheter
+  const all = JSON.stringify(crypto);
+  assert.ok(!all.includes('Mets-y'));
+  assert.ok(!all.includes('Je veux bien tenter'));
+  assert.match((dialogue as { explanation?: string }).explanation ?? '', /arnaque/);
+});
+
+// Audit du 17/10/2026 (I33) : les lignes suivent la fiche de paie de référence
+// (net payé après impôt), et chaque étape s'additionne
+test('Salaire : la révélation part du net payé et chaque ligne s’additionne', async () => {
+  const { decouvrir } = await import('../src/lesson/discovery/decouvrir');
+  const reveal = decouvrir.screens.find((s) => s.type === 'reveal')!;
+  const v = (reveal.payload.lines as readonly { value: number | string }[]).map((l) => Number(l.value));
+  assert.deepEqual(v, [1660, 91, 1751, 509, 2260, 795, 3055]);
+  assert.equal(v[0] + v[1], v[2]);
+  assert.equal(v[2] + v[3], v[4]);
+  assert.equal(v[4] + v[5], v[6]);
+  assert.equal(reveal.payload.value, v[6]);
+  assert.ok(!JSON.stringify(decouvrir).includes('Personne ne te montre ce chiffre'));
+});

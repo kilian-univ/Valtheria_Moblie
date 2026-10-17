@@ -84,24 +84,32 @@ export const crypto = {
       type: 'dialogue',
       scored: true,
       val: {
-        correct: { line: 'Exactement : jamais plus que ce que tu peux te permettre de perdre.', mood: 'fier' },
-        wrong: { line: 'Personne ne sait ce qu’une crypto fera. Mets-y seulement ce que tu peux perdre.', mood: 'rassurant' },
+        correct: {
+          line: 'Exactement : on ne place pas son argent sur un simple conseil, sans comprendre ce qu’on achète. Et jamais plus que ce qu’on peut perdre.',
+          mood: 'fier',
+        },
+        wrong: {
+          line: 'Une crypto inconnue qui promet ×10, c’est souvent comme ça que commencent les arnaques. D’abord comprendre ce qu’on achète.',
+          mood: 'rassurant',
+        },
       },
+      explanation:
+        'Un proche qui promet un gain énorme sur une crypto inconnue : c’est le schéma classique des arnaques, même quand il est de bonne foi. Avant d’acheter, il faut savoir ce que c’est, qui l’a créée et comment on peut perdre. Et même là, on n’y met jamais plus que ce qu’on peut se permettre de perdre.',
       payload: {
         character: { name: 'Léo', role: 'ton pote, très enthousiaste' },
-        messages: ['J’ai trouvé une nouvelle crypto, elle va faire fois 10 cette année. Mets tout ton livret dessus !'],
+        messages: ['J’ai trouvé une nouvelle crypto, elle va faire ×10 cette année. Mets tout ton livret dessus !'],
         replies: [
           { id: 'tout', text: 'Grave, je mets tout.', reaction: 'Euh… et si ça fait comme en 2022 ?' },
           {
             id: 'petite',
-            text: 'Je veux bien tenter, mais seulement une petite somme que je peux perdre.',
-            correct: true,
-            reaction: 'Pas bête. Comme ça, même si ça chute, tu dors tranquille.',
+            text: 'Je mets juste une petite somme pour voir, au pire je ne perds pas grand-chose.',
+            reaction: 'Mouais… Tu sais au moins ce que c’est ? Parce que moi, pas trop.',
           },
           {
-            id: 'credit',
-            text: 'Je vais faire un crédit pour en acheter encore plus.',
-            reaction: 'Euh… et si ça fait comme en 2022 ?',
+            id: 'comprendre',
+            text: 'Pas sur un simple conseil. Je veux d’abord comprendre ce que j’achète, et jamais plus que ce que je peux perdre.',
+            correct: true,
+            reaction: 'Ouais… En vrai, je ne sais même pas qui l’a créée. Je vais me renseigner avant, moi aussi.',
           },
         ],
       },

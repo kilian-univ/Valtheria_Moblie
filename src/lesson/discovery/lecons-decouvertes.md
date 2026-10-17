@@ -111,10 +111,12 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - Val, réussi (célébrant) : « Tu en sais plus que la moitié des gens qui en achètent. » Pas réussi (rassurant) : « Rien de grave, la crypto est pleine d'idées reçues. »
 4. **Le dialogue** (nouveau, noté)
    - Personnage : Léo, ton pote, très enthousiaste.
-   - Léo : « J'ai trouvé une nouvelle crypto, elle va faire fois 10 cette année. Mets tout ton livret dessus ! »
-   - Tes réponses : « Grave, je mets tout. » ; « Je veux bien tenter, mais seulement une petite somme que je peux perdre. » (bonne) ; « Je vais faire un crédit pour en acheter encore plus. »
-   - Léo répond, bonne réponse : « Pas bête. Comme ça, même si ça chute, tu dors tranquille. » Mauvaise réponse : « Euh… et si ça fait comme en 2022 ? »
-   - Val, bonne réponse (fier) : « Exactement : jamais plus que ce que tu peux te permettre de perdre. » Erreur (rassurant) : « Personne ne sait ce qu'une crypto fera. Mets-y seulement ce que tu peux perdre. »
+   - Léo : « J'ai trouvé une nouvelle crypto, elle va faire ×10 cette année. Mets tout ton livret dessus ! »
+   - Tes réponses : « Grave, je mets tout. » ; « Je mets juste une petite somme pour voir, au pire je ne perds pas grand-chose. » ; « Pas sur un simple conseil. Je veux d'abord comprendre ce que j'achète, et jamais plus que ce que je peux perdre. » (bonne).
+   - Léo répond, bonne réponse : « Ouais… En vrai, je ne sais même pas qui l'a créée. Je vais me renseigner avant, moi aussi. » Tout miser : « Euh… et si ça fait comme en 2022 ? » Petite somme : « Mouais… Tu sais au moins ce que c'est ? Parce que moi, pas trop. »
+   - Val, bonne réponse (fier) : « Exactement : on ne place pas son argent sur un simple conseil, sans comprendre ce qu'on achète. Et jamais plus que ce qu'on peut perdre. » Erreur (rassurant) : « Une crypto inconnue qui promet ×10, c'est souvent comme ça que commencent les arnaques. D'abord comprendre ce qu'on achète. »
+   - Explication : « Un proche qui promet un gain énorme sur une crypto inconnue : c'est le schéma classique des arnaques, même quand il est de bonne foi. Avant d'acheter, il faut savoir ce que c'est, qui l'a créée et comment on peut perdre. Et même là, on n'y met jamais plus que ce qu'on peut se permettre de perdre. »
+   - Pourquoi (audit du 17 octobre 2026) : l'ancienne bonne réponse (« seulement une petite somme ») validait l'achat d'une crypto inconnue vantée par un proche, le schéma type d'une arnaque.
 5. **Associer** (nouveau, noté, sans aide)
    - « Relie chaque mot à sa définition. »
    - Bitcoin : la première crypto, créée en 2009.
@@ -187,19 +189,20 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 
 ## Leçon 6 : Je découvre, « Ton vrai salaire »
 
-**Déclic : tu touches 1 660 € net, tu coûtes 3 055 € à ton [employeur] ; l'écart finance ta [protection sociale].** C'est le déclic de ta leçon 1 publiée (« Tu coûtes plus cher »), avec ses chiffres.
+**Déclic : tu touches 1 660 € net, tu coûtes 3 055 € à ton [employeur] ; l'écart finance surtout ta [protection sociale].** Chiffres de la fiche de paie de référence du site (`fiche_de_paie_variantes.json`, variante `novembre_standard`) : net payé 1 660,93 €, impôt prélevé à la source 90,81 €, net à payer avant impôt 1 751,74 €, cotisations salariales 508,26 €, brut 2 260 €, cotisations patronales 795,11 €, coût 3 055,11 €. Arrondis à l'euro pour que chaque ligne s'additionne.
 
 1. **Le pari** (`slider`, non noté)
-   - « Tu touches 1 660 € net par mois. Combien coûtes-tu à ton employeur ? »
+   - « Tu touches 1 660 € net par mois, impôt déjà prélevé. Combien coûtes-tu à ton employeur ? »
    - Curseur de 1 660 à 4 000 €, pas de 50, départ 2 000 €.
    - Val (complice) : « Petit pari, sans mauvaise réponse. À ton avis ? »
 2. **La révélation** (`reveal`)
    - 3 055 € par mois.
-   - Lignes : ton salaire net 1 660 € ; tes cotisations salariales 470 € ; ton salaire brut 2 130 € ; les cotisations patronales 925 € ; ce que tu coûtes 3 055 € (clé).
-   - Val (alerte) : « Personne ne te montre ce chiffre. C'est pourtant ce que tu vaux pour ton employeur. »
+   - Lignes : ce que tu touches 1 660 € ; + l'impôt prélevé à la source 91 € ; = ton net avant impôt 1 751 € ; + tes cotisations salariales 509 € ; = ton salaire brut 2 260 € ; + les cotisations patronales 795 € ; = ce que tu coûtes 3 055 € (clé).
+   - Val (alerte) : « Ce chiffre est tout en bas de ta fiche de paie, et presque personne ne le regarde. C'est ce que ton travail coûte vraiment. »
+   - Pourquoi (audit du 17 octobre 2026) : les anciennes lignes (470 / 2 130 / 925) traitaient les 1 660 €, un net payé après impôt, comme un net avant impôt ; la fiche de paie affiche bien le coût total pour l'employeur.
 3. **Remettre dans l'ordre** (nouveau, noté)
    - « Classe ces montants, du plus petit au plus grand. »
-   - Ordre juste : ton net après impôt sur le revenu ; ton net à payer ; ton salaire brut ; ton coût pour l'employeur. Présentés dans le désordre.
+   - Ordre juste : ton net après prélèvement à la source ; ton net à payer ; ton salaire brut ; ton coût pour l'employeur. Présentés dans le désordre.
    - Explication : « Du coût employeur, on retire les cotisations patronales : c'est le brut. Puis les cotisations salariales : c'est le net à payer. Puis le prélèvement à la source : c'est ce qui te reste. »
    - Val, bonne réponse (fier) : « Tu viens de lire toute une fiche de paie, de haut en bas. » Erreur (rassurant) : « Presque. Pense à tout ce qu'on retire à chaque étape. »
 4. **Le dialogue** (nouveau, noté)
@@ -211,7 +214,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 5. **Question sans aide** (`choice`, noté)
    - « Sur ta fiche de paie, la ligne qui donne ton salaire après les cotisations, mais avant le prélèvement à la source, s'appelle… »
    - Le salaire brut ; le net à payer avant impôt sur le revenu (bonne) ; le coût employeur.
-   - Explication : « Le brut, c'est avant les cotisations salariales. Le net à payer, c'est après. Le prélèvement à la source vient ensuite s'y retirer. »
+   - Explication : « Le brut, c'est avant les cotisations salariales. Le net à payer, c'est après. Le prélèvement à la source est retiré ensuite. »
    - Val, bonne réponse (célébrant) : « Tu sais maintenant lire la ligne la plus importante de ta fiche de paie. » Erreur (rassurant) : « Pas tout à fait. Le brut est plus haut que ce que tu touches. »
 
 ## Après la leçon

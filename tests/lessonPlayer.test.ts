@@ -100,7 +100,8 @@ test('révélation : chaque chiffre une seule fois, la ligne d’hypothèse rest
   const salaryKept = revealExtraLines(salary.lines, [salary.value, 2000, salary.start!.value]);
   assert.deepEqual(
     salaryKept.map((l) => l.value),
-    [470, 2130, 925]
+    // Fiche de paie de référence : impôt, net avant impôt, cotisations, brut, patronales
+    [91, 1751, 509, 2260, 795]
   );
 });
 

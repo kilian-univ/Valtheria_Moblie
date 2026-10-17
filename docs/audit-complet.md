@@ -43,7 +43,7 @@ Cinq familles de problèmes empêchent pourtant une sortie en l'état :
 4. **Espaces insécables** : le formateur du patrimoine utilise des espaces ordinaires, et ni les 377 textes de l'app concernés ni le contenu du site ne sont protégés. Les montants se coupent (« 900 / €. », « 20 / % », « montant / ; placés »).
 5. **Ancien design** : six écrans encore actifs (Outils, Cash-flow, Épargne, Articles, Article, Portefeuille de repli) concentrent les plantages possibles, les erreurs brutes en anglais et les défauts d'accessibilité. Les Articles n'affichent par ailleurs que 12 des 38 articles publiés.
 
-Décompte de l'audit : **6 bloquants, 39 importants, 51 gênants, 27 cosmétiques**, soit 123 problèmes. Après le chantier 1 (fiabilité) et les décisions du 17 octobre, il en reste **3 bloquants, 14 importants, 35 gênants (dont 4 corrigés en partie) et 24 cosmétiques**. Les lignes corrigées commencent par **Corrigé**.
+Décompte de l'audit : **6 bloquants, 39 importants, 51 gênants, 27 cosmétiques**, soit 123 problèmes. Après le chantier 1 (fiabilité), les décisions du 17 octobre et la partie app du chantier 2 (contenu faux), il en reste **3 bloquants, 12 importants (dont 3 corrigés sur staging, production en attente), 35 gênants (dont 4 corrigés en partie) et 24 cosmétiques**. Les lignes corrigées commencent par **Corrigé**.
 
 ## Chantier 1 : la fiabilité (17 octobre 2026)
 
@@ -98,6 +98,107 @@ Vérifié en vrai lancement (web, iPhone SE, compte simulé avec deux objectifs 
 
 Hors de l'app, le site a aussi un défi quotidien, un défi de la semaine et des parcours de vie. Des routes existent dans ApiContext, mais aucun écran ne les affiche.
 
+
+## Chantier 2 : le contenu faux (17 octobre 2026)
+
+**État** : app corrigée et sauvegardée. Site corrigé sur la branche `lot-contenu-chiffres` ([PR n° 9](https://github.com/Valtheraa/Valtheria/pull/9)), **déployé et vérifié sur staging**. **Production non déployée** : la session n'a pas eu l'autorisation d'agir sur la base de production (une simple lecture a été refusée par le mode automatique), donc ni sauvegarde, ni migration, ni fusion dans `main`. Pour finir : fusionner la PR, puis `PROD_VPS_IP=… ./scripts/deploy.sh prod` (sauvegarde de la base comprise), puis `php artisan content:hardcoded-figures` en production.
+
+### Chiffres réglementaires créés
+
+Vingt clés (l'annexe en annonçait « 18 utiles », mais sa propre liste en compte 20). Chacune a été lue le 17/10/2026 sur la page officielle citée, qui devient sa `source`. La date de vérification est donc réelle. Une date d'effet n'est posée que si elle a été lue dans le texte. Migration `2026_10_17_200000`, seeder du catalogue aligné.
+
+| Clé | Valeur | Date d'effet | Source |
+|---|---|---|---|
+| `pfu_ir_taux` | 12,8 % | 01/01/2018 | Légifrance, CGI art. 200 A |
+| `pfu_taux_reduit` | 30 % | 01/01/2026 | LFSS 2026 art. 12 (CSS L136-8 IV) ; service-public F2329 |
+| `csg_capital_taux` | 10,6 % | 01/01/2026 | Légifrance, CSS L136-8 I 2° |
+| `crds_taux` | 0,5 % | — | service-public F2329 |
+| `ifi_seuil` | 1 300 000 € | 01/01/2018 | Légifrance, CGI art. 964 ; service-public F563 |
+| `tva_taux` | 20 % / 10 % / 5,5 % / 2,1 % | 01/01/2014 | Légifrance, CGI art. 278 à 281 octies |
+| `metaux_precieux_taxe_forfaitaire` | 11,5 % | 01/01/2018 | Légifrance, CGI art. 150 VK ; douane.gouv.fr |
+| `metaux_precieux_pv_taux` | 36,2 % (et non 37,6 % : les métaux précieux restent à 17,2 % de prélèvements sociaux) | — | LFSS 2026 art. 12 ; CGI art. 150 VL, 150 UA, 200 B |
+| `smic_brut_mensuel` | 1 867,02 € | 01/06/2026 (revalorisation automatique) | Légifrance, arrêté du 22/05/2026 ; service-public F2300 |
+| `smic_net_mensuel` | 1 477,93 € (indicatif) | 01/06/2026 | service-public F2300 |
+| `livret_jeune_age` | 12 à 25 ans | — | service-public F2904 |
+| `pea_frais_ouverture_plafond` | 10 € | — | Légifrance, CMF art. D221-111-1 |
+| `per_deduction_taux` | 10 % (avec plancher et plafond) | — | BOFiP BOI-IR-BASE-20-50-20 ; service-public F36526 |
+| `is_taux_normal` | 25 % | 01/01/2022 | Légifrance, CGI art. 219 I |
+| `is_taux_reduit` | 15 % | — | Légifrance, CGI art. 219 I-b |
+| `is_taux_reduit_plafond` | 42 500 € | — | Légifrance, CGI art. 219 I-b |
+| `frais_rejet_prelevement_plafond` | 20 € (sans dépasser le montant rejeté) | 01/11/2009 | Légifrance, CMF art. D133-5 et D133-6 |
+| `credit_conso_taux_usure` | 23,60 % / 15,76 % / 8,56 % | 01/10/2026 | Légifrance, avis du 25/09/2026 ; Banque de France, usure T4 2026 |
+| `plus_value_immo_taux_ir` | 19 % | — | service-public F10864 |
+| `plus_value_immo_durees_exoneration` | 22 ans pour l'impôt, 30 ans pour les prélèvements sociaux | 01/09/2013 | service-public F10864 ; CGI art. 150 VC |
+
+Aussi :
+- `credit_taux_usure` passe à 5,40 % : c'est le seuil du 4e trimestre pour les prêts immobiliers à taux fixe de 20 ans et plus. La table gardait le seuil du 3e trimestre, 5,29 %.
+- Le libellé de `prelevements_sociaux_reduits` est corrigé. Depuis la LFSS 2026, seuls restent à 17,2 % l'assurance-vie, les revenus fonciers, les plus-values immobilières et les PEL et CEL ouverts **avant 2018**. Les PEL et CEL plus récents sont à 18,6 %.
+
+### Contenus corrigés
+
+- **Dictionnaire** (migration `2026_10_17_210000`, seeder aligné) : 35 définitions, 50 champs.
+  - Chiffres en repères : Flat tax, Prélèvements sociaux, PEA, Plus-value, CTO, Assurance-vie, Abattement fiscal, PEL, PER, Plus-value immobilière, Crédit revolving, Taux d'usure, Prélèvement automatique, PEE, Tranche marginale, Quotient familial, IFI, IS, TVA.
+  - Erreurs de fond corrigées :
+    - loi Pinel, présentée comme ouverte ;
+    - intéressement, présenté comme soumis à la flat tax ;
+    - prélèvements sociaux oubliés : assurance-vie, abattement ;
+    - calculs faux : PEA, revolving, prélèvement à la source, salaire net imposable, plus-value immobilière ;
+    - LMNP, stop-loss, stablecoin, notation, action de préférence, réplication synthétique, dette publique, découvert, participation, virement SEPA, taux de remplacement, déclaration fiscale.
+  - Un exemple ne donne plus de résultat calculé à partir d'un chiffre qui change. Un champ n'est réécrit que s'il est resté identique au texte d'origine.
+  - Résultat sur staging : **0 chiffre en dur dans les 203 définitions**.
+- **Leçon n° 102 « Où mettre ce coussin »** (migration `2026_10_17_220000`) :
+  - **Écran 7** : la bonne réponse dépend des taux (nouveau champ `selon_chiffres`). Le serveur la choisit au service, en fin de leçon et en révision : si le LEP paie plus que le Livret jeune au taux minimum, c'est « Tout sur le LEP » ; sinon, le Livret jeune jusqu'à son plafond, puis le LEP. Sur staging : « Tout sur le LEP » (2,5 % contre 1,70 %).
+  - **Écran 2** : un livret bancaire est lui aussi disponible et garanti. Son option est remplacée par « Compte courant ».
+  - **Écrans 3 et 6** : âges du Livret jeune en repère `{{livret_jeune_age}}` ; le Livret jeune « qui paie bien » et le LEP « ouvert par la non-imposition » sont corrigés.
+- **Leçon n° 101, écran 6** : « tu peux investir » dès un mois couvert contredisait l'écran 4 (trois à six mois).
+- **Leçon n° 100, écran 6** : il reste 200 € sur le livret, plus 80 € sur le compte, et non 200 € en tout.
+- **Brouillons** : la commande `content:hardcoded-figures` relève tout le contenu, brouillons compris. Sur staging : 0 dans les 4 leçons et les 203 définitions ; 85 dans 214 articles (80 dans des brouillons, 5 dans 4 articles publiés sur staging, n° 39, 41, 44 et 47). Les articles supprimés restent supprimés : ils ne sont ni relus ni modifiés.
+- **App, leçon découverte Crypto** (I32) : la bonne réponse refuse d'investir sur un simple conseil, sans comprendre ce qu'on achète, et rappelle de ne jamais y mettre plus que ce qu'on peut perdre. « Une petite somme pour voir » devient une erreur. La réplique de Léo, celles de Val et l'explication vont dans ce sens, et l'impératif « Mets-y » a disparu.
+- **App, leçon découverte Salaire** (I33) : les lignes suivent la fiche de paie de référence. Les 1 660 € sont un net payé après impôt : 1 660 + 91 d'impôt = 1 751 avant impôt ; + 509 de cotisations = 2 260 brut ; + 795 = 3 055. « Personne ne te montre ce chiffre » est remplacé, puisque la fiche de paie l'affiche.
+
+### La source du problème
+
+- **Prompts de génération** :
+  - leçons et articles : repères `{{cle}}` obligatoires, avec la liste des clés et de leurs libellés, jamais les valeurs (un prompt qui contient la forme interdite n'est pas suivi) ;
+  - aucun calcul ni comparaison qui dépende d'une valeur ;
+  - exemples chiffrés retirés (22 950 €, PEA à 150 000 € après 5 ans, revolving à 20 %, « actuellement de X % ») ;
+  - défis du jour et parcours de vie, qui ne résolvent pas les repères : les valeurs exactes de la table, à recopier telles quelles ;
+  - définitions : aucun prompt de génération n'existe.
+- **Articles** : un repère `{{cle}}` est désormais résolu à la lecture, dans l'API comme sur le web, et l'éditeur garde le texte brut.
+- **Contrôle automatique** (`HardcodedFigureDetector`) : un taux, plafond ou seuil de la table écrit en nombre, périmé ou exact.
+  - **Refus** : `lessons:check-format`, leçon publiée, définition enregistrée, article publié ou programmé, revue approuvée.
+  - **Signalement** : article du jour généré ou article programmé, laissé non publié et noté dans le journal.
+  - Le filtre du chat de Val ne laisse plus passer « la flat tax est de 30 % » sous prétexte que 30 % existe ailleurs dans la table.
+
+### Vérifications
+
+- **Site** :
+  - 518 tests (dont 19 nouveaux, chacun prouvé par mutation) et 75 tests JavaScript ;
+  - contrôles Blade et z-index ; Pint propre sur les fichiers du lot ;
+  - staging déployé, puis vérifié sur la base : 20 chiffres créés avec leur source, définitions résolues, écran 7 servi avec la bonne réponse, leçon valide au contrôle de format.
+- **App** : tsc et 424 tests, dont 2 nouveaux sur Crypto et Salaire.
+
+### Reste à faire
+
+1. **Production** : fusionner la PR n° 9, déployer en production (sauvegarde de la base comprise), puis lancer `content:hardcoded-figures` pour relever les brouillons et les articles réellement servis.
+2. **Articles** : 85 chiffres en dur sur staging (brouillons générés en 2025-2026, Livret A à 3 % ou à 2,4 %, flat tax à 30 %). Ils sont maintenant refusés à la publication, mais restent faux en brouillon. À corriger avec des repères, ou à supprimer.
+3. **Leçons découvertes de l'app** : elles ne peuvent pas lire les chiffres réglementaires. Seul le taux des livrets arrive avec le patrimoine, et `/api/internal/regulatory-figures` est réservé aux agents. Restent donc en dur, à revoir à chaque changement :
+   - Impôts : barème simplifié 0 / 11 / 30 %, seuils de 11 000 et 30 000 € ;
+   - Épargner : inflation à 2 % (hypothèse) ;
+   - Logement : 25 ans à 3,5 % (hypothèse) ;
+   - Investir : 5 % par an (hypothèse) ;
+   - Salaire : montants de la fiche de paie, millésime 2026.
+
+   Il faudrait un endpoint public des chiffres (lot API), ou servir ces leçons depuis le site.
+4. **Parcours de vie** : Livret A à 3 % dans `life_path_scenarios.json` et un scénario en base (n° 21 sur staging). Ils ne résolvent pas les repères : correction du texte à faire.
+5. **PEL** : `LivretRates` estime tout PEL au taux de l'année. Il faudrait le taux de l'année d'ouverture.
+6. **`decouvert_taux_usure`** vaut 19,08 %, le seuil des professionnels. Pour un particulier, le découvert suit l'usure des crédits à la consommation de sa tranche (23,60 % jusqu'à 3 000 €). Le libellé et la valeur sont à revoir avant de citer ce chiffre.
+7. **Chat de Val** : `AiSystemPrompt` garde ses chiffres en dur (12,8 %, 18,6 %, 30 %), exigés par ses tests. Le PER en cas d'accident de la vie est à 18,6 %, et non 17,2 %.
+8. **Contenu de démonstration** : `SeedDemoArticle` (flat tax à 30 %) et `DemoArticlesSeeder` (Livret A à 2,4 %).
+9. **Limites du contrôle** :
+   - les durées (« après 5 ans ») ne sont pas contrôlées ;
+   - un chiffre sans terme déclencheur à proximité passe ;
+   - une clé voisine peut être proposée à tort (un revenu fiscal pris pour un plafond).
 
 ## Méthode
 
@@ -171,16 +272,16 @@ Les captures sont dans [docs/audit-captures/](audit-captures/). Les fichiers son
 | I22 | Patrimoine, carnet, profil, réglages, article | **Corrigé (lots 1 et 4).** Remarque de Val et carnet lisent les données sans recharger ; l’article utilise le dictionnaire partagé. `useLearningData` relance 3 requêtes à chaque passage, juste pour la remarque de Val. L'article recharge tout le dictionnaire à chaque ouverture. | — | `ValRemark.tsx:17`, `NotebookScreen.tsx:29`, `ArticleDetailScreen.tsx:47`. | Lire le store sans recharger, et utiliser `useDictionary()`. |
 | I23 | Bundle et dépôt | **Corrigé (lot 4).** Favicon à 10 Ko, images et dépendance retirées. `favicon.png` pèse 2,97 Mo (6 336 × 2 688). `val.png` (2 Mo) et `b.png` ne servent nulle part. `react-native-render-html` est installée sans être utilisée. | — | Restes du gabarit et des essais. | Favicon à 192 px ; supprimer les images et la dépendance inutiles. |
 | I24 | `ApiContext` | 31 méthodes jamais appelées, un contexte typé `any`, et toute l'app qui se re-rend à chaque changement de profil. | — | Fichier de 784 lignes, protégé par règle. | Le découper et le typer (décision à prendre, puisque ce fichier est protégé). |
-| I25 | Définitions, articles, leçon n° 102, patrimoine (PEL), parcours de vie | **Nouveau (précisé).** **Mise au point du chantier 1** : les 7 articles cités (n° 10 à 16 du tableau des chiffres) ne sont pas servis aujourd'hui (supprimés sur le site, 404) ; restent servis les définitions, la leçon n° 102, le PEL et les parcours de vie. 19 chiffres réglementaires faux au total, dont :<br>- flat tax 30 % au lieu de 31,4 % ;<br>- prélèvements sociaux 17,2 % au lieu de 18,6 % ;<br>- Livret A à 3 % ou 1,5 % au lieu de 1,7 % ;<br>- loi Pinel présentée comme ouverte ;<br>- PEL ancien estimé au taux de l'année.<br>Voir la section « Chiffres qui changent, écrits en dur ». | — | Les articles, les parcours et les prompts de génération ne passent pas par les chiffres réglementaires. Le seeder du dictionnaire réécrirait toute correction faite en base. | Voir la section dédiée et l'[annexe](audit-annexe-chiffres.md). |
+| I25 | Définitions, articles, leçon n° 102, patrimoine (PEL), parcours de vie | **Corrigé sur staging (chantier 2), production en attente**, pour les définitions et les leçons : chiffres en repères, 20 chiffres créés. Restent les articles en brouillon, les parcours de vie et le PEL (voir « Reste à faire » du chantier 2). **Nouveau (précisé).** **Mise au point du chantier 1** : les 7 articles cités (n° 10 à 16 du tableau des chiffres) ne sont pas servis aujourd'hui (supprimés sur le site, 404) ; restent servis les définitions, la leçon n° 102, le PEL et les parcours de vie. 19 chiffres réglementaires faux au total, dont :<br>- flat tax 30 % au lieu de 31,4 % ;<br>- prélèvements sociaux 17,2 % au lieu de 18,6 % ;<br>- Livret A à 3 % ou 1,5 % au lieu de 1,7 % ;<br>- loi Pinel présentée comme ouverte ;<br>- PEL ancien estimé au taux de l'année.<br>Voir la section « Chiffres qui changent, écrits en dur ». | — | Les articles, les parcours et les prompts de génération ne passent pas par les chiffres réglementaires. Le seeder du dictionnaire réécrirait toute correction faite en base. | Voir la section dédiée et l'[annexe](audit-annexe-chiffres.md). |
 | I26 | Configuration de build | **Corrigé (décisions).** `EXPO_PUBLIC_API_URL` par profil : staging (`https://staging.valtheria.fr/api`) pour development, preview et simulator, production pour production. Les profils `development`, `preview` et `production` visent tous l'API de production. | — | Pas d'`env` par profil dans `eas.json`. | `EXPO_PUBLIC_API_URL` par profil, staging pour les essais. |
 | I27 | Liens dans les articles | **Corrigé (lot 1).** Seulement `https:` (navigateur intégré) et `mailto:`. Tout lien `[texte](url)` d'un article est ouvert sans contrôle de son type (`tel:`, `intent:`, `javascript:` sur le web). | — | `BlockRenderer.tsx:107` `Linking.openURL(url)`. | N'accepter que `https:` et `mailto:`, et ouvrir dans le navigateur intégré. |
 | I28 | Patrimoine | **Corrigé (lot 1).** L’erreur reste une erreur du nouvel écran ; ancien Portefeuille supprimé. **Nouveau.** Si le patrimoine ne se charge pas (hors ligne, délai, 500), ou sans compte, l'aiguillage affiche l'**ancien** écran « ‹ Portefeuille », avec « Server Error » en anglais (**vérifié**). Quand le réseau revient, cet ancien écran charge les positions et appelle `.toFixed` sur des champs `null` (placements sans cours) : l'app se ferme sur iPhone. | [erreurs-brutes](audit-captures/erreurs-brutes-et-ancien-portefeuille.jpg) | `PatrimoineGate.tsx:15-19` : le nouvel écran n'est servi que si `ledger && portfolio`, sinon `PortefeuilleScreen`. | Remplacer le repli par un `PageState` d'erreur avec « Réessayer » (le nouveau format est en production), et supprimer l'ancien écran. |
 | I29 | Un actif, Analyse, Révision, Articles | **Corrigé (lot 1).** **Nouveau.** Hors ligne ou en erreur, les écrans affichent un état vide qui ment, au lieu d'une erreur :<br>- Un actif : « Cet actif n'est plus dans ton patrimoine. » ;<br>- Analyse : « Ajoute un premier actif pour voir ta répartition. » ;<br>- Révision : « Ta première révision arrive après ta première leçon. », pour un compte qui a fini ses 4 leçons ;<br>- Articles : « Failed to fetch » puis « Aucun article pour le moment ».<br>Vérifié avec un profil chargé et seul le patrimoine ou la révision en échec. | [etats-hors-ligne](audit-captures/etats-hors-ligne.jpg) | L'échec du chargement est traité comme une liste vide. | Distinguer « vide » de « erreur » : `PageState` d'erreur avec « Réessayer » et le message hors ligne habituel. |
 | I30 | Articles | **Corrigé (lot 1)** : toutes les pages se chargent au défilement (vérifié avec 38 articles). **Mise au point** : la production ne sert aujourd’hui que **2** articles ; les 36 autres « publiés » du relevé sont supprimés (suppression douce, colonne `deleted_at` absente du relevé). **Nouveau.** Seuls les 12 articles les plus récents sont accessibles, sur les 38 publiés : l'API pagine par 12 et l'app ne demande jamais la page suivante. | — | `getArticles()` appelle `/articles` sans `page` (`ApiContext.tsx:317-323`, `ArticleScreen.tsx:32`). | Charger les pages suivantes au défilement (`onEndReached`), sans modifier `ApiContext` si possible (paramètre `page` dans un nouvel appel). |
-| I31 | Lecteur, leçon n° 102 | **Nouveau.** Deux bonnes réponses sont fausses :<br>- à l'écran 7, la réponse attendue remplit d'abord le Livret jeune « au meilleur taux », alors que le LEP (2,5 %) rapporte plus que le Livret jeune (1,7 %) : pour 2 000 €, 50 € par an contre 37,20 € ;<br>- le livret « boosté » est compté faux alors qu'il remplit les deux critères annoncés. | — | Logique de la question liée aux taux (la variable change le chiffre, pas la bonne réponse). | Revoir la question côté site (lot API), phrase proposée dans l'annexe contenu. |
-| I32 | Leçon découverte Crypto | **Nouveau.** Au dialogue avec Léo (« elle va faire fois 10 cette année. Mets tout ton livret dessus ! »), la bonne réponse est « Je veux bien tenter, mais seulement une petite somme que je peux perdre », et Val enchaîne à l'impératif « Mets-y seulement… ». C'est valider l'achat d'une crypto inconnue vantée par un proche, le schéma type d'une arnaque. Phrase interdite (conseil d'achat). | — | Rédaction (`crypto.ts:92-97`). | Bonne réponse : « Je me renseigne d'abord : qui la crée, qui me la vend, et pourquoi on me promet ×10 ? ». Phrases dans l'annexe contenu. |
-| I33 | Leçon découverte Salaire | **Nouveau.** La décomposition se contredit :<br>- « 1 660 € net » est un net **après** impôt dans la fiche de paie dont la leçon vient, mais les lignes 470 / 2 130 / 925 le traitent comme un net avant impôt ;<br>- le coût employeur ignore les allègements près du SMIC ;<br>- « Personne ne te montre ce chiffre » est faux : la fiche de paie affiche obligatoirement le total versé par l'employeur. | [revelation-sans-unite](audit-captures/revelation-sans-unite.jpg) | `decouvrir.ts:12`, `:33`, `:41-46`. | Aligner les lignes sur la fiche de paie de référence, et écrire « Ce chiffre est en bas de ta fiche de paie, on le regarde rarement ». |
-| I34 | Dictionnaire | **Nouveau.** Hors chiffres faux (I25), des définitions donnent des conseils déguisés ou des informations fausses :<br>- titres et protocoles précis (CW8, Aave), « opportunité d'achat » ;<br>- « l'USDC vaut toujours 1 $ » ;<br>- faute « t'appauris ». | — | Contenu du site, généré puis importé par seeder. | Phrases de remplacement dans l'annexe contenu (section 3 B). Corriger aussi le seeder. |
+| I31 | Lecteur, leçon n° 102 | **Corrigé sur staging (chantier 2), production en attente.** Écran 7 : bonne réponse choisie par le serveur selon les taux (`selon_chiffres`). **Nouveau.** Deux bonnes réponses sont fausses :<br>- à l'écran 7, la réponse attendue remplit d'abord le Livret jeune « au meilleur taux », alors que le LEP (2,5 %) rapporte plus que le Livret jeune (1,7 %) : pour 2 000 €, 50 € par an contre 37,20 € ;<br>- le livret « boosté » est compté faux alors qu'il remplit les deux critères annoncés. | — | Logique de la question liée aux taux (la variable change le chiffre, pas la bonne réponse). | Revoir la question côté site (lot API), phrase proposée dans l'annexe contenu. |
+| I32 | Leçon découverte Crypto | **Corrigé (chantier 2).** Bonne réponse : ne pas investir sur un simple conseil sans comprendre, et jamais plus que ce qu'on peut perdre. **Nouveau.** Au dialogue avec Léo (« elle va faire fois 10 cette année. Mets tout ton livret dessus ! »), la bonne réponse est « Je veux bien tenter, mais seulement une petite somme que je peux perdre », et Val enchaîne à l'impératif « Mets-y seulement… ». C'est valider l'achat d'une crypto inconnue vantée par un proche, le schéma type d'une arnaque. Phrase interdite (conseil d'achat). | — | Rédaction (`crypto.ts:92-97`). | Bonne réponse : « Je me renseigne d'abord : qui la crée, qui me la vend, et pourquoi on me promet ×10 ? ». Phrases dans l'annexe contenu. |
+| I33 | Leçon découverte Salaire | **Corrigé (chantier 2).** Lignes alignées sur la fiche de paie (net payé après impôt). **Nouveau.** La décomposition se contredit :<br>- « 1 660 € net » est un net **après** impôt dans la fiche de paie dont la leçon vient, mais les lignes 470 / 2 130 / 925 le traitent comme un net avant impôt ;<br>- le coût employeur ignore les allègements près du SMIC ;<br>- « Personne ne te montre ce chiffre » est faux : la fiche de paie affiche obligatoirement le total versé par l'employeur. | [revelation-sans-unite](audit-captures/revelation-sans-unite.jpg) | `decouvrir.ts:12`, `:33`, `:41-46`. | Aligner les lignes sur la fiche de paie de référence, et écrire « Ce chiffre est en bas de ta fiche de paie, on le regarde rarement ». |
+| I34 | Dictionnaire | **Corrigé en partie sur staging (chantier 2)** : USDC, Berkshire et actions de préférence, réplication synthétique, notation de la Grèce. Restent les titres et protocoles précis (CW8, Aave). **Nouveau.** Hors chiffres faux (I25), des définitions donnent des conseils déguisés ou des informations fausses :<br>- titres et protocoles précis (CW8, Aave), « opportunité d'achat » ;<br>- « l'USDC vaut toujours 1 $ » ;<br>- faute « t'appauris ». | — | Contenu du site, généré puis importé par seeder. | Phrases de remplacement dans l'annexe contenu (section 3 B). Corriger aussi le seeder. |
 | I35 | Lecteur (tout écran inconnu) | **Corrigé (lot 4).** Texte de Val ; le JSON reste en développement. **Nouveau.** Un écran d'un type non géré, ou mal formé, affiche « Type d'écran pas encore géré » et le **JSON brut** du contenu. | — | `FallbackScreen.tsx:21-24` (`JSON.stringify(screen.payload, null, 2)`). | « Cet écran arrive bientôt dans l'app. Tu peux passer à la suite. », avec le JSON seulement sous `__DEV__`. |
 | I36 | Profil, carnet, patrimoine | **Décidé** : contenu d'apprentissage gardé entre deux lancements (modules, univers, série, XP, Vals, mots ; jamais un montant) ; synchronisation ajoutée au lot serveur (section 10). **Nouveau.** Une partie de la progression ne vit que sur le téléphone : carnet, journal de la semaine, étapes du patrimoine, précision, mots, et **objectifs du patrimoine**. Sur un nouveau téléphone (ou après une réinstallation), tout est perdu, et les écrans contredisent le serveur. Constaté avec le compte 15 sur un appareil neuf :<br>- « Série 1 j » à côté de « Ta première leçon de la semaine t'attend » ;<br>- carnet vide après 4 leçons terminées ;<br>- « étapes 0 sur 5 » dans le Profil, alors que le Patrimoine fête « deux nouvelles étapes » juste après. | [profil-incoherences](audit-captures/profil-incoherences.jpg) | AsyncStorage seul (`weekJournal`, `notebook`, `patrimoinePrefs`, `accuracy`…). Les étapes ne sont calculées qu'à l'ouverture du Patrimoine. | Court terme : calculer les étapes depuis les données du patrimoine, et dériver la semaine de l'historique du serveur. À terme : synchroniser ces données avec le compte (lot API). |
 | I37 | Icône iOS (`app.json:7`) | **Corrigé (lot 4).** `ios.icon` opaque, fond `#0D0D0F`, logo à 80 % (à valider visuellement). **Nouveau.** L'icône est transparente à 77 %, et Expo l'aplatit sur **du blanc** pour iOS : le logo apparaîtra sur un carré blanc sur l'écran d'accueil, dans TestFlight et sur l'App Store. | — | `withIosIcons` (`removeTransparency`, fond `#ffffff`). Android a son fond sombre. | Fournir `ios.icon` : 1024 × 1024, opaque, fond `#0D0D0F` (variantes `dark` et `tinted` en option). |
@@ -425,6 +526,8 @@ Le repère `{{cle}}` (par exemple `{{livret_a_taux}}`) est remplacé par la vale
 - **App** : aucun autre chiffre réglementaire en dur que dans les leçons découvertes. Le barème simplifié de la leçon Impôts (0 / 11 / 30 %, seuils arrondis à 11 000 € et 30 000 €) est annoncé comme tel. Les hypothèses (inflation 2 %, crédit sur 25 ans à 3,5 %, 5 % par an) sont cohérentes avec la table. Ces leçons étant embarquées, elles ne peuvent utiliser `{{cle}}` que si l'app reçoit les chiffres : un endpoint public des chiffres (lot API), ou des leçons servies par le site.
 
 ### Chiffres réglementaires à créer
+
+**Créés au chantier 2** (les 20 clés non optionnelles ci-dessous, valeurs vérifiées : voir la section du chantier 2). Les clés optionnelles ne sont pas créées.
 
 | Clé | Libellé | Valeur actuelle | Pour |
 |---|---|---|---|
