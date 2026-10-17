@@ -630,7 +630,7 @@ Décidé le 16 octobre 2026 : **le format de l'app fait foi.** Les formats exact
 - **Souhaité** : admettre `start`, et une valeur vide ou absente sur une ligne `dim`.
 
 ### 9.5 Sous-titre sur tous les écrans
-- **Manque** : `subtitle` n'est admis que pour `choice`, `number`, `slider`, `document` et `allocate`. L'app le lit sur tous les types.
+- **Manque** : `subtitle` n'est admis que pour `choice`, `number`, `slider`, `document` et `allocate` (refusé notamment sur `reveal`, `dialogue` et `live_month`). L'app le lit sur tous les types.
 - **Souhaité** : admettre `subtitle` sur tous les types.
 
 ### 9.6 Document
@@ -640,11 +640,11 @@ Décidé le 16 octobre 2026 : **le format de l'app fait foi.** Les formats exact
 ### 9.7 Difficulté des leçons
 - **Manque** :
   - `lessons.difficulty` n'a que 3 valeurs (`debutant`, `intermediaire`, `avance`), contre 5 pour les modules (`entree`, `debutant`, `inter`, `avance`, `expert`) ;
-  - l'import recopie le niveau du module dans la leçon, ce qui échoue pour `entree`, `inter` et `expert` ;
+  - l'import recopie le niveau du module dans la leçon, ce qui échouerait pour `entree`, `inter` et `expert` (le module importé aujourd'hui est `debutant`) ;
   - cette difficulté fixe le montant des coffres.
 - **Souhaité** :
   - la difficulté de la leçon prend les 5 valeurs du module, ou se déduit du module ;
-  - montant des coffres : `entree` comme `debutant`, `inter` comme `intermediaire`, `expert` comme `avance`.
+  - réutiliser la correspondance qui existe déjà pour le prompt IA (`lessonDifficultyFromModule`) à l'import et pour les coffres : `entree` comme `debutant`, `inter` comme `intermediaire`, `expert` comme `avance`.
 
 ### 9.8 Bornes des nouveaux types
 - **Souhaité** : garder les bornes actuelles du site (`choice` 2 à 8 options, `reveal` 8 lignes, `dialogue` 5 réponses, `allocate` 5 pots), et ajouter :
@@ -655,7 +655,24 @@ Décidé le 16 octobre 2026 : **le format de l'app fait foi.** Les formats exact
 
 ### 9.9 Niveau et documentation
 - **Niveau** : le défi du jour, les quêtes et les cartes de module ajoutent des XP sans recalculer le niveau du serveur. L'en-tête de l'app (niveau du serveur) et le profil (calculé depuis les XP) peuvent alors différer. Souhaité : un seul point de crédit des XP, qui recalcule toujours le niveau.
-- **Documentation du site** : `API.md` donne un exemple `true_false` d'une autre forme et annonce « 3 tentatives au plus » (le serveur n'en garde qu'une). `config/valtheria.php` et `docs/FORMAT_ECRANS.md` disent « échec → palier 0 » (le code retire 2 paliers, avec un plancher à 1). Souhaité : les remettre au format de l'app, avec les exemples de `docs/reference-technique-lecons.md`.
+- **Documentation du site** : `API.md` donne un exemple `true_false` d'une autre forme et annonce « 3 tentatives au plus » (le serveur n'en garde qu'une). `config/valtheria.php` et `docs/FORMAT_ECRANS.md` (ligne 252) disent « échec → palier 0 » (le code retire 2 paliers, avec un plancher à 1). Souhaité : les remettre au format de l'app, avec les exemples de `docs/reference-technique-lecons.md`.
+
+### 9.10 Contrôle de format à la publication (ajouté le 17 octobre 2026)
+- **Manque** : à la publication d'une leçon dans l'administration, et à l'approbation d'une revue, seul le contrôle des chiffres en dur est appelé (`PublicationFigureGuard`), pas `LessonFormatValidator`. Une leçon publiée peut donc contenir :
+  - un type que l'app ne joue pas (voir 9.1) ;
+  - un `reveal` ou un `simulator` marqué `scored: true` : l'app le compte juste, le serveur le compte **raté** ;
+  - un `choice` noté sans option, ou un `document` noté sans ligne touchable : la leçon est bloquée dans l'app (« Valider » reste grisé).
+- **Souhaité** :
+  - appeler `LessonFormatValidator::validate($data, true)` à la publication (`AdminLessonController`) et à l'approbation en revue, et refuser (422) avec ses messages, comme le contrôle des chiffres en dur ;
+  - ajouter au validateur : au moins une ligne touchable dans chaque variante d'un `document` noté, et aucune ligne `section` marquée juste.
+
+### 9.11 `selon_chiffres` figé au service (ajouté le 17 octobre 2026)
+- **Manque** : la version d'un écran `selon_chiffres` est choisie au service avec les chiffres du moment, puis recalculée à `/complete`. Si un chiffre change entre les deux, le serveur corrige un autre écran que celui que l'app a affiché et noté.
+- **Souhaité** : figer la version choisie au service, comme le tirage d'artefact (`ArtefactResolver::draw`), et la reprendre à `/complete` et en révision.
+
+### 9.12 Révision : leçons dépubliées (ajouté le 17 octobre 2026)
+- **Manque** : `servableScreens` prend les écrans de toutes les leçons terminées, publiées ou non. Une leçon dépubliée continue d'être servie en révision.
+- **Souhaité** : ne servir en révision que les écrans des leçons publiées (`is_published`).
 
 ## 10. Synchronisation de la progression (décision du 17 octobre 2026)
 
