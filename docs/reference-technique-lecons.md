@@ -4,6 +4,8 @@
 
 **Décision : le format de l'app fait foi.** Quand l'app et le site diffèrent, c'est le site qui s'aligne. Les modifications à faire sur le site sont listées en fin de document (partie 5) et reprises dans `docs/lot-serveur.md` (section 9).
 
+> **Lot serveur n° 9 (17 octobre 2026) : le site s'aligne sur l'app.** Les écarts E1 à E9 et E13 à E18 sont traités sur le site (pull request n° 11, commit 0609e41), vérifiés sur le staging, **pas encore en production**. Les parties 0 à 4 décrivent le site avant le lot ; ce qui change est résumé en partie 5.0.
+
 Fichiers de référence :
 
 | Rôle | App | Site |
@@ -1275,6 +1277,36 @@ Seuils dans `TIP_RULES`, univers, mots et libellés dans `TARGETS` (`valTips.ts:
 ## 5. Écarts entre l'app et le site, et modifications proposées
 
 Le format de l'app fait foi. Chaque modification est reprise dans `docs/lot-serveur.md`, section 9.
+
+### 5.0 Ce que change le lot serveur n° 9 (17 octobre 2026)
+
+État : pull request n° 11 du site (branche `lot-format-app`), CI verte, déployée et vérifiée sur le staging. **Production en attente** (fusion de la pull request non faite).
+
+| Écart | Ce que fait désormais le site |
+|---|---|
+| E1 | `number` et `live_month` refusés dans une leçon publiée. La révision du serveur ne sert que `choice`, `slider`, `document`, `dialogue`, `true_false`, `order`, `match`, `allocate` (le web gelé : `choice`, `slider`, `document`). |
+| E2 | `dialogue` au format de l'app (`character`, `messages`, `replies[].reaction`) ; `speaker`, `line` et `cost` refusés. Même règle de réussite. |
+| E3 | `allocate` à règles (2 à 5 pots, un seul réservoir, somme des départs = total, au moins une règle) ; juste si chaque règle est respectée et la somme égale au total. Rejoué en révision. Format à cibles refusé. |
+| E4 | `true_false`, `order`, `match` et `simulator` acceptés et corrigés avec les règles de l'app (réponses brutes : `{id: booléen}`, liste d'ids, `{errors, found}`). Un id absent vaut la position, comme dans l'app. `simulator` jamais noté. |
+| E5, E6 | `reveal` admet `start` et des lignes `dim` sans valeur ; `subtitle` admis sur tous les types. |
+| E7 | `takeaway` admis à la racine (une phrase, 1 à 3 mots clés entre crochets), renvoyé par `GET /api/lessons/{id}` avec les repères `{{cle}}` remplacés. |
+| E8 | Leçon publiée : ni bulletin de paie, ni cellule de récapitulatif juste. |
+| E9 | Difficulté de la leçon déduite de celle du module (cinq niveaux) ; `difficulty` de `GET /api/lessons/{id}` vaut ce niveau ; coffres : `entree` comme `debutant`, `inter` comme `intermediaire`, `expert` comme `avance`. Le module des quatre leçons publiées est `debutant` : leurs coffres ne changent pas. |
+| E13 | Un seul point de crédit des XP (`User::creditXp`) pour la leçon, la révision, la leçon découverte, le défi du jour, les quêtes, les cartes de module et l'évaluation : le niveau est toujours recalculé. |
+| E14 | `API.md` et `docs/FORMAT_ECRANS.md` du site au format de l'app, avec les exemples de ce document (vérifiés par le contrôle de format). |
+| E15 | Bornes : 2 à 6 cartes, 2 à 6 éléments, 2 à 5 paires, 1 à 4 sorties ; celles du site gardées. |
+| E16 | Contrôle de format appelé à la publication et à l'approbation d'une leçon (refus 422). Document noté : au moins une ligne touchable par variante, aucune `section` juste. |
+| E17 | Version `selon_chiffres` figée au service (par compte et par leçon, comme le tirage d'artefact) et reprise à `/complete` ; en révision, figée dans la session. |
+| E18 | La révision ne sert que les leçons publiées. |
+| Web | Une leçon au format de l'app affiche « À jouer dans l'app Valtheria » à la place de « Commencer ». Rien d'autre ne change. |
+
+**Vérifications faites**
+- Site : tests PHP et JavaScript verts (17 tests ajoutés, 32 cas de correction partagés ajoutés et 12 retirés, ceux de la répartition à cibles), CI verte.
+- Les quatre leçons du module passent le contrôle d'une leçon publiée ; sur le staging, leurs écrans servis sont identiques avant et après le lot.
+- Essai de bout en bout avec le code de l'app (normalisation, réponses brutes des écrans, correction locale, `buildResponses`) contre le staging : une leçon d'essai avec tous les types joués, un déclic et un écran `selon_chiffres`, jouée tout juste puis tout faux. Mêmes verdicts côté app et serveur (8 sur 8, puis 0 sur 8), aucun écran de secours, déclic lu, aucun repère ni `selon_chiffres` servi. Leçon et compte d'essai supprimés ensuite (`php artisan lessons:essai-format-app supprimer`).
+- En local, les quatre leçons du module jouées de la même façon : mêmes verdicts.
+
+**Restent côté app** (non modifiés par ce lot) : les points de la note de fin. `src/utils/grade.ts` ne connaît pas encore les nouveaux types ni la répartition à règles (l'app les corrige avec `interactive.ts`, aux mêmes règles que le serveur) ; la mention « Taux en vigueur au … » n'est pas affichée.
 
 **À noter pour le web, qui est gelé** : un écran au format de l'app ne pourra pas être joué par le lecteur web actuel. Proposition :
 - le site accepte les formats de l'app dans son validateur et son correcteur ;
