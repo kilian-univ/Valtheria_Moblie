@@ -4,9 +4,9 @@
 // site). Transforme ces réponses en format interne (model.ts). Fonctions
 // pures, sans React : testables avec Node.
 //
-// Champs volontairement ignorés : variant, has_volatile_note,
-// volatile_verified_at, trap, trap_found, review, artifact, et les zones
-// « recap » des documents.
+// Champs volontairement ignorés : variant, trap, trap_found, artifact, et
+// les zones « recap » des documents. review est lu par la révision de l'app
+// (revision.ts), sur l'écran brut.
 //
 // Écrans interactifs (true_false, order, match, allocate, simulator,
 // dialogue) : format décrit ci-dessous, à chaque cas ; un écran mal formé
@@ -151,6 +151,7 @@ export function normalizeScreen(raw: unknown, index: number): LessonScreen {
     explanation: plainText(s.explanation),
     question: plainText(p.question),
     subtitle: plainText(p.subtitle),
+    volatileVerifiedAt: s.has_volatile_note === true && typeof s.volatile_verified_at === 'string' ? s.volatile_verified_at : null,
     source: { type: s.type, scored: s.scored, payload: s.payload },
   };
 

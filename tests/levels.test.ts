@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { Module } from '../src/context/ApiContext';
+import { difficultyLabel, moduleSubtitle } from '../src/utils/learning';
 import {
   ALL_MODULES_LABEL,
   currentLevelIndex,
@@ -105,4 +106,19 @@ test('pastille d’un univers : à découvrir, niveau en cours, terminé', () =>
   assert.deepEqual(universePill([mod(1, 'debutant', [true]), mod(2, 'inter', [false])]), { label: 'Intermédiaire', level: 'inter' });
   assert.equal(universePill([mod(1, 'debutant', [true])]).label, 'Terminé');
   assert.equal(universePill([mod(1, null, [true, false])]).label, 'En cours');
+});
+
+test('libellés des niveaux : les cinq valeurs du site, partout la même table', () => {
+  assert.equal(difficultyLabel('entree'), 'Entrée');
+  assert.equal(difficultyLabel('debutant'), 'Débutant');
+  assert.equal(difficultyLabel('inter'), 'Intermédiaire');
+  assert.equal(difficultyLabel('intermediaire'), 'Intermédiaire');
+  assert.equal(difficultyLabel('avance'), 'Avancé');
+  assert.equal(difficultyLabel('expert'), 'Expert');
+  assert.equal(difficultyLabel('Intermédiaire'), 'Intermédiaire');
+  // Valeur inconnue : jamais affichée brute
+  assert.equal(difficultyLabel('legende'), null);
+  assert.equal(difficultyLabel(null), null);
+  assert.equal(moduleSubtitle(mod(1, 'entree', [false, false])), 'Entrée, 2 leçons');
+  assert.equal(moduleSubtitle(mod(2, 'expert', [false])), 'Expert, 1 leçon');
 });

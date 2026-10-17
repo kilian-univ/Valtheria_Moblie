@@ -25,6 +25,9 @@ type ScreenBase = {
   explanation: string | null;
   question: string | null;
   subtitle: string | null;
+  // Écran qui cite un chiffre réglementaire : date de vérification du plus
+  // ancien d'entre eux (has_volatile_note, volatile_verified_at), ISO ; null sinon
+  volatileVerifiedAt: string | null;
   // Écran tel que servi : sert uniquement à la correction (grade.ts), qui doit
   // rester le miroir exact de celle du site
   source: GradableScreen;

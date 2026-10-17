@@ -1,12 +1,12 @@
-// Correction locale et calculs des écrans interactifs (vrai ou faux, ordre,
-// associer, répartir, simulateur). Le dialogue est corrigé par grade.ts,
-// comme sur le site. Fonctions pures, sans React : testables avec Node.
+// Calculs d'affichage des écrans interactifs (vrai ou faux, ordre, associer,
+// répartir, simulateur). Le VERDICT de chaque écran vient de grade.ts, seule
+// source de correction, alignée sur le site. Fonctions pures, sans React :
+// testables avec Node.
 
 import type {
   AllocateBucket,
   AllocateRule,
   AllocateScreen,
-  MatchScreen,
   OrderScreen,
   SimulatorRange,
   TrueFalseScreen,
@@ -42,11 +42,6 @@ export function trueFalseReaction(correct: boolean, cardIndex: number): ValLine 
   return lines[Math.abs(cardIndex) % lines.length];
 }
 
-// Réussi : toutes les cartes jouées, et au moins pass bonnes réponses
-export function trueFalsePassed(screen: Pick<TrueFalseScreen, 'cards' | 'pass'>, answers: boolean[]): boolean {
-  return answers.length === screen.cards.length && trueFalseScore(screen, answers) >= screen.pass;
-}
-
 // ---------------------------------------------------------------------------
 // Remettre dans l'ordre
 // ---------------------------------------------------------------------------
@@ -54,10 +49,6 @@ export function trueFalsePassed(screen: Pick<TrueFalseScreen, 'cards' | 'pass'>,
 // Chaque position est-elle à sa place ?
 export function orderResults(screen: Pick<OrderScreen, 'items'>, order: string[]): boolean[] {
   return screen.items.map((item, i) => order[i] === item.id);
-}
-
-export function orderCorrect(screen: Pick<OrderScreen, 'items'>, order: string[]): boolean {
-  return order.length === screen.items.length && orderResults(screen, order).every(Boolean);
 }
 
 // Déplace l'élément d'une position vers une autre (glisser, monter, descendre)
@@ -99,10 +90,6 @@ export function isMatch(leftId: string, rightId: string): boolean {
   return leftId === rightId;
 }
 
-// Réussi : toutes les paires trouvées, avec au plus maxErrors erreurs
-export function matchPassed(screen: Pick<MatchScreen, 'pairs' | 'maxErrors'>, found: number, errors: number): boolean {
-  return found === screen.pairs.length && errors <= screen.maxErrors;
-}
 
 // ---------------------------------------------------------------------------
 // Répartir
@@ -143,12 +130,10 @@ export function moveAllocation(
   return { ...values, [key]: next, [reservoir]: (values[reservoir] ?? 0) - delta };
 }
 
-export type AllocationVerdict = { passed: boolean; failed: AllocateRule | null };
-
-// Règles dans l'ordre de la leçon : la première non respectée donne la réplique
-export function gradeAllocation(screen: Pick<AllocateScreen, 'rules'>, values: Allocation): AllocationVerdict {
-  const failed = screen.rules.find((r) => (values[r.bucket] ?? 0) < r.min) ?? null;
-  return { passed: failed === null, failed };
+// Règles dans l'ordre de la leçon : la première non respectée donne la
+// réplique de Val et fait clignoter son pot (le verdict vient de grade.ts)
+export function firstFailedRule(screen: Pick<AllocateScreen, 'rules'>, values: Allocation): AllocateRule | null {
+  return screen.rules.find((r) => (values[r.bucket] ?? 0) < r.min) ?? null;
 }
 
 // Valeurs des gabarits : celles des pots, plus, en pourcentages d'une somme

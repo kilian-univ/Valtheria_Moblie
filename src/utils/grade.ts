@@ -1,9 +1,11 @@
 /* =========================================================================
    Verdict d'un écran — PORTAGE À L'IDENTIQUE de resources/js/reader/grade.js
-   du site (lui-même miroir de app/Services/Lesson/ScreenGrader.php).
-   L'app l'utilise pour afficher la correction tout de suite ; le serveur
-   recalcule tout à la fin de la leçon et fait foi.
-   Cas partagés : tests/fixtures/reader-grading.json du site (node --test).
+   du site (lui-même miroir de app/Services/Lesson/ScreenGrader.php), depuis
+   le lot serveur n° 9 (17/10/2026) qui corrige tous les types de l'app.
+   SEULE source de correction de l'app : chaque écran noté calcule son
+   verdict ici. Le serveur recalcule tout à la fin de la leçon et fait foi.
+   Cas partagés : tests/fixtures/reader-grading.json, copie de celui du site
+   (tests/grade.test.ts).
    Ne pas « améliorer » ce fichier : toute divergence avec le site est un bug.
    ========================================================================= */
 
@@ -56,23 +58,65 @@ function dialogue(response: unknown, replies: unknown): boolean {
 function allocate(response: unknown, p: AnyRecord): boolean {
   const total = parseNumber(p.total ?? null);
   const buckets: AnyRecord[] = Array.isArray(p.buckets) ? p.buckets : [];
-  if (total === null || buckets.length === 0 || !response || typeof response !== 'object' || Array.isArray(response))
+  const rules: AnyRecord[] = Array.isArray(p.rules) ? p.rules : [];
+  if (total === null || buckets.length === 0 || rules.length === 0 || !response || typeof response !== 'object' || Array.isArray(response))
     return false;
   const given = response as AnyRecord;
+  const values: Record<string, number> = {};
   let sum = 0;
   for (const b of buckets) {
-    const target = parseNumber(b.target ?? null) ?? 0;
-    if (b.locked === true) {
-      sum += target;
-      continue;
-    }
-    const v = parseNumber(given[b.key ?? ''] ?? null);
-    const max = parseNumber(b.max ?? null) ?? total;
-    if (v === null || v < 0 || v > max + 1e-9) return false;
+    const key = String(b?.key ?? '');
+    const v = parseNumber(given[key] ?? null);
+    if (v === null || v < 0) return false;
+    values[key] = v;
     sum += v;
-    if (Math.abs(v - target) > Math.abs(parseNumber(b.tolerance ?? 0) ?? 0) + 1e-9) return false;
   }
-  return Math.abs(sum - total) <= 1e-6;
+  if (Math.abs(sum - total) > 1e-6) return false;
+  return rules.every((r) => {
+    const min = parseNumber(r?.min ?? null);
+    return min !== null && (values[String(r.bucket ?? '')] ?? 0) >= min - 1e-9;
+  });
+}
+
+// Id envoyé par le lecteur : texte ou entier (comme is_string || is_int côté serveur)
+const isId = (x: unknown): boolean => typeof x === 'string' || Number.isInteger(x);
+
+// Ids d'une liste de l'app (cartes, éléments, paires) : l'id donné, sinon la position
+function idsOf(list: unknown): string[] {
+  return (Array.isArray(list) ? list : []).map((it: AnyRecord, i: number) =>
+    it?.id === undefined || it?.id === null || String(it.id) === '' ? String(i) : String(it.id)
+  );
+}
+
+function trueFalse(response: unknown, p: AnyRecord): boolean {
+  const cards: AnyRecord[] = Array.isArray(p.cards) ? p.cards : [];
+  if (cards.length === 0 || !response || typeof response !== 'object') return false;
+  const given = response as AnyRecord;
+  const ids = idsOf(cards);
+  let right = 0;
+  for (let i = 0; i < cards.length; i++) {
+    const answer = given[ids[i]];
+    if (typeof answer !== 'boolean') return false;
+    if (cards[i]?.answer === answer) right++;
+  }
+  const pass = Number.isInteger(p.pass) && p.pass >= 1 && p.pass <= cards.length ? p.pass : cards.length;
+  return right >= pass;
+}
+
+function order(response: unknown, p: AnyRecord): boolean {
+  const ids = idsOf(p.items);
+  if (ids.length === 0 || !Array.isArray(response) || response.length !== ids.length) return false;
+  return ids.every((id, i) => isId(response[i]) && String(response[i]) === id);
+}
+
+function match(response: unknown, p: AnyRecord): boolean {
+  const ids = idsOf(p.pairs).sort();
+  const given = response as AnyRecord;
+  if (ids.length === 0 || !given || typeof given !== 'object' || !Array.isArray(given.found) || !Number.isInteger(given.errors))
+    return false;
+  const found = [...new Set(given.found.map((x: unknown) => (isId(x) ? String(x) : '')))].sort();
+  const max = Number.isInteger(p.max_errors) && p.max_errors >= 0 ? p.max_errors : 0;
+  return found.length === ids.length && found.every((f, i) => f === ids[i]) && given.errors >= 0 && given.errors <= max;
 }
 
 function liveMonth(response: unknown, p: AnyRecord): boolean {
@@ -100,6 +144,12 @@ export function grade(screen: GradableScreen | null | undefined, response: unkno
       return dialogue(response, p.replies);
     case 'allocate':
       return allocate(response, p);
+    case 'true_false':
+      return trueFalse(response, p);
+    case 'order':
+      return order(response, p);
+    case 'match':
+      return match(response, p);
     case 'live_month':
       return liveMonth(response, p);
     default:

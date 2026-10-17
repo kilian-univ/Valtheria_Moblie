@@ -1,6 +1,7 @@
 /// <reference types="node" />
 // Lancer : npm test
-// Correction locale des écrans interactifs (lesson/interactive.ts)
+// Écrans interactifs : calculs d'affichage (lesson/interactive.ts) et verdict
+// (utils/grade.ts, seule source de correction)
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -13,15 +14,12 @@ import {
   allocationTemplateValues,
   dropRank,
   fillTemplate,
-  gradeAllocation,
+  firstFailedRule,
   initialAllocation,
-  matchPassed,
   moveAllocation,
   moveItem,
-  orderCorrect,
   orderResults,
   rangeLine,
-  trueFalsePassed,
   trueFalseResults,
   trueFalseScore,
 } from '../src/lesson/interactive';
@@ -40,11 +38,14 @@ test('vrai ou faux : verdict par carte, réussi à partir de 3 sur 4', () => {
   };
   assert.deepEqual(trueFalseResults(screen, [true, false, true, true]), [true, true, false, true]);
   assert.equal(trueFalseScore(screen, [true, false, false, true]), 4);
-  assert.equal(trueFalsePassed(screen, [true, false, false, true]), true);
-  assert.equal(trueFalsePassed(screen, [true, false, true, true]), true); // 3 sur 4
-  assert.equal(trueFalsePassed(screen, [false, true, false, true]), false); // 2 sur 4
+  // Verdict : grade.ts, sur la réponse brute envoyée par l'écran
+  const source = { type: 'true_false', scored: true, payload: { pass: 3, cards: screen.cards } };
+  const raw = (given: (boolean | undefined)[]) => Object.fromEntries(screen.cards.map((c, i) => [c.id, given[i]]));
+  assert.equal(grade(source, raw([true, false, false, true])), true);
+  assert.equal(grade(source, raw([true, false, true, true])), true); // 3 sur 4
+  assert.equal(grade(source, raw([false, true, false, true])), false); // 2 sur 4
   // Toutes les cartes doivent être jouées
-  assert.equal(trueFalsePassed(screen, [true, false, false]), false);
+  assert.equal(grade(source, raw([true, false, false])), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -53,9 +54,10 @@ test('vrai ou faux : verdict par carte, réussi à partir de 3 sur 4', () => {
 test('ordre : chaque élément vert ou rouge, juste seulement si tout est à sa place', () => {
   const screen = { items: ['a', 'b', 'c', 'd'].map((id) => ({ id, text: id })) };
   assert.deepEqual(orderResults(screen, ['a', 'c', 'b', 'd']), [true, false, false, true]);
-  assert.equal(orderCorrect(screen, ['a', 'c', 'b', 'd']), false);
-  assert.equal(orderCorrect(screen, ['a', 'b', 'c', 'd']), true);
-  assert.equal(orderCorrect(screen, ['a', 'b', 'c']), false);
+  const source = { type: 'order', scored: true, payload: { items: screen.items } };
+  assert.equal(grade(source, ['a', 'c', 'b', 'd']), false);
+  assert.equal(grade(source, ['a', 'b', 'c', 'd']), true);
+  assert.equal(grade(source, ['a', 'b', 'c']), false);
 });
 
 test('ordre : glisser, monter et descendre déplacent sans rien perdre', () => {
@@ -73,11 +75,12 @@ test('ordre : glisser, monter et descendre déplacent sans rien perdre', () => {
 // Associer
 // ---------------------------------------------------------------------------
 test('associer : réussi avec au plus une erreur, une fois toutes les paires trouvées', () => {
-  const screen = { pairs: [1, 2, 3, 4].map((n) => ({ id: `${n}`, left: '', right: '' })), maxErrors: 1 };
-  assert.equal(matchPassed(screen, 4, 0), true);
-  assert.equal(matchPassed(screen, 4, 1), true);
-  assert.equal(matchPassed(screen, 4, 2), false);
-  assert.equal(matchPassed(screen, 3, 0), false);
+  const pairs = [1, 2, 3, 4].map((n) => ({ id: `${n}`, left: 'L', right: 'R' }));
+  const source = { type: 'match', scored: true, payload: { pairs, max_errors: 1 } };
+  assert.equal(grade(source, { errors: 0, found: ['1', '2', '3', '4'] }), true);
+  assert.equal(grade(source, { errors: 1, found: ['4', '3', '2', '1'] }), true);
+  assert.equal(grade(source, { errors: 2, found: ['1', '2', '3', '4'] }), false);
+  assert.equal(grade(source, { errors: 0, found: ['1', '2', '3'] }), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -143,13 +146,15 @@ test('répartir : le réservoir ne passe jamais sous zéro', () => {
 
 test('répartir : règle du document et réplique de Val du cas', () => {
   const start = initialAllocation(PAIE.buckets);
-  assert.equal(gradeAllocation(PAIE, start).failed?.val?.line, 'Épargne trop basse');
-  assert.equal(gradeAllocation(PAIE, { besoins: 1260, envies: 360, epargne: 180 }).passed, true);
-  assert.equal(gradeAllocation(PAIE, { besoins: 1260, envies: 370, epargne: 170 }).passed, false);
-  const lowNeeds = gradeAllocation(PAIE, { besoins: 890, envies: 610, epargne: 300 });
-  assert.equal(lowNeeds.passed, false);
-  assert.equal(lowNeeds.failed?.val?.line, 'Besoins trop bas');
-  assert.equal(gradeAllocation(PAIE, { besoins: 900, envies: 720, epargne: 180 }).passed, true);
+  assert.equal(firstFailedRule(PAIE, start)?.val?.line, 'Épargne trop basse');
+  assert.equal(grade(PAIE.source, start), false);
+  assert.equal(grade(PAIE.source, { besoins: 1260, envies: 360, epargne: 180 }), true);
+  assert.equal(grade(PAIE.source, { besoins: 1260, envies: 370, epargne: 170 }), false);
+  const lowNeeds = { besoins: 890, envies: 610, epargne: 300 };
+  assert.equal(grade(PAIE.source, lowNeeds), false);
+  assert.equal(firstFailedRule(PAIE, lowNeeds)?.val?.line, 'Besoins trop bas');
+  assert.equal(grade(PAIE.source, { besoins: 900, envies: 720, epargne: 180 }), true);
+  assert.equal(firstFailedRule(PAIE, { besoins: 900, envies: 720, epargne: 180 }), null);
 });
 
 test('répartir : texte en direct sous un pot', () => {
@@ -264,11 +269,11 @@ test('répartir en pourcentages : pas de 5 %, total toujours 100 %, montants de 
 });
 
 test('répartir en pourcentages : épargne d’au moins 10 %, besoins d’au moins 50 %', () => {
-  assert.equal(gradeAllocation(PART, initialAllocation(PART.buckets)).failed?.val?.line, 'Épargne trop basse');
-  assert.equal(gradeAllocation(PART, { besoins: 70, envies: 20, epargne: 10 }).passed, true);
-  assert.equal(gradeAllocation(PART, { besoins: 70, envies: 25, epargne: 5 }).passed, false);
-  assert.equal(gradeAllocation(PART, { besoins: 45, envies: 35, epargne: 20 }).failed?.val?.line, 'Besoins trop bas');
-  assert.equal(gradeAllocation(PART, { besoins: 50, envies: 40, epargne: 10 }).passed, true);
+  assert.equal(firstFailedRule(PART, initialAllocation(PART.buckets))?.val?.line, 'Épargne trop basse');
+  assert.equal(grade(PART.source, { besoins: 70, envies: 20, epargne: 10 }), true);
+  assert.equal(grade(PART.source, { besoins: 70, envies: 25, epargne: 5 }), false);
+  assert.equal(firstFailedRule(PART, { besoins: 45, envies: 35, epargne: 20 })?.val?.line, 'Besoins trop bas');
+  assert.equal(grade(PART.source, { besoins: 50, envies: 40, epargne: 10 }), true);
 });
 
 // ---------------------------------------------------------------------------

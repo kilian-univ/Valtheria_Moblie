@@ -60,6 +60,7 @@ import {
   estimateFor,
   finishedModuleTitle,
   firstTryResults,
+  volatileNote,
   firstTryRun,
   isFirstTryCorrect,
   isGradable,
@@ -525,6 +526,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       correct: draft.correct,
       firstTry: !retrying && isFirstTryCorrect(nextAnswers, screens, screenIndex),
       correctText: draft.correctText,
+      correctCount: draft.correctCount,
       explanation: (draft.explanation !== undefined ? draft.explanation : current.explanation) ?? undefined,
       val: reaction,
     };
@@ -731,6 +733,12 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                               setVal={setValOverride}
                             />
                           </ScreenBoundary>
+                          {/* Écran qui cite un chiffre réglementaire : sa date, discrète */}
+                          {volatileNote(current.volatileVerifiedAt) ? (
+                            <AppText variant="caption" tone="subtitle" style={styles.volatile}>
+                              {volatileNote(current.volatileVerifiedAt)}
+                            </AppText>
+                          ) : null}
                         </View>
                       </Cascade>
                     </ScrollView>
@@ -844,6 +852,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  volatile: {
+    marginTop: space[4],
   },
   state: {
     flex: 1,

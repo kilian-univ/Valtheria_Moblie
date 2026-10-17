@@ -153,7 +153,7 @@ export function buildImpots(figures: Figures) {
           options: [
             { id: 'oui', text: `Oui, tout son revenu est taxé à ${b.t2}` },
             { id: 'plus-bas', text: 'Non, il est plus bas, car ses premiers euros sont moins taxés', correct: true },
-            { id: 'plus-haut', text: 'Non, il est plus haut que 30 %' },
+            { id: 'plus-haut', text: `Non, il est plus haut que ${b.t2}` },
           ],
         },
       },

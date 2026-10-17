@@ -136,11 +136,33 @@ export function estimateVerdict(guess: number, actual: number, unit: string | nu
 
 // Lignes d'une révélation qui apportent une information nouvelle : celles
 // qui répètent un chiffre déjà affiché (départ, estimation, vrai chiffre)
-// disparaissent. La ligne atténuée (hypothèse) reste toujours.
+// disparaissent. La ligne atténuée (hypothèse) et la ligne en or (le
+// résultat, key) restent toujours.
 export function revealExtraLines(lines: RevealLine[], shown: number[]): RevealLine[] {
   return lines.filter(
-    (line) => line.dim || typeof line.value !== 'number' || !shown.some((v) => Math.abs(v - (line.value as number)) < 1e-9)
+    (line) =>
+      line.dim || line.key || typeof line.value !== 'number' || !shown.some((v) => Math.abs(v - (line.value as number)) < 1e-9)
   );
+}
+
+const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+// Mention sous un écran qui cite un chiffre réglementaire : « Taux en vigueur
+// au 8 septembre 2026 » (date de vérification la plus ancienne, envoyée par
+// le site). Date illisible : pas de mention.
+export function volatileNote(iso: string | null | undefined): string | null {
+  const m = typeof iso === 'string' ? /^(\d{4})-(\d{2})-(\d{2})/.exec(iso) : null;
+  if (!m) return null;
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `Taux en vigueur au ${day === 1 ? '1er' : day} ${MONTHS[month - 1]} ${m[1]}`;
+}
+
+// Intitulé de la bonne réponse dans la feuille : au pluriel seulement s'il y
+// en a plusieurs (une seule réponse peut contenir une virgule)
+export function correctAnswerLabel(count: number): string {
+  return count > 1 ? 'Les bonnes réponses : ' : 'La bonne réponse : ';
 }
 
 // Première tentative de chaque écran noté, dans l'ordre où elles ont été données

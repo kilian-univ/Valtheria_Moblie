@@ -23,14 +23,12 @@ export default function ChoiceScreen({ screen, answered, onDraftChange }: Lesson
       return;
     }
     const raw = multiple ? selectedIds : selectedIds[0];
+    const right = options.filter((o) => o.correct);
     onDraftChange({
       raw,
       correct: grade(screen.source, raw) === true,
-      correctText:
-        options
-          .filter((o) => o.correct)
-          .map((o) => o.text)
-          .join(', ') || null,
+      correctText: right.map((o) => o.text).join(', ') || null,
+      correctCount: right.length,
     });
   }, [selectedIds, multiple, options, screen.source, onDraftChange]);
 

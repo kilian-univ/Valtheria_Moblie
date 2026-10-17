@@ -60,6 +60,16 @@ test('matière : seuls les écrans notés rejouables (pas le pari, la révélati
   assert.deepEqual(gradableScreens('rien'), []);
 });
 
+test('matière : un écran marqué review: false n’est jamais rejoué, même gardé avant la correction', () => {
+  const horsLecon = { ...choice('seul'), review: false };
+  assert.deepEqual(gradableScreens([choice('a'), horsLecon, choice('b')]).map((s) => s.index), [0, 2]);
+  // Leçon gardée sur le téléphone avant que review: false soit respecté
+  const old = lesson(9, 'crypto', 2);
+  old.screens.push({ index: 2, raw: horsLecon });
+  const keys = buildCandidates({ lessons: [old], declics: [], history: {}, lessonDoneAt: () => null, random: fixed }).map((c) => c.key);
+  assert.deepEqual(keys, ['e:9:0', 'e:9:1']);
+});
+
 test('nombre d’écrans variable : de 4 à 10 selon les leçons faites, moins si peu de matière', () => {
   assert.equal(revisionSize(0, 50), 4);
   assert.equal(revisionSize(2, 50), 4);

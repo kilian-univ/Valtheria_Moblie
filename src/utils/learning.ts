@@ -10,6 +10,7 @@
 //   lessons_completed, pour éviter toute incohérence entre les deux).
 
 import type { Lesson, Module } from '@/src/context/ApiContext';
+import { LEVEL_ORDER, levelKey, levelLabel } from './levelNames';
 
 export type LessonStatus = 'completed' | 'current' | 'locked';
 
@@ -178,34 +179,12 @@ export function lessonsProgressLabel(done: number, total: number): string {
   return `${done} ${lessonsWord(done)} sur ${total}`;
 }
 
-// Valeurs de difficulté connues → libellé français. Toute autre valeur est
+// Niveau d'un module → libellé français (Entrée, Débutant, Intermédiaire,
+// Avancé, Expert), anciennes valeurs comprises. Toute autre valeur est
 // masquée (null), jamais affichée brute.
-const DIFFICULTY_LABELS: Record<string, string> = {
-  debutant: 'Débutant',
-  debutante: 'Débutant',
-  beginner: 'Débutant',
-  facile: 'Débutant',
-  easy: 'Débutant',
-  intermediaire: 'Intermédiaire',
-  intermediate: 'Intermédiaire',
-  moyen: 'Intermédiaire',
-  medium: 'Intermédiaire',
-  avance: 'Avancé',
-  avancee: 'Avancé',
-  advanced: 'Avancé',
-  difficile: 'Avancé',
-  hard: 'Avancé',
-  expert: 'Avancé',
-};
-
 export function difficultyLabel(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  const key = raw
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
-  return DIFFICULTY_LABELS[key] ?? null;
+  const key = levelKey(raw);
+  return key !== null && (LEVEL_ORDER as readonly string[]).includes(key) ? levelLabel(key) : null;
 }
 
 // Sous-titre d'un module dans les listes de l'accueil

@@ -1,0 +1,2558 @@
+[
+ {
+  "name": "choice single juste",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "single",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     }
+    ]
+   }
+  },
+  "response": "a",
+  "expected": true
+ },
+ {
+  "name": "choice single faux",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "single",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     }
+    ]
+   }
+  },
+  "response": "b",
+  "expected": false
+ },
+ {
+  "name": "choice single en liste",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "single",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     }
+    ]
+   }
+  },
+  "response": [
+   "a"
+  ],
+  "expected": true
+ },
+ {
+  "name": "choice vide",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "single",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     }
+    ]
+   }
+  },
+  "response": null,
+  "expected": false
+ },
+ {
+  "name": "choice liste vide",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "single",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     }
+    ]
+   }
+  },
+  "response": [],
+  "expected": false
+ },
+ {
+  "name": "choice doublons",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "single",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     }
+    ]
+   }
+  },
+  "response": [
+   "a",
+   "a"
+  ],
+  "expected": true
+ },
+ {
+  "name": "choice booléen refusé",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "single",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     }
+    ]
+   }
+  },
+  "response": true,
+  "expected": false
+ },
+ {
+  "name": "multiple exact",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "multiple",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     },
+     {
+      "id": "c",
+      "text": "C",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": [
+   "c",
+   "a"
+  ],
+  "expected": true
+ },
+ {
+  "name": "multiple incomplet",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "multiple",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     },
+     {
+      "id": "c",
+      "text": "C",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": [
+   "a"
+  ],
+  "expected": false
+ },
+ {
+  "name": "multiple en trop",
+  "screen": {
+   "type": "choice",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "mode": "multiple",
+    "options": [
+     {
+      "id": "a",
+      "text": "A",
+      "correct": true
+     },
+     {
+      "id": "b",
+      "text": "B",
+      "correct": false
+     },
+     {
+      "id": "c",
+      "text": "C",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": [
+   "a",
+   "b",
+   "c"
+  ],
+  "expected": false
+ },
+ {
+  "name": "number juste",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 160,
+    "tolerance": 0
+   }
+  },
+  "response": 160,
+  "expected": true
+ },
+ {
+  "name": "number texte",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 160,
+    "tolerance": 0
+   }
+  },
+  "response": "160",
+  "expected": true
+ },
+ {
+  "name": "number faux",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 160,
+    "tolerance": 0
+   }
+  },
+  "response": 161,
+  "expected": false
+ },
+ {
+  "name": "number invalide",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 160,
+    "tolerance": 0
+   }
+  },
+  "response": "abc",
+  "expected": false
+ },
+ {
+  "name": "number vide",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 160,
+    "tolerance": 0
+   }
+  },
+  "response": "",
+  "expected": false
+ },
+ {
+  "name": "number espaces fr",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 1234.5,
+    "tolerance": 0.5
+   }
+  },
+  "response": "1 234,5",
+  "expected": true
+ },
+ {
+  "name": "number espace insécable",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 1234.5,
+    "tolerance": 0.5
+   }
+  },
+  "response": "1 234",
+  "expected": true
+ },
+ {
+  "name": "number tolérance bord",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 1234.5,
+    "tolerance": 0.5
+   }
+  },
+  "response": 1235,
+  "expected": true
+ },
+ {
+  "name": "number hors tolérance",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 1234.5,
+    "tolerance": 0.5
+   }
+  },
+  "response": 1235.01,
+  "expected": false
+ },
+ {
+  "name": "number négatif",
+  "screen": {
+   "type": "number",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "answer": 160,
+    "tolerance": 0
+   }
+  },
+  "response": "-160",
+  "expected": false
+ },
+ {
+  "name": "slider dans tolérance",
+  "screen": {
+   "type": "slider",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "min": 0,
+    "max": 100,
+    "step": 5,
+    "answer": 30,
+    "tolerance": 5
+   }
+  },
+  "response": 35,
+  "expected": true
+ },
+ {
+  "name": "slider bord bas",
+  "screen": {
+   "type": "slider",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "min": 0,
+    "max": 100,
+    "step": 5,
+    "answer": 30,
+    "tolerance": 5
+   }
+  },
+  "response": 25,
+  "expected": true
+ },
+ {
+  "name": "slider hors",
+  "screen": {
+   "type": "slider",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "min": 0,
+    "max": 100,
+    "step": 5,
+    "answer": 30,
+    "tolerance": 5
+   }
+  },
+  "response": 40,
+  "expected": false
+ },
+ {
+  "name": "slider non noté",
+  "screen": {
+   "type": "slider",
+   "scored": false,
+   "payload": {
+    "question": "Q",
+    "min": 0,
+    "max": 100,
+    "step": 5
+   }
+  },
+  "response": 50,
+  "expected": null
+ },
+ {
+  "name": "document select exact",
+  "screen": {
+   "type": "document",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "mode": "select",
+    "header": "H",
+    "lines": [
+     {
+      "id": "l1",
+      "label": "A",
+      "amount": "1",
+      "correct": true
+     },
+     {
+      "id": "l2",
+      "label": "B",
+      "amount": "2",
+      "correct": false
+     },
+     {
+      "id": "l3",
+      "label": "C",
+      "amount": "3",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": [
+   "l3",
+   "l1"
+  ],
+  "expected": true
+ },
+ {
+  "name": "document select manquant",
+  "screen": {
+   "type": "document",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "mode": "select",
+    "header": "H",
+    "lines": [
+     {
+      "id": "l1",
+      "label": "A",
+      "amount": "1",
+      "correct": true
+     },
+     {
+      "id": "l2",
+      "label": "B",
+      "amount": "2",
+      "correct": false
+     },
+     {
+      "id": "l3",
+      "label": "C",
+      "amount": "3",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": [
+   "l1"
+  ],
+  "expected": false
+ },
+ {
+  "name": "document pick juste",
+  "screen": {
+   "type": "document",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "mode": "pick",
+    "header": "H",
+    "lines": [
+     {
+      "id": "l1",
+      "label": "A",
+      "amount": "1",
+      "correct": false
+     },
+     {
+      "id": "l2",
+      "label": "B",
+      "amount": "2",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": "l2",
+  "expected": true
+ },
+ {
+  "name": "document pick faux",
+  "screen": {
+   "type": "document",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "mode": "pick",
+    "header": "H",
+    "lines": [
+     {
+      "id": "l1",
+      "label": "A",
+      "amount": "1",
+      "correct": false
+     },
+     {
+      "id": "l2",
+      "label": "B",
+      "amount": "2",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": "l1",
+  "expected": false
+ },
+ {
+  "name": "dialogue juste",
+  "screen": {
+   "type": "dialogue",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "speaker": "S",
+    "line": "L",
+    "replies": [
+     {
+      "id": "r1",
+      "text": "x",
+      "correct": false
+     },
+     {
+      "id": "r2",
+      "text": "y",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": "r2",
+  "expected": true
+ },
+ {
+  "name": "dialogue faux",
+  "screen": {
+   "type": "dialogue",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "speaker": "S",
+    "line": "L",
+    "replies": [
+     {
+      "id": "r1",
+      "text": "x",
+      "correct": false
+     },
+     {
+      "id": "r2",
+      "text": "y",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": "r1",
+  "expected": false
+ },
+ {
+  "name": "dialogue inconnu",
+  "screen": {
+   "type": "dialogue",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "speaker": "S",
+    "line": "L",
+    "replies": [
+     {
+      "id": "r1",
+      "text": "x",
+      "correct": false
+     },
+     {
+      "id": "r2",
+      "text": "y",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": "zz",
+  "expected": false
+ },
+ {
+  "name": "dialogue liste refusée",
+  "screen": {
+   "type": "dialogue",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "speaker": "S",
+    "line": "L",
+    "replies": [
+     {
+      "id": "r1",
+      "text": "x",
+      "correct": false
+     },
+     {
+      "id": "r2",
+      "text": "y",
+      "correct": true
+     }
+    ]
+   }
+  },
+  "response": [
+   "r2"
+  ],
+  "expected": false
+ },
+ {
+  "name": "reveal jamais noté",
+  "screen": {
+   "type": "reveal",
+   "scored": false,
+   "payload": {
+    "value": 1234,
+    "lines": []
+   }
+  },
+  "response": null,
+  "expected": null
+ },
+ {
+  "name": "écran noté type inconnu",
+  "screen": {
+   "type": "budget",
+   "notion": "n",
+   "scored": true,
+   "payload": {}
+  },
+  "response": "x",
+  "expected": null
+ },
+ {
+  "name": "live_month juste : parcours complet",
+  "screen": {
+   "type": "live_month",
+   "notion": "n",
+   "scored": true,
+   "review": false,
+   "payload": {
+    "intro": "I",
+    "starting_balance": 800,
+    "events": [
+     {
+      "day": 1,
+      "label": "Loyer",
+      "amount": -500
+     },
+     {
+      "day": 8,
+      "label": "Sortie ?",
+      "options": [
+       {
+        "label": "Oui",
+        "amount": -60
+       },
+       {
+        "label": "Non",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "day": 15,
+      "label": "Panne",
+      "amount": -120
+     },
+     {
+      "day": 22,
+      "label": "Cadeau",
+      "options": [
+       {
+        "label": "A",
+        "amount": -40
+       },
+       {
+        "label": "B",
+        "amount": -15
+       },
+       {
+        "label": "C",
+        "amount": 0
+       }
+      ]
+     }
+    ],
+    "outcome_thresholds": [
+     {
+      "min": 100,
+      "label": "Bien"
+     },
+     {
+      "min": -1000,
+      "label": "Serré"
+     }
+    ]
+   }
+  },
+  "response": [
+   1,
+   2
+  ],
+  "expected": true
+ },
+ {
+  "name": "live_month juste : autre parcours complet",
+  "screen": {
+   "type": "live_month",
+   "notion": "n",
+   "scored": true,
+   "review": false,
+   "payload": {
+    "intro": "I",
+    "starting_balance": 800,
+    "events": [
+     {
+      "day": 1,
+      "label": "Loyer",
+      "amount": -500
+     },
+     {
+      "day": 8,
+      "label": "Sortie ?",
+      "options": [
+       {
+        "label": "Oui",
+        "amount": -60
+       },
+       {
+        "label": "Non",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "day": 15,
+      "label": "Panne",
+      "amount": -120
+     },
+     {
+      "day": 22,
+      "label": "Cadeau",
+      "options": [
+       {
+        "label": "A",
+        "amount": -40
+       },
+       {
+        "label": "B",
+        "amount": -15
+       },
+       {
+        "label": "C",
+        "amount": 0
+       }
+      ]
+     }
+    ],
+    "outcome_thresholds": [
+     {
+      "min": 100,
+      "label": "Bien"
+     },
+     {
+      "min": -1000,
+      "label": "Serré"
+     }
+    ]
+   }
+  },
+  "response": [
+   0,
+   0
+  ],
+  "expected": true
+ },
+ {
+  "name": "live_month faux : parcours incomplet",
+  "screen": {
+   "type": "live_month",
+   "notion": "n",
+   "scored": true,
+   "review": false,
+   "payload": {
+    "intro": "I",
+    "starting_balance": 800,
+    "events": [
+     {
+      "day": 1,
+      "label": "Loyer",
+      "amount": -500
+     },
+     {
+      "day": 8,
+      "label": "Sortie ?",
+      "options": [
+       {
+        "label": "Oui",
+        "amount": -60
+       },
+       {
+        "label": "Non",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "day": 15,
+      "label": "Panne",
+      "amount": -120
+     },
+     {
+      "day": 22,
+      "label": "Cadeau",
+      "options": [
+       {
+        "label": "A",
+        "amount": -40
+       },
+       {
+        "label": "B",
+        "amount": -15
+       },
+       {
+        "label": "C",
+        "amount": 0
+       }
+      ]
+     }
+    ],
+    "outcome_thresholds": [
+     {
+      "min": 100,
+      "label": "Bien"
+     },
+     {
+      "min": -1000,
+      "label": "Serré"
+     }
+    ]
+   }
+  },
+  "response": [
+   1
+  ],
+  "expected": false
+ },
+ {
+  "name": "live_month faux : option inexistante",
+  "screen": {
+   "type": "live_month",
+   "notion": "n",
+   "scored": true,
+   "review": false,
+   "payload": {
+    "intro": "I",
+    "starting_balance": 800,
+    "events": [
+     {
+      "day": 1,
+      "label": "Loyer",
+      "amount": -500
+     },
+     {
+      "day": 8,
+      "label": "Sortie ?",
+      "options": [
+       {
+        "label": "Oui",
+        "amount": -60
+       },
+       {
+        "label": "Non",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "day": 15,
+      "label": "Panne",
+      "amount": -120
+     },
+     {
+      "day": 22,
+      "label": "Cadeau",
+      "options": [
+       {
+        "label": "A",
+        "amount": -40
+       },
+       {
+        "label": "B",
+        "amount": -15
+       },
+       {
+        "label": "C",
+        "amount": 0
+       }
+      ]
+     }
+    ],
+    "outcome_thresholds": [
+     {
+      "min": 100,
+      "label": "Bien"
+     },
+     {
+      "min": -1000,
+      "label": "Serré"
+     }
+    ]
+   }
+  },
+  "response": [
+   1,
+   3
+  ],
+  "expected": false
+ },
+ {
+  "name": "live_month faux : index négatif",
+  "screen": {
+   "type": "live_month",
+   "notion": "n",
+   "scored": true,
+   "review": false,
+   "payload": {
+    "intro": "I",
+    "starting_balance": 800,
+    "events": [
+     {
+      "day": 1,
+      "label": "Loyer",
+      "amount": -500
+     },
+     {
+      "day": 8,
+      "label": "Sortie ?",
+      "options": [
+       {
+        "label": "Oui",
+        "amount": -60
+       },
+       {
+        "label": "Non",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "day": 15,
+      "label": "Panne",
+      "amount": -120
+     },
+     {
+      "day": 22,
+      "label": "Cadeau",
+      "options": [
+       {
+        "label": "A",
+        "amount": -40
+       },
+       {
+        "label": "B",
+        "amount": -15
+       },
+       {
+        "label": "C",
+        "amount": 0
+       }
+      ]
+     }
+    ],
+    "outcome_thresholds": [
+     {
+      "min": 100,
+      "label": "Bien"
+     },
+     {
+      "min": -1000,
+      "label": "Serré"
+     }
+    ]
+   }
+  },
+  "response": [
+   -1,
+   0
+  ],
+  "expected": false
+ },
+ {
+  "name": "live_month faux : trop de choix",
+  "screen": {
+   "type": "live_month",
+   "notion": "n",
+   "scored": true,
+   "review": false,
+   "payload": {
+    "intro": "I",
+    "starting_balance": 800,
+    "events": [
+     {
+      "day": 1,
+      "label": "Loyer",
+      "amount": -500
+     },
+     {
+      "day": 8,
+      "label": "Sortie ?",
+      "options": [
+       {
+        "label": "Oui",
+        "amount": -60
+       },
+       {
+        "label": "Non",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "day": 15,
+      "label": "Panne",
+      "amount": -120
+     },
+     {
+      "day": 22,
+      "label": "Cadeau",
+      "options": [
+       {
+        "label": "A",
+        "amount": -40
+       },
+       {
+        "label": "B",
+        "amount": -15
+       },
+       {
+        "label": "C",
+        "amount": 0
+       }
+      ]
+     }
+    ],
+    "outcome_thresholds": [
+     {
+      "min": 100,
+      "label": "Bien"
+     },
+     {
+      "min": -1000,
+      "label": "Serré"
+     }
+    ]
+   }
+  },
+  "response": [
+   0,
+   0,
+   0
+  ],
+  "expected": false
+ },
+ {
+  "name": "live_month faux : objet forgé",
+  "screen": {
+   "type": "live_month",
+   "notion": "n",
+   "scored": true,
+   "review": false,
+   "payload": {
+    "intro": "I",
+    "starting_balance": 800,
+    "events": [
+     {
+      "day": 1,
+      "label": "Loyer",
+      "amount": -500
+     },
+     {
+      "day": 8,
+      "label": "Sortie ?",
+      "options": [
+       {
+        "label": "Oui",
+        "amount": -60
+       },
+       {
+        "label": "Non",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "day": 15,
+      "label": "Panne",
+      "amount": -120
+     },
+     {
+      "day": 22,
+      "label": "Cadeau",
+      "options": [
+       {
+        "label": "A",
+        "amount": -40
+       },
+       {
+        "label": "B",
+        "amount": -15
+       },
+       {
+        "label": "C",
+        "amount": 0
+       }
+      ]
+     }
+    ],
+    "outcome_thresholds": [
+     {
+      "min": 100,
+      "label": "Bien"
+     },
+     {
+      "min": -1000,
+      "label": "Serré"
+     }
+    ]
+   }
+  },
+  "response": {
+   "done": true
+  },
+  "expected": false
+ },
+ {
+  "name": "live_month faux : index en texte",
+  "screen": {
+   "type": "live_month",
+   "notion": "n",
+   "scored": true,
+   "review": false,
+   "payload": {
+    "intro": "I",
+    "starting_balance": 800,
+    "events": [
+     {
+      "day": 1,
+      "label": "Loyer",
+      "amount": -500
+     },
+     {
+      "day": 8,
+      "label": "Sortie ?",
+      "options": [
+       {
+        "label": "Oui",
+        "amount": -60
+       },
+       {
+        "label": "Non",
+        "amount": 0
+       }
+      ]
+     },
+     {
+      "day": 15,
+      "label": "Panne",
+      "amount": -120
+     },
+     {
+      "day": 22,
+      "label": "Cadeau",
+      "options": [
+       {
+        "label": "A",
+        "amount": -40
+       },
+       {
+        "label": "B",
+        "amount": -15
+       },
+       {
+        "label": "C",
+        "amount": 0
+       }
+      ]
+     }
+    ],
+    "outcome_thresholds": [
+     {
+      "min": 100,
+      "label": "Bien"
+     },
+     {
+      "min": -1000,
+      "label": "Serré"
+     }
+    ]
+   }
+  },
+  "response": [
+   "1",
+   "0"
+  ],
+  "expected": false
+ },
+ {
+  "name": "allocate juste (chaque règle respectée, somme = total)",
+  "screen": {
+   "type": "allocate",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": {
+   "courses": 280,
+   "a_venir": 120,
+   "sorties": 270
+  },
+  "expected": true
+ },
+ {
+  "name": "allocate juste en limite de règle",
+  "screen": {
+   "type": "allocate",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": {
+   "courses": 250,
+   "a_venir": 120,
+   "sorties": 300
+  },
+  "expected": true
+ },
+ {
+  "name": "allocate faux : une règle non respectée",
+  "screen": {
+   "type": "allocate",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": {
+   "courses": 280,
+   "a_venir": 110,
+   "sorties": 280
+  },
+  "expected": false
+ },
+ {
+  "name": "allocate faux : somme différente du total",
+  "screen": {
+   "type": "allocate",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": {
+   "courses": 280,
+   "a_venir": 120,
+   "sorties": 200
+  },
+  "expected": false
+ },
+ {
+  "name": "allocate faux : pot manquant",
+  "screen": {
+   "type": "allocate",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": {
+   "courses": 280,
+   "a_venir": 390
+  },
+  "expected": false
+ },
+ {
+  "name": "allocate faux : valeur négative",
+  "screen": {
+   "type": "allocate",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": {
+   "courses": 400,
+   "a_venir": 300,
+   "sorties": -30
+  },
+  "expected": false
+ },
+ {
+  "name": "allocate : valeurs en texte « 1 234,5 » admises",
+  "screen": {
+   "type": "allocate",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": {
+   "courses": "280",
+   "a_venir": "120,0",
+   "sorties": 270
+  },
+  "expected": true
+ },
+ {
+  "name": "allocate faux : réponse en liste (forgée)",
+  "screen": {
+   "type": "allocate",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": [
+   280,
+   120,
+   270
+  ],
+  "expected": false
+ },
+ {
+  "name": "allocate faux : verdict déclaré par le client",
+  "screen": {
+   "type": "allocate",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": {
+   "correct": true
+  },
+  "expected": false
+ },
+ {
+  "name": "allocate : écran de découverte non noté",
+  "screen": {
+   "type": "allocate",
+   "scored": false,
+   "payload": {
+    "question": "Q",
+    "total": 670,
+    "step": 10,
+    "unit": "€",
+    "buckets": [
+     {
+      "key": "courses",
+      "label": "Courses",
+      "start": 280
+     },
+     {
+      "key": "a_venir",
+      "label": "À venir",
+      "start": 0
+     },
+     {
+      "key": "sorties",
+      "label": "Sorties",
+      "start": 390,
+      "reservoir": true
+     }
+    ],
+    "rules": [
+     {
+      "bucket": "a_venir",
+      "min": 120
+     },
+     {
+      "bucket": "courses",
+      "min": 250
+     }
+    ]
+   }
+  },
+  "response": {
+   "courses": 280,
+   "a_venir": 120,
+   "sorties": 270
+  },
+  "expected": null
+ },
+ {
+  "name": "true_false juste : toutes les cartes, pass atteint",
+  "screen": {
+   "type": "true_false",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Vrai ou faux ?",
+    "pass": 2,
+    "cards": [
+     {
+      "id": "a",
+      "statement": "A",
+      "answer": true
+     },
+     {
+      "id": "b",
+      "statement": "B",
+      "answer": false
+     },
+     {
+      "id": "c",
+      "statement": "C",
+      "answer": true
+     }
+    ]
+   }
+  },
+  "response": {
+   "a": true,
+   "b": false,
+   "c": false
+  },
+  "expected": true
+ },
+ {
+  "name": "true_false juste : sans faute",
+  "screen": {
+   "type": "true_false",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Vrai ou faux ?",
+    "pass": 2,
+    "cards": [
+     {
+      "id": "a",
+      "statement": "A",
+      "answer": true
+     },
+     {
+      "id": "b",
+      "statement": "B",
+      "answer": false
+     },
+     {
+      "id": "c",
+      "statement": "C",
+      "answer": true
+     }
+    ]
+   }
+  },
+  "response": {
+   "a": true,
+   "b": false,
+   "c": true
+  },
+  "expected": true
+ },
+ {
+  "name": "true_false faux : sous le seuil pass",
+  "screen": {
+   "type": "true_false",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Vrai ou faux ?",
+    "pass": 2,
+    "cards": [
+     {
+      "id": "a",
+      "statement": "A",
+      "answer": true
+     },
+     {
+      "id": "b",
+      "statement": "B",
+      "answer": false
+     },
+     {
+      "id": "c",
+      "statement": "C",
+      "answer": true
+     }
+    ]
+   }
+  },
+  "response": {
+   "a": false,
+   "b": true,
+   "c": true
+  },
+  "expected": false
+ },
+ {
+  "name": "true_false faux : une carte non jouée",
+  "screen": {
+   "type": "true_false",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Vrai ou faux ?",
+    "pass": 2,
+    "cards": [
+     {
+      "id": "a",
+      "statement": "A",
+      "answer": true
+     },
+     {
+      "id": "b",
+      "statement": "B",
+      "answer": false
+     },
+     {
+      "id": "c",
+      "statement": "C",
+      "answer": true
+     }
+    ]
+   }
+  },
+  "response": {
+   "a": true,
+   "b": false
+  },
+  "expected": false
+ },
+ {
+  "name": "true_false faux : réponse en texte au lieu d'un booléen",
+  "screen": {
+   "type": "true_false",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Vrai ou faux ?",
+    "pass": 2,
+    "cards": [
+     {
+      "id": "a",
+      "statement": "A",
+      "answer": true
+     },
+     {
+      "id": "b",
+      "statement": "B",
+      "answer": false
+     },
+     {
+      "id": "c",
+      "statement": "C",
+      "answer": true
+     }
+    ]
+   }
+  },
+  "response": {
+   "a": "true",
+   "b": "false",
+   "c": "true"
+  },
+  "expected": false
+ },
+ {
+  "name": "true_false : ids absents = positions, pass absent = toutes",
+  "screen": {
+   "type": "true_false",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "cards": [
+     {
+      "statement": "A",
+      "answer": true
+     },
+     {
+      "statement": "B",
+      "answer": false
+     }
+    ]
+   }
+  },
+  "response": {
+   "0": true,
+   "1": false
+  },
+  "expected": true
+ },
+ {
+  "name": "true_false faux : ids absents, une erreur sans pass",
+  "screen": {
+   "type": "true_false",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "cards": [
+     {
+      "statement": "A",
+      "answer": true
+     },
+     {
+      "statement": "B",
+      "answer": false
+     }
+    ]
+   }
+  },
+  "response": {
+   "0": true,
+   "1": true
+  },
+  "expected": false
+ },
+ {
+  "name": "order juste : chaque id à sa place",
+  "screen": {
+   "type": "order",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "items": [
+     {
+      "id": "livret",
+      "text": "Livret A"
+     },
+     {
+      "id": "fonds",
+      "text": "Fonds en euros"
+     },
+     {
+      "id": "etf",
+      "text": "ETF Monde"
+     }
+    ],
+    "start": [
+     "etf",
+     "livret",
+     "fonds"
+    ]
+   }
+  },
+  "response": [
+   "livret",
+   "fonds",
+   "etf"
+  ],
+  "expected": true
+ },
+ {
+  "name": "order faux : deux éléments inversés",
+  "screen": {
+   "type": "order",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "items": [
+     {
+      "id": "livret",
+      "text": "Livret A"
+     },
+     {
+      "id": "fonds",
+      "text": "Fonds en euros"
+     },
+     {
+      "id": "etf",
+      "text": "ETF Monde"
+     }
+    ],
+    "start": [
+     "etf",
+     "livret",
+     "fonds"
+    ]
+   }
+  },
+  "response": [
+   "fonds",
+   "livret",
+   "etf"
+  ],
+  "expected": false
+ },
+ {
+  "name": "order faux : élément manquant",
+  "screen": {
+   "type": "order",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "items": [
+     {
+      "id": "livret",
+      "text": "Livret A"
+     },
+     {
+      "id": "fonds",
+      "text": "Fonds en euros"
+     },
+     {
+      "id": "etf",
+      "text": "ETF Monde"
+     }
+    ],
+    "start": [
+     "etf",
+     "livret",
+     "fonds"
+    ]
+   }
+  },
+  "response": [
+   "livret",
+   "fonds"
+  ],
+  "expected": false
+ },
+ {
+  "name": "order faux : ordre de départ renvoyé tel quel",
+  "screen": {
+   "type": "order",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "items": [
+     {
+      "id": "livret",
+      "text": "Livret A"
+     },
+     {
+      "id": "fonds",
+      "text": "Fonds en euros"
+     },
+     {
+      "id": "etf",
+      "text": "ETF Monde"
+     }
+    ],
+    "start": [
+     "etf",
+     "livret",
+     "fonds"
+    ]
+   }
+  },
+  "response": [
+   "etf",
+   "livret",
+   "fonds"
+  ],
+  "expected": false
+ },
+ {
+  "name": "order faux : booléen au lieu d'un id",
+  "screen": {
+   "type": "order",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "items": [
+     {
+      "text": "A"
+     },
+     {
+      "text": "B"
+     }
+    ]
+   }
+  },
+  "response": [
+   false,
+   true
+  ],
+  "expected": false
+ },
+ {
+  "name": "order : ids absents = positions",
+  "screen": {
+   "type": "order",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "items": [
+     {
+      "text": "A"
+     },
+     {
+      "text": "B"
+     }
+    ]
+   }
+  },
+  "response": [
+   "0",
+   "1"
+  ],
+  "expected": true
+ },
+ {
+  "name": "match juste : toutes les paires, une erreur permise",
+  "screen": {
+   "type": "match",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "max_errors": 1,
+    "pairs": [
+     {
+      "id": "a",
+      "left": "A",
+      "right": "1"
+     },
+     {
+      "id": "b",
+      "left": "B",
+      "right": "2"
+     },
+     {
+      "id": "c",
+      "left": "C",
+      "right": "3"
+     }
+    ],
+    "right_order": [
+     "c",
+     "a",
+     "b"
+    ]
+   }
+  },
+  "response": {
+   "errors": 1,
+   "found": [
+    "b",
+    "a",
+    "c"
+   ]
+  },
+  "expected": true
+ },
+ {
+  "name": "match juste : sans erreur",
+  "screen": {
+   "type": "match",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "max_errors": 1,
+    "pairs": [
+     {
+      "id": "a",
+      "left": "A",
+      "right": "1"
+     },
+     {
+      "id": "b",
+      "left": "B",
+      "right": "2"
+     },
+     {
+      "id": "c",
+      "left": "C",
+      "right": "3"
+     }
+    ],
+    "right_order": [
+     "c",
+     "a",
+     "b"
+    ]
+   }
+  },
+  "response": {
+   "errors": 0,
+   "found": [
+    "a",
+    "b",
+    "c"
+   ]
+  },
+  "expected": true
+ },
+ {
+  "name": "match faux : trop d'erreurs",
+  "screen": {
+   "type": "match",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "max_errors": 1,
+    "pairs": [
+     {
+      "id": "a",
+      "left": "A",
+      "right": "1"
+     },
+     {
+      "id": "b",
+      "left": "B",
+      "right": "2"
+     },
+     {
+      "id": "c",
+      "left": "C",
+      "right": "3"
+     }
+    ],
+    "right_order": [
+     "c",
+     "a",
+     "b"
+    ]
+   }
+  },
+  "response": {
+   "errors": 2,
+   "found": [
+    "a",
+    "b",
+    "c"
+   ]
+  },
+  "expected": false
+ },
+ {
+  "name": "match faux : une paire non trouvée",
+  "screen": {
+   "type": "match",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "max_errors": 1,
+    "pairs": [
+     {
+      "id": "a",
+      "left": "A",
+      "right": "1"
+     },
+     {
+      "id": "b",
+      "left": "B",
+      "right": "2"
+     },
+     {
+      "id": "c",
+      "left": "C",
+      "right": "3"
+     }
+    ],
+    "right_order": [
+     "c",
+     "a",
+     "b"
+    ]
+   }
+  },
+  "response": {
+   "errors": 0,
+   "found": [
+    "a",
+    "b"
+   ]
+  },
+  "expected": false
+ },
+ {
+  "name": "match faux : erreurs absentes",
+  "screen": {
+   "type": "match",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "max_errors": 1,
+    "pairs": [
+     {
+      "id": "a",
+      "left": "A",
+      "right": "1"
+     },
+     {
+      "id": "b",
+      "left": "B",
+      "right": "2"
+     },
+     {
+      "id": "c",
+      "left": "C",
+      "right": "3"
+     }
+    ],
+    "right_order": [
+     "c",
+     "a",
+     "b"
+    ]
+   }
+  },
+  "response": {
+   "found": [
+    "a",
+    "b",
+    "c"
+   ]
+  },
+  "expected": false
+ },
+ {
+  "name": "match faux : réponse en liste (forgée)",
+  "screen": {
+   "type": "match",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "question": "Q",
+    "max_errors": 1,
+    "pairs": [
+     {
+      "id": "a",
+      "left": "A",
+      "right": "1"
+     },
+     {
+      "id": "b",
+      "left": "B",
+      "right": "2"
+     },
+     {
+      "id": "c",
+      "left": "C",
+      "right": "3"
+     }
+    ],
+    "right_order": [
+     "c",
+     "a",
+     "b"
+    ]
+   }
+  },
+  "response": [
+   "a",
+   "b",
+   "c"
+  ],
+  "expected": false
+ },
+ {
+  "name": "simulator : jamais noté, aucun verdict",
+  "screen": {
+   "type": "simulator",
+   "scored": false,
+   "payload": {
+    "min": 20,
+    "max": 50,
+    "formula": "savings_from_age",
+    "outputs": [
+     {
+      "key": "capital",
+      "label": "Capital"
+     }
+    ]
+   }
+  },
+  "response": 30,
+  "expected": null
+ },
+ {
+  "name": "simulator marqué noté : aucun verdict (refusé au contrôle de format)",
+  "screen": {
+   "type": "simulator",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "min": 20,
+    "max": 50,
+    "formula": "savings_from_age",
+    "outputs": [
+     {
+      "key": "capital",
+      "label": "Capital"
+     }
+    ]
+   }
+  },
+  "response": 30,
+  "expected": null
+ },
+ {
+  "name": "dialogue au format de l'app : réponse juste",
+  "screen": {
+   "type": "dialogue",
+   "notion": "n",
+   "scored": true,
+   "payload": {
+    "character": {
+     "name": "Léo"
+    },
+    "messages": [
+     "Salut"
+    ],
+    "replies": [
+     {
+      "id": "tout",
+      "text": "Tout",
+      "reaction": "Euh"
+     },
+     {
+      "id": "comprendre",
+      "text": "Comprendre",
+      "correct": true,
+      "reaction": "Ouais"
+     }
+    ]
+   }
+  },
+  "response": "comprendre",
+  "expected": true
+ }
+]

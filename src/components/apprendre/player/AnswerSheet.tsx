@@ -11,6 +11,7 @@ import { durations } from '@/src/constants/motion';
 import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { ValLine } from '@/src/lesson/model';
+import { correctAnswerLabel } from '@/src/utils/lessonPlayer';
 import { VAL_DIAMETER } from './ScreenIntro';
 
 const ICON_SIZE = 28;
@@ -21,6 +22,8 @@ export type Verdict = {
   correct: boolean;
   firstTry: boolean;
   correctText: string | null;
+  // Nombre de bonnes réponses (1 par défaut) : singulier ou pluriel
+  correctCount?: number;
   explanation?: string;
   // Réplique de Val prévue par la leçon (screen.val.correct / wrong) :
   // Val la dit en haut de l'écran, pas dans la feuille
@@ -107,7 +110,7 @@ export default function AnswerSheet({
               ) : null}
               {!correct && verdict.correctText ? (
                 <AppText variant="bodyMedium">
-                  {verdict.correctText.includes(', ') ? 'Les bonnes réponses : ' : 'La bonne réponse : '}
+                  {correctAnswerLabel(verdict.correctCount ?? 1)}
                   {verdict.correctText}
                 </AppText>
               ) : null}

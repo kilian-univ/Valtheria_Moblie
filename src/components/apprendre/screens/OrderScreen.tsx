@@ -17,7 +17,8 @@ import AppText from '@/src/components/common/AppText';
 import { motion, springs, timing } from '@/src/constants/motion';
 import { fonts, palette, radius, size, space, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { dropRank, moveItem, orderCorrect, orderResults } from '@/src/lesson/interactive';
+import { dropRank, moveItem, orderResults } from '@/src/lesson/interactive';
+import { grade } from '@/src/utils/grade';
 import type { OrderScreen as OrderModel } from '@/src/lesson/model';
 import { safeGesture } from '@/src/utils/gestureSafety';
 import { feedback } from '@/src/utils/feedback';
@@ -117,12 +118,13 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
 
   // Un ordre est toujours proposé : Valider est actif dès l'arrivée
   useEffect(() => {
+    const correct = grade(screen.source, order) === true;
     onDraftChange({
       raw: order,
-      correct: orderCorrect(screen, order),
+      correct,
       correctText: items.map((it) => it.text).join(' → '),
       // Les lignes se colorent, puis se rangent, avant la feuille
-      sheetDelay: n * motion.reveal + motion.state + (orderCorrect(screen, order) ? 0 : motion.screen),
+      sheetDelay: n * motion.reveal + motion.state + (correct ? 0 : motion.screen),
     });
   }, [order, screen, items, n, onDraftChange]);
 

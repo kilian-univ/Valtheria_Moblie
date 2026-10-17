@@ -16,6 +16,9 @@ export type AnswerDraft = {
   correct: boolean;
   // La bonne réponse en clair, montrée dans la feuille en cas d'erreur
   correctText: string | null;
+  // Nombre de bonnes réponses qu'elle contient (1 par défaut) : décide du
+  // singulier ou du pluriel dans la feuille
+  correctCount?: number;
   // Réplique de Val propre au cas (répartir) ; sinon val.correct / wrong
   val?: ValLine | null;
   // Texte de la feuille à la place de screen.explanation (score « 3 sur 4 »)

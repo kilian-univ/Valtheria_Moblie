@@ -47,14 +47,12 @@ export default function DocumentScreen({
       return;
     }
     const raw = mode === 'pick' ? selected[0] : selected;
+    const right = lines.filter((l) => l.id !== null && l.correct);
     onDraftChange({
       raw,
       correct: grade(screen.source, raw) === true,
-      correctText:
-        lines
-          .filter((l) => l.id !== null && l.correct)
-          .map((l) => l.libelle)
-          .join(', ') || null,
+      correctText: right.map((l) => l.libelle).join(', ') || null,
+      correctCount: right.length,
     });
   }, [selected, mode, lines, screen.source, onDraftChange]);
 

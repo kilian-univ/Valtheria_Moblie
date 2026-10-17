@@ -13,7 +13,7 @@ Fichiers de référence :
 | Lecture du format serveur | `src/lesson/normalize.ts` (seul point d'entrée) | — |
 | Modèle interne | `src/lesson/model.ts` | — |
 | Validation | gardes de `normalize.ts` (écran de secours si mal formé) | `app/Services/LessonFormatValidator.php` |
-| Correction | `src/utils/grade.ts` (miroir du site), `src/lesson/interactive.ts` (nouveaux types) | `app/Services/Lesson/ScreenGrader.php`, `LessonGrader.php`, `resources/js/reader/grade.js` |
+| Correction | `src/utils/grade.ts`, seule source de correction pour tous les types, miroir du site (depuis le 17/10/2026) ; `src/lesson/interactive.ts` ne garde que l'affichage | `app/Services/Lesson/ScreenGrader.php`, `LessonGrader.php`, `resources/js/reader/grade.js` |
 | Rendu | `src/components/apprendre/ScreenRenderer.tsx` et `screens/*.tsx` | `resources/views/pages/learn/reader.blade.php`, `resources/js/reader/*.js` |
 | Lecteur | `src/screens/ApprendreDetailScreen.tsx`, `src/utils/lessonPlayer.ts` | `LearnController.php`, `Api/LessonController.php` |
 | Leçons d'exemple | `src/lesson/discovery/*.ts` : six leçons découvertes au format serveur, dont trois construites à partir des chiffres réglementaires (`discoveryLesson`, partie 3.6) | `database/seeders/data/01…04-lecon-*.json`, `tests/Support/BuildsReaderDemoLesson.php` |
@@ -61,7 +61,7 @@ Les quatre leçons réelles du site (module « Ne jamais être obligé de vendre
 | `review` | ignoré | seule la valeur `false` est admise ; absent = rejouable en révision |
 | `artifact`, `variant` | ignorés (l'app reçoit le document déjà résolu) | réservés à `document` |
 | `selon_chiffres` | jamais reçu (le site sert la version choisie) | admis : deux versions de l'écran selon les chiffres réglementaires (partie 3.6) |
-| `has_volatile_note`, `volatile_verified_at` | ignorés : la mention « Taux en vigueur au … » n'existe pas dans l'app | ajoutés au service sur un écran qui a reçu au moins un chiffre ; refusés s'ils sont écrits dans la leçon |
+| `has_volatile_note`, `volatile_verified_at` | lus (`volatileVerifiedAt`) : « Taux en vigueur au 8 septembre 2026 », discret, sous l'écran (depuis le 17/10/2026) | ajoutés au service sur un écran qui a reçu au moins un chiffre ; refusés s'ils sont écrits dans la leçon |
 
 Aucun champ `image`, `illustration` ni `title` par écran, ni dans l'app ni sur le site.
 
@@ -98,7 +98,7 @@ Un type inconnu, ou un écran connu mais mal formé (voir les gardes de chaque t
 ### 1.6 Affichage commun et cas qui bloquent dans l'app
 - **Sous-titre** : `subtitle` ne s'affiche qu'avec une `question` (`player/ScreenIntro.tsx:29`). Sur un `true_false` dont la question est absente ou vaut « Vrai ou faux ? », tout le bloc est masqué, sous-titre compris.
 - **Taille de la question** : 25 px (31 d'interligne) pour `choice`, `true_false`, `order`, `match`, `document` et l'écran de secours ; 23 px (30) pour `slider`, `reveal`, `allocate`, `simulator` et `dialogue`. Agrandissement du texte plafonné à ×1,3, sans troncature (`ScreenIntro.tsx:11-15`).
-- **Feuille de réponse** : contenu limité à 55 % de la hauteur de l'écran, puis défilement (`AnswerSheet.tsx:18,104`). Défaut connu : si la bonne réponse contient une virgule, la feuille écrit « Les bonnes réponses : » au pluriel (`AnswerSheet.tsx:110`).
+- **Feuille de réponse** : contenu limité à 55 % de la hauteur de l'écran, puis défilement (`AnswerSheet.tsx:18,104`). « La bonne réponse » au singulier, « Les bonnes réponses » seulement s'il y en a plusieurs (`correctCount`, `correctAnswerLabel`), même si l'unique réponse contient une virgule (corrigé le 17/10/2026).
 - **Rattrapage** : l'aperçu d'une question ratée est coupé à 90 caractères ; il prend la question, sinon la première carte (`true_false`) ou le premier message (`dialogue`) (`lessonPlayer.ts:235-251`).
 - **Bouton du bas** : `true_false`, `match` et `dialogue` n'en ont pas, la réponse part d'elle-même (`lessonPlayer.ts:46-48`).
 
@@ -289,7 +289,7 @@ Estimation notée (bornes et réponse de la leçon de démonstration du site, qu
 - « Tout près : tu étais à X » si l'écart est de 10 % au plus, X étant **l'écart**, avec l'unité ;
 - sinon « Un peu plus (ou moins) que tu pensais » sous 50 % d'écart, « Bien plus (ou moins) que tu pensais » au-delà (`lessonPlayer.ts:129-134`).
 
-Val passe en `fier` si la personne était proche, en `alerte` sinon, seulement si l'écran a un `val.intro`, dont il garde le texte (`RevealScreen.tsx:92-93`). Les lignes qui répètent un chiffre déjà affiché (la valeur, le départ, l'estimation) sont masquées, **même une ligne `key`** : dans les leçons découvertes Salaire et Épargner, la ligne dorée n'apparaît donc jamais (voir la note de fin).
+Val passe en `fier` si la personne était proche, en `alerte` sinon, seulement si l'écran a un `val.intro`, dont il garde le texte (`RevealScreen.tsx:92-93`). Les lignes qui répètent un chiffre déjà affiché (la valeur, le départ, l'estimation) sont masquées, **sauf la ligne `key`** (en or) et la ligne `dim`, toujours affichées (corrigé le 17/10/2026 : la ligne dorée de Salaire, 3 055 €, et d'Épargner, 820 €, apparaît).
 
 **Note et révision** : jamais noté, jamais révisé.
 
@@ -1120,7 +1120,7 @@ Un repère change un chiffre, pas la logique d'une question. Quand la bonne rép
 Elle sert si la route du serveur échoue ou si l'on est hors ligne. Sans compte, il n'y a pas de révision.
 
 - **Matière** :
-  - les écrans « gradables » des leçons terminées (notés, hors `reveal`, `simulator` et écran de secours ; `review: false` n'est pas lu), gardés sur le téléphone à la fin de chaque leçon ; les leçons terminées ailleurs ou plus tôt sont relues par l'API, 12 au plus par passage ;
+  - les écrans « gradables » des leçons terminées (notés, hors `reveal`, `simulator`, écran de secours et écrans `review: false`, écartés aussi des leçons gardées avant le 17/10/2026), gardés sur le téléphone à la fin de chaque leçon ; les leçons terminées ailleurs ou plus tôt sont relues par l'API, 12 au plus par passage ;
   - les déclics du carnet ;
   - les mots du dictionnaire dus.
 - **Taille** : `min(10, 4 + ⌊leçons terminées / 3⌋)`, jamais plus que la matière disponible.
@@ -1312,7 +1312,7 @@ Le format de l'app fait foi. Chaque modification est reprise dans `docs/lot-serv
   - les quatre leçons publiées rejouées avec le compte d'essai : mêmes verdicts côté app et serveur (5, 5, 7 et 3 écrans notés), 80 vérifications sur 80 ;
   - leçon, module et compte d'essai supprimés ensuite, sans reste (progression, jetons).
 
-**Restent côté app** (non modifiés par ce lot) : les points de la note de fin. `src/utils/grade.ts` ne connaît pas encore les nouveaux types ni la répartition à règles (l'app les corrige avec `interactive.ts`, aux mêmes règles que le serveur) ; la mention « Taux en vigueur au … » n'est pas affichée.
+**Côté app** : `src/utils/grade.ts` corrige depuis le 17/10/2026 tous les types, aux règles du serveur, vérifié sur les 74 cas du site (`tests/fixtures/reader-grading.json`, copie de celui du site) ; la mention « Taux en vigueur au … » est affichée.
 
 **À noter pour le web, qui est gelé** : un écran au format de l'app ne pourra pas être joué par le lecteur web actuel. Proposition :
 - le site accepte les formats de l'app dans son validateur et son correcteur ;
@@ -1331,7 +1331,7 @@ Ce petit affichage web demandera ton accord.
 | E7 | Phrase `takeaway` absente du site (refusée à la racine, jamais envoyée). | moyenne | Admettre `takeaway` à la racine : une phrase, 1 à 3 mots clés entre crochets non vides. La renvoyer dans `GET /api/lessons/{id}` (déjà demandé en 4.1). |
 | E8 | `document` : le site peut produire un bulletin de paie et des cellules de récapitulatif justes, que l'app n'affiche pas. | moyenne | Le contrôle de cohérence refuse, dans une leçon publiée, une cellule de récapitulatif marquée juste et la vue bulletin, tant que l'app n'a pas de rendu pour eux. |
 | E9 | Difficulté : 3 valeurs pour la leçon, 5 pour le module ; l'import recopie le niveau du module dans la leçon, ce qui échouerait pour `entree`, `inter` et `expert` (le module importé aujourd'hui est `debutant`). | moyenne | La difficulté de la leçon passe aux 5 valeurs du module, ou se déduit du module avec la correspondance qui existe déjà pour le prompt IA (`lessonDifficultyFromModule`) : montant des coffres `entree` comme `debutant`, `inter` comme `intermediaire`, `expert` comme `avance`. |
-| E10 | `review: false` : l'app ne le lit pas dans sa propre révision. | basse | Rien côté site. À corriger dans l'app (voir la note de fin). |
+| E10 | `review: false` : l'app le respecte dans sa propre révision depuis le 17/10/2026. | — | Rien côté site. Corrigé dans l'app. |
 | E11 | Étapes du chemin : `kind` absent (déjà demandé en 4.4). | basse | Inchangé. |
 | E12 | Série d'affilée et défis de précision gardés sur le téléphone (déjà demandé en 4.9). | basse | Inchangé. |
 | E13 | Le niveau du serveur n'est pas recalculé après les XP du défi du jour, des quêtes et des cartes de module. | basse | Un seul point de crédit des XP qui recalcule toujours le niveau. |
@@ -1341,16 +1341,15 @@ Ce petit affichage web demandera ton accord.
 | E17 | `selon_chiffres` : la version est recalculée à la fin de la leçon avec les chiffres du moment. Si un chiffre change entre le service et `/complete`, le serveur corrige un autre écran que celui que l'app a affiché et noté. | basse | Figer la version choisie au service, comme le tirage d'artefact (`ArtefactResolver::draw`), et la reprendre à `/complete` et en révision. |
 | E18 | Révision du serveur : les écrans viennent des leçons terminées, **publiées ou non**. Une leçon dépubliée continue d'être servie en révision. | basse | Ne servir en révision que les écrans des leçons publiées (`NotionProgressService`, `servableScreens`). |
 | E19 | Humeur inconnue : l'app la remplace par `neutre`, le site la refuse au contrôle de format. | info | Aucune modification : le refus du site est plus strict et ne gêne pas l'app. |
-| E20 | `has_volatile_note` et `volatile_verified_at` (« Taux en vigueur au … ») : envoyés par le site, ignorés par l'app. | info | Aucune modification côté site. Côté app : afficher la date sous un écran qui cite un chiffre réglementaire (voir la note de fin). |
+| E20 | `has_volatile_note` et `volatile_verified_at` (« Taux en vigueur au … ») : affichés par l'app depuis le 17/10/2026. | — | Aucune modification côté site. |
 
-### Points à surveiller côté app (non modifiés)
-- `difficultyLabel` (`src/utils/learning.ts`) ne connaît ni `entree` ni `inter`, et range `expert` sous « Avancé ». `src/utils/levels.ts` connaît bien les cinq valeurs.
-- La révision de l'app ne lit pas `review: false`.
+### Points à surveiller côté app
+Corrigés le 17 octobre 2026 : ligne en or d'une révélation jamais masquée ; « La bonne réponse » au singulier ; mention « Taux en vigueur au … » ; `review: false` respecté par la révision de l'app ; libellés des cinq niveaux partout (une seule table, `src/utils/levelNames.ts` : Entrée, Débutant, Intermédiaire, Avancé, Expert) ; option « plus haut que … » de la leçon Impôts lue dans le barème ; `grade.ts` seule source de correction.
+
+Restent :
 - Un `reveal` ou un `simulator` marqué `scored: true` est compté juste et envoyé.
 - Une formule de simulateur inconnue affiche 0 au lieu de tirets (le commentaire de `src/lesson/formulas.ts:33` annonce à tort des tirets).
 - `allocate` : `hint` est lu mais pas affiché.
-- **Leçon découverte Impôts** : l'option « Non, il est plus haut que 30 % » garde un chiffre écrit en dur (`impots.ts:156`), alors que le reste suit le barème des chiffres réglementaires.
-- **Révélations Salaire et Épargner** : `revealExtraLines` masque les lignes égales à la valeur, au départ ou à l'estimation, même une ligne `key` ; la ligne dorée (3 055 €, 820 €) n'apparaît donc jamais, et une estimation à 2 260 € masquerait aussi « = ton salaire brut ».
-- La mention « Taux en vigueur au … » (`has_volatile_note`, `volatile_verified_at`) n'est pas affichée.
-- La feuille de réponse écrit « Les bonnes réponses : » au pluriel dès que la bonne réponse contient une virgule (cas de la réponse juste de Crypto et du `choice` de Logement).
+- Une estimation égale à une ligne ordinaire d'une révélation la masque encore (2 260 € masquerait « = ton salaire brut ») : c'est la règle « chaque chiffre une seule fois », seule la ligne en or y échappe.
+- Les leçons découvertes, construites dans l'app, n'ont pas la mention « Taux en vigueur au … » : elle vient du site, sur ses leçons.
 - Un `choice` noté sans option, ou un `document` noté sans ligne touchable, bloque la leçon (« Valider » grisé).

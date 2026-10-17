@@ -77,6 +77,9 @@ test('impôts : un nouveau barème change la question, les montants et le taux d
   assert.equal(s[1].kind === 'reveal' && s[1].value, 430);
   // Léa : (30 500 − 12 000) × 11 % + (40 000 − 30 500) × 32 % = 5 075 € → 12,7 %
   assert.match(text, /Son taux moyen est d’environ 12,7 %, bien en dessous de 32 %/);
+  // Aucune option ne garde l’ancien taux en dur
+  assert.match(text, /Non, il est plus haut que 32 %/);
+  assert.doesNotMatch(text, /30 %/);
 });
 
 test('impôts : un barème incohérent retombe sur celui de secours', () => {

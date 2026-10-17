@@ -19,12 +19,13 @@ import {
   allocationMax,
   allocationTemplateValues,
   fillTemplate,
-  gradeAllocation,
+  firstFailedRule,
   initialAllocation,
   moveAllocation,
 } from '@/src/lesson/interactive';
 import type { AllocateScreen as AllocateModel, ValLine } from '@/src/lesson/model';
 import { formatNumber, withUnit } from '@/src/utils/format';
+import { grade } from '@/src/utils/grade';
 import { createFrameBatch, type FrameBatch } from '@/src/utils/frameBatch';
 import { warning } from '@/src/utils/haptics';
 import ScreenIntro from '../player/ScreenIntro';
@@ -85,22 +86,24 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
   const percent = screen.base !== null;
   const amountText = (n: number) => withUnit(formatNumber(allocationAmount(screen, n)), screen.baseUnit);
   const templateValues = allocationTemplateValues(screen, values);
-  const { passed, failed } = gradeAllocation(screen, values);
+  // Verdict : grade.ts ; la première règle non respectée donne la réplique et le pot qui clignote
+  const passed = grade(screen.source, values) === true;
+  const failed = firstFailedRule(screen, values);
 
   useEffect(() => {
-    const verdict = gradeAllocation(screen, settled);
+    const correct = grade(screen.source, settled) === true;
     const success = screen.val.correct;
-    const val: ValLine | null = verdict.passed
+    const val: ValLine | null = correct
       ? success && { ...success, line: fillTemplate(success.line, allocationTemplateValues(screen, settled), (n) => formatNumber(n)) }
-      : (verdict.failed?.val ?? screen.val.wrong);
+      : (firstFailedRule(screen, settled)?.val ?? screen.val.wrong);
     onDraftChange({
       raw: settled,
-      correct: verdict.passed,
+      correct,
       correctText: null,
       val,
       explanation: null,
       // Le pot en cause clignote avant la feuille
-      sheetDelay: verdict.passed ? undefined : BLINKS * 2 * motion.state,
+      sheetDelay: correct ? undefined : BLINKS * 2 * motion.state,
     });
   }, [settled, screen, onDraftChange]);
 

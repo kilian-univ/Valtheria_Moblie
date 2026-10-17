@@ -28,7 +28,8 @@ import {
   withOpacity,
 } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { trueFalsePassed, trueFalseReaction, trueFalseResults, trueFalseScore } from '@/src/lesson/interactive';
+import { trueFalseReaction, trueFalseResults, trueFalseScore } from '@/src/lesson/interactive';
+import { grade } from '@/src/utils/grade';
 import type { TrueFalseScreen as TrueFalseModel } from '@/src/lesson/model';
 import { safeGesture } from '@/src/utils/gestureSafety';
 import { feedback } from '@/src/utils/feedback';
@@ -132,9 +133,10 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
     }
     setPhase('done');
     const score = trueFalseScore(screen, given);
+    const raw = Object.fromEntries(cards.map((c, i) => [c.id, given[i]]));
     onDraftChange({
-      raw: Object.fromEntries(cards.map((c, i) => [c.id, given[i]])),
-      correct: trueFalsePassed(screen, given),
+      raw,
+      correct: grade(screen.source, raw) === true,
       correctText: null,
       explanation: `${score} ${score >= 2 ? 'bonnes réponses' : 'bonne réponse'} sur ${cards.length}.`,
       autoSubmit: true,

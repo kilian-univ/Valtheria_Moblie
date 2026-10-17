@@ -29,6 +29,8 @@ import {
   primaryLabel,
   RUN_MIN,
   revealExtraLines,
+  correctAnswerLabel,
+  volatileNote,
   runBadge,
   precisionCaption,
   precisionPercent,
@@ -88,21 +90,50 @@ test('révélation : verdict selon l’écart, avec l’écart en clair quand on
   assert.equal(estimateVerdict(60000, 16500, 'dollars').close, false);
 });
 
-test('révélation : chaque chiffre une seule fois, la ligne d’hypothèse reste', () => {
+test('révélation : chaque chiffre une seule fois, sauf la ligne en or ; la ligne d’hypothèse reste', () => {
   const screen = reveal('epargner');
   assert.deepEqual(screen.start, { label: 'Au départ', value: 1000 });
-  // Départ 1 000, estimation 850, vrai 820 : seules restent les lignes nouvelles
+  // Départ 1 000, estimation 850, vrai 820 : la ligne « Sur le compte » (1 000)
+  // disparaît ; la ligne en or (820) reste, même si elle répète le vrai chiffre
   const kept = revealExtraLines(screen.lines, [screen.value, 850, 1000]);
-  assert.equal(kept.length, 1);
-  assert.equal(kept[0].dim, true);
+  assert.deepEqual(
+    kept.map((l) => [l.value, l.key, l.dim]),
+    [
+      [820, true, false],
+      ['', false, true],
+    ]
+  );
 
   const salary = reveal('decouvrir');
   const salaryKept = revealExtraLines(salary.lines, [salary.value, 2000, salary.start!.value]);
   assert.deepEqual(
     salaryKept.map((l) => l.value),
-    // Fiche de paie de référence : impôt, net avant impôt, cotisations, brut, patronales
-    [91, 1751, 509, 2260, 795]
+    // Fiche de paie de référence : impôt, net avant impôt, cotisations, brut,
+    // patronales, et le coût employeur en or (le vrai chiffre, répété)
+    [91, 1751, 509, 2260, 795, 3055]
   );
+  assert.equal(salaryKept.at(-1)?.key, true);
+  // Une estimation égale à une ligne ordinaire la masque toujours ; jamais la ligne en or
+  assert.ok(!revealExtraLines(salary.lines, [salary.value, 2260]).some((l) => l.value === 2260));
+  assert.ok(revealExtraLines(salary.lines, [3055]).some((l) => l.value === 3055 && l.key));
+});
+
+test('feuille de réponse : « La bonne réponse » au singulier, même avec une virgule', () => {
+  assert.equal(correctAnswerLabel(1), 'La bonne réponse : ');
+  assert.equal(correctAnswerLabel(0), 'La bonne réponse : ');
+  assert.equal(correctAnswerLabel(2), 'Les bonnes réponses : ');
+});
+
+test('taux en vigueur : la date de vérification envoyée par le site, en clair', () => {
+  assert.equal(volatileNote('2026-09-08T07:18:01+00:00'), 'Taux en vigueur au 8 septembre 2026');
+  assert.equal(volatileNote('2026-08-01'), 'Taux en vigueur au 1er août 2026');
+  assert.equal(volatileNote(null), null);
+  assert.equal(volatileNote('hier'), null);
+  // Lue seulement si le site a posé la note
+  const withNote = normalizeScreen({ type: 'reveal', has_volatile_note: true, volatile_verified_at: '2026-10-17T12:00:00+00:00', payload: { value: 1 } }, 0);
+  assert.equal(withNote.volatileVerifiedAt, '2026-10-17T12:00:00+00:00');
+  const withoutNote = normalizeScreen({ type: 'reveal', volatile_verified_at: '2026-10-17', payload: { value: 1 } }, 0);
+  assert.equal(withoutNote.volatileVerifiedAt, null);
 });
 
 test('révélation : la valeur de départ est facultative', () => {

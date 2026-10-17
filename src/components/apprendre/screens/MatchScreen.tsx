@@ -13,7 +13,8 @@ import AppText from '@/src/components/common/AppText';
 import { motion, timing } from '@/src/constants/motion';
 import { fonts, palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { isMatch, matchPassed } from '@/src/lesson/interactive';
+import { isMatch } from '@/src/lesson/interactive';
+import { grade } from '@/src/utils/grade';
 import type { MatchScreen as MatchModel } from '@/src/lesson/model';
 import { feedback } from '@/src/utils/feedback';
 import ScreenIntro from '../player/ScreenIntro';
@@ -57,7 +58,7 @@ export default function MatchScreen({ screen, answered, onDraftChange }: LessonS
     if (found.length !== pairs.length) return;
     onDraftChange({
       raw: { errors, found },
-      correct: matchPassed(screen, found.length, errors),
+      correct: grade(screen.source, { errors, found }) === true,
       correctText: null,
       explanation:
         errors === 0 ? 'Toutes les paires du premier coup.' : `${errors} ${errors >= 2 ? 'erreurs' : 'erreur'} en chemin.`,

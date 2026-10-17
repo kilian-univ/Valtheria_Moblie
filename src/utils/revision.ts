@@ -2,7 +2,8 @@
 //
 // Chaque jour, une révision est tirée (la même toute la journée) parmi :
 // - les écrans notés des leçons terminées (pas les paris, révélations ni
-//   simulateurs : isGradable), gardés sur le téléphone ;
+//   simulateurs : isGradable), gardés sur le téléphone, sauf ceux marqués
+//   review: false (ils ne se comprennent pas hors de leur leçon) ;
 // - les déclics du carnet (même test à mot masqué que le carnet).
 // Nombre d'écrans : de 4 à 10 selon ce que la personne a déjà appris, moins
 // s'il y a peu de matière.
@@ -64,13 +65,18 @@ export function termOfKey(key: string): string | null {
 }
 export const declicKey = (text: string) => `d:${text.trim()}`;
 
+// Écran marqué review: false par la leçon : jamais rejoué hors d'elle
+export function excludedFromReview(raw: unknown): boolean {
+  return !!raw && typeof raw === 'object' && (raw as { review?: unknown }).review === false;
+}
+
 // Écrans notés d'une leçon (forme du serveur) : ceux que la révision peut
 // rejouer
 export function gradableScreens(rawScreens: unknown): { index: number; raw: RawScreen }[] {
   if (!Array.isArray(rawScreens)) return [];
   const out: { index: number; raw: RawScreen }[] = [];
   rawScreens.forEach((raw, index) => {
-    if (!raw || typeof raw !== 'object') return;
+    if (!raw || typeof raw !== 'object' || excludedFromReview(raw)) return;
     const screen: LessonScreen = normalizeScreen(raw, index);
     if (isGradable(screen)) out.push({ index, raw: raw as RawScreen });
   });
@@ -227,6 +233,8 @@ export function buildCandidates({
   const out: Candidate[] = [];
   for (const lesson of lessons) {
     for (const s of lesson.screens) {
+      // Écran gardé avant que review: false soit respecté : écarté ici aussi
+      if (excludedFromReview(s.raw)) continue;
       const key = screenKey(lesson.lessonId, s.index);
       const h = history[key];
       out.push({
