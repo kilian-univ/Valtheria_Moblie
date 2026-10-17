@@ -5,7 +5,7 @@ import AppText from '@/src/components/common/AppText';
 import { ValAvatar } from '@/src/components/common/ValBubble';
 import { fonts, palette, radius, space, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { useLearningData } from '@/src/hooks/useLearningData';
+import { useLearningSnapshot } from '@/src/hooks/useLearningData';
 import { tap } from '@/src/utils/haptics';
 import { lessonHref } from '@/src/utils/patrimoine/lessonLink';
 import type { ValTip } from '@/src/utils/patrimoine/valTips';
@@ -14,7 +14,7 @@ import type { ValTip } from '@/src/utils/patrimoine/valTips';
 export default function ValRemark({ tip }: { tip: ValTip }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const { modules, universes } = useLearningData();
+  const { modules, universes } = useLearningSnapshot();
   const open = () => {
     tap();
     router.push(lessonHref(tip.link, modules, universes) as never);

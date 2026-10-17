@@ -9,6 +9,7 @@ import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
+import PageState from '@/src/components/common/PageState';
 import SoundSettingRow from '@/src/components/common/SoundSettingRow';
 import TextField from '@/src/components/common/TextField';
 import ReminderSettingRow from '@/src/components/onboarding/ReminderSettingRow';
@@ -23,7 +24,9 @@ import { useProfile } from '@/src/hooks/useProfile';
 import type { Objective } from '@/src/lesson/discovery';
 import { FORGOT_PASSWORD_ENABLED } from '@/src/screens/header/LoginScreen';
 import { clearLastProfile } from '@/src/state/lastProfile';
+import { purgeAccountData } from '@/src/state/purge';
 import { success } from '@/src/utils/haptics';
+import { actionErrorText } from '@/src/utils/loadError';
 import { pseudoError } from '@/src/utils/onboarding';
 import { initialOf, levelA11y, truncateEmail } from '@/src/utils/profile';
 
@@ -37,7 +40,7 @@ type Sheet = 'pseudo' | 'password' | 'objective' | 'legal' | null;
 // suppression reste facile à trouver (règle d'Apple) : une ligne grisée,
 // sans rouge ; le rouge n'apparaît que dans la confirmation.
 export default function SettingsScreen() {
-  const { user, logout, exportUser, deleteAccount, updateUser, post } = useApi();
+  const { user, logout, exportUser, deleteAccount, updateUser, post, isAuthenticated, isLoading } = useApi();
   const { colorScheme, toggleTheme } = useTheme();
   const colors = palette[colorScheme];
   const p = useProfile();
@@ -80,7 +83,7 @@ export default function SettingsScreen() {
       success();
       close();
     } catch (err) {
-      setPseudoServerError(err instanceof Error && err.message ? err.message : 'Échec de la mise à jour.');
+      setPseudoServerError(actionErrorText(err, 'La mise à jour n’a pas abouti. Réessaie dans un instant.'));
     } finally {
       setPseudoSaving(false);
     }
@@ -117,14 +120,19 @@ export default function SettingsScreen() {
       const data = await exportUser();
       await Share.share({ title: 'Mes données Valtheria', message: JSON.stringify(data, null, 2) });
     } catch (err) {
-      Alert.alert('Export impossible', err instanceof Error ? err.message : 'Réessaie dans un instant.');
+      Alert.alert('Export impossible', actionErrorText(err, 'Réessaie dans un instant.', 'Pas de connexion internet. Réessaie dans un instant.'));
     }
   };
 
   const handleLogout = async () => {
     // Avant logout() : il déconnecte même si la requête échoue
     await clearLastProfile();
-    await logout();
+    try {
+      await logout();
+    } catch {
+      // Hors ligne ou jeton expiré : la session est effacée sur le téléphone
+      // quand même (logout la retire dans tous les cas)
+    }
     router.dismissTo('/apprendre');
   };
 
@@ -135,12 +143,15 @@ export default function SettingsScreen() {
         text: 'Supprimer',
         style: 'destructive',
         onPress: async () => {
+          // Identifiant gardé avant : deleteAccount efface le profil
+          const userId = user?.id;
           try {
             await deleteAccount();
             await clearLastProfile();
+            if (userId != null) await purgeAccountData(userId);
             router.dismissTo('/apprendre');
           } catch (err) {
-            Alert.alert('Erreur', err instanceof Error ? err.message : 'Réessaie dans un instant.');
+            Alert.alert('Suppression impossible', actionErrorText(err, 'Réessaie dans un instant.', 'Pas de connexion internet : ton compte n’a pas été supprimé. Réessaie dans un instant.'));
           }
         },
       },
@@ -160,6 +171,16 @@ export default function SettingsScreen() {
         <View style={styles.barSpacer} />
       </View>
 
+      {!isLoading && !isAuthenticated ? (
+        // Sans compte (lien direct, ou juste après la déconnexion) : rien à
+        // régler ici, et aucune action qui échouerait en 401
+        <PageState
+          variant="empty"
+          text="Tes réglages apparaissent dès que tu te connectes."
+          actionLabel="Se connecter"
+          onAction={() => router.replace('/client/login')}
+        />
+      ) : (
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.identity, { backgroundColor: colors.optionFace }]}>
           <ProfileAvatar size={AVATAR} initial={initialOf(pseudoNow)} ratio={p.level.ratio} accessibilityLabel={levelA11y(p.level)} />
@@ -208,6 +229,7 @@ export default function SettingsScreen() {
           {`Valtheria, version ${version}`}
         </AppText>
       </ScrollView>
+      )}
 
       {mounted === 'pseudo' ? (
         <BottomSheet open={sheet === 'pseudo'} onRequestClose={close} onClosed={unmount}>

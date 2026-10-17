@@ -240,22 +240,25 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
         // Texte gardé : il relie les mots du Dictionnaire à cette leçon
         saveLessonText(Number(id), data);
 
-        // DIAGNOSTIC : résumé de la leçon + JSON complet des types pas encore construits
-        console.log(
-          `LEÇON ${id} — "${lesson.title}" — types d'écrans :`,
-          lesson.screens.map((s) => (s.kind === 'unsupported' ? s.type : s.kind)).join(', ')
-        );
-        lesson.screens
-          .filter((s) => s.kind === 'unsupported')
-          .forEach((s) => {
-            console.log(`ÉCRAN NON GÉRÉ #${s.index}:`, JSON.stringify(s.source, null, 2));
-          });
+        // DIAGNOSTIC (développement seulement) : types d'écrans de la leçon,
+        // et JSON complet de ceux pas encore construits
+        if (__DEV__) {
+          console.log(
+            `LEÇON ${id} — "${lesson.title}" — types d'écrans :`,
+            lesson.screens.map((s) => (s.kind === 'unsupported' ? s.type : s.kind)).join(', ')
+          );
+          lesson.screens
+            .filter((s) => s.kind === 'unsupported')
+            .forEach((s) => {
+              console.log(`ÉCRAN NON GÉRÉ #${s.index}:`, JSON.stringify(s.source, null, 2));
+            });
+        }
 
         setScreens(lesson.screens);
         setLessonInfo({ title: lesson.title, takeaway: lesson.takeaway, marked: lesson.takeawayMarked });
       })
       .catch((err: any) => {
-        console.log('ERREUR LEÇON:', err?.message);
+        if (__DEV__) console.log('ERREUR LEÇON:', err?.message);
         setLoadError(isNetworkError(err) ? 'network' : 'server');
       })
       .finally(() => setIsLoading(false));
@@ -426,7 +429,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       const responses = buildResponses(answers, screens);
 
       const res = await completeLesson(Number(id), { responses });
-      console.log('COMPLETE RÉSULTAT:', JSON.stringify(res, null, 2));
+      // Réponse complète (avec le profil) : jamais dans le journal d'une version publiée
+      if (__DEV__) console.log('COMPLETE RÉSULTAT:', JSON.stringify(res, null, 2));
 
       // 1. Instantané : XP et série viennent directement de la réponse de /complete
       if (res?.user) {
@@ -478,7 +482,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       setModuleTitle(finishedModuleTitle(res ?? {}, learningStore.getState().modules, Number(id)));
       setResult(res ?? {});
     } catch (err: any) {
-      console.log('ERREUR COMPLETE:', err?.message);
+      if (__DEV__) console.log('ERREUR COMPLETE:', err?.message);
       // Les réponses restent en mémoire : « Réessayer » renvoie les mêmes
       errorHaptic();
       setSubmitError(submitErrorMessage(err));
@@ -603,8 +607,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   };
 
   const scrollToY = useCallback((y: number) => {
-    scrollRef.current?.scrollTo({ y: screenY.current + y, animated: true });
-  }, []);
+    scrollRef.current?.scrollTo({ y: screenY.current + y, animated: !reducedMotion });
+  }, [reducedMotion]);
 
   // ---------------------------------------------------------------------------
   // Rendu
@@ -775,7 +779,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                 onClosed={() => setVerdict(null)}
                 onCollapsedChange={(collapsed) => {
                   // Laisse la feuille finir de se replier, puis montre tout l'écran corrigé
-                  if (collapsed) setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), COLLAPSE_SCROLL_DELAY);
+                  if (collapsed) setTimeout(() => scrollRef.current?.scrollToEnd({ animated: !reducedMotion }), COLLAPSE_SCROLL_DELAY);
                 }}
                 loading={isSubmitting}
                 errorText={submitError}

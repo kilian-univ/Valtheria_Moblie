@@ -88,6 +88,11 @@ async function schedule(Notifications: typeof NotificationsModule, time: Reminde
   }
 }
 
+// Autorisation accordée, ou provisoire sur iOS (notifications discrètes)
+function allowed(p: { granted: boolean; ios?: { status?: number } | null }, Notifications: typeof NotificationsModule): boolean {
+  return p.granted || p.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+}
+
 // Demande l'autorisation, puis programme le rappel. false : refusé (rien
 // n'est programmé, le réglage reste coupé).
 export async function enableReminder(time: ReminderTime): Promise<boolean> {
@@ -95,7 +100,7 @@ export async function enableReminder(time: ReminderTime): Promise<boolean> {
     const Notifications = notifications();
     if (!Notifications) return false;
     const current = await Notifications.getPermissionsAsync();
-    const granted = current.granted || (await Notifications.requestPermissionsAsync()).granted;
+    const granted = allowed(current, Notifications) || allowed(await Notifications.requestPermissionsAsync(), Notifications);
     if (!granted) return false;
     await schedule(Notifications, time);
     await saveSettings({ enabled: true, time });
@@ -123,10 +128,19 @@ export async function refreshReminder(): Promise<void> {
     const Notifications = notifications();
     if (!Notifications) return;
     const permission = await Notifications.getPermissionsAsync();
-    if (permission.granted) await schedule(Notifications, settings.time);
+    if (allowed(permission, Notifications)) await schedule(Notifications, settings.time);
+    // Autorisation retirée dans les réglages du téléphone : rien n'arrivera
+    // plus, le rappel est affiché « Coupé » au lieu d'une heure trompeuse
+    else await saveSettings({ ...settings, enabled: false });
   } catch {
     // échec de programmation : on réessaiera à la prochaine ouverture
   }
+}
+
+// Réglage affiché, vérifié contre l'autorisation du téléphone
+export async function getCheckedReminderSettings(): Promise<ReminderSettings> {
+  await refreshReminder();
+  return getReminderSettings();
 }
 
 // Développement (« Tout réinitialiser ») : rappel coupé et réglage effacé

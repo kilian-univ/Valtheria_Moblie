@@ -154,6 +154,13 @@ export function isOnboardingPath(pathname: string | null | undefined): boolean {
   return typeof pathname === 'string' && (pathname === '/bienvenue' || pathname.startsWith('/bienvenue/'));
 }
 
+// Page ouverte directement où l'on reste, même pendant la première
+// ouverture : celles du parcours, et la connexion ou l'inscription (lien
+// « Se connecter » reçu par courriel, par exemple)
+export function keepsDirectRoute(pathname: string | null | undefined): boolean {
+  return isOnboardingPath(pathname) || pathname === '/client/login' || pathname === '/client/register';
+}
+
 // ---------------------------------------------------------------------------
 // Prénom
 // ---------------------------------------------------------------------------

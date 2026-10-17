@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useApi } from '@/src/context/ApiContext';
 import { onboardingStore } from '@/src/state/onboarding';
 import { refreshReminder } from '@/src/state/reminder';
-import { isOnboardingPath, routeForStep, shouldShowOnboarding } from '@/src/utils/onboarding';
+import { keepsDirectRoute, routeForStep, shouldShowOnboarding } from '@/src/utils/onboarding';
 import { runSafely } from '@/src/utils/safe';
 import { track } from '@/src/utils/track';
 
@@ -40,7 +40,7 @@ export default function OnboardingGate() {
           if (state.status !== 'termine') onboardingStore.update({ status: 'termine' });
           return;
         }
-        if (shouldShowOnboarding(state, false) && !isOnboardingPath(pathname)) {
+        if (shouldShowOnboarding(state, false) && !keepsDirectRoute(pathname)) {
           router.replace(routeForStep(state.step));
         }
       })

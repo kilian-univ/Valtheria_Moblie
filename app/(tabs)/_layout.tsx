@@ -37,6 +37,8 @@ export default function TabLayout() {
         },
         // Transparent : le fond commun (AppBackground) se voit derrière
         sceneStyle: { backgroundColor: 'transparent' },
+        // Onglet quitté : figé (animations en boucle à l'arrêt)
+        freezeOnBlur: true,
       }}>
       {TAB_ROUTES.map((tab) => (
         <Tabs.Screen key={tab.name} name={tab.name} options={{ title: tab.title, tabBarIcon: tabIcon(tab.icon) }} />

@@ -17,12 +17,15 @@ export default function FallbackScreen({ screen }: LessonScreenProps<Unsupported
     <View style={styles.wrap}>
       <ScreenIntro screen={screen} />
       <View style={[styles.box, { backgroundColor: colors.surface }]}>
-        <AppText variant="caption" tone="subtitle">
-          Type d’écran pas encore géré : « {screen.type} »
+        <AppText variant="body" tone="subtitle">
+          Cet écran arrive bientôt dans l’app. Tu peux passer à la suite.
         </AppText>
-        <AppText variant="caption" style={styles.code}>
-          {JSON.stringify(screen.payload, null, 2)}
-        </AppText>
+        {/* Développement seulement : le type et le contenu reçus */}
+        {__DEV__ ? (
+          <AppText variant="caption" style={styles.code}>
+            {`Type d’écran pas encore géré : « ${screen.type} »\n${JSON.stringify(screen.payload, null, 2)}`}
+          </AppText>
+        ) : null}
       </View>
     </View>
   );

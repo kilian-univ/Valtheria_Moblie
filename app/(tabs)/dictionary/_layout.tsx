@@ -10,7 +10,7 @@ export default function DictionaryTabLayout() {
     // Transitions natives (glissement et geste retour sur iOS). L'accueil,
     // transparent, laisse voir le fond commun animé ; la fiche est opaque
     // (OpaqueScreen) et ne laisse jamais voir l'accueil.
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' }, freezeOnBlur: true }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="mot" />
     </Stack>

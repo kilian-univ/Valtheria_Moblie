@@ -44,7 +44,15 @@ export function loadWordStates(user: UserKey): Promise<WordMemory> {
     if (memory === null) {
       // Première fois : mots découverts d'avant, et la mémoire sans compte
       memory = migrateDiscovered({}, await discoveredWordsStore.load(user).catch(() => []));
-      if (user !== GUEST) memory = mergeWords(memory, (await read(GUEST)) ?? {});
+      if (user !== GUEST) {
+        const guest = await read(GUEST);
+        memory = mergeWords(memory, guest ?? {});
+        // Reprise une seule fois : un autre compte du téléphone ne la recevra pas
+        if (guest) {
+          cache.delete(GUEST);
+          await AsyncStorage.removeItem(storageKey(GUEST)).catch(() => {});
+        }
+      }
       if (Object.keys(memory).length > 0) await write(user, memory);
     }
     cache.set(user, memory);

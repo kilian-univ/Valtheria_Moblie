@@ -88,7 +88,7 @@ export default function ObjectifScreen() {
         <View style={styles.spacer} />
       </View>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
           {precaution ? (
             <>
               <AppText variant="callout" tone="subtitle">

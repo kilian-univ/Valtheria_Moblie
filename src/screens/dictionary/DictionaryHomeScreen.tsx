@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useReducedMotion } from 'react-native-reanimated';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
@@ -104,12 +105,14 @@ export default function DictionaryHomeScreen() {
     openTerm(termParam);
   }, [termParam, router, openTerm]);
 
+  // Réduction des animations du téléphone : défilement immédiat
+  const reducedMotion = useReducedMotion();
   // Depuis le profil (« Mots ») : « Mes mots », en haut de l'accueil
   useEffect(() => {
     if (section !== 'mes-mots') return;
     router.setParams({ section: undefined });
-    listRef.current?.getScrollResponder()?.scrollTo({ y: 0, animated: true });
-  }, [section, router]);
+    listRef.current?.getScrollResponder()?.scrollTo({ y: 0, animated: !reducedMotion });
+  }, [section, router, reducedMotion]);
 
   const searching = normalizeText(query) !== '';
   const results = useMemo(

@@ -9,7 +9,7 @@ import ValBubble from '@/src/components/common/ValBubble';
 import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { useLearningData } from '@/src/hooks/useLearningData';
+import { useLearningSnapshot } from '@/src/hooks/useLearningData';
 import { useNotebook } from '@/src/state/notebook';
 import { userKeyOf } from '@/src/state/userMemory';
 import { groupByUniverse, plainDeclic } from '@/src/utils/notebook';
@@ -26,7 +26,7 @@ export default function NotebookScreen() {
   const colors = palette[colorScheme];
   const insets = useSafeAreaInsets();
   const { user } = useApi();
-  const { universes } = useLearningData();
+  const { universes } = useLearningSnapshot();
   const declics = useNotebook(userKeyOf(user?.id));
   const groups = groupByUniverse(declics ?? []);
   const empty = declics !== null && declics.length === 0;

@@ -47,8 +47,14 @@ export function loadAccuracy(user: UserKey): Promise<AccuracyRecord> {
   const job = (async () => {
     let record = await read(user);
     if (record === null && user !== GUEST) {
-      record = mergeAccuracy(EMPTY_ACCURACY, (await read(GUEST)) ?? EMPTY_ACCURACY);
+      const guest = await read(GUEST);
+      record = mergeAccuracy(EMPTY_ACCURACY, guest ?? EMPTY_ACCURACY);
       if (record.bestRun > 0 || record.earned.length > 0) await write(user, record);
+      // Reprise une seule fois : un autre compte du téléphone ne la recevra pas
+      if (guest) {
+        cache.delete(GUEST);
+        await AsyncStorage.removeItem(storageKey(GUEST)).catch(() => {});
+      }
     }
     const out = record ?? EMPTY_ACCURACY;
     cache.set(user, out);

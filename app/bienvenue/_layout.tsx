@@ -6,7 +6,7 @@ import { Stack } from 'expo-router';
 // qui n'a plus de sens (bienvenue, leçon, fin) : on en sort par les boutons.
 export default function BienvenueLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' }, freezeOnBlur: true }}>
       <Stack.Screen name="index" options={{ gestureEnabled: false }} />
       <Stack.Screen name="prenom" />
       <Stack.Screen name="objectif" />

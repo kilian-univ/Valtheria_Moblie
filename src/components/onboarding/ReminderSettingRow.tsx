@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleProp, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
+import { Linking, Pressable, StyleProp, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
 import { palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import { disableReminder, enableReminder, getReminderSettings, ReminderSettings } from '@/src/state/reminder';
+import { disableReminder, enableReminder, getCheckedReminderSettings, ReminderSettings } from '@/src/state/reminder';
 import { formatTime, ReminderTime } from '@/src/utils/reminder';
 import { track } from '@/src/utils/track';
 import ReminderPicker from './ReminderPicker';
@@ -35,7 +35,7 @@ export default function ReminderSettingRow({ rowStyle, leftStyle, labelStyle, ic
 
   useFocusEffect(
     useCallback(() => {
-      getReminderSettings().then(setSettings);
+      getCheckedReminderSettings().then(setSettings);
     }, [])
   );
 
@@ -103,6 +103,7 @@ export default function ReminderSettingRow({ rowStyle, leftStyle, labelStyle, ic
                 Les notifications sont coupées pour Valtheria. Autorise-les dans les réglages du téléphone.
               </AppText>
             ) : null}
+            {refused ? <Button variant="secondary" label="Ouvrir les réglages du téléphone" onPress={() => Linking.openSettings().catch(() => {})} /> : null}
             <Button label={settings?.enabled ? 'Enregistrer' : 'Activer mon rappel'} onPress={save} loading={busy} />
             {settings?.enabled ? <Button variant="textDanger" label="Couper le rappel" onPress={turnOff} /> : null}
           </View>

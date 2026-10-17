@@ -16,7 +16,6 @@ import { resetFlameIgnition } from '@/src/state/flameIgnition';
 import { onboardingStore } from '@/src/state/onboarding';
 import { resetReminder } from '@/src/state/reminder';
 import { loginErrorText } from '@/src/utils/authErrors';
-import { postAuth } from '@/src/utils/authProbe';
 import { emailValid } from '@/src/utils/onboarding';
 
 // Mot de passe oublié : POST /auth/forgot-password est prêt côté serveur
@@ -44,14 +43,8 @@ export default function LoginScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      // Réponse lue en entier d'abord (une seule tentative) : login d'ApiContext
-      // ne garde pas error.message. Acceptée : login enregistre la session.
-      const attempt = await postAuth('/auth/login', { email: email.trim(), password });
-      if (!attempt.ok) {
-        setError(loginErrorText(attempt.failure));
-        setSubmitting(false);
-        return;
-      }
+      // Une seule requête : login enregistre la session ; en cas de refus, il
+      // lève le message du serveur, filtré par loginErrorText
       await login(email.trim(), password);
       // Connecté : le parcours de première ouverture ne revient plus
       const fromOnboarding = onboardingStore.get().state.status === 'en-cours';
@@ -59,7 +52,8 @@ export default function LoginScreen() {
       if (fromOnboarding || !router.canGoBack()) router.replace('/apprendre');
       else router.back();
     } catch (err) {
-      setError(loginErrorText(null, err instanceof Error ? err.message : undefined));
+      const message = err instanceof Error ? err.message : undefined;
+      setError(loginErrorText({ status: null, code: null, message: message ?? null }, message));
       setSubmitting(false);
     }
   };

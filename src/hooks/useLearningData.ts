@@ -93,3 +93,11 @@ export function useLearningData() {
     reload: load,
   };
 }
+
+// Modules et univers déjà chargés (par l'onglet Apprendre ou le lecteur),
+// sans relancer de requête : pour les écrans qui ne font que les lire
+// (remarque de Val du patrimoine, carnet)
+export function useLearningSnapshot() {
+  const store = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
+  return { modules: store.modules, universes: store.universes };
+}

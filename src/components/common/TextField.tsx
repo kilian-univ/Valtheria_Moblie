@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { forwardRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
+import { forwardRef, useId, useState } from 'react';
+import { InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 
 import { fonts, palette, radius, size, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -8,6 +8,8 @@ import AppText from './AppText';
 
 const HEIGHT = 52;
 const EYE = 20;
+// Claviers d'iOS sans touche Retour : une barre « OK » au-dessus pour les fermer
+const NO_RETURN_KEY = new Set(['decimal-pad', 'number-pad', 'numeric', 'phone-pad']);
 
 type TextFieldProps = Omit<TextInputProps, 'style' | 'secureTextEntry'> & {
   label: string;
@@ -28,6 +30,8 @@ const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(false);
   const border = error ? colors.error : focused ? colors.gold : colors.controlBorder;
+  const accessoryId = `ok-${useId()}`;
+  const needsDone = Platform.OS === 'ios' && NO_RETURN_KEY.has(String(input.keyboardType ?? ''));
 
   return (
     <View style={styles.wrap}>
@@ -38,6 +42,7 @@ const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
         <TextInput
           ref={ref}
           {...input}
+          inputAccessoryViewID={needsDone ? accessoryId : input.inputAccessoryViewID}
           accessibilityLabel={label}
           secureTextEntry={secret && !visible}
           onFocus={(e) => {
@@ -65,6 +70,17 @@ const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
           </Pressable>
         ) : null}
       </View>
+      {needsDone ? (
+        <InputAccessoryView nativeID={accessoryId}>
+          <View style={[styles.doneBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+            <Pressable onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel="Fermer le clavier" hitSlop={8} style={styles.doneButton}>
+              <AppText variant="bodyMedium" tone="gold">
+                OK
+              </AppText>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
       {error ? (
         <AppText variant="caption" tone="error" accessibilityRole="alert">
           {error}
@@ -99,6 +115,16 @@ const styles = StyleSheet.create({
     minHeight: HEIGHT - 2,
     fontFamily: fonts.body,
     fontSize: 16,
+  },
+  doneBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: space[4],
+  },
+  doneButton: {
+    minHeight: size.tapMin,
+    justifyContent: 'center',
   },
   eye: {
     width: size.tapMin,

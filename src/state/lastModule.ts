@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { serialQueue } from '@/src/utils/serialQueue';
 
 // Mémoire locale de l'onglet Apprendre, par utilisateur (deux comptes sur le
 // même téléphone ne se mélangent pas). Tout échec de stockage est ignoré :
@@ -36,12 +37,17 @@ export async function getCelebratedModuleIds(userId: number): Promise<number[]> 
   }
 }
 
-export async function addCelebratedModuleId(userId: number, moduleId: number): Promise<void> {
-  try {
-    const current = await getCelebratedModuleIds(userId);
-    if (current.includes(moduleId)) return;
-    await AsyncStorage.setItem(celebratedKey(userId), JSON.stringify([...current, moduleId]));
-  } catch {
-    // stockage indisponible : la fête pourra se rejouer, sans conséquence
-  }
+// Écritures à la suite : deux modules finis presque ensemble sont gardés
+const inOrder = serialQueue();
+
+export function addCelebratedModuleId(userId: number, moduleId: number): Promise<void> {
+  return inOrder(async () => {
+    try {
+      const current = await getCelebratedModuleIds(userId);
+      if (current.includes(moduleId)) return;
+      await AsyncStorage.setItem(celebratedKey(userId), JSON.stringify([...current, moduleId]));
+    } catch {
+      // stockage indisponible : la fête pourra se rejouer, sans conséquence
+    }
+  });
 }

@@ -36,8 +36,12 @@ export function staleDataText(kind: LoadError, what: string): string {
 // Action ratée (enregistrer, supprimer, exporter) : le message du serveur
 // s'il est lisible, sinon un texte clair ; jamais « Erreur API » ni
 // « Server Error ».
-export function actionErrorText(err: unknown, fallback: string): string {
-  if (isNetworkError(err)) return 'Pas de connexion internet : rien n’a été enregistré. Réessaie dans un instant.';
+export function actionErrorText(
+  err: unknown,
+  fallback: string,
+  offline = 'Pas de connexion internet : rien n’a été enregistré. Réessaie dans un instant.'
+): string {
+  if (isNetworkError(err)) return offline;
   const message = err instanceof Error ? err.message : null;
   return readableMessage(message) ?? fallback;
 }

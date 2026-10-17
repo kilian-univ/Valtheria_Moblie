@@ -30,3 +30,12 @@ test('un journal illisible repart vide au lieu de planter', () => {
   assert.deepEqual(parseErrorLog('{"a":1}'), []);
   assert.equal(parseErrorLog(JSON.stringify([{ message: 'ok', where: 'x', at: 'y', stack: null }, 3])).length, 1);
 });
+
+test('erreur d’une action : jamais de message technique', async () => {
+  const { actionErrorText } = await import('@/src/utils/loadError');
+  assert.equal(actionErrorText(new Error('Erreur API'), 'Suppression impossible.'), 'Suppression impossible.');
+  assert.equal(actionErrorText(new Error('Server Error'), 'Suppression impossible.'), 'Suppression impossible.');
+  assert.match(actionErrorText(new TypeError('Failed to fetch'), 'x'), /Pas de connexion internet/);
+  assert.equal(actionErrorText(new Error('Ce pseudo est déjà pris.'), 'x'), 'Ce pseudo est déjà pris.');
+  assert.equal(actionErrorText(new TypeError('Network request failed'), 'x', 'Hors ligne.'), 'Hors ligne.');
+});

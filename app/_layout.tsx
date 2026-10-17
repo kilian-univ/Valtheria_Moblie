@@ -76,6 +76,9 @@ function RootLayoutContent() {
                   // voit derrière les onglets ; les pages poussées par-dessus
                   // sont opaques (OpaqueScreen).
                   contentStyle: { backgroundColor: 'transparent' },
+                  // Écran caché sous un autre : figé (ses animations en boucle
+                  // ne consomment plus ni batterie ni processeur)
+                  freezeOnBlur: true,
                 }}
               >
                 <Stack.Screen name="(tabs)" />

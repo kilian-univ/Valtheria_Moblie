@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { serialQueue } from '@/src/utils/serialQueue';
 import { useEffect, useSyncExternalStore } from 'react';
 
 // Mémoire locale d'une liste, par utilisateur (deux comptes sur le même
@@ -35,14 +36,28 @@ export function createUserListStore<T>({
   const storageKey = (key: UserKey) => `${prefix}:${key}`;
   const emit = () => listeners.forEach((l) => l());
 
-  async function read(key: UserKey): Promise<T[] | null> {
+  // null : jamais écrite ; undefined : illisible (stockage en échec, contenu
+  // abîmé) — jamais prise pour « jamais vu », qui reprendrait la mémoire sans
+  // compte par-dessus
+  async function read(key: UserKey): Promise<T[] | null | undefined> {
     try {
       const raw = await AsyncStorage.getItem(storageKey(key));
       if (raw === null) return null;
       const parsed: unknown = JSON.parse(raw);
       return Array.isArray(parsed) ? parsed.filter(valid) : [];
     } catch {
-      return null;
+      return undefined;
+    }
+  }
+  // Mises à jour à la suite : deux ajouts rapprochés ne s'écrasent pas
+  const inOrder = serialQueue();
+
+  async function forget(key: UserKey): Promise<void> {
+    cache.delete(key);
+    try {
+      await AsyncStorage.removeItem(storageKey(key));
+    } catch {
+      // stockage indisponible : sans conséquence
     }
   }
 
@@ -63,11 +78,13 @@ export function createUserListStore<T>({
       if (running) return running;
       const job = (async () => {
         let list = await read(key);
-        // Premier passage d'un compte : la liste sans compte est reprise
+        // Premier passage d'un compte : la liste sans compte est reprise, puis
+        // vidée (un autre compte du même téléphone ne la recevra pas)
         if (list === null && key !== GUEST) {
           const guest = (await read(GUEST)) ?? [];
           list = merge([], guest);
           if (list.length > 0) await write(key, list);
+          if (guest.length > 0) await forget(GUEST);
         }
         const out = list ?? [];
         cache.set(key, out);
@@ -78,13 +95,15 @@ export function createUserListStore<T>({
       pending.set(key, job);
       return job;
     },
-    async update(key, change) {
-      const current = await store.load(key);
-      const next = change(current);
-      if (next === current) return;
-      cache.set(key, next);
-      emit();
-      await write(key, next);
+    update(key, change) {
+      return inOrder(async () => {
+        const current = await store.load(key);
+        const next = change(current);
+        if (next === current) return;
+        cache.set(key, next);
+        emit();
+        await write(key, next);
+      });
     },
     subscribe(listener) {
       listeners.add(listener);

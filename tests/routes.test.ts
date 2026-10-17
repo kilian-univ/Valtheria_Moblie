@@ -4,7 +4,7 @@
 // développement absents d'une version publiée
 
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { test } from 'node:test';
 
 const root = new URL('../', import.meta.url);
@@ -61,4 +61,11 @@ test('filets d’erreur : un global et un par écran, au layout racine', () => {
 test('l’app ne se déclare pas compatible iPad', () => {
   const config = JSON.parse(read('app.json'));
   assert.equal(config.expo.ios.supportsTablet, false);
+});
+
+test('aucun import direct de react-navigation (refusé par Expo Router 57)', () => {
+  const walk = (dir: string): string[] =>
+    readdirSync(new URL(dir, root)).flatMap((n) => (statSync(new URL(`${dir}/${n}`, root)).isDirectory() ? walk(`${dir}/${n}`) : /\.tsx?$/.test(n) ? [`${dir}/${n}`] : []));
+  const offenders = [...walk('src'), ...walk('app')].filter((f) => /from ['"]@react-navigation\//.test(read(f)));
+  assert.deepEqual(offenders, [], 'passer par expo-router');
 });

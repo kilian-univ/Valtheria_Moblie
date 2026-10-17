@@ -23,6 +23,7 @@ import {
   shouldShowOnboarding,
   signupError,
   stepAfter,
+  keepsDirectRoute,
 } from '../src/utils/onboarding';
 import {
   clampTime,
@@ -239,4 +240,12 @@ test('inscription : le pseudo prérempli suit les règles du serveur', () => {
   assert.ok(src.includes('{pseudoInAccount ? pseudoField : null}'));
   assert.ok(src.includes('(!pseudoInAccount || !pseudoProblem)'));
   assert.equal(pseudoError(pseudoFromFirstName('Kantin')), null);
+});
+
+test('lien direct vers la connexion ou l’inscription : on y reste pendant la première ouverture', () => {
+  assert.equal(keepsDirectRoute('/client/login'), true);
+  assert.equal(keepsDirectRoute('/client/register'), true);
+  assert.equal(keepsDirectRoute('/bienvenue/prenom'), true);
+  assert.equal(keepsDirectRoute('/apprendre'), false);
+  assert.equal(keepsDirectRoute('/client/reglages'), false);
 });

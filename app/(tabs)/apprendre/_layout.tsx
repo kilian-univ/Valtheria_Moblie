@@ -8,7 +8,7 @@ export default function ApprendreTabLayout() {
     // Transitions natives (glissement et geste retour sur iOS). L'accueil,
     // transparent, laisse voir le fond commun animé ; les pages poussées sont
     // opaques (OpaqueScreen) et ne laissent jamais voir celle du dessous.
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' }, freezeOnBlur: true }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="univers/index" />
       <Stack.Screen name="univers/[universeId]" />

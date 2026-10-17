@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { useIsFocused } from 'expo-router';
 import { Image, ImageSourcePropType, Platform, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -93,12 +94,17 @@ type VaultSceneProps = {
 // pulse et ses poussières, le logo, Val qui soulève son chapeau, debout dans
 // la flaque de lumière avec un contre-jour doré, sa bulle à côté de la tête. Décor décoratif pour le lecteur d'écran : on
 // lit le logo, puis « Val : … ».
+const SENSOR_INTERVAL_MS = 33;
+
 export default function VaultScene({ width, height, topInset, tab, line }: VaultSceneProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
-  // Profondeur seulement sur le téléphone, et jamais avec les animations réduites
-  const parallax = Platform.OS !== 'web' && !reduced;
+  // Profondeur seulement sur le téléphone, jamais avec les animations
+  // réduites, et seulement à l'écran : sous le prénom ou la leçon découverte,
+  // les calques sont démontés et le capteur de gravité s'arrête
+  const focused = useIsFocused();
+  const parallax = Platform.OS !== 'web' && !reduced && focused;
 
   // Décor un peu plus large que l'écran et calé un peu sous la scène : en
   // glissant (profondeur), il ne laisse jamais voir de bord. Scène plus haute
@@ -254,7 +260,8 @@ export default function VaultScene({ width, height, topInset, tab, line }: Vault
 // Calque qui glisse très légèrement à l'inverse de l'inclinaison du téléphone
 // (capteur de gravité de Reanimated). Capteur absent : immobile.
 function ParallaxLayer({ depth, children }: { depth: number; children: ReactNode }) {
-  const sensor = useAnimatedSensor(SensorType.GRAVITY, { interval: 'auto' });
+  // 30 mesures par seconde suffisent à un glissement de quelques points
+  const sensor = useAnimatedSensor(SensorType.GRAVITY, { interval: SENSOR_INTERVAL_MS });
   const style = useAnimatedStyle(() => {
     if (!sensor.isAvailable) return {};
     const { x, y } = sensor.sensor.value;

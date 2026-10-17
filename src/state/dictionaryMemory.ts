@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { serialQueue } from '@/src/utils/serialQueue';
 
 import { pushRecent, RECENTS_MAX, toggleFavorite } from '@/src/utils/dictionary';
 
@@ -31,8 +32,11 @@ export async function getRecentTerms(userId: number): Promise<string[]> {
   return (await readTerms(recentsKey(userId))).slice(0, RECENTS_MAX);
 }
 
-export async function addRecentTerm(userId: number, term: string): Promise<void> {
-  await writeTerms(recentsKey(userId), pushRecent(await getRecentTerms(userId), term));
+// Écritures à la suite : deux changements rapprochés ne s'écrasent pas
+const inOrder = serialQueue();
+
+export function addRecentTerm(userId: number, term: string): Promise<void> {
+  return inOrder(async () => writeTerms(recentsKey(userId), pushRecent(await getRecentTerms(userId), term)));
 }
 
 export async function getFavoriteTerms(userId: number): Promise<string[]> {
@@ -40,8 +44,10 @@ export async function getFavoriteTerms(userId: number): Promise<string[]> {
 }
 
 // Ajoute le mot à « Mes mots », ou l'en retire ; renvoie la nouvelle liste
-export async function toggleFavoriteTerm(userId: number, term: string): Promise<string[]> {
-  const next = toggleFavorite(await getFavoriteTerms(userId), term);
-  await writeTerms(favoritesKey(userId), next);
-  return next;
+export function toggleFavoriteTerm(userId: number, term: string): Promise<string[]> {
+  return inOrder(async () => {
+    const next = toggleFavorite(await getFavoriteTerms(userId), term);
+    await writeTerms(favoritesKey(userId), next);
+    return next;
+  });
 }
