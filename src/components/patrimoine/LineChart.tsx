@@ -28,15 +28,19 @@ type Props = {
   tip: (index: number) => ChartTip;
   // Phrase qui résume la courbe pour le lecteur d'écran
   summary: string;
+  // Appui long sur un point, sans bouger (supprimer un relevé)
+  onLongPressPoint?: (index: number) => void;
 };
 
 const PAD_TOP = 10;
 const PAD_BOTTOM = 10;
 const TIP_WIDTH = 168;
+// Appui long sur un point : plus long que le toucher qui affiche l'étiquette
+const HOLD_MS = 550;
 
 // Courbe avec toucher-glisser : trait vertical, point, étiquette au-dessus,
 // vibration légère à chaque point franchi. Le lecteur d'écran lit le résumé.
-export default function LineChart({ values, color, dashed, dashedColor, level, dots = [], area = true, height = 170, tip, summary }: Props) {
+export default function LineChart({ values, color, dashed, dashedColor, level, dots = [], area = true, height = 170, tip, summary, onLongPressPoint }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const [width, setWidth] = useState(0);
@@ -76,7 +80,18 @@ export default function LineChart({ values, color, dashed, dashedColor, level, d
     .maxDistance(4000)
     .onStart((e) => pick(e.x))
     .onFinalize(release);
-  const gesture = Gesture.Simultaneous(pan, press);
+  const hold = Gesture.LongPress()
+    .runOnJS(true)
+    .enabled(!!onLongPressPoint)
+    .minDuration(HOLD_MS)
+    .maxDistance(10)
+    .onStart((e) => {
+      if (values.length === 0 || !onLongPressPoint) return;
+      const i = scale.index(e.x);
+      release();
+      onLongPressPoint(i);
+    });
+  const gesture = Gesture.Simultaneous(pan, press, hold);
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(Math.round(e.nativeEvent.layout.width));
   const allNumbers = values.every((v) => v !== null) ? (values as number[]) : null;

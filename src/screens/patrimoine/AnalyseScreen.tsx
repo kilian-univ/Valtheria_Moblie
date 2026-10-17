@@ -8,7 +8,7 @@ import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
 import PageState from '@/src/components/common/PageState';
 import { shareColors } from '@/src/components/patrimoine/AllocationBar';
-import AssetLogo from '@/src/components/patrimoine/AssetLogo';
+import AssetIcon from '@/src/components/common/AssetIcon';
 import HelpTerm from '@/src/components/patrimoine/HelpTerm';
 import Segmented from '@/src/components/patrimoine/Segmented';
 import ValRemark from '@/src/components/patrimoine/ValRemark';
@@ -164,7 +164,7 @@ export default function AnalyseScreen() {
                 accessible
                 accessibilityLabel={`Intérêts de ${p.name} : ${hidden ? 'montant masqué' : signedMoney(p.interestEur ?? 0)} sur un an, estimés`}
               >
-                <AssetLogo logoUrl={p.logoUrl} name={p.name} ticker={p.ticker} type={p.type} size={32} />
+                <AssetIcon logoUrl={p.logoUrl} name={p.name} ticker={p.ticker} type={p.type} size={32} />
                 <AppText style={styles.shareLabel}>Intérêts de {p.name}</AppText>
                 <AppText style={[styles.sharePct, { color: colors.gold }]}>{signedMoney(p.interestEur ?? 0, { hidden })}</AppText>
               </View>

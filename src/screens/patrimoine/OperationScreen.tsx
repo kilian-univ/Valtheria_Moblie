@@ -8,8 +8,9 @@ import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import IconButton from '@/src/components/common/IconButton';
 import TextField from '@/src/components/common/TextField';
-import AssetLogo from '@/src/components/patrimoine/AssetLogo';
+import AssetIcon from '@/src/components/common/AssetIcon';
 import DateField from '@/src/components/patrimoine/DateField';
+import IconPicker from '@/src/components/patrimoine/IconPicker';
 import Segmented from '@/src/components/patrimoine/Segmented';
 import { fonts, palette, radius, space, withOpacity } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
@@ -20,6 +21,7 @@ import { updatePatrimoinePrefs, usePatrimoinePrefs } from '@/src/state/patrimoin
 import { userKeyOf } from '@/src/state/userMemory';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
+import { isIconKey, type IconKey } from '@/src/utils/patrimoine/assetIcons';
 import { money, quantityLabel, signedMoney } from '@/src/utils/patrimoine/format';
 import {
   dayOf,
@@ -36,7 +38,7 @@ import {
   type Payload,
 } from '@/src/utils/patrimoine/forms';
 import { ASSET_TYPES, parseOperations, type AssetType, type Operation, type Side } from '@/src/utils/patrimoine/model';
-import { addLivretDeposit } from '@/src/utils/patrimoine/prefs';
+import { addLivretDeposit, setIcon } from '@/src/utils/patrimoine/prefs';
 import { parseDecimal, previewOperation } from '@/src/utils/patrimoine/preview';
 
 type Params = {
@@ -48,6 +50,8 @@ type Params = {
   logo?: string;
   price?: string;
   manual?: string;
+  // Icône d'un placement proposé par la recherche
+  icon?: string;
 };
 
 // Saisies de la personne, par-dessus les valeurs par défaut (opération
@@ -56,6 +60,8 @@ type Edits = Partial<Record<'quantity' | 'unitPrice' | 'fees' | 'name' | 'amount
   side?: Side;
   day?: Day;
   manualKind?: ManualKind;
+  // Icône choisie (null : automatique)
+  icon?: IconKey | null;
 };
 
 const decimalText = (n: number | null | undefined) => (n === null || n === undefined || !Number.isFinite(n) ? '' : String(Math.round(n * 1e8) / 1e8).replace('.', ','));
@@ -144,6 +150,9 @@ export default function OperationScreen() {
   const rateText = edits.ratePct ?? (existing?.interestRatePct !== null && existing?.interestRatePct !== undefined ? decimalText(existing.interestRatePct) : '');
   const valueText = edits.value ?? (existing ? decimalText(existing.value) : '');
   const paidText = edits.paid ?? '';
+  // Icône (livret, bien) : choisie ici, sinon celle de la recherche, sinon celle déjà gardée
+  const iconChoice: IconKey | null =
+    edits.icon !== undefined ? edits.icon : isIconKey(params.icon) ? params.icon : existing ? (prefs?.icons[existing.ticker.toUpperCase()] ?? null) : null;
   const manualKind: ManualKind = edits.manualKind ?? (MANUAL_KINDS.some((k) => k.key === params.manual) ? (params.manual as ManualKind) : 'immobilier');
 
   // Aperçu (achat ou vente d'un actif coté, hors modification)
@@ -200,6 +209,9 @@ export default function OperationScreen() {
         positionId = typeof res?.id === 'number' ? res.id : null;
         if (kind === 'livret') deposit = livretDeposit(null, Number(payload.body.buy_price));
       }
+      // Icône d'un livret ou d'un bien : gardée sur le téléphone, par symbole
+      const iconTicker = kind === 'market' ? null : (existing?.ticker ?? (typeof payload.body.ticker === 'string' ? payload.body.ticker : null));
+      if (iconTicker) updatePatrimoinePrefs(userKey, (p) => setIcon(p, iconTicker, iconChoice));
       if (deposit > 0) {
         updatePatrimoinePrefs(userKey, (p) => addLivretDeposit(p, { at: new Date().toISOString(), amount: deposit, positionId }));
       }
@@ -262,7 +274,7 @@ export default function OperationScreen() {
                 >
                   {asset ? (
                     <>
-                      <AssetLogo logoUrl={asset.logoUrl} name={asset.name} ticker={asset.ticker} type={asset.type} size={28} />
+                      <AssetIcon logoUrl={asset.logoUrl} name={asset.name} ticker={asset.ticker} type={asset.type} size={28} />
                       <AppText numberOfLines={1} style={styles.assetName}>
                         {asset.name}{' '}
                         <AppText style={[styles.assetTicker, { color: colors.subtitle }]}>{asset.ticker}</AppText>
@@ -340,6 +352,7 @@ export default function OperationScreen() {
               <AppText variant="caption" tone="subtitle">
                 Le montant total aujourd’hui. Un versement compte pour ta régularité.
               </AppText>
+              <IconPicker value={iconChoice} onChange={(icon) => edit({ icon })} name={nameText} ticker={existing?.ticker ?? params.ticker ?? ''} type="livret" />
             </>
           ) : (
             <>
@@ -358,6 +371,13 @@ export default function OperationScreen() {
               <AppText variant="caption" tone="subtitle">
                 Sa valeur n’a pas de cours : tu la mets à jour à la main, quand tu veux.
               </AppText>
+              <IconPicker
+                value={iconChoice}
+                onChange={(icon) => edit({ icon })}
+                name={nameText}
+                ticker={existing?.ticker ?? `CUSTOM_${manualKind.toUpperCase()}`}
+                type="autre"
+              />
             </>
           )}
 

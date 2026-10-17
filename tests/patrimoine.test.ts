@@ -158,10 +158,10 @@ test('saisie des nombres à la française', () => {
 
 const NOW = new Date('2026-10-16T12:00:00Z');
 const SERIES = [
-  { date: '2025-06-01T00:00:00Z', value: 1000, invested: 1000, isSnapshot: true },
-  { date: '2026-02-01T00:00:00Z', value: 2100, invested: 2000, isSnapshot: true },
-  { date: '2026-09-01T00:00:00Z', value: 2300, invested: 2000, isSnapshot: true },
-  { date: '2026-10-15T00:00:00Z', value: 3500, invested: 3000, isSnapshot: true },
+  { id: null, date: '2025-06-01T00:00:00Z', value: 1000, invested: 1000, isSnapshot: true },
+  { id: null, date: '2026-02-01T00:00:00Z', value: 2100, invested: 2000, isSnapshot: true },
+  { id: null, date: '2026-09-01T00:00:00Z', value: 2300, invested: 2000, isSnapshot: true },
+  { id: null, date: '2026-10-15T00:00:00Z', value: 3500, invested: 3000, isSnapshot: true },
 ];
 
 test('périodes : plages du serveur et découpe sur le téléphone', () => {

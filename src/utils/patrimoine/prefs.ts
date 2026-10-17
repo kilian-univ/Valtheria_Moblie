@@ -1,7 +1,8 @@
 // Préférences du suivi de patrimoine gardées sur le téléphone, par compte :
 // mode discret, versements sur les livrets, épargne de précaution, objectifs,
-// étapes, mois de versement. Lecture prudente. Sans React : testable avec Node.
+// étapes, mois de versement, relevés anormaux masqués, icônes choisies. Lecture prudente. Sans React : testable avec Node.
 
+import { isIconKey, type IconKey } from './assetIcons';
 import { clampMonths, EMERGENCY_MONTHS, type Emergency, type Goal } from './goals';
 import { MILESTONES, type Earned } from './milestones';
 
@@ -18,6 +19,10 @@ export type PatrimoinePrefs = {
   // Mois avec au moins un versement (« 2026-10 »), relevés au dernier passage
   // sur Mon patrimoine ; lus par le profil
   months: string[];
+  // Courbes : relevés anormaux masqués (activé par défaut)
+  hideAnomalies: boolean;
+  // Icône choisie pour un placement sans cours, par symbole (en majuscules)
+  icons: Record<string, IconKey>;
 };
 
 export const DEFAULT_PREFS: PatrimoinePrefs = {
@@ -27,10 +32,13 @@ export const DEFAULT_PREFS: PatrimoinePrefs = {
   goals: [],
   milestones: {},
   months: [],
+  hideAnomalies: true,
+  icons: {},
 };
 
 const DEPOSITS_KEPT = 400;
 const GOALS_MAX = 20;
+const ICONS_MAX = 200;
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
@@ -65,6 +73,10 @@ export function parsePrefs(raw: unknown): PatrimoinePrefs {
     if (at) milestones[key] = at;
   }
   const months = (Array.isArray(r.months) ? r.months : []).filter((x): x is string => typeof x === 'string' && /^\d{4}-\d{2}$/.test(x));
+  const icons: Record<string, IconKey> = {};
+  for (const [ticker, key] of Object.entries(obj(r.icons)).slice(0, ICONS_MAX)) {
+    if (ticker && isIconKey(key)) icons[ticker.toUpperCase()] = key;
+  }
   return {
     discreet: r.discreet === true,
     livretDeposits: deposits.slice(-DEPOSITS_KEPT),
@@ -72,10 +84,20 @@ export function parsePrefs(raw: unknown): PatrimoinePrefs {
     goals,
     milestones,
     months: [...new Set(months)].sort(),
+    hideAnomalies: r.hideAnomalies !== false,
+    icons,
   };
 }
 
 export function addLivretDeposit(prefs: PatrimoinePrefs, deposit: LivretDeposit): PatrimoinePrefs {
   if (!(deposit.amount > 0)) return prefs;
   return { ...prefs, livretDeposits: [...prefs.livretDeposits, deposit].slice(-DEPOSITS_KEPT) };
+}
+
+// Icône choisie pour un placement (null : reconnaissance automatique)
+export function setIcon(prefs: PatrimoinePrefs, ticker: string, icon: IconKey | null): PatrimoinePrefs {
+  const icons = { ...prefs.icons };
+  if (icon) icons[ticker.toUpperCase()] = icon;
+  else delete icons[ticker.toUpperCase()];
+  return { ...prefs, icons };
 }

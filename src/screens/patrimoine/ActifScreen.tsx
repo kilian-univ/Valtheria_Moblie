@@ -10,18 +10,20 @@ import BigNumber from '@/src/components/common/BigNumber';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
 import PageState from '@/src/components/common/PageState';
-import AssetLogo from '@/src/components/patrimoine/AssetLogo';
+import AssetIcon from '@/src/components/common/AssetIcon';
 import Figure from '@/src/components/patrimoine/Figure';
+import ChartMenu from '@/src/components/patrimoine/ChartMenu';
 import LineChart from '@/src/components/patrimoine/LineChart';
 import PeriodPicker from '@/src/components/patrimoine/PeriodPicker';
 import { fonts, palette, radius, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { loadPatrimoine, usePatrimoine } from '@/src/state/patrimoineData';
-import { usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
+import { updatePatrimoinePrefs, usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
 import { userKeyOf } from '@/src/state/userMemory';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
+import { splitAnomalies } from '@/src/utils/patrimoine/anomalies';
 import { TYPE_LABELS } from '@/src/utils/patrimoine/analysis';
 import { clipPrices, DEFAULT_PERIOD, operationMarks, priceRange, priceSummary, type Period } from '@/src/utils/patrimoine/chart';
 import { longDate, money, quantity, quantityLabel, shortDate, signedMoney, signedPercent } from '@/src/utils/patrimoine/format';
@@ -80,7 +82,11 @@ export default function ActifScreen() {
   }, [ticker, range, market, get]);
 
   const now = useMemo(() => new Date(), []);
-  const points = prices?.range === range ? clipPrices(prices.points, period, now) : [];
+  // Cours anormaux : jugés sur toute la plage reçue, masqués par défaut
+  const hideAnomalies = prefs?.hideAnomalies ?? true;
+  const split = prices?.range === range ? splitAnomalies(prices.points, (p) => p.price, hideAnomalies) : null;
+  const points = split ? clipPrices(split.kept, period, now) : [];
+  const anomalies = split ? clipPrices(split.hidden, period, now) : [];
   const marks = operationMarks(points, ops?.list ?? []);
 
   // Opération touchée : modifier ou supprimer
@@ -147,7 +153,7 @@ export default function ActifScreen() {
       </View>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space[8] }]}>
         <View style={styles.head}>
-          <AssetLogo logoUrl={position?.logoUrl ?? closed?.logoUrl ?? null} name={name} ticker={ticker} type={type} size={52} />
+          <AssetIcon logoUrl={position?.logoUrl ?? closed?.logoUrl ?? null} name={name} ticker={ticker} type={type} size={52} />
           <View style={styles.headText}>
             <AppText accessibilityRole="header" numberOfLines={2} style={styles.name}>
               {name}
@@ -213,7 +219,16 @@ export default function ActifScreen() {
                 {marks.some((m) => m.side === 'sell') ? <LegendDot color={colors.error} label="tes ventes" /> : null}
               </View>
             ) : null}
-            <PeriodPicker value={period} onChange={setPeriod} />
+            <View style={styles.periodRow}>
+              <View style={styles.flex}>
+                <PeriodPicker value={period} onChange={setPeriod} />
+              </View>
+              <ChartMenu
+                hide={hideAnomalies}
+                onChange={(hide) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, hideAnomalies: hide }))}
+                anomalies={anomalies.map((p) => ({ key: String(p.t), label: `${shortDate(p.t, now)} · ${money(p.price, { currency, exact: true })}` }))}
+              />
+            </View>
           </>
         ) : null}
 
@@ -361,6 +376,8 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  flex: { flex: 1 },
+  periodRow: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
   bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[4], minHeight: 52 },
   content: { paddingHorizontal: space[5], gap: space[3] },
   head: { flexDirection: 'row', alignItems: 'center', gap: space[3] },

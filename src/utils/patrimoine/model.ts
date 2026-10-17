@@ -86,7 +86,9 @@ export type Operation = {
   ticker: string | null;
 };
 
-export type ChartPoint = { date: string; value: number; invested: number; isSnapshot: boolean };
+// id : celui de l'instantané (DELETE /api/portfolio/snapshots/{id}) ; null pour
+// un point calculé à la volée, ou un serveur qui ne le donne pas encore
+export type ChartPoint = { id: number | null; date: string; value: number; invested: number; isSnapshot: boolean };
 
 const num = (v: unknown, fallback = 0): number => {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
@@ -233,7 +235,7 @@ export function parseChart(raw: unknown): ChartPoint[] {
       if (!p || typeof p.date !== 'string') return null;
       const value = numOrNull(p.value);
       if (value === null) return null;
-      return { date: p.date, value, invested: num(p.invested, value), isSnapshot: p.is_snapshot === true };
+      return { id: typeof p.id === 'number' ? p.id : null, date: p.date, value, invested: num(p.invested, value), isSnapshot: p.is_snapshot === true };
     })
     .filter((p): p is ChartPoint => p !== null)
     .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));

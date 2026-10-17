@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
+import BottomSheet from '@/src/components/common/BottomSheet';
 import BigNumber from '@/src/components/common/BigNumber';
 import Button from '@/src/components/common/Button';
 import ValBubble from '@/src/components/common/ValBubble';
@@ -13,6 +14,7 @@ import IconButton from '@/src/components/common/IconButton';
 import Pill from '@/src/components/common/Pill';
 import AllocationBar from '@/src/components/patrimoine/AllocationBar';
 import CelebrationSheet from '@/src/components/patrimoine/CelebrationSheet';
+import ChartMenu from '@/src/components/patrimoine/ChartMenu';
 import GoalsSection from '@/src/components/patrimoine/GoalsSection';
 import Figure from '@/src/components/patrimoine/Figure';
 import LineChart from '@/src/components/patrimoine/LineChart';
@@ -27,7 +29,9 @@ import { usePatrimoineProgress } from '@/src/hooks/usePatrimoineProgress';
 import { loadPatrimoine, usePatrimoineState } from '@/src/state/patrimoineData';
 import { updatePatrimoinePrefs, usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
 import { userKeyOf } from '@/src/state/userMemory';
+import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
+import { splitAnomalies } from '@/src/utils/patrimoine/anomalies';
 import { byType } from '@/src/utils/patrimoine/analysis';
 import {
   CHART_MODES,
@@ -58,7 +62,7 @@ export default function PatrimoineScreen() {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const insets = useSafeAreaInsets();
-  const { user, getPortfolio, get } = useApi();
+  const { user, getPortfolio, get, del } = useApi();
   const userKey = userKeyOf(user?.id);
   const data = usePatrimoineState();
   const prefs = usePatrimoinePrefs(userKey);
@@ -79,6 +83,8 @@ export default function PatrimoineScreen() {
   // Courbe : la plage du serveur, puis la période découpée sur le téléphone
   const range = portfolioRange(period);
   const [series, setSeries] = useState<{ range: string; at: number | null; points: ChartPoint[] } | null>(null);
+  // Relevé supprimé : la courbe est relue
+  const [chartVersion, setChartVersion] = useState(0);
   useEffect(() => {
     let active = true;
     get(`/portfolio/chart?range=${range}`)
@@ -90,12 +96,45 @@ export default function PatrimoineScreen() {
     return () => {
       active = false;
     };
-  }, [range, get, data.fetchedAt]);
+  }, [range, get, data.fetchedAt, chartVersion]);
 
-  const points = useMemo(
-    () => (series?.range === range ? clipPoints(series.points, period, new Date(now)) : []),
-    [series, range, period, now]
+  // Relevés anormaux : jugés sur toute la plage reçue (chaque point a ses
+  // voisins), masqués par défaut ; la courbe relie alors leurs voisins
+  const hideAnomalies = prefs?.hideAnomalies ?? true;
+  const split = useMemo(
+    () => (series?.range === range ? splitAnomalies(series.points, (p) => p.value, hideAnomalies) : null),
+    [series, range, hideAnomalies]
   );
+  const points = useMemo(() => (split ? clipPoints(split.kept, period, new Date(now)) : []), [split, period, now]);
+  const anomalies = useMemo(() => (split ? clipPoints(split.hidden, period, new Date(now)) : []), [split, period, now]);
+
+  // Supprimer un relevé (appui long sur un point, ou depuis le menu de la courbe)
+  const [toDelete, setToDelete] = useState<ChartPoint | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const askDelete = (p: ChartPoint | undefined) => {
+    if (!p || p.id === null) return;
+    tap();
+    setDeleteError(null);
+    setToDelete(p);
+    setDeleteOpen(true);
+  };
+  const removeSnapshot = async (p: ChartPoint) => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await del(`/portfolio/snapshots/${p.id}`);
+      feedback.drop();
+      setDeleteOpen(false);
+      setChartVersion((v) => v + 1);
+    } catch {
+      feedback.wrong(0.6);
+      setDeleteError('La suppression n’a pas abouti. Réessaie dans un instant.');
+    } finally {
+      setDeleting(false);
+    }
+  };
   const chartLoading = series?.range !== range;
 
   // Régularité, objectifs atteints et étapes gagnées (fêtés une seule fois)
@@ -276,6 +315,7 @@ export default function PatrimoineScreen() {
               area={mode === 'valeur'}
               tip={tipFor}
               summary={summary}
+              onLongPressPoint={(i) => askDelete(points[i])}
             />
           ) : (
             <View style={[styles.chartEmpty, { borderColor: colors.border }]}>
@@ -292,7 +332,17 @@ export default function PatrimoineScreen() {
             {deposits.length > 0 ? <Legend color={colors.success} label="tes versements" dot /> : null}
           </View>
         ) : null}
-        <PeriodPicker value={period} onChange={setPeriod} />
+        <View style={styles.periodRow}>
+          <View style={styles.flex}>
+            <PeriodPicker value={period} onChange={setPeriod} />
+          </View>
+          <ChartMenu
+            hide={hideAnomalies}
+            onChange={(hide) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, hideAnomalies: hide }))}
+            anomalies={anomalies.filter((p) => p.id !== null).map((p) => ({ key: String(p.id), label: `${shortDate(p.date, new Date(now))} · ${m(p.value)}` }))}
+            onDelete={(key) => askDelete(anomalies.find((p) => String(p.id) === key))}
+          />
+        </View>
 
         {shares.length > 0 ? (
           <View style={styles.section}>
@@ -364,6 +414,28 @@ export default function PatrimoineScreen() {
         </AppText>
       </ScrollView>
 
+      {toDelete ? (
+        <BottomSheet open={deleteOpen} onRequestClose={() => setDeleteOpen(false)} onClosed={() => setToDelete(null)}>
+          <View style={styles.sheet}>
+            <AppText variant="title3" accessibilityRole="header">
+              Supprimer ce relevé ?
+            </AppText>
+            <AppText variant="callout" tone="subtitle">
+              {`Relevé du ${shortDate(toDelete.date, new Date(now))} : ${m(toDelete.value)}. Il disparaît de ta courbe, sans retour possible.`}
+            </AppText>
+            {deleteError ? (
+              <AppText variant="callout" tone="error" accessibilityRole="alert" accessibilityLiveRegion="polite">
+                {deleteError}
+              </AppText>
+            ) : null}
+            <View style={styles.sheetActions}>
+              <Button label="Supprimer ce relevé" variant="danger" loading={deleting} onPress={() => removeSnapshot(toDelete)} />
+              <Button label="Annuler" variant="text" onPress={() => setDeleteOpen(false)} />
+            </View>
+          </View>
+        </BottomSheet>
+      ) : null}
+
       {celebrationCopy ? (
         <CelebrationSheet open={celebrationOpen} celebration={celebrationCopy} onClose={() => setCelebrationOpen(false)} onClosed={() => setCelebration(null)} />
       ) : null}
@@ -388,6 +460,10 @@ function Legend({ color, label, dashed, dot }: { color: string; label: string; d
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  flex: { flex: 1 },
+  periodRow: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
+  sheet: { gap: space[3], paddingTop: space[2] },
+  sheetActions: { gap: space[2] },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space[4], minHeight: 52 },
   barActions: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   plus: {

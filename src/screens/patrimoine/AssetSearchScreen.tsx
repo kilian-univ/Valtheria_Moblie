@@ -7,27 +7,19 @@ import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
 import ListRow from '@/src/components/common/ListRow';
 import TextField from '@/src/components/common/TextField';
-import AssetLogo from '@/src/components/patrimoine/AssetLogo';
+import AssetIcon from '@/src/components/common/AssetIcon';
 import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { pickAsset, type PickedAsset } from '@/src/state/assetPick';
 import { tap } from '@/src/utils/haptics';
 import { TYPE_LABELS } from '@/src/utils/patrimoine/analysis';
+import { FAMILY_LABELS, iconDef, suggestionsFor, type NoPriceSuggestion } from '@/src/utils/patrimoine/assetIcons';
 import { MANUAL_KINDS, type ManualKind } from '@/src/utils/patrimoine/forms';
 import { ASSET_TYPES, type AssetType } from '@/src/utils/patrimoine/model';
 
 const DEBOUNCE_MS = 300;
 
-// Actifs souvent suivis, proposés avant toute recherche (une suggestion de
-// saisie, pas un conseil)
-const POPULAR: PickedAsset[] = [
-  { ticker: 'LIVRET_A', name: 'Livret A', type: 'livret', logoUrl: null, priceEur: null },
-  { ticker: 'CW8.PA', name: 'Amundi MSCI World', type: 'etf', logoUrl: null, priceEur: null },
-  { ticker: 'BTC', name: 'Bitcoin', type: 'crypto', logoUrl: null, priceEur: null },
-  { ticker: 'ETH', name: 'Ethereum', type: 'crypto', logoUrl: null, priceEur: null },
-  { ticker: 'LDDS', name: 'Livret de développement durable', type: 'livret', logoUrl: null, priceEur: null },
-];
 
 function toPicked(raw: Record<string, unknown>): PickedAsset | null {
   const ticker = typeof raw.ticker === 'string' ? raw.ticker : '';
@@ -42,8 +34,9 @@ function toPicked(raw: Record<string, unknown>): PickedAsset | null {
   };
 }
 
-// Recherche d'un actif : champ, résultats (logo, nom, symbole, type), actifs
-// souvent suivis, et « Ajouter à la main » pour un actif sans cours.
+// Recherche d'un actif : champ, résultats (logo, nom, symbole, type),
+// placements sans cours en suggestion (Livret A, PEL, assurance vie…), et
+// « Ajouter à la main » pour un actif sans cours.
 // mode=pick : l'actif repart vers « Noter une opération » déjà ouvert.
 export default function AssetSearchScreen() {
   const { colorScheme } = useTheme();
@@ -92,6 +85,16 @@ export default function AssetSearchScreen() {
     router.replace({ pathname: '/outils/operation', params: kind === 'livret' ? { type: 'livret' } : { manual: kind } });
   };
 
+  // Placement sans cours : le formulaire s'ouvre déjà rempli, avec son icône
+  const suggest = (sug: NoPriceSuggestion) => {
+    tap();
+    router.replace({
+      pathname: '/outils/operation',
+      params: sug.form === 'livret' ? { type: 'livret', ticker: sug.ticker, name: sug.name, icon: sug.icon } : { manual: 'autre', name: sug.name, icon: sug.icon },
+    });
+  };
+  const suggestions = mode === 'pick' ? [] : suggestionsFor(query);
+
   const searching = query.length >= 2 && found?.q !== query;
   const list = query.length >= 2 && found?.q === query ? found.list : null;
 
@@ -102,7 +105,7 @@ export default function AssetSearchScreen() {
       last={i === total - 1}
       title={a.name}
       subtitle={a.type === 'livret' ? 'Épargne garantie' : `${a.ticker} · ${TYPE_LABELS[a.type]}`}
-      leading={<AssetLogo logoUrl={a.logoUrl} name={a.name} ticker={a.ticker} type={a.type} size={36} />}
+      leading={<AssetIcon logoUrl={a.logoUrl} name={a.name} ticker={a.ticker} type={a.type} size={36} />}
       showChevron
       accessibilityLabel={`${a.name}, ${TYPE_LABELS[a.type]}`}
       onPress={() => choose(a)}
@@ -129,6 +132,30 @@ export default function AssetSearchScreen() {
           returnKeyType="search"
         />
 
+        {suggestions.length > 0 ? (
+          <View style={styles.section}>
+            <AppText variant="sectionLabel" accessibilityRole="header">
+              PLACEMENTS SANS COURS
+            </AppText>
+            <View>
+              {suggestions.map((sug, i) => (
+                <ListRow
+                  key={sug.name}
+                  compact
+                  last={i === suggestions.length - 1}
+                  title={sug.name}
+                  subtitle={sug.fullName ?? FAMILY_LABELS[iconDef(sug.icon).family]}
+                  leading={<AssetIcon logoUrl={null} name={sug.name} ticker="" type={sug.form === 'livret' ? 'livret' : 'autre'} icon={sug.icon} size={36} />}
+                  showChevron
+                  accessibilityLabel={`${sug.fullName ?? sug.name}, ${FAMILY_LABELS[iconDef(sug.icon).family]}`}
+                  accessibilityHint="Ouvre le formulaire, déjà rempli"
+                  onPress={() => suggest(sug)}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         {searching ? <ActivityIndicator color={colors.gold} style={styles.loading} accessibilityLabel="Recherche en cours" /> : null}
 
         {list ? (
@@ -139,13 +166,6 @@ export default function AssetSearchScreen() {
               {found?.failed ? 'La recherche ne répond pas pour l’instant. Réessaie dans un moment, ou ajoute l’actif à la main.' : `Aucun actif trouvé pour « ${query} ».`}
             </AppText>
           )
-        ) : query.length < 2 ? (
-          <View style={styles.section}>
-            <AppText variant="sectionLabel" accessibilityRole="header">
-              SOUVENT SUIVIS
-            </AppText>
-            <View>{POPULAR.map((a, i) => row(a, i, POPULAR.length))}</View>
-          </View>
         ) : null}
 
         <View style={styles.section}>

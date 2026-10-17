@@ -8,7 +8,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { tap } from '@/src/utils/haptics';
 import { money, quantityLabel, signedMoney, signedPercent } from '@/src/utils/patrimoine/format';
 import { isStalePrice, valueEurOf, type ClosedPosition, type Position } from '@/src/utils/patrimoine/model';
-import AssetLogo from './AssetLogo';
+import AssetIcon from '@/src/components/common/AssetIcon';
 
 type Props = {
   position: Position;
@@ -68,7 +68,7 @@ export default function PositionLine({ position: p, hidden, onPress, last, pulse
             pressed && { opacity: 0.7 },
           ]}
         >
-          <AssetLogo logoUrl={p.logoUrl} name={p.name} ticker={p.ticker} type={p.type} />
+          <AssetIcon logoUrl={p.logoUrl} name={p.name} ticker={p.ticker} type={p.type} />
           <View style={styles.middle}>
             <AppText numberOfLines={1} style={styles.name}>
               {p.name}
@@ -107,7 +107,7 @@ export function ClosedLine({ position: p, hidden, last }: { position: ClosedPosi
       accessible
       accessibilityLabel={`${p.name}, position clôturée, plus-value réalisée ${hidden ? 'masquée' : signedMoney(gain)}`}
     >
-      <AssetLogo logoUrl={p.logoUrl} name={p.name} ticker={p.ticker} type={p.type} size={34} />
+      <AssetIcon logoUrl={p.logoUrl} name={p.name} ticker={p.ticker} type={p.type} size={34} />
       <View style={styles.middle}>
         <AppText numberOfLines={1} style={[styles.name, { color: colors.subtitle }]}>
           {p.name}
