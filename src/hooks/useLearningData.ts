@@ -5,6 +5,7 @@ import { devSlowLoading } from '@/src/constants/dev';
 import { Module, Progress, useApi } from '@/src/context/ApiContext';
 import type { Universe } from '@/src/lesson/model';
 import { learningStore } from '@/src/state/learningStore';
+import { restoreLearning, saveLearning } from '@/src/state/learningCache';
 import { isNetworkError, type LoadError } from '@/src/utils/loadError';
 import { fetchUniverses } from '@/src/utils/universes';
 
@@ -25,7 +26,8 @@ export const OFFLINE_REASON = 'Connecte-toi à internet pour lancer une leçon.'
 // de l'écran ; les données déjà chargées (learningStore, partagé avec le
 // lecteur de leçon) restent affichées pendant le rechargement et hors ligne.
 export function useLearningData() {
-  const { get, getModules, getProgress, isAuthenticated, isLoading: authPending } = useApi();
+  const { get, getModules, getProgress, isAuthenticated, isLoading: authPending, user } = useApi();
+  const userId: number | undefined = user?.id;
   const store = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
   const [error, setError] = useState<LoadError | null>(null);
 
@@ -49,19 +51,23 @@ export function useLearningData() {
         vals: progress?.vals ?? 0,
         loaded: true,
       });
+      // Gardé pour le prochain lancement (contenu d'apprentissage seulement)
+      saveLearning(userId);
       setError(null);
     } catch (err) {
       setError(isNetworkError(err) ? 'network' : 'server');
     }
-  }, [get, getModules, getProgress]);
+  }, [get, getModules, getProgress, userId]);
 
   // Dès que le token est lu sur le téléphone (isAuthenticated) : on n'attend
   // pas la vérification du profil en réseau (/user), qui se fait en parallèle.
   useFocusEffect(
     useCallback(() => {
       if (!isAuthenticated) return;
+      // Les derniers modules connus, le temps que le serveur réponde
+      restoreLearning(userId);
       load();
-    }, [isAuthenticated, load])
+    }, [isAuthenticated, load, userId])
   );
 
   // Déconnexion : on oublie les données du compte précédent

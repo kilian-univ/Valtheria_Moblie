@@ -12,6 +12,8 @@ const PERSONAL_KEYS = new Set([
   'valtheria:journal-erreurs',
   'valtheria:lecons-textes',
   'valtheria:index-mots',
+  'valtheria:apprendre:cache',
+  'valtheria:dictionnaire:cache',
 ]);
 
 // Clés du compte (« …:<id> »), de la mémoire sans compte (« …:invite ») et

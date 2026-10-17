@@ -1,31 +1,20 @@
-import { createContext, useContext, useState } from 'react';
-import { useColorScheme as useSystemColorScheme } from 'react-native';
+import { createContext, useContext } from 'react';
 
 type ColorScheme = 'light' | 'dark';
 
 type ThemeContextValue = {
   colorScheme: ColorScheme;
-  toggleTheme: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+// Thème unique : sombre (décision du 17 octobre 2026, le thème clair n'est
+// pas proposé). La palette claire reste dans Style.ts, sans réglage pour
+// l'afficher.
+const VALUE: ThemeContextValue = { colorScheme: 'dark' };
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useSystemColorScheme();
-  // Thème de départ = celui du système, ensuite l'utilisateur peut le forcer
-  const [colorScheme, setColorScheme] = useState<ColorScheme>(
-    systemScheme === 'dark' ? 'dark' : 'light'
-  );
-
-  const toggleTheme = () => {
-    setColorScheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
-
-  return (
-    <ThemeContext.Provider value={{ colorScheme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={VALUE}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

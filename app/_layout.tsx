@@ -19,6 +19,7 @@ import AppBackground from '@/src/components/common/AppBackground';
 import { RootErrorBoundary, ScreenErrorBoundary } from '@/src/components/common/AppErrorScreen';
 import { SkeletonProvider } from '@/src/components/common/Skeleton';
 import OnboardingGate from '@/src/components/onboarding/OnboardingGate';
+import ReminderTapRouter from '@/src/components/onboarding/ReminderTapRouter';
 import SessionRecovery from '@/src/components/common/SessionRecovery';
 import StartupGate from '@/src/components/splash/StartupGate';
 import { VAL_SALUT_GLOW, valPose } from '@/src/components/common/ValFullBody';
@@ -90,11 +91,14 @@ function RootLayoutContent() {
             )}
             {/* Première ouverture sans compte : reprise à l'étape mémorisée */}
             {fontsReady ? <OnboardingGate /> : null}
+            {/* Rappel touché : l'accueil d'Apprendre */}
+            {fontsReady ? <ReminderTapRouter /> : null}
 
             <StartupGate fontsReady={fontsReady} />
           </View>
         </SkeletonProvider>
-        <StatusBar style="auto" />
+        {/* Thème unique sombre : heure et batterie en clair */}
+        <StatusBar style="light" />
       </ApiProvider>
     </NavigationThemeProvider>
   );

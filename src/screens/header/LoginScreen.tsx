@@ -18,10 +18,9 @@ import { resetReminder } from '@/src/state/reminder';
 import { loginErrorText } from '@/src/utils/authErrors';
 import { emailValid } from '@/src/utils/onboarding';
 
-// Mot de passe oublié : POST /auth/forgot-password est prêt côté serveur
-// (pull request « première ouverture ») mais pas encore déployé. Passer à true
-// une fois la route en ligne.
-export const FORGOT_PASSWORD_ENABLED = false;
+// Mot de passe oublié : POST /auth/forgot-password est en production (essai
+// d'envoi réel le 17 octobre 2026, réponse 200)
+export const FORGOT_PASSWORD_ENABLED = true;
 const VAL_DIAMETER = 64;
 
 export default function LoginScreen() {
@@ -59,7 +58,12 @@ export default function LoginScreen() {
   };
 
   const forgotPassword = async () => {
-    if (!FORGOT_PASSWORD_ENABLED || !emailValid(email)) return;
+    if (!FORGOT_PASSWORD_ENABLED) return;
+    if (!emailValid(email)) {
+      setError('Indique ton adresse e-mail juste au-dessus, et je t’envoie un lien.');
+      return;
+    }
+    setError(null);
     try {
       // Réponse identique que l'adresse existe ou non
       await post('/auth/forgot-password', { email: email.trim() });

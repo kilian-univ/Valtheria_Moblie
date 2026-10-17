@@ -20,9 +20,10 @@ export type ReminderSettings = { enabled: boolean; time: ReminderTime };
 
 const DEFAULT_SETTINGS: ReminderSettings = { enabled: false, time: DEFAULT_REMINDER };
 
-// expo-notifications n'est chargé qu'au premier besoin, jamais au lancement :
-// s'il manque ou échoue (Expo Go, module natif absent), le rappel est
-// simplement indisponible et l'app s'ouvre normalement.
+// expo-notifications est chargé à la demande (au lancement, pour écouter les
+// rappels touchés), jamais par un import : s'il manque ou échoue (module
+// natif absent), le rappel est simplement indisponible et l'app s'ouvre
+// normalement.
 let loaded: typeof NotificationsModule | null | undefined;
 
 function notifications(): typeof NotificationsModule | null {
@@ -151,4 +152,29 @@ export async function resetReminder(): Promise<void> {
     // rien de programmé : sans conséquence
   }
   await AsyncStorage.removeItem(KEY).catch(() => {});
+}
+
+// Toucher un rappel ouvre l'accueil d'Apprendre (décision du 17 octobre
+// 2026), y compris quand l'app était fermée (réponse du lancement, effacée
+// une fois traitée). Renvoie de quoi arrêter l'écoute.
+export function onReminderTapped(open: () => void): () => void {
+  if (Platform.OS === 'web') return () => {};
+  const Notifications = notifications();
+  if (!Notifications) return () => {};
+  try {
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (!response) return;
+        open();
+        return Notifications.clearLastNotificationResponseAsync();
+      })
+      .catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener(() => {
+      open();
+      Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    });
+    return () => sub.remove();
+  } catch {
+    return () => {};
+  }
 }

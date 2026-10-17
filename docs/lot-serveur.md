@@ -19,8 +19,9 @@ Pour chaque point :
 |---|---|---|
 | 1 | Correction serveur des six nouveaux types d'écrans | Les leçons du serveur ne peuvent pas encore utiliser vrai ou faux, ordre, associer, répartir à règles, simulateur ni dialogue en messages |
 | 1 | Changer de mot de passe depuis l'app | Le changement passe par le site |
-| 1 | Mot de passe oublié en production | Bouton désactivé dans l'app |
+| — | Mot de passe oublié | **En production** (essai d'envoi réel le 17 octobre 2026) ; activé dans l'app |
 | 1 | Inscription depuis l'app | Fermée côté serveur (403) |
+| 2 | Synchronisation de la progression gardée sur le téléphone (10) | Carnet, semaine, étapes du patrimoine, précision, mots et objectifs perdus sur un nouveau téléphone ; écrans qui contredisent le serveur |
 | 2 | Dates d'activité par module et par leçon (4.6) | La leçon du jour et l'ordre des univers ne suivent que ce téléphone |
 | 2 | Phrase « À retenir » (takeaway) des leçons | Pas de déclic au carnet pour les leçons du serveur |
 | 2 | Objectifs crypto et impôts | Gardés sur le téléphone seulement |
@@ -58,9 +59,8 @@ Pour chaque point :
 - **En attendant** : la ligne « Mot de passe » des Réglages ouvre une feuille qui envoie vers la page du site (`/forgot-password`), d'où part le lien par e-mail.
 
 ### 1.3 Mot de passe oublié
-- **Manque** : `POST /api/auth/forgot-password` `{ email }` est **sur main** (pull request « première ouverture »), mais son déploiement en production n'est pas confirmé.
-- **Souhaité** : la route telle quelle, déployée. Elle répond la même chose, que l'adresse existe ou non.
-- **En attendant** : `FORGOT_PASSWORD_ENABLED = false` (`src/screens/header/LoginScreen.tsx`). La connexion affiche « Bientôt disponible dans l'app », et les Réglages envoient vers le site. Il suffit de passer cette valeur à `true` une fois la route en ligne.
+- **Fait** : `POST /api/auth/forgot-password` `{ email }` répond en production (422 sans adresse, 200 avec une adresse ; essai d'envoi réel vers le compte de test le 17 octobre 2026). `FORGOT_PASSWORD_ENABLED = true` dans l'app : la connexion et les Réglages envoient le lien.
+- **À confirmer** : la réception du courriel (boîte du compte de test, spams compris).
 
 ### 1.4 Objectifs
 - **Manque** :
@@ -656,3 +656,24 @@ Décidé le 16 octobre 2026 : **le format de l'app fait foi.** Les formats exact
 ### 9.9 Niveau et documentation
 - **Niveau** : le défi du jour, les quêtes et les cartes de module ajoutent des XP sans recalculer le niveau du serveur. L'en-tête de l'app (niveau du serveur) et le profil (calculé depuis les XP) peuvent alors différer. Souhaité : un seul point de crédit des XP, qui recalcule toujours le niveau.
 - **Documentation du site** : `API.md` donne un exemple `true_false` d'une autre forme et annonce « 3 tentatives au plus » (le serveur n'en garde qu'une). `config/valtheria.php` et `docs/FORMAT_ECRANS.md` disent « échec → palier 0 » (le code retire 2 paliers, avec un plancher à 1). Souhaité : les remettre au format de l'app, avec les exemples de `docs/reference-technique-lecons.md`.
+
+## 10. Synchronisation de la progression (décision du 17 octobre 2026)
+
+Une partie de la progression ne vit que sur le téléphone (AsyncStorage, par compte). Sur un nouveau téléphone, après une réinstallation ou une déconnexion (qui purge désormais le téléphone), elle est perdue, et certains écrans contredisent le serveur (audit, I36 : « série 1 j » à côté de « Ta première leçon de la semaine t'attend », carnet vide après 4 leçons, « étapes 0 sur 5 » à côté de deux étapes fêtées).
+
+- **Manque** : aucune route pour ces données.
+- **Souhaité** : pour chaque bloc, une lecture et une écriture par compte, dernier écrit gagnant (horodatage), sans montant financier nouveau :
+
+| Bloc | Clé du téléphone aujourd'hui | Contenu | Route proposée |
+|---|---|---|---|
+| Carnet de déclics | `valtheria:carnet:<id>` | phrase, univers, leçon, date (voir 6) | `GET` et `POST /api/notebook` (ajout), `DELETE /api/notebook/{id}` |
+| Journal de la semaine | `valtheria:journal:<id>` | jour, XP, leçons, révisions | à déduire côté serveur des leçons et révisions terminées : `GET /api/progress/week` |
+| Leçons faites, univers vus | `valtheria:apprendre:lecons:<id>`, `valtheria:univers-vus:<id>` | identifiants et dates | `GET /api/progress/lessons` (rejoint 4.6) |
+| Précision (défis, record d'affilée) | `valtheria:precision:<id>` | record, défis gagnés | `GET` et `PUT /api/progress/accuracy` (rejoint 4.9) |
+| Mots du Dictionnaire | `valtheria:mots-etats:<id>`, favoris, récents | état de chaque mot, dates | `GET` et `PUT /api/dictionary/progress` |
+| Étapes et objectifs du patrimoine | `valtheria:patrimoine:<id>` | étapes gagnées (dates), objectifs (nom, montant visé, échéance), dépenses mensuelles du coussin | `GET` et `PUT /api/portfolio/goals` et `/api/portfolio/milestones` |
+| Révision (historique) | `valtheria:revision:<id>` | notions revues et résultats | déjà en partie côté serveur (`/api/revision`) ; à compléter pour les déclics et les mots |
+
+- **Côté app** : une fois les routes en ligne, chaque magasin de `src/state/` lit le serveur à l'ouverture, fusionne avec le téléphone (le plus récent gagne), puis écrit au serveur après chaque changement, avec la même file d'attente que sur le téléphone.
+- **En attendant** : tout reste sur le téléphone, purgé à la déconnexion et à la suppression du compte.
+

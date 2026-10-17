@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
@@ -24,6 +24,7 @@ import { useProfile } from '@/src/hooks/useProfile';
 import type { Objective } from '@/src/lesson/discovery';
 import { FORGOT_PASSWORD_ENABLED } from '@/src/screens/header/LoginScreen';
 import { clearLastProfile } from '@/src/state/lastProfile';
+import { shareJsonFile } from '@/src/state/exportData';
 import { purgeAccountData } from '@/src/state/purge';
 import { success } from '@/src/utils/haptics';
 import { actionErrorText } from '@/src/utils/loadError';
@@ -41,10 +42,11 @@ type Sheet = 'pseudo' | 'password' | 'objective' | 'legal' | null;
 // sans rouge ; le rouge n'apparaît que dans la confirmation.
 export default function SettingsScreen() {
   const { user, logout, exportUser, deleteAccount, updateUser, post, isAuthenticated, isLoading } = useApi();
-  const { colorScheme, toggleTheme } = useTheme();
+  const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const p = useProfile();
   const rowStyles = useSettingsRowStyles();
+  const lastRowStyles = useSettingsRowStyles(true);
 
   // Une feuille à la fois ; « mounted » reste vrai pendant la fermeture
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -118,13 +120,16 @@ export default function SettingsScreen() {
   const handleExport = async () => {
     try {
       const data = await exportUser();
-      await Share.share({ title: 'Mes données Valtheria', message: JSON.stringify(data, null, 2) });
+      // Un fichier JSON, partagé par la feuille de partage (décision du 17 octobre 2026)
+      await shareJsonFile(data);
     } catch (err) {
       Alert.alert('Export impossible', actionErrorText(err, 'Réessaie dans un instant.', 'Pas de connexion internet. Réessaie dans un instant.'));
     }
   };
 
   const handleLogout = async () => {
+    // Identifiant gardé avant : logout efface le profil
+    const userId = user?.id;
     // Avant logout() : il déconnecte même si la requête échoue
     await clearLastProfile();
     try {
@@ -133,6 +138,9 @@ export default function SettingsScreen() {
       // Hors ligne ou jeton expiré : la session est effacée sur le téléphone
       // quand même (logout la retire dans tous les cas)
     }
+    // Déconnexion : plus rien de la personne sur le téléphone (décision du
+    // 17 octobre 2026), comme à la suppression du compte
+    if (userId != null) await purgeAccountData(userId);
     router.dismissTo('/apprendre');
   };
 
@@ -207,15 +215,7 @@ export default function SettingsScreen() {
         <SettingsSection title="Préférences">
           <SettingsRow icon="flag-outline" label="Ton objectif" value={p.objectiveLabel} onPress={() => open('objective')} />
           <ReminderSettingRow {...rowStyles} iconSize={20} />
-          <SoundSettingRow {...rowStyles} iconSize={20} />
-          <SettingsRow
-            icon={colorScheme === 'dark' ? 'moon-outline' : 'sunny-outline'}
-            label="Thème"
-            value={colorScheme === 'dark' ? 'Sombre' : 'Clair'}
-            onPress={toggleTheme}
-            accessibilityHint="Passer au thème clair ou sombre"
-            last
-          />
+          <SoundSettingRow {...lastRowStyles} iconSize={20} />
         </SettingsSection>
 
         <SettingsSection title="Données et compte">

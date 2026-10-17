@@ -5,11 +5,15 @@ import { devSlowLoading } from '@/src/constants/dev';
 import { useApi } from '@/src/context/ApiContext';
 import { isNetworkError, LoadError } from '@/src/hooks/useLearningData';
 import { addRecentTerm, getFavoriteTerms, getRecentTerms, toggleFavoriteTerm } from '@/src/state/dictionaryMemory';
+import { restoreWords, saveWords } from '@/src/state/learningCache';
 import { DictionaryEntry, isFavorite, isUnauthorized, normalizeEntries, toggleFavorite } from '@/src/utils/dictionary';
 
 // Mots chargés, partagés entre l'accueil et les fiches (une seule requête)
 type State = { entries: DictionaryEntry[]; loaded: boolean };
 let state: State = { entries: [], loaded: false };
+// Mots demandés au serveur une fois dans la vie de l'app (la copie du
+// téléphone, relue au lancement, ne compte pas)
+let fetched = false;
 const listeners = new Set<() => void>();
 const store = {
   getState: () => state,
@@ -42,7 +46,10 @@ export function useDictionary() {
   const load = useCallback(async () => {
     try {
       await devSlowLoading();
-      store.setState({ entries: normalizeEntries(await getDictionaryTerms()), loaded: true });
+      const fresh = normalizeEntries(await getDictionaryTerms());
+      store.setState({ entries: fresh, loaded: true });
+      fetched = true;
+      saveWords(fresh);
       setError(null);
     } catch (err) {
       setError(isUnauthorized(err) ? 'reserved' : isNetworkError(err) ? 'network' : 'server');
@@ -51,14 +58,23 @@ export function useDictionary() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!isAuthenticated || store.getState().loaded) return;
+      if (!isAuthenticated || fetched) return;
+      // Les mots du dernier lancement, le temps que le serveur réponde
+      if (!store.getState().loaded) {
+        restoreWords().then((saved) => {
+          if (saved && !store.getState().loaded) store.setState({ entries: saved, loaded: true });
+        });
+      }
       load();
     }, [isAuthenticated, load])
   );
 
   // Déconnexion : on oublie les mots du compte précédent
   useEffect(() => {
-    if (!authPending && !isAuthenticated && store.getState().loaded) store.setState({ entries: [], loaded: false });
+    if (!authPending && !isAuthenticated && store.getState().loaded) {
+      fetched = false;
+      store.setState({ entries: [], loaded: false });
+    }
   }, [authPending, isAuthenticated]);
 
   const signedOut = !authPending && !isAuthenticated;
