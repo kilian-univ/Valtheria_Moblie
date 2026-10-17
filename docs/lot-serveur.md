@@ -584,7 +584,7 @@ Forme inchangée.
 
 ## 9. Leçons : aligner le site sur le format de l'app
 
-> **État au 17 octobre 2026** : 9.1 à 9.12 faits sur le site (pull request n° 11, branche `lot-format-app`, commit 0609e41), CI verte, déployés et vérifiés sur le staging. **Production en attente** : la fusion de la pull request reste à faire. Détail et vérifications : `docs/reference-technique-lecons.md`, partie 5.0. Choix retenu pour 9.7 : la difficulté se déduit du module (cinq niveaux), la colonne de la leçon garde trois valeurs.
+> **État au 17 octobre 2026** : 9.1 à 9.12 faits sur le site (pull request n° 11, fusion d7bdb11), CI verte, vérifiés sur le staging puis **en production** (base sauvegardée avant, vérifications de bout en bout depuis l'app). Détail et vérifications : `docs/reference-technique-lecons.md`, partie 5.0. Choix retenu pour 9.7 : la difficulté se déduit du module (cinq niveaux), la colonne de la leçon garde trois valeurs.
 
 Décidé le 16 octobre 2026 : **le format de l'app fait foi.** Les formats exacts, avec un exemple complet par type, sont dans `docs/reference-technique-lecons.md` (partie 2). Les points 4.1 (`takeaway`), 4.2 (`true_false`, `order`, `match`, `simulator`), 4.4 (`kind`) et 4.9 (`best_run`) en font aussi partie.
 

@@ -4,7 +4,7 @@
 
 **Décision : le format de l'app fait foi.** Quand l'app et le site diffèrent, c'est le site qui s'aligne. Les modifications à faire sur le site sont listées en fin de document (partie 5) et reprises dans `docs/lot-serveur.md` (section 9).
 
-> **Lot serveur n° 9 (17 octobre 2026) : le site s'aligne sur l'app.** Les écarts E1 à E9 et E13 à E18 sont traités sur le site (pull request n° 11, commit 0609e41), vérifiés sur le staging, **pas encore en production**. Les parties 0 à 4 décrivent le site avant le lot ; ce qui change est résumé en partie 5.0.
+> **Lot serveur n° 9 (17 octobre 2026) : le site s'aligne sur l'app.** Les écarts E1 à E9 et E13 à E18 sont traités sur le site (pull request n° 11, fusion d7bdb11), vérifiés sur le staging, **en production depuis le 17 octobre 2026**. Les parties 0 à 4 décrivent le site avant le lot ; ce qui change est résumé en partie 5.0.
 
 Fichiers de référence :
 
@@ -1280,7 +1280,7 @@ Le format de l'app fait foi. Chaque modification est reprise dans `docs/lot-serv
 
 ### 5.0 Ce que change le lot serveur n° 9 (17 octobre 2026)
 
-État : pull request n° 11 du site (branche `lot-format-app`), CI verte, déployée et vérifiée sur le staging. **Production en attente** (fusion de la pull request non faite).
+État : pull request n° 11 du site fusionnée (d7bdb11), CI verte, vérifiée sur le staging puis **déployée en production le 17 octobre 2026** (sauvegarde de la base `db-20261017-225037.sql.gz`).
 
 | Écart | Ce que fait désormais le site |
 |---|---|
@@ -1305,6 +1305,12 @@ Le format de l'app fait foi. Chaque modification est reprise dans `docs/lot-serv
 - Les quatre leçons du module passent le contrôle d'une leçon publiée ; sur le staging, leurs écrans servis sont identiques avant et après le lot.
 - Essai de bout en bout avec le code de l'app (normalisation, réponses brutes des écrans, correction locale, `buildResponses`) contre le staging : une leçon d'essai avec tous les types joués, un déclic et un écran `selon_chiffres`, jouée tout juste puis tout faux. Mêmes verdicts côté app et serveur (8 sur 8, puis 0 sur 8), aucun écran de secours, déclic lu, aucun repère ni `selon_chiffres` servi. Leçon et compte d'essai supprimés ensuite (`php artisan lessons:essai-format-app supprimer`).
 - En local, les quatre leçons du module jouées de la même façon : mêmes verdicts.
+- **En production** :
+  - contrôle de format des quatre leçons publiées sans erreur, aussi avec les contrôles de publication ;
+  - écrans servis identiques avant et après le déploiement ;
+  - leçon d'essai jouée depuis le code de l'app, tout juste puis tout faux : 8 sur 8 puis 0 sur 8, mêmes verdicts côté app et serveur, 28 vérifications sur 28 ;
+  - les quatre leçons publiées rejouées avec le compte d'essai : mêmes verdicts côté app et serveur (5, 5, 7 et 3 écrans notés), 80 vérifications sur 80 ;
+  - leçon, module et compte d'essai supprimés ensuite, sans reste (progression, jetons).
 
 **Restent côté app** (non modifiés par ce lot) : les points de la note de fin. `src/utils/grade.ts` ne connaît pas encore les nouveaux types ni la répartition à règles (l'app les corrige avec `interactive.ts`, aux mêmes règles que le serveur) ; la mention « Taux en vigueur au … » n'est pas affichée.
 
