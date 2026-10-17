@@ -43,7 +43,7 @@ Cinq familles de problèmes empêchent pourtant une sortie en l'état :
 4. **Espaces insécables** : le formateur du patrimoine utilise des espaces ordinaires, et ni les 377 textes de l'app concernés ni le contenu du site ne sont protégés. Les montants se coupent (« 900 / €. », « 20 / % », « montant / ; placés »).
 5. **Ancien design** : six écrans encore actifs (Outils, Cash-flow, Épargne, Articles, Article, Portefeuille de repli) concentrent les plantages possibles, les erreurs brutes en anglais et les défauts d'accessibilité. Les Articles n'affichent par ailleurs que 12 des 38 articles publiés.
 
-Décompte de l'audit : **6 bloquants, 39 importants, 51 gênants, 27 cosmétiques**, soit 123 problèmes. Après le chantier 1 (fiabilité) et les décisions du 17 octobre, il en reste **3 bloquants, 14 importants, 35 gênants (dont 3 corrigés en partie) et 24 cosmétiques**. Les lignes corrigées commencent par **Corrigé**.
+Décompte de l'audit : **6 bloquants, 39 importants, 51 gênants, 27 cosmétiques**, soit 123 problèmes. Après le chantier 1 (fiabilité) et les décisions du 17 octobre, il en reste **3 bloquants, 14 importants, 35 gênants (dont 4 corrigés en partie) et 24 cosmétiques**. Les lignes corrigées commencent par **Corrigé**.
 
 ## Chantier 1 : la fiabilité (17 octobre 2026)
 
@@ -72,7 +72,7 @@ Vérifié en vrai lancement : les 20 écrans relevés hors ligne et en erreur 50
 | (7) Synchroniser la progression | Ajoutée au lot serveur, section 10 (`docs/lot-serveur.md`) |
 | (8) Toucher une notification | Ouvre l'accueil d'Apprendre, app ouverte ou fermée |
 | (9) Export | Fichier `valtheria-mes-donnees-AAAA-MM-JJ.json` par la feuille de partage, copie temporaire effacée ; téléchargé sur le web |
-| (10) Outils à l'ancien design | Liste ci-dessous, à trancher |
+| (10) Outils à l'ancien design | Épargne retirée, ses objectifs repris dans ceux du patrimoine (détail ci-dessous) ; Cash-flow gardé tel quel, à refaire dans un prochain chantier |
 | (11) Articles supprimés | Laissés tels quels |
 
 **Outils encore à l'ancien design (décision 10)**
@@ -80,8 +80,21 @@ Vérifié en vrai lancement : les 20 écrans relevés hors ligne et en erreur 50
 | Outil | Ce qu'il fait aujourd'hui dans l'app | Ce que le site sait faire en plus |
 |---|---|---|
 | **Cash-flow** (`/outils/cashflow`) | Budget du mois : entrées de revenus, de dépenses (par catégorie) et d'épargne, récurrentes ou ponctuelles ; « Reste à vivre » ; répartition des dépenses par catégorie ; ajout et suppression d'une entrée | Catégories personnalisées, modification d'une entrée, guide de première prise en main et sa récompense (routes présentes dans l'API, non utilisées par l'app) |
-| **Épargne** (`/outils/epargne`) | Objectifs d'épargne du site : progression vers le montant visé, rapprochement avec l'épargne du cash-flow (dépassement ou surplus), nombre de rappels ; **ni création d'objectif ni versement** depuis l'app, seulement la suppression | Création et modification d'un objectif, versements, rappels de versement (confirmer, passer, ajuster) ; double emploi avec les objectifs du patrimoine |
-| Onglet **Outils** lui-même | Liste des trois outils (Portefeuille, Cash-flow, Épargne), en ancien design | — |
+| **Épargne** (`/outils/epargne`) | **Retiré (décision 10).** Objectifs d'épargne du site : progression vers le montant visé, rapprochement avec l'épargne du cash-flow (dépassement ou surplus), nombre de rappels ; **ni création d'objectif ni versement** depuis l'app, seulement la suppression | Création et modification d'un objectif, versements, rappels de versement (confirmer, passer, ajuster) ; double emploi avec les objectifs du patrimoine |
+| Onglet **Outils** lui-même | Liste des deux outils (Portefeuille, Cash-flow), en ancien design ; Épargne retirée | — |
+
+**Épargne retirée (décision 10)** : l'écran (`EpargneScreen`), sa route (`/outils/epargne`, qui mène désormais à « Cette page n’existe pas »), sa place dans l'onglet Outils, son squelette de chargement, ses styles (`getEpargneStyles`) et sa lecture de réponse (`utils/savings.ts`) sont supprimés. Il n'y a plus qu'un seul système d'objectifs : ceux du patrimoine.
+
+Les objectifs d'épargne du site sont repris dans les objectifs du patrimoine, une seule fois par compte (`utils/patrimoine/savingsImport.ts`, `hooks/useSavingsImport.ts`) :
+- à l'ouverture de Mon patrimoine, l'app lit `GET /savings` et ajoute chaque objectif avec le même nom, le même montant (`target_amount`) et la même échéance (`target_date`, ou aucune) ;
+- un repère `savingsImported` est alors noté dans les préférences du patrimoine : les ouvertures suivantes ne rappellent plus `/savings`, et un objectif repris puis supprimé ne revient pas ;
+- pas de doublon (même nom, montant et échéance qu'un objectif existant), dans la limite de 20 objectifs ;
+- en cas d'échec (réseau, erreur 500, réponse sans liste), rien n'est noté : nouvel essai à la prochaine ouverture, sans rien afficher ;
+- rien n'est écrit sur le site : les objectifs restent dans son outil Épargne, et `ApiContext` n'a pas été modifié.
+
+Vérifié en vrai lancement (web, iPhone SE, compte simulé avec deux objectifs sur le site) : l'onglet Outils ne montre plus que Portefeuille et Cash-flow ; « Voyage au Japon » (12 000 €, 30 juin 2027) et « Vélo » (800 €, sans échéance) apparaissent dans « Tes objectifs » ; un seul appel à `/savings`, aucun après relance de la page ; après une erreur 500, la reprise se fait à l'ouverture suivante ; aucune erreur JavaScript. Capture : [objectifs-epargne-repris](audit-captures/objectifs-epargne-repris.jpg).
+
+À savoir : sur le site, un objectif d'épargne avançait avec les versements ; un objectif du patrimoine se mesure sur la valeur totale du patrimoine. Un objectif repris dont le montant est déjà dépassé par le patrimoine est donc affiché « atteint » et fêté dès la première ouverture (« Bravo, tu as atteint ton objectif « Vélo » ! », étape « Premier objectif atteint »).
 
 Hors de l'app, le site a aussi un défi quotidien, un défi de la semaine et des parcours de vie. Des routes existent dans ApiContext, mais aucun écran ne les affiche.
 
@@ -154,7 +167,7 @@ Les captures sont dans [docs/audit-captures/](audit-captures/). Les fichiers son
 | I18 | Outils (onglet) | Ancien design : emoji en guise d'icônes, « › » en texte, aucun rôle de bouton, « Cash-flow » en anglais, « Portefeuille » alors que l'écran s'appelle « Mon patrimoine ». | [ancien-design](audit-captures/ancien-design-outils-epargne-articles.jpg) | Pas encore refait. | Refaire avec `ListRow` et des icônes Ionicons ; « Mon patrimoine », « Budget du mois ». |
 | I19 | Articles (onglet) et Article | Ancien design :<br>- flèche de retour sur la racine d'un onglet ;<br>- couverture sans cache ;<br>- titres sans rôle ;<br>- liens sans rôle « lien » ;<br>- quiz sans état (résultat donné par la seule couleur). | [ancien-design](audit-captures/ancien-design-outils-epargne-articles.jpg) | Pas encore refait. | Refonte (`PageState`, `expo-image`, `IconButton`, rôles). |
 | I20 | Article | **Corrigé (lot 1).** Chargement, introuvable, erreur avec « Réessayer ». Si la requête échoue, la page n'affiche qu'un message brut en rouge (« Failed to fetch »), sans chargement ni « Réessayer ». | [article-vide](audit-captures/article-vide-sans-erreur.jpg) | Pas de `PageState` (`ArticleDetailScreen.tsx:102`). | `PageState` pour le chargement et l'erreur. |
-| I21 | Cash-flow, Épargne | Ancien design complet :<br>- formulaires sans libellés ;<br>- suppression immédiate par « ✕ », sans confirmation ;<br>- emoji ;<br>- `toLocaleString` ;<br>- cibles de 32 px. | [ancien-design](audit-captures/ancien-design-outils-epargne-articles.jpg) | Pas encore refaits. | Refonte, ou les retirer de la première version. |
+| I21 | Cash-flow, Épargne | **Épargne retirée (décision 10)** ; reste Cash-flow, à refaire dans un prochain chantier. Ancien design complet :<br>- formulaires sans libellés ;<br>- suppression immédiate par « ✕ », sans confirmation ;<br>- emoji ;<br>- `toLocaleString` ;<br>- cibles de 32 px. | [ancien-design](audit-captures/ancien-design-outils-epargne-articles.jpg) | Pas encore refaits. | Refonte, ou les retirer de la première version. |
 | I22 | Patrimoine, carnet, profil, réglages, article | **Corrigé (lots 1 et 4).** Remarque de Val et carnet lisent les données sans recharger ; l’article utilise le dictionnaire partagé. `useLearningData` relance 3 requêtes à chaque passage, juste pour la remarque de Val. L'article recharge tout le dictionnaire à chaque ouverture. | — | `ValRemark.tsx:17`, `NotebookScreen.tsx:29`, `ArticleDetailScreen.tsx:47`. | Lire le store sans recharger, et utiliser `useDictionary()`. |
 | I23 | Bundle et dépôt | **Corrigé (lot 4).** Favicon à 10 Ko, images et dépendance retirées. `favicon.png` pèse 2,97 Mo (6 336 × 2 688). `val.png` (2 Mo) et `b.png` ne servent nulle part. `react-native-render-html` est installée sans être utilisée. | — | Restes du gabarit et des essais. | Favicon à 192 px ; supprimer les images et la dépendance inutiles. |
 | I24 | `ApiContext` | 31 méthodes jamais appelées, un contexte typé `any`, et toute l'app qui se re-rend à chaque changement de profil. | — | Fichier de 784 lignes, protégé par règle. | Le découper et le typer (décision à prendre, puisque ce fichier est protégé). |
@@ -197,7 +210,7 @@ Les captures sont dans [docs/audit-captures/](audit-captures/). Les fichiers son
 | G17 | Contrastes (thème sombre) | Sous le seuil de lisibilité :<br>- `textFaint` (2,13) pour des textes informatifs ;<br>- l'accent de Val (`goldDeep`) à 3,57 sur la bulle ;<br>- la bulle « Commencer » du module ivoire à 2,49 ;<br>- les icônes ivoire sur les ronds de module, de 1,4 à 2,8. | — | Palette. | `subtitle` pour le texte, accents plus sombres. |
 | G18 | VoiceOver | Libellé d'un champ lu deux fois, et erreur non rattachée au champ ; écrans muets pendant le chargement ; chemin du module lu avant le bouton retour ; croix « Fermer » lue avant le titre de la feuille ; puces de période et de catégorie sans état (anciens écrans). | — | `TextField.tsx`, `Skeleton.tsx`, `ModuleScreen.tsx`, `BottomSheet.tsx`, `HistoryChart.tsx`, `AddEntryForm.tsx`. | Corrections ponctuelles (annexe contenu, sections 1 A.6 et 1 C). |
 | G19 | Défilements | **Corrigé (lot 4).** Trois défilements animés ignorent la réduction des animations. | — | `ApprendreDetailScreen.tsx:606` et `:778`, `DictionaryHomeScreen.tsx:111`. | `animated: !reduced`. |
-| G20 | Vocabulaire du patrimoine | « Portefeuille » dans Outils, mais « Mon patrimoine » à l'arrivée ; deux systèmes d'objectifs (Épargne et patrimoine) ; « Revenus passifs » ou « Intérêts sur 1 an » ; « Plus-value » pour un montant qui peut être négatif (« Plus-value réalisée » sur une vente à perte) ; « YTD ». | — | Libellés d'époques différentes. | « Mon patrimoine » partout, un seul système d'objectifs, « Intérêts estimés », « Plus ou moins-value », « Année ». |
+| G20 | Vocabulaire du patrimoine | **Corrigé en partie (décision 10)** : un seul système d'objectifs, ceux du patrimoine (Épargne retirée, objectifs repris). « Portefeuille » dans Outils, mais « Mon patrimoine » à l'arrivée ; deux systèmes d'objectifs (Épargne et patrimoine) ; « Revenus passifs » ou « Intérêts sur 1 an » ; « Plus-value » pour un montant qui peut être négatif (« Plus-value réalisée » sur une vente à perte) ; « YTD ». | — | Libellés d'époques différentes. | « Mon patrimoine » partout, un seul système d'objectifs, « Intérêts estimés », « Plus ou moins-value », « Année ». |
 | G21 | Remarques de Val (patrimoine) | Un bien à plus de 30 % déclenche « tout dépend de lui » et « Revoir « Diversifier » ». **Vérifié** sur l'Analyse du compte 15 : la remarque vise un ETF Nasdaq-100 (65 %), lui-même composé de 100 entreprises, et renvoie à une leçon d'un univers fermé. Même cas pour la résidence principale. | [actif-variation](audit-captures/actif-variation-avant-achat.jpg) | `valTips.ts:63-72`, `:23-28`. | Exclure l'immobilier et nuancer pour les fonds (« un ETF répartit déjà, mais sur un seul marché »). Ne citer qu'une leçon publiée. |
 | G22 | Recherche d'actif | Le texte d'exemple nomme des produits (« ex. Solana, CW8, LVMH »), et il est coupé sur iPhone SE. Le formulaire de l'ancien Portefeuille cite « AAPL, BTC, Apple Inc. ». | [actif-variation](audit-captures/actif-variation-avant-achat.jpg) | `AssetSearchScreen.tsx:127`, `AddPositionForm`. | « Nom, symbole ou ISIN ». |
 | G23 | Ancien Portefeuille (repli) | **Corrigé (lot 1).** Écran supprimé. Pourcentages avec un point (« +3.45% ») ; en-tête « ‹ » ; emoji de type ; suppression par « ✕ » sans confirmation. | — | Ancien design, servi sur erreur (I28). | Le supprimer (I28). |
@@ -450,9 +463,9 @@ En option : `moins_values_report_duree` (10 ans), `participation_seuil_salaries`
 
 | Écran | Route | Signes de l'ancien design | Proposition pour la sortie |
 |---|---|---|---|
-| Outils (onglet) | `app/(tabs)/outils.tsx` → `OutilsScreen` | En-tête hérité, emoji, « › » en texte, styles en ligne, pas de rôles | Refaire (liste de trois outils) |
-| Cash-flow | `app/outils/cashflow.tsx` → `CashflowScreen` + `components/outils/cashflow/*` | `getCashflowStyles`, « ‹ », emoji 🔁 📅, « ✕ », `toLocaleString`, formulaires sans libellés (plus de plantage depuis le chantier 1) | Refaire, ou retirer de la v1 (décision 10) |
-| Épargne | `app/outils/epargne.tsx` → `EpargneScreen` | `getEpargneStyles`, « ‹ », 🎉, jauge maison, suppression sans confirmation ; double emploi avec les objectifs du patrimoine | Fusionner dans les objectifs du patrimoine, retirer l'outil |
+| Outils (onglet) | `app/(tabs)/outils.tsx` → `OutilsScreen` | En-tête hérité, emoji, « › » en texte, styles en ligne, pas de rôles | Refaire (liste de deux outils) |
+| Cash-flow | `app/outils/cashflow.tsx` → `CashflowScreen` + `components/outils/cashflow/*` | `getCashflowStyles`, « ‹ », emoji 🔁 📅, « ✕ », `toLocaleString`, formulaires sans libellés (plus de plantage depuis le chantier 1) | Gardé tel quel, refait dans un prochain chantier (décision 10) |
+| ~~Épargne~~ | ~~`app/outils/epargne.tsx` → `EpargneScreen`~~ | **Retiré (décision 10)** : objectifs repris dans ceux du patrimoine | — |
 | Articles (onglet) | `app/(tabs)/article.tsx` → `ArticleScreen` | Retour sur une racine d'onglet, `Image` sans cache, favori inaccessible, pas de `PageState`, pas de pagination | Refaire |
 | Article | `app/articles/[slug].tsx` → `ArticleDetailScreen` + `BlockRenderer` | En-tête hérité, erreur brute, quiz sans état, liens sans rôle, `Text` natif | Refaire |
 | Écran de secours du lecteur | `FallbackScreen` | Message de développeur et JSON brut | Message de Val et « Passer » |
@@ -486,7 +499,7 @@ Sont à jour : première ouverture, Apprendre (accueil, univers, module, chemin)
 **Fortement conseillé**
 - Chiffres réglementaires partout (section dédiée). Fait : espaces insécables (B6).
 - Fait : mot de passe oublié (I12, réception à confirmer), messages d'erreur lisibles (I9), pagination des articles (I30).
-- Refaire ou retirer les écrans à l'ancien design (Outils, Cash-flow, Épargne, Articles).
+- Refaire ou retirer les écrans à l'ancien design (Outils, Cash-flow, Articles). Fait : Épargne retirée (décision 10).
 - Progression synchronisée, ou au moins cohérente avec le serveur (I36).
 - VoiceOver : annonces et favoris des articles (I13, I14).
 - Essai complet sur un iPhone réel, en version de production (EAS build, pas Expo Go) :

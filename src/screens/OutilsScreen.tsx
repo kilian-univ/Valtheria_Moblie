@@ -29,13 +29,6 @@ const TOOLS: Tool[] = [
     icon: '💸',
     route: '/outils/cashflow',
   },
-  {
-    key: 'epargne',
-    title: 'Épargne',
-    description: 'Objectifs et contributions',
-    icon: '🎯',
-    route: '/outils/epargne',
-  },
 ];
 
 export default function OutilsScreen() {

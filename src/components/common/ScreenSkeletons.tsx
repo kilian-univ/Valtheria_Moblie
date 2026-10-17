@@ -116,17 +116,6 @@ export function CashflowSkeleton() {
   );
 }
 
-// Épargne : épargne mensuelle, puis les objectifs
-export function SavingsSkeleton() {
-  return (
-    <SkeletonGroup style={styles.page}>
-      <Skeleton width="100%" height={120} shape="block" />
-      <Skeleton width="100%" height={size.buttonHeight} shape="button" />
-      <Rows count={3} height={104} />
-    </SkeletonGroup>
-  );
-}
-
 const styles = StyleSheet.create({
   page: {
     paddingHorizontal: space[5],

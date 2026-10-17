@@ -25,6 +25,8 @@ export type PatrimoinePrefs = {
   logScale: boolean;
   // Icône choisie pour un placement sans cours, par symbole (en majuscules)
   icons: Record<string, IconKey>;
+  // Objectifs de l'ancien outil Épargne du site déjà repris (une seule fois)
+  savingsImported: boolean;
 };
 
 export const DEFAULT_PREFS: PatrimoinePrefs = {
@@ -37,10 +39,11 @@ export const DEFAULT_PREFS: PatrimoinePrefs = {
   hideAnomalies: true,
   logScale: false,
   icons: {},
+  savingsImported: false,
 };
 
 const DEPOSITS_KEPT = 400;
-const GOALS_MAX = 20;
+export const GOALS_MAX = 20;
 const ICONS_MAX = 200;
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -90,6 +93,7 @@ export function parsePrefs(raw: unknown): PatrimoinePrefs {
     hideAnomalies: r.hideAnomalies !== false,
     logScale: r.logScale === true,
     icons,
+    savingsImported: r.savingsImported === true,
   };
 }
 
