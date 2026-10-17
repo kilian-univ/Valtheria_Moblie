@@ -7,6 +7,8 @@ Relevé du 17/10/2026. Sources : app `~/Developer/Valtheria_Moblie` (commit e6c8
 
 Ce qui n'est pas retenu : les chiffres d'exemple (« si tu places 1 000 € »), les hypothèses annoncées comme telles (5 % par an, crédit à 3,5 %), les dates et faits historiques, les statistiques d'actualité datées. Les articles « evergreen » qui donnent un taux présenté comme actuel sont retenus.
 
+> **Mise au point du 17 octobre (chantier 1)** : l'API ne sert que 2 articles. Les « 38 articles publiés » de ce relevé comptent 36 articles supprimés sur le site (suppression douce : la colonne `deleted_at` manquait au relevé de la base). Les articles faux cités ici ne sont donc pas visibles dans l'app aujourd'hui.
+
 ---
 
 ## 1. Syntaxe de variable et ses limites
