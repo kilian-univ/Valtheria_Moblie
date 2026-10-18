@@ -37,12 +37,13 @@ type Geometry = {
   familyName: number;
 };
 
-// Positions de la maquette (portrait sur 350 de large, paysage sur 760, les
-// postes un peu plus à gauche pour que nom et montant tiennent sur une ligne)
+// Positions sur la largeur donnée. Portrait : les postes collés au bord
+// droit, leur nom et leur montant écrits sur les bandes. Paysage (maquette,
+// sur 760) : les postes un peu plus à gauche pour que nom et montant tiennent
+// sur une ligne.
 function geometry(variant: 'portrait' | 'paysage', width: number): Geometry {
   if (variant === 'portrait') {
-    const s = width / 350;
-    return { root: 0, family: 120 * s, poste: 214 * s, source: null, padTop: 14, padBottom: 14, minSlot: 34, gap: 12, groupGap: 26, name: 12, value: 11, familyName: 13 };
+    return { root: 0, family: Math.round(width * 0.36), poste: width - NODE, source: null, padTop: 14, padBottom: 14, minSlot: 34, gap: 12, groupGap: 26, name: 12, value: 11, familyName: 13 };
   }
   const s = width / 760;
   return { root: 230 * s, family: 400 * s, poste: 490 * s, source: 90 * s, padTop: 26, padBottom: 6, minSlot: 20, gap: 10, groupGap: 22, name: 13, value: 13, familyName: 14 };
@@ -158,10 +159,10 @@ export default function FlowDiagram({ variant, postes, sources, width, height, f
                 <Rect x={g.poste} y={y(p.top)} width={NODE} height={p.height} rx={NODE / 2} fill={tint[p.family]} />
                 {portrait ? (
                   <>
-                    <SvgText x={g.poste + 14} y={mid - 3} fontSize={g.name} fontFamily={fonts.bodyBold} fill={colors.text}>
+                    <SvgText x={g.poste - 10} y={mid - 3} textAnchor="end" fontSize={g.name} fontFamily={fonts.bodyBold} fill={colors.text}>
                       {p.label}
                     </SvgText>
-                    <SvgText x={g.poste + 14} y={mid + 12} fontSize={g.value} fontFamily={fonts.body} fill={colors.subtitle}>
+                    <SvgText x={g.poste - 10} y={mid + 12} textAnchor="end" fontSize={g.value} fontFamily={fonts.body} fill={colors.text} fillOpacity={0.75}>
                       {amountShare(p.amount)}
                     </SvgText>
                   </>
