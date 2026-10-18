@@ -16,6 +16,7 @@ import SpendableCard from '@/src/components/budget/SpendableCard';
 import SplitBar from '@/src/components/budget/SplitBar';
 import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
+import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
 import PageState from '@/src/components/common/PageState';
 import HelpTerm from '@/src/components/patrimoine/HelpTerm';
@@ -26,7 +27,7 @@ import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { loadBudget } from '@/src/state/budgetData';
 import { updateBudgetPrefs, useBudgetPrefs } from '@/src/state/budgetPrefs';
-import { cycleCharges, monthly, spendable, split, splitPercents } from '@/src/utils/budget/calc';
+import { cycleCharges, monthly, pruneSavingsDone, savingLine, spendable, split, splitPercents } from '@/src/utils/budget/calc';
 import { categoryLabel, COMMON_CATEGORIES, pillChoices } from '@/src/utils/budget/categories';
 import { localToday, monthKey, monthName } from '@/src/utils/budget/dates';
 import { parseKey, shiftKey } from '@/src/utils/budget/flows';
@@ -84,7 +85,18 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
   }, [notice]);
 
   const mark = prefs?.mark ?? null;
-  const s = spendable({ recurring: budget.recurring, balances: budget.balances, today, entries: detailed ? budget.entries : [], mark });
+  const savingsDone = prefs?.savingsDone ?? {};
+  const s = spendable({ recurring: budget.recurring, balances: budget.balances, today, entries: detailed ? budget.entries : [], mark, savingsDone });
+  const saving = s ? savingLine(budget.recurring, s, today, savingsDone) : null;
+  // « Déjà mise de côté ? » : confirmation de l'épargne du mois
+  const [savingSheet, setSavingSheet] = useState<{ open: boolean } | null>(null);
+  const confirmSaving = async () => {
+    if (saving?.kind !== 'planned') return;
+    const keys = saving.keys;
+    await updateBudgetPrefs(userKey, (p) => ({ ...p, savingsDone: { ...pruneSavingsDone(p.savingsDone, today), ...Object.fromEntries(keys.map((k) => [k, today])) } }));
+    feedback.drop();
+    setSavingSheet({ open: false });
+  };
   const charges = cycleCharges(budget.recurring, today);
   const monthEntries = budget.entries.filter((e) => e.on.startsWith(month) && e.on <= today);
   const sp = split({ recurring: budget.recurring, categories: budget.categories, entries: detailed ? monthEntries : [] });
@@ -259,9 +271,12 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space[8] }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.gold} colors={[colors.gold]} progressBackgroundColor={colors.surface} />}
       >
-        <AppText accessibilityRole="header" style={styles.title}>
-          Mon budget
-        </AppText>
+        <View style={styles.inline}>
+          <AppText accessibilityRole="header" style={styles.title}>
+            Mon budget
+          </AppText>
+          <HelpTerm term="Budget" />
+        </View>
         <Segmented fill options={MODES} value={mode} onChange={changeMode} />
         {greenRun ? (
           <View style={[styles.green, { backgroundColor: withOpacity(colors.success, 0.15) }]} accessible accessibilityLabel={greenRun}>
@@ -272,7 +287,13 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
         {stale ? <PageState variant="offline" text={staleDataText(staleKind, 'Tes derniers chiffres connus')} /> : null}
 
         {s ? (
-          <SpendableCard s={s} today={today} savingPlanned={monthly(budget.recurring, 'epargne')} onUpdate={() => setBalanceSheet({ open: true })} />
+          <SpendableCard
+            s={s}
+            today={today}
+            saving={saving ?? { kind: 'none' }}
+            onUpdate={() => setBalanceSheet({ open: true })}
+            onConfirmSaving={() => setSavingSheet({ open: true })}
+          />
         ) : (
           <View style={styles.noBalance}>
             <AppText variant="callout" tone="subtitle">
@@ -297,9 +318,12 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
         {detailed ? (
           <View style={styles.section}>
             <View style={styles.sectionHead}>
-              <AppText variant="sectionLabel" accessibilityRole="header">
-                TES ENVELOPPES
-              </AppText>
+              <View style={styles.inline}>
+                <AppText variant="sectionLabel" accessibilityRole="header">
+                  TES ENVELOPPES
+                </AppText>
+                <HelpTerm term="Enveloppe" />
+              </View>
               <Pressable
                 onPress={() => {
                   tap();
@@ -381,9 +405,12 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
 
         {sp ? (
           <View style={styles.section}>
-            <AppText variant="sectionLabel" accessibilityRole="header">
-              TA RÉPARTITION
-            </AppText>
+            <View style={styles.inline}>
+              <AppText variant="sectionLabel" accessibilityRole="header">
+                TA RÉPARTITION
+              </AppText>
+              <HelpTerm term="Règle 50/30/20" />
+            </View>
             <SplitBar p={splitPercents(sp)} />
           </View>
         ) : null}
@@ -422,6 +449,20 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
         </Animated.View>
       ) : null}
 
+      {savingSheet ? (
+        <BottomSheet open={savingSheet.open} onRequestClose={() => setSavingSheet({ open: false })} onClosed={() => setSavingSheet(null)}>
+          <View style={styles.sheet}>
+            <AppText variant="title3" accessibilityRole="header" style={styles.center}>
+              Tu l’as déjà mise de côté ?
+            </AppText>
+            <AppText variant="callout" tone="subtitle" style={styles.center}>
+              Si ton virement d’épargne de ce mois est déjà fait, dis-le : il ne sera plus annoncé comme à venir.
+            </AppText>
+            <Button label="Oui, c’est fait" onPress={confirmSaving} />
+            <Button variant="text" label="Pas encore" onPress={() => setSavingSheet({ open: false })} />
+          </View>
+        </BottomSheet>
+      ) : null}
       {balanceSheet ? (
         <AmountSheet
           open={balanceSheet.open}
@@ -481,5 +522,7 @@ const styles = StyleSheet.create({
   inline: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   green: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 28, paddingHorizontal: 10, borderRadius: radius.pill },
   greenText: { fontFamily: fonts.bodyBold, fontSize: 13 },
+  sheet: { gap: space[3], paddingTop: space[2] },
+  center: { textAlign: 'center', alignSelf: 'center' },
   notice: { position: 'absolute', left: space[5], right: space[5], padding: space[4], borderRadius: radius.card, borderWidth: 1 },
 });

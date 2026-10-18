@@ -19,6 +19,7 @@ import { chargesTotal, draftFrom, setupPayload, stepReady, suggestedSaving, type
 import { feedback } from '@/src/utils/feedback';
 import { NBSP } from '@/src/utils/frenchSpaces';
 import { select, tap } from '@/src/utils/haptics';
+import { longDay } from '@/src/utils/budget/dates';
 import { euros } from '@/src/utils/budget/format';
 
 type Step = 0 | 1 | 2 | 3;
@@ -29,6 +30,8 @@ const STEPS: { kicker: string; question: string }[] = [
   { kicker: 'METTRE DE CÔTÉ EN PREMIER', question: 'Combien mets-tu de côté dès que ta paie tombe ?' },
   { kicker: 'TON SOLDE', question: 'Combien as-tu sur ton compte courant aujourd’hui ?' },
 ];
+// Modifier : le dernier relevé est gardé, la dernière étape ne garde que le mode
+const LAST_EDIT = { kicker: 'TON MODE', question: 'Quel mode te va le mieux ?' };
 
 const VAL_LINE = 'Pas besoin d’être précis au centime. Un ordre de grandeur suffit pour commencer.';
 
@@ -42,11 +45,7 @@ export default function BudgetSetupScreen({ budget, userKey, editing }: { budget
   const colors = palette[colorScheme];
   const insets = useSafeAreaInsets();
   const { post } = useApi();
-  const [draft, setDraft] = useState<SetupDraft>(() => {
-    const d = draftFrom(budget);
-    // Modifier : le solde se confirme (un ancien relevé ne doit pas passer pour celui du jour)
-    return editing ? { ...d, balance: null } : d;
-  });
+  const [draft, setDraft] = useState<SetupDraft>(() => draftFrom(budget));
   const [step, setStep] = useState<Step>(0);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -56,8 +55,11 @@ export default function BudgetSetupScreen({ budget, userKey, editing }: { budget
   const [error, setError] = useState<string | null>(null);
 
   const update = (change: Partial<SetupDraft>) => setDraft((d) => ({ ...d, ...change }));
-  const ready = stepReady(draft, step);
-  const lastBalance = budget.balances.length ? budget.balances[budget.balances.length - 1].amount : null;
+  const last = budget.balances.length ? budget.balances[budget.balances.length - 1] : null;
+  // Modifier un budget en route : le dernier relevé est gardé, jamais redemandé
+  const keepBalance = editing && last !== null;
+  const ready = stepReady(draft, step, keepBalance);
+  const stepCopy = keepBalance && step === 3 ? LAST_EDIT : STEPS[step];
 
   const openSheet = (s: Sheet) => {
     tap();
@@ -83,7 +85,7 @@ export default function BudgetSetupScreen({ budget, userKey, editing }: { budget
     setBusy(true);
     setError(null);
     try {
-      const raw = await post('/budget/setup', setupPayload(draft));
+      const raw = await post('/budget/setup', setupPayload(draft, keepBalance));
       setBudget(userKey, raw);
       if (remind) await enableBudgetReminder(1, 18);
       feedback.right(0.6);
@@ -147,10 +149,10 @@ export default function BudgetSetupScreen({ budget, userKey, editing }: { budget
 
       <ScrollView contentContainerStyle={styles.content}>
         <AppText style={[styles.kicker, { color: colors.gold }]}>
-          {step + 1} SUR 4 · {STEPS[step].kicker}
+          {step + 1} SUR 4 · {stepCopy.kicker}
         </AppText>
         <AppText accessibilityRole="header" style={styles.title}>
-          {editing && step === 0 ? 'Modifier mon budget' : STEPS[step].question}
+          {editing && step === 0 ? 'Modifier mon budget' : stepCopy.question}
         </AppText>
         <ValBubble mood="complice" diameter={54} text={VAL_LINE} />
 
@@ -199,15 +201,18 @@ export default function BudgetSetupScreen({ budget, userKey, editing }: { budget
 
         {step === 3 ? (
           <View style={styles.list}>
-            <Row label="Sur ton compte" value={draft.balance !== null ? euros(draft.balance) : null} onPress={() => openSheet({ kind: 'balance' })} />
-            {editing && lastBalance !== null ? (
-              <AppText variant="caption" tone="subtitle">
-                Ton dernier solde : {euros(lastBalance)}.
+            {keepBalance && last ? (
+              <AppText variant="callout" tone="subtitle">
+                {`Ton solde reste celui du ${longDay(last.on)} : ${euros(last.amount)}. Pour le changer, touche « Mettre à jour mon solde » sur Mon budget.`}
               </AppText>
-            ) : null}
-            <AppText variant="sectionLabel" style={styles.modeLabel}>
-              TON MODE
-            </AppText>
+            ) : (
+              <>
+                <Row label="Sur ton compte" value={draft.balance !== null ? euros(draft.balance) : null} onPress={() => openSheet({ kind: 'balance' })} />
+                <AppText variant="sectionLabel" style={styles.modeLabel}>
+                  TON MODE
+                </AppText>
+              </>
+            )}
             <ModeOption
               mode="essentiel"
               current={draft.mode}

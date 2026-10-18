@@ -117,13 +117,15 @@ export function chargesTotal(charges: readonly ChargeDraft[]): number {
 // Une charge saisie a un montant et un jour
 export const chargeReady = (c: ChargeDraft) => c.amount !== null && c.amount > 0 && c.day !== null;
 
-// Chaque étape est-elle complète ?
-export function stepReady(draft: SetupDraft, step: 0 | 1 | 2 | 3): boolean {
+// Chaque étape est-elle complète ? keepBalance : modification d'un budget en
+// route, le dernier relevé est gardé (le solde ne se change que par « Mettre à
+// jour mon solde »)
+export function stepReady(draft: SetupDraft, step: 0 | 1 | 2 | 3, keepBalance = false): boolean {
   if (step === 0) return draft.income !== null && draft.income > 0 && draft.payDay !== null;
   // Une charge commencée doit avoir son jour ; aucune charge, c'est possible
   if (step === 1) return draft.charges.every((c) => c.amount === null || c.amount === 0 || c.day !== null);
   if (step === 2) return draft.saving !== null && draft.saving >= 0;
-  return draft.balance !== null;
+  return keepBalance || draft.balance !== null;
 }
 
 // Nom d'une charge dans le budget : « Loyer », ou « Crédit » pour un prêt
@@ -132,13 +134,13 @@ export function chargeName(c: ChargeDraft): string {
   return CHARGE_SLOTS.find((s) => s.key === c.key)?.short ?? c.label;
 }
 
-// Corps de POST /budget/setup
-export function setupPayload(draft: SetupDraft) {
+// Corps de POST /budget/setup ; sans solde quand le dernier relevé est gardé
+export function setupPayload(draft: SetupDraft, keepBalance = false) {
   return {
     income: { amount: draft.income ?? 0, day: draft.payDay ?? 1, label: 'Paie' },
     charges: draft.charges.filter(chargeReady).map((c) => ({ category: c.category, label: chargeName(c), amount: c.amount, day: c.day })),
     saving: draft.saving && draft.saving > 0 ? { amount: draft.saving, day: draft.payDay ?? 1 } : null,
-    balance: draft.balance ?? 0,
+    ...(keepBalance ? {} : { balance: draft.balance ?? 0 }),
     mode: draft.mode,
   };
 }

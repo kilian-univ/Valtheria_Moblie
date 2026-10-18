@@ -10,7 +10,7 @@
 //         − dépenses notées depuis le relevé + rentrées notées (mode Détaillé)
 // Un relevé ancien reste juste : ce qui est tombé depuis est retiré.
 
-import { addDays, daysBetween, lastOccurrence, nextOccurrence, occurrencesBetween, type Day } from './dates';
+import { addDays, dayOfMonth, daysBetween, lastOccurrence, monthOf, nextOccurrence, occurrencesBetween, type Day } from './dates';
 import type { Balance, BudgetCategory, Entry, Family, Recurring } from './model';
 import { familyOf } from './model';
 
@@ -74,6 +74,28 @@ export type Spendable = {
   perDay: number;
 };
 
+// Épargne confirmée faite à la main (« c'est fait ») : occurrence
+// (« <id>:<date> ») → jour de la confirmation. Elle n'est plus retirée quand
+// le solde relevé est d'après la confirmation (il en tient déjà compte).
+export type SavingsDone = Record<string, Day>;
+
+export const savingKey = (id: number, date: Day) => `${id}:${date}`;
+
+// Épargne prévue à retirer entre from et to (exclus), moins celle confirmée
+// faite avant le relevé
+function savingsBetween(recurring: readonly Recurring[], from: Day, to: Day, balanceOn: Day, done: SavingsDone): number {
+  let total = 0;
+  for (const r of recurring) {
+    if (r.type !== 'epargne' || r.day === null) continue;
+    for (const d of occurrencesBetween(r.day, from, to)) {
+      const confirmed = done[savingKey(r.id, d)];
+      if (confirmed !== undefined && confirmed <= balanceOn) continue;
+      total += r.amount;
+    }
+  }
+  return total;
+}
+
 // Repère d'un relevé fait sur ce téléphone : le jour, et le plus grand numéro
 // d'entrée connu à ce moment. Une dépense du même jour au numéro plus grand
 // a été notée après le relevé : elle n'y est pas encore.
@@ -91,6 +113,7 @@ export function spendable({
   today,
   entries = [],
   mark = null,
+  savingsDone = {},
 }: {
   recurring: readonly Recurring[];
   balances: readonly Balance[];
@@ -98,13 +121,14 @@ export function spendable({
   // Ponctuels (mode Détaillé) ; vide en mode Essentiel
   entries?: readonly Entry[];
   mark?: BalanceMark | null;
+  savingsDone?: SavingsDone;
 }): Spendable | null {
   const b = latestBalance(balances);
   if (!b) return null;
   const { next, payDay } = payCycle(recurring, today);
   const from = b.on;
   const toPay = recurringBetween(recurring, 'depense', from, next);
-  const savings = recurringBetween(recurring, 'epargne', from, next);
+  const savings = savingsBetween(recurring, from, next, b.on, savingsDone);
   const incoming = recurringBetween(recurring, 'revenu', from, next);
   // Ponctuels notés après le relevé (ceux du jour du relevé y sont déjà,
   // sauf ceux notés après lui sur ce téléphone)
@@ -191,4 +215,35 @@ export function splitPercents(s: Split): { besoins: number; envies: number; epar
 
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+export type SavingLine =
+  | { kind: 'none' }
+  // Épargne encore retirée du calcul (prévue d'ici la paie, ou faite depuis le relevé)
+  | { kind: 'amount'; amount: number }
+  // Prévue plus tard ce mois-ci (le jour de la paie) : « prévue le 31 »
+  | { kind: 'planned'; date: Day; keys: string[] }
+  | { kind: 'done' };
+
+// Ligne « Épargne prévue » de la carte : un montant tant qu'elle compte dans
+// le calcul ; sinon « prévue le <jour> » avant son jour du mois (ou le jour
+// même), « déjà mise de côté » une fois ce jour passé ou confirmée faite
+export function savingLine(recurring: readonly Recurring[], s: Pick<Spendable, 'savings'>, today: Day, done: SavingsDone = {}): SavingLine {
+  const plans = recurring.filter((r) => r.type === 'epargne' && r.amount > 0);
+  if (plans.length === 0) return { kind: 'none' };
+  if (s.savings > 0) return { kind: 'amount', amount: s.savings };
+  const { year, month } = monthOf(today);
+  const upcoming = plans
+    .filter((r) => r.day !== null)
+    .map((r) => ({ key: savingKey(r.id, dayOfMonth(year, month, r.day as number)), date: dayOfMonth(year, month, r.day as number) }))
+    .filter((o) => o.date >= today && done[o.key] === undefined)
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  if (upcoming.length === 0) return { kind: 'done' };
+  return { kind: 'planned', date: upcoming[0].date, keys: upcoming.map((o) => o.key) };
+}
+
+// Confirmations de plus de trois mois : oubliées
+export function pruneSavingsDone(done: SavingsDone, today: Day): SavingsDone {
+  const limit = addDays(today, -92);
+  return Object.fromEntries(Object.entries(done).filter(([, on]) => on >= limit));
 }

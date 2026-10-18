@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
 import BigNumber from '@/src/components/common/BigNumber';
@@ -6,8 +6,9 @@ import Button from '@/src/components/common/Button';
 import HelpTerm from '@/src/components/patrimoine/HelpTerm';
 import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
-import type { Spendable } from '@/src/utils/budget/calc';
+import type { SavingLine, Spendable } from '@/src/utils/budget/calc';
 import { agoLabel, monthOf, longDay } from '@/src/utils/budget/dates';
+import { tap } from '@/src/utils/haptics';
 import { NBSP } from '@/src/utils/frenchSpaces';
 import { euros, signedEuros } from '@/src/utils/budget/format';
 
@@ -16,16 +17,28 @@ const EDGE = 5;
 // « Tu peux encore dépenser » (maquette, écran 1) : le chiffre en grand, par
 // jour jusqu'à la paie, le détail du calcul, et le seul geste à faire :
 // mettre à jour le solde. Un solde ancien reste affiché, signalé « à confirmer ».
-export default function SpendableCard({ s, today, savingPlanned, onUpdate }: { s: Spendable; today: string; savingPlanned: number; onUpdate: () => void }) {
+// L'épargne : un montant tant qu'elle compte dans le calcul, « prévue le 31 »
+// avant son jour (toucher pour dire qu'elle est déjà faite), puis « déjà mise
+// de côté ».
+export default function SpendableCard({ s, today, saving, onUpdate, onConfirmSaving }: { s: Spendable; today: string; saving: SavingLine; onUpdate: () => void; onConfirmSaving: () => void }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const sameMonth = monthOf(s.payDate).month === monthOf(today).month;
   const until = s.payDay !== null ? `jusqu’à ta paie, le${NBSP}${Number(s.payDate.slice(8))}` : `jusqu’au ${longDay(s.payDate)}`;
-  const lines: { label: string; value: string; tone?: 'gold' | 'success' }[] = [
+  const savingValue =
+    saving.kind === 'amount'
+      ? signedEuros(-saving.amount)
+      : saving.kind === 'planned'
+        ? saving.date === today
+          ? 'prévue aujourd’hui'
+          : `prévue le${NBSP}${Number(saving.date.slice(8))}`
+        : saving.kind === 'done'
+          ? 'déjà mise de côté'
+          : signedEuros(0);
+  const lines: { label: string; value: string; tone?: 'gold' | 'success'; onPress?: () => void }[] = [
     { label: 'Sur ton compte', value: euros(s.balance) },
     { label: sameMonth ? 'Encore à payer ce mois' : `Encore à payer d’ici le ${Number(s.payDate.slice(8))}`, value: signedEuros(-s.toPay) },
-    // Épargne du cycle déjà faite (son jour est passé) : dit, plutôt qu'un « 0 € »
-    { label: 'Épargne prévue', value: s.savings > 0 || savingPlanned <= 0 ? signedEuros(-s.savings) : 'déjà mise de côté', tone: 'gold' },
+    { label: 'Épargne prévue', value: savingValue, tone: 'gold', onPress: saving.kind === 'planned' ? onConfirmSaving : undefined },
   ];
   if (s.incoming > 0) lines.push({ label: 'Rentrées depuis ton solde', value: signedEuros(s.incoming), tone: 'success' });
   if (s.spent > 0) lines.push({ label: 'Dépenses notées depuis', value: signedEuros(-s.spent) });
@@ -61,16 +74,38 @@ export default function SpendableCard({ s, today, savingPlanned, onUpdate }: { s
           ) : null}
         </View>
         <View style={[styles.detail, { borderTopColor: colors.border }]}>
-          {lines.map((l) => (
-            <View key={l.label} style={styles.line} accessible accessibilityLabel={`${l.label} : ${l.value}`}>
-              <AppText variant="caption" tone="subtitle" style={styles.lineLabel}>
-                {l.label}
-              </AppText>
-              <AppText variant="caption" tone={l.tone ?? 'text'}>
-                {l.value}
-              </AppText>
-            </View>
-          ))}
+          {lines.map((l) =>
+            l.onPress ? (
+              <Pressable
+                key={l.label}
+                onPress={() => {
+                  tap();
+                  l.onPress?.();
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`${l.label} : ${l.value}`}
+                accessibilityHint="Indique si tu l’as déjà mise de côté"
+                hitSlop={8}
+                style={({ pressed }) => [styles.line, pressed && styles.pressed]}
+              >
+                <AppText variant="caption" tone="subtitle" style={styles.lineLabel}>
+                  {l.label}
+                </AppText>
+                <AppText variant="caption" tone={l.tone ?? 'text'} style={styles.underline}>
+                  {l.value}
+                </AppText>
+              </Pressable>
+            ) : (
+              <View key={l.label} style={styles.line} accessible accessibilityLabel={`${l.label} : ${l.value}`}>
+                <AppText variant="caption" tone="subtitle" style={styles.lineLabel}>
+                  {l.label}
+                </AppText>
+                <AppText variant="caption" tone={l.tone ?? 'text'}>
+                  {l.value}
+                </AppText>
+              </View>
+            )
+          )}
         </View>
         {/* Hors du bloc lu d'un trait : le « ? » reste touchable au lecteur d'écran */}
         <View style={styles.help}>
@@ -98,5 +133,7 @@ const styles = StyleSheet.create({
   detail: { marginTop: 14, paddingTop: space[3], borderTopWidth: 1, gap: 2 },
   line: { flexDirection: 'row', justifyContent: 'space-between', gap: space[2] },
   lineLabel: { flex: 1 },
+  pressed: { opacity: 0.6 },
+  underline: { textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
   button: { marginTop: 14 },
 });

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useSyncExternalStore } from 'react';
 
-import type { BalanceMark } from '@/src/utils/budget/calc';
+import type { BalanceMark, SavingsDone } from '@/src/utils/budget/calc';
 import type { UserKey } from './userMemory';
 
 // Mémoire du budget sur le téléphone, par compte (effacée à la déconnexion :
@@ -14,9 +14,11 @@ export type BudgetPrefs = {
   reviewsShown: string[];
   // Étapes du budget déjà fêtées (clé → date)
   milestones: Record<string, string>;
+  // Épargne du mois confirmée faite (« <id>:<date> » → jour de la confirmation)
+  savingsDone: SavingsDone;
 };
 
-const EMPTY: BudgetPrefs = { mark: null, reviewsShown: [], milestones: {} };
+const EMPTY: BudgetPrefs = { mark: null, reviewsShown: [], milestones: {}, savingsDone: {} };
 
 function parse(raw: unknown): BudgetPrefs {
   const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
@@ -27,6 +29,10 @@ function parse(raw: unknown): BudgetPrefs {
     milestones:
       r.milestones && typeof r.milestones === 'object'
         ? Object.fromEntries(Object.entries(r.milestones as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === 'string'))
+        : {},
+    savingsDone:
+      r.savingsDone && typeof r.savingsDone === 'object'
+        ? Object.fromEntries(Object.entries(r.savingsDone as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e[1])))
         : {},
   };
 }
