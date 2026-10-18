@@ -74,17 +74,30 @@ export type Spendable = {
   perDay: number;
 };
 
+// Repère d'un relevé fait sur ce téléphone : le jour, et le plus grand numéro
+// d'entrée connu à ce moment. Une dépense du même jour au numéro plus grand
+// a été notée après le relevé : elle n'y est pas encore.
+export type BalanceMark = { on: Day; maxEntryId: number };
+
+// Ponctuels à compter après le relevé du jour R : ceux d'après R ; ceux du
+// jour R seulement s'ils ont été notés après le relevé (repère)
+export function entriesAfter(entries: readonly Entry[], from: Day, today: Day, mark: BalanceMark | null = null): Entry[] {
+  return entries.filter((e) => e.on <= today && (e.on > from || (e.on === from && mark !== null && mark.on === from && e.id > mark.maxEntryId)));
+}
+
 export function spendable({
   recurring,
   balances,
   today,
   entries = [],
+  mark = null,
 }: {
   recurring: readonly Recurring[];
   balances: readonly Balance[];
   today: Day;
   // Ponctuels (mode Détaillé) ; vide en mode Essentiel
   entries?: readonly Entry[];
+  mark?: BalanceMark | null;
 }): Spendable | null {
   const b = latestBalance(balances);
   if (!b) return null;
@@ -93,8 +106,9 @@ export function spendable({
   const toPay = recurringBetween(recurring, 'depense', from, next);
   const savings = recurringBetween(recurring, 'epargne', from, next);
   const incoming = recurringBetween(recurring, 'revenu', from, next);
-  // Ponctuels notés après le relevé (ceux du jour du relevé y sont déjà)
-  const after = entries.filter((e) => e.on > from && e.on <= today);
+  // Ponctuels notés après le relevé (ceux du jour du relevé y sont déjà,
+  // sauf ceux notés après lui sur ce téléphone)
+  const after = entriesAfter(entries, from, today, mark);
   const spent = after.filter((e) => e.type === 'depense').reduce((s, e) => s + e.amount, 0);
   const received = after.filter((e) => e.type === 'revenu').reduce((s, e) => s + e.amount, 0);
   const amount = round2(b.amount - toPay - savings + incoming - spent + received);

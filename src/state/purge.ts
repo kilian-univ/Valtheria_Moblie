@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { keysToPurge } from '@/src/utils/purge';
 import { onboardingStore } from './onboarding';
 import { clearBudget } from './budgetData';
+import { clearBudgetPrefs } from './budgetPrefs';
 import { clearPatrimoine } from './patrimoineData';
 import { resetReminder } from './reminder';
 
@@ -12,6 +13,7 @@ export async function purgeAccountData(userId: number | string): Promise<void> {
   await resetReminder();
   clearPatrimoine();
   clearBudget();
+  clearBudgetPrefs();
   onboardingStore.reset();
   try {
     const keys = await AsyncStorage.getAllKeys();
