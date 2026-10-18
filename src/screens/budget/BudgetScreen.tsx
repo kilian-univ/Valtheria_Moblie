@@ -409,7 +409,7 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
               <AppText variant="sectionLabel" accessibilityRole="header">
                 TA RÉPARTITION
               </AppText>
-              <HelpTerm term="Règle 50/30/20" />
+              <HelpTerm term="Budget 50/30/20" alt={['Règle 50/30/20']} />
             </View>
             <SplitBar p={splitPercents(sp)} />
           </View>
