@@ -21,6 +21,10 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://valtheria.fr/api"
+      },
+      "environment": "production",
+      "ios": {
+        "image": "latest"
       }
     },
     "simulator": {
@@ -33,6 +37,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "language": "fr-FR"
+      }
+    }
   }
 }

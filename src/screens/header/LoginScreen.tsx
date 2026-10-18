@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BackButton from '@/src/components/common/BackButton';
+import LegalLinks from '@/src/components/common/LegalLinks';
 import AppText from '@/src/components/common/AppText';
 import SoundToggle from '@/src/components/common/SoundToggle';
 import Button from '@/src/components/common/Button';
@@ -198,6 +199,7 @@ export default function LoginScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
         <Button label="Se connecter" onPress={handleLogin} disabled={!canSubmit} loading={submitting} />
         <Button variant="text" label="Pas encore de compte ? Créer un compte" onPress={() => router.replace('/client/register')} />
+        <LegalLinks />
       </View>
     </KeyboardAvoidingView>
   );

@@ -47,7 +47,7 @@ Cinq familles de problèmes empêchent pourtant une sortie en l'état :
 
 Décompte de l'audit : **6 bloquants, 39 importants, 51 gênants, 27 cosmétiques**, soit 123 problèmes. Après le chantier 1 (fiabilité), les décisions du 17 octobre et le chantier 2 (contenu faux), il en restait 3 bloquants, 11 importants (dont 2 corrigés en partie), 35 gênants (dont 4 corrigés en partie) et 24 cosmétiques.
 
-**Au 18 octobre**, après Mon budget (qui remplace Cash-flow et refait l'onglet Outils), il en reste **3 bloquants, 10 importants (dont 3 corrigés en partie), 35 gênants (dont 6 corrigés en partie) et 24 cosmétiques**, plus 5 points relevés depuis l'audit (N1 à N5). Le lot serveur n° 9 et les sept petits défauts des leçons ne correspondaient à aucune ligne du tableau : ils venaient de la référence technique des leçons. Les lignes corrigées commencent par **Corrigé**.
+**Au 18 octobre**, après Mon budget (qui remplace Cash-flow et refait l'onglet Outils) puis la préparation de l'App Store (pages légales publiques, identifiant définitif, paquets à jour : `docs/app-store.md`), il en reste **1 bloquant (B2), 10 importants (dont 3 corrigés en partie), 34 gênants (dont 6 corrigés en partie) et 24 cosmétiques**, plus 5 points relevés depuis l'audit (N1 à N5). Le lot serveur n° 9 et les sept petits défauts des leçons ne correspondaient à aucune ligne du tableau : ils venaient de la référence technique des leçons. Les lignes corrigées commencent par **Corrigé**.
 
 ## Chantier 1 : la fiabilité (17 octobre 2026)
 
@@ -337,10 +337,10 @@ Les captures sont dans [docs/audit-captures/](audit-captures/). Les fichiers son
 
 | # | Écran | Problème | Capture | Cause probable | Correction proposée |
 |---|---|---|---|---|---|
-| B1 | Réglages, inscription (liens légaux) | La politique de confidentialité et les CGU ne sont pas lisibles : `https://valtheria.fr/politique-confidentialite` et `/cgu` redirigent vers `/acces`. Apple refuse une app dont la politique de confidentialité n'est pas publique (règle 5.1.1). | — | Le site est fermé derrière sa page d'accès, pages légales comprises. | Côté site (lot API) : laisser `/cgu`, `/politique-confidentialite` et `/mentions-legales` publiques, même pendant le gel. |
+| B1 | Réglages, inscription (liens légaux) | **Corrigé (18 octobre, PR n° 15 en production).** Les trois pages légales sont publiques, et la connexion, l'inscription et les Réglages y renvoient. Leur contenu reste à revoir : liste dans `docs/app-store.md`. La politique de confidentialité et les CGU ne sont pas lisibles : `https://valtheria.fr/politique-confidentialite` et `/cgu` redirigent vers `/acces`. Apple refuse une app dont la politique de confidentialité n'est pas publique (règle 5.1.1). | — | Le site est fermé derrière sa page d'accès, pages légales comprises. | Côté site (lot API) : laisser `/cgu`, `/politique-confidentialite` et `/mentions-legales` publiques, même pendant le gel. |
 | B2 | Apprendre, Tous les univers, bienvenue | Un seul module publié (« Avant d'investir », 4 leçons), alors que la bienvenue annonce « 15 univers ». Les 14 autres sont « Bientôt disponible ». Une fois les 4 leçons faites, il ne reste rien à apprendre. Risque de refus pour fonctionnalité minimale (règle 4.2). | [apprendre-un-seul-module](audit-captures/apprendre-un-seul-module.jpg) | Production du contenu en cours. | Publier plusieurs modules avant la sortie, ou n'annoncer que les univers ouverts. |
 | B3 | Toute l'app | **Corrigé (chantier 1, lot 1).** Filet global et filet par écran : Val, « Quelque chose s’est mal passé », « Réessayer », « Retour à l’accueil », erreur écrite dans le journal. Réponses de Cash-flow et Épargne normalisées, rendu des articles protégé, ancien Portefeuille supprimé. Aucune erreur d'affichage n'est rattrapée au niveau des routes : en version publiée, une seule réponse mal formée ferme l'app. Constaté sur iPhone le 16 octobre (portefeuille, corrigé). Le risque reste entier sur Cash-flow (plante encore sur le web avec une réponse vide), Épargne, Article et l'ancien Portefeuille, servi en repli (voir I28). | [cashflow-plantage](audit-captures/cashflow-plantage.jpg) | Pas d'`ErrorBoundary` exporté dans `app/`. Accès non protégés : `CashflowScreen.tsx:97` et `:139`, `EpargneScreen.tsx:116`, `PortefeuilleScreen.tsx:127` et `:136`, `PositionRow.tsx:59` et `:67` (`.toFixed` sur `null`), `BlockRenderer.tsx:143`. | `ErrorBoundary` racine et par onglet (Val, puis « Réessayer »). Protéger les champs lus (`?.`, `Number(...)`). |
-| B4 | Configuration (`app.json:13`, `:26`) | Identifiant `com.gala0022.Valtheraa` (avec « Valtheraa » et un préfixe personnel), définitif dès la première soumission, sur iOS comme sur Android. | — | Valeur d'origine du projet. | Choisir l'identifiant définitif (par exemple `fr.valtheria.app`) avant toute soumission. |
+| B4 | Configuration (`app.json:13`, `:26`) | **Corrigé (18 octobre).** `fr.valtheria.app` sur iOS et Android ; effets et précautions dans `docs/app-store.md`. Identifiant `com.gala0022.Valtheraa` (avec « Valtheraa » et un préfixe personnel), définitif dès la première soumission, sur iOS comme sur Android. | — | Valeur d'origine du projet. | Choisir l'identifiant définitif (par exemple `fr.valtheria.app`) avant toute soumission. |
 | B5 | Configuration (`app.json:12`) | **Corrigé (lot 1).** `supportsTablet: false`. `supportsTablet: true` : Apple exigera des captures iPad et testera l'app sur iPad. **Nouveau.** Expo ajoute alors d'office les 4 orientations sur iPad, sinon le binaire est refusé (ITMS-90474) : l'app y passera en paysage, une mise en page jamais dessinée. | — | Valeur par défaut d'Expo. | `supportsTablet: false` pour la première version, ou `requireFullScreen: true` avec une passe de design iPad. |
 | B6 | Patrimoine, lecteur, leçons découvertes, toute l'app | **Corrigé (lot 2).** Source unique des espaces, `frenchSpaces()` à l’affichage (AppText et un Text commun), garde-fou de test. Les montants se coupent en fin de ligne. Le formateur du patrimoine utilise des espaces ordinaires pour tous les montants, pourcentages et quantités. Le contenu du site arrive lui aussi avec des espaces ordinaires. Constaté :<br>- leçon n° 100 en grand iPhone, « …RÉCUPÉRER 900 / €. », « 3 000 / € placés », « perdu 20 / % » ;<br>- leçon n° 100 sur SE, « il faut sortir 1 / 125 € », « en vendant 400 / € » ;<br>- bilan de la leçon découverte Investir, « …que le montant / ; placés 30 ans ». | [lecon-100-euro-seul](audit-captures/lecon-100-euro-seul-grand-iphone.jpg), [lecon-100](audit-captures/lecon-100-espaces-et-ligne-sans-valeur.jpg) | `src/utils/patrimoine/format.ts:7-8` : `NBSP` et `NNBSP` valent U+0020, et `grouped()` et `quantity()` remplacent même l'U+202F correcte d'`Intl`. Aucune normalisation des textes reçus. Le dictionnaire et le carnet détruisent en plus les insécables reçues. | Voir la section « Espaces insécables » : corriger les constantes, puis une fonction commune `frenchSpaces()` appliquée à l'affichage. |
 
@@ -425,7 +425,7 @@ Les captures sont dans [docs/audit-captures/](audit-captures/). Les fichiers son
 | G31 | Code | **Corrigé en partie (Mon budget)** : `getCashflowStyles` et le squelette de l'ancien Cash-flow supprimés. `Style.ts` fait 1 840 lignes, dont environ 1 300 pour l'ancien design. `getBasiquesStyles`, `getBoutonStyles` et `getInputStyles` sont morts. | — | Héritage. | Déplacer l'ancien design dans `legacy.ts`, puis le supprimer au fil des refontes. |
 | G32 | Code | Fichiers de plus de 500 lignes : `ApprendreDetailScreen` (858), `ModuleScreen` (607), `TrueFalseScreen` (582), `OrderScreen` (574), `DiscoveryEndScreen` (542), `ValBubble` (538), `PatrimoineScreen` (528), `ChestReveal` (512), `OperationScreen` (511). | — | Croissance par ajouts. | Extraire `useLessonSession` et l'écran de fin en priorité. |
 | G33 | Configuration | `AGENTS.md` renvoie à la documentation d'Expo v54, alors que le projet est en SDK 57. | — | Fichier non mis à jour. | Pointer vers la v57. |
-| G34 | Configuration | 13 paquets `expo-*` ont un correctif de retard (expo 57.0.19, attendu 57.0.30). | — | Pas de mise à jour depuis la création. | `npx expo install --fix`, puis tests. |
+| G34 | Configuration | **Corrigé (18 octobre).** `expo install --fix` (14 paquets), `expo-doctor` 21 sur 21. 13 paquets `expo-*` ont un correctif de retard (expo 57.0.19, attendu 57.0.30). | — | Pas de mise à jour depuis la création. | `npx expo install --fix`, puis tests. |
 | G35 | Configuration | Le serveur Metro ne voit pas toujours les fichiers modifiés : un iPhone peut tourner sur un ancien code. | — | Surveillance des fichiers. | Relancer avec `--clear` après une mise à jour ; vérifier Watchman. |
 | G36 | Notifications | **Corrigé (décisions).** Toucher un rappel ouvre l'accueil d'Apprendre, app ouverte ou fermée. À vérifier sur iPhone. Toucher une notification ouvre l'accueil, pas la leçon proposée. | — | Aucun écouteur de réponse aux notifications. | Ouvrir la leçon du jour. |
 | G37 | Données de la courbe | Le passage à la nouvelle mesure de l'investi (16 octobre) crée une marche de 214 € dans la Performance. | — | Les anciens relevés gardent « investi = prix de revient ». | Côté site (lot API) : recalculer `net_invested` sur les anciens relevés. |
@@ -679,8 +679,8 @@ Sont à jour : première ouverture, Apprendre (accueil, univers, module, chemin)
 ## Avant une sortie sur l'App Store
 
 **Obligatoire**
-1. Pages légales publiques : politique de confidentialité, CGU et mentions légales (B1).
-2. Identifiant définitif (B4). Fait : `supportsTablet` retiré (B5) et icône iOS opaque (I37).
+1. Pages légales publiques (B1) : **fait** le 18 octobre ; leur contenu reste à revoir (`docs/app-store.md`).
+2. Identifiant définitif (B4) : **fait**, `fr.valtheria.app`. Fait aussi : `supportsTablet` retiré (B5) et icône iOS opaque (I37).
 3. Contenu : plus d'un module publié, ou une promesse alignée sur ce qui est ouvert (B2).
 4. Filet contre les plantages et les impasses. Fait au chantier 1 : `ErrorBoundary` (B3), ancien Portefeuille supprimé (I28), profil repris et déconnexion hors ligne (I3, I4), états d'erreur distincts des états vides (I29). Fait aussi : délai réseau (I1) et plus de déconnexion sur une erreur 500 (I2).
 5. Contenu juste :
@@ -696,8 +696,8 @@ Sont à jour : première ouverture, Apprendre (accueil, univers, module, chemin)
    - âge minimum ;
    - captures iPhone 6,9 et 6,5 pouces ;
    - texte qui précise que l'app ne donne pas de conseil en investissement.
-8. Compte de démonstration pour la revue d'Apple, avec un patrimoine rempli. La suppression de compte existe dans les Réglages, comme Apple l'exige, mais elle n'a jamais été essayée sur iPhone (G46).
-9. `expo install --fix` (G34). Fait : builds EAS séparés par environnement (I26).
+8. Compte de démonstration pour la revue d'Apple, avec un patrimoine rempli : **prêt** (commande `review:compte-demo` et script `scripts/compte-demo.ts`, `docs/app-store.md`), à créer en production. La suppression de compte existe dans les Réglages, comme Apple l'exige, mais elle n'a jamais été essayée sur iPhone (G46).
+9. `expo install --fix` (G34) : **fait**. Fait aussi : builds EAS séparés par environnement (I26), et configuration de production (permissions en français, manifeste de confidentialité).
 
 **Fortement conseillé**
 - Chiffres réglementaires partout (section dédiée). Fait : espaces insécables (B6).
@@ -735,12 +735,13 @@ Pour chaque point, ce qu'il faut pour le régler : **décision** (de ta part), *
 
 | Point | Ce qu'il faut |
 |---|---|
-| B1 Pages légales publiques (`/cgu`, `/politique-confidentialite`, `/mentions-legales` redirigent vers `/acces`) | **Décision** : ouvrir ces trois pages malgré le gel du web. Puis **site**. |
-| B4 Identifiant définitif de l'app (aujourd'hui `com.gala0022.Valtheraa`, irréversible après la première soumission) | **Décision** : le choisir (par exemple `fr.valtheria.app`). Puis **app** (`app.json`, `eas.json`). |
+| ~~B1 Pages légales publiques~~ | **Fait** (18 octobre). Reste à corriger leur contenu : **décision** (avec un juriste), puis **site** ; liste dans `docs/app-store.md`. |
+| ~~B4 Identifiant définitif~~ | **Fait** : `fr.valtheria.app` (18 octobre). |
 | B2 Un seul module publié pour 15 univers annoncés | **Décision** : publier d'autres modules, ou n'annoncer que ce qui est ouvert. Puis **site** (contenu) ou **app** (textes de bienvenue). |
 | Essai complet sur iPhone, en build EAS : sons, vibrations, notifications, VoiceOver, grand texte, réseau coupé, clavier numérique (G44), suppression du compte et export (G46), Mon budget (N4) | **App**, avec ton iPhone (build de développement). |
 | Fiche App Store : étiquettes de confidentialité, catégorie, âge, captures, texte « pas de conseil en investissement » ; compte de démonstration avec un patrimoine rempli | **Décision** (contenu de la fiche), puis préparation. |
-| G34 Paquets Expo en retard d'un correctif | **App** : `npx expo install --fix`, puis tests. |
+| ~~G34 Paquets Expo en retard d'un correctif~~ | **Fait** (18 octobre). |
+| Inscription depuis l'app fermée (403) : un nouvel utilisateur ne peut pas créer de compte, alors que l'app le propose | **Décision** : l'ouvrir (`valtheria.api.register_enabled`) ou masquer l'inscription. Puis **site** ou **app**. |
 
 ### Priorité 2 : important
 

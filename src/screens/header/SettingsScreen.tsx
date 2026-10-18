@@ -17,7 +17,7 @@ import BudgetReminderSettingRow from '@/src/components/budget/BudgetReminderSett
 import ObjectiveSheet from '@/src/components/profile/ObjectiveSheet';
 import ProfileAvatar from '@/src/components/profile/ProfileAvatar';
 import { SettingsRow, SettingsSection, useSettingsRowStyles } from '@/src/components/profile/SettingsList';
-import { FORGOT_PASSWORD_URL, PRIVACY_URL, TERMS_URL } from '@/src/constants/links';
+import { FORGOT_PASSWORD_URL, LEGAL_NOTICE_URL, PRIVACY_URL, TERMS_URL } from '@/src/constants/links';
 import { fonts, palette, radius, size, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -307,6 +307,7 @@ export default function SettingsScreen() {
             </AppText>
             <Button variant="secondary" label="Politique de confidentialité" onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL).catch(() => {})} />
             <Button variant="secondary" label="Conditions d’utilisation" onPress={() => WebBrowser.openBrowserAsync(TERMS_URL).catch(() => {})} />
+            <Button variant="secondary" label="Mentions légales" onPress={() => WebBrowser.openBrowserAsync(LEGAL_NOTICE_URL).catch(() => {})} />
           </View>
         </BottomSheet>
       ) : null}
