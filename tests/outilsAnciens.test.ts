@@ -34,7 +34,8 @@ test('Épargne retirée : plus d’écran, de route ni de place dans Outils', ()
   assert.ok(!existsSync(new URL('src/screens/EpargneScreen.tsx', root)));
   assert.ok(!readFileSync(new URL('app/outils/_layout.tsx', root), 'utf8').includes('epargne'));
   assert.ok(!readFileSync(new URL('src/screens/OutilsScreen.tsx', root), 'utf8').includes('/outils/epargne'));
-  assert.ok(readFileSync(new URL('src/screens/OutilsScreen.tsx', root), 'utf8').includes('/outils/cashflow'));
+  // Mon budget a remplacé Cash-flow dans Outils (18/10/2026)
+  assert.ok(readFileSync(new URL('src/screens/OutilsScreen.tsx', root), 'utf8').includes('/outils/budget'));
 });
 
 test('Reprise des objectifs d’épargne : nom, montant et échéance du site', () => {

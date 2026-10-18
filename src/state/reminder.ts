@@ -10,7 +10,9 @@ import { onboardingStore } from './onboarding';
 // Rappel quotidien en notifications LOCALES (rien côté serveur). Un seul
 // rappel par jour, jamais plus. Pour que le texte change chaque jour, on
 // programme les 14 prochains jours, chacun avec son texte, et on
-// reprogramme à chaque ouverture de l'app (refreshReminder).
+// reprogramme à chaque ouverture de l'app (refreshReminder). Ses
+// notifications portent l'identifiant « rappel-… » : les reprogrammer
+// n'efface pas le rappel du budget (« budget-… », state/budgetReminder.ts).
 
 const KEY = 'valtheria:rappel';
 const CHANNEL = 'rappel-quotidien';
@@ -26,7 +28,11 @@ const DEFAULT_SETTINGS: ReminderSettings = { enabled: false, time: DEFAULT_REMIN
 // normalement.
 let loaded: typeof NotificationsModule | null | undefined;
 
-function notifications(): typeof NotificationsModule | null {
+const OWN_PREFIX = 'rappel-';
+// Notifications d'un autre rappel (budget) : jamais annulées par celui-ci
+const OTHER_PREFIXES = ['budget-'];
+
+export function notifications(): typeof NotificationsModule | null {
   if (loaded !== undefined) return loaded;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -67,8 +73,19 @@ async function saveSettings(settings: ReminderSettings): Promise<void> {
   }
 }
 
+// Annule les notifications de ce rappel (et les anciennes, sans identifiant
+// connu), jamais celles d'un autre rappel
+async function cancelOwn(Notifications: typeof NotificationsModule): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  for (const n of scheduled) {
+    const id = n.identifier ?? '';
+    if (OTHER_PREFIXES.some((p) => id.startsWith(p))) continue;
+    await Notifications.cancelScheduledNotificationAsync(id);
+  }
+}
+
 async function schedule(Notifications: typeof NotificationsModule, time: ReminderTime): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await cancelOwn(Notifications);
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(CHANNEL, {
       name: 'Rappel quotidien',
@@ -83,7 +100,8 @@ async function schedule(Notifications: typeof NotificationsModule, time: Reminde
   for (const date of upcomingReminders(new Date(), time, DAYS_AHEAD)) {
     const { title, body } = reminderMessageFor(date, objective);
     await Notifications.scheduleNotificationAsync({
-      content: { title, body, sound: reminderSound() },
+      identifier: `${OWN_PREFIX}${date.toISOString()}`,
+      content: { title, body, sound: reminderSound(), data: { target: 'apprendre' } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: CHANNEL },
     });
   }
@@ -114,7 +132,8 @@ export async function enableReminder(time: ReminderTime): Promise<boolean> {
 export async function disableReminder(): Promise<void> {
   const settings = await getReminderSettings();
   try {
-    await notifications()?.cancelAllScheduledNotificationsAsync();
+    const Notifications = notifications();
+    if (Notifications) await cancelOwn(Notifications);
   } catch {
     // rien de programmé : sans conséquence
   }
@@ -155,9 +174,16 @@ export async function resetReminder(): Promise<void> {
 }
 
 // Toucher un rappel ouvre l'accueil d'Apprendre (décision du 17 octobre
-// 2026), y compris quand l'app était fermée (réponse du lancement, effacée
-// une fois traitée). Renvoie de quoi arrêter l'écoute.
-export function onReminderTapped(open: () => void): () => void {
+// 2026) ; celui du budget ouvre Mon budget (data.target). Y compris quand
+// l'app était fermée (réponse du lancement, effacée une fois traitée).
+// Renvoie de quoi arrêter l'écoute.
+type TapResponse = { notification?: { request?: { content?: { data?: Record<string, unknown> | null } } } } | null;
+const targetOf = (r: TapResponse): string | null => {
+  const t = r?.notification?.request?.content?.data?.target;
+  return typeof t === 'string' ? t : null;
+};
+
+export function onReminderTapped(open: (target: string | null) => void): () => void {
   if (Platform.OS === 'web') return () => {};
   const Notifications = notifications();
   if (!Notifications) return () => {};
@@ -165,12 +191,12 @@ export function onReminderTapped(open: () => void): () => void {
     Notifications.getLastNotificationResponseAsync()
       .then((response) => {
         if (!response) return;
-        open();
+        open(targetOf(response as TapResponse));
         return Notifications.clearLastNotificationResponseAsync();
       })
       .catch(() => {});
-    const sub = Notifications.addNotificationResponseReceivedListener(() => {
-      open();
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      open(targetOf(response as TapResponse));
       Notifications.clearLastNotificationResponseAsync().catch(() => {});
     });
     return () => sub.remove();

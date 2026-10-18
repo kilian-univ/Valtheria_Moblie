@@ -8,10 +8,11 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { useLearningSnapshot } from '@/src/hooks/useLearningData';
 import { tap } from '@/src/utils/haptics';
 import { lessonHref } from '@/src/utils/patrimoine/lessonLink';
-import type { ValTip } from '@/src/utils/patrimoine/valTips';
+import type { LessonTarget } from '@/src/utils/patrimoine/valTips';
 
-// Remarque de Val reliée à une leçon (toucher la carte ouvre le module)
-export default function ValRemark({ tip }: { tip: ValTip }) {
+// Remarque de Val reliée à une leçon (toucher la carte ouvre le module) :
+// patrimoine et budget
+export default function ValRemark({ tip }: { tip: { text: string; link: LessonTarget } }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { modules, universes } = useLearningSnapshot();

@@ -23,11 +23,11 @@ const TOOLS: Tool[] = [
     route: '/outils/portefeuille',
   },
   {
-    key: 'cashflow',
-    title: 'Cash-flow',
-    description: 'Entrées et sorties, vue mensuelle',
+    key: 'budget',
+    title: 'Mon budget',
+    description: 'Ce que tu peux encore dépenser, à jour en un chiffre',
     icon: '💸',
-    route: '/outils/cashflow',
+    route: '/outils/budget',
   },
 ];
 

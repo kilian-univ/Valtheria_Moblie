@@ -13,6 +13,7 @@ import PageState from '@/src/components/common/PageState';
 import SoundSettingRow from '@/src/components/common/SoundSettingRow';
 import TextField from '@/src/components/common/TextField';
 import ReminderSettingRow from '@/src/components/onboarding/ReminderSettingRow';
+import BudgetReminderSettingRow from '@/src/components/budget/BudgetReminderSettingRow';
 import ObjectiveSheet from '@/src/components/profile/ObjectiveSheet';
 import ProfileAvatar from '@/src/components/profile/ProfileAvatar';
 import { SettingsRow, SettingsSection, useSettingsRowStyles } from '@/src/components/profile/SettingsList';
@@ -215,6 +216,7 @@ export default function SettingsScreen() {
         <SettingsSection title="Préférences">
           <SettingsRow icon="flag-outline" label="Ton objectif" value={p.objectiveLabel} onPress={() => open('objective')} />
           <ReminderSettingRow {...rowStyles} iconSize={20} />
+          <BudgetReminderSettingRow {...rowStyles} iconSize={20} />
           <SoundSettingRow {...lastRowStyles} iconSize={20} />
         </SettingsSection>
 

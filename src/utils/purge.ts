@@ -8,6 +8,7 @@ const PERSONAL_KEYS = new Set([
   'valtheria:lastProfile',
   'valtheria:objectif:dernier',
   'valtheria:rappel',
+  'valtheria:rappel-budget',
   'valtheria:flamme-allumee',
   'valtheria:journal-erreurs',
   'valtheria:lecons-textes',

@@ -696,3 +696,35 @@ Une partie de la progression ne vit que sur le téléphone (AsyncStorage, par co
 - **Côté app** : une fois les routes en ligne, chaque magasin de `src/state/` lit le serveur à l'ouverture, fusionne avec le téléphone (le plus récent gagne), puis écrit au serveur après chaque changement, avec la même file d'attente que sur le téléphone.
 - **En attendant** : tout reste sur le téléphone, purgé à la déconnexion et à la suppression du compte.
 
+
+## 11. Budget de l'app : « Mon budget » (18 octobre 2026)
+
+> **État** : fait et en production (pull request n° 12 du site, fusion fc4b708 ; base sauvegardée avant, `db-20261018-022500.sql.gz`). Le serveur garde les données, l'app calcule tout.
+
+Principe : tout est manuel, donc rien ne doit être une corvée. On saisit une fois les charges fixes, puis un seul chiffre à tenir à jour (le solde du compte). Aucune série quotidienne, aucune pénalité pour un oubli.
+
+### 11.1 Ce qui existait (ancien Cash-flow)
+- `cashflow_entries` : `type` (revenu, dépense, épargne), `nature` (récurrent, ponctuel), `category`, `label`, `amount`, `period_month` (ponctuels : 1er du mois), `is_active`.
+- `cashflow_categories` : catégories du compte avec couleur (14 par défaut, « Autres » protégée).
+- `users.cashflow_guide_done_at` (guide de prise en main), `cashflow_first_reward_at` (coffre de la première saisie).
+- Routes `GET /api/cashflow`, `/api/cashflow/entries` (CRUD), `/api/cashflow/categories` (CRUD), `guide-done`, `claim-first-reward`.
+- En production au 18/10/2026 : 3 comptes, 18 entrées (17 récurrentes).
+
+### 11.2 Ce qui a été ajouté (migration `2026_10_18_100000_budget_tables`)
+| Besoin du budget | Où |
+|---|---|
+| Rentrées et jour de paie, charges fixes avec leur jour, épargne prévue | récurrents de `cashflow_entries` + `day_of_month` (1 à 31) |
+| Dépenses et rentrées du mode Détaillé, datées | ponctuels de `cashflow_entries` + `occurred_on` (aujourd'hui par défaut ; `period_month` suit) |
+| Besoins / envies (répartition 50/30/20, flux) | `cashflow_categories.family` (posée sur les catégories existantes) |
+| Enveloppes | `cashflow_categories.envelope_cap` (plafond mensuel ; null = pas d'enveloppe) |
+| Relevés de solde datés | table `cashflow_balances` (un par jour, le dernier remplace) |
+| Mode choisi, mise en route faite, seuil d'alerte des enveloppes | table `cashflow_settings` |
+| Réponse au bilan mensuel | table `cashflow_reviews` (une par mois) |
+
+Routes ajoutées : `GET /api/budget` (tout, 400 jours d'historique), `POST /api/budget/setup`, `POST /api/budget/balances`, `PATCH /api/budget/settings`, `POST /api/budget/reviews`. Les routes `/api/cashflow/entries` et `/api/cashflow/categories` acceptent le jour, la date, la famille et le plafond. Détail : `API.md` du site.
+
+### 11.3 Reprise de l'ancien Cash-flow
+Tant que la mise en route n'est pas faite, `GET /api/budget` renvoie les récurrents de l'ancien Cash-flow (`legacy`) : l'app les propose comme valeurs de départ (rentrées additionnées, charges rangées dans les cases, épargne). À la mise en route, ils sont mis en pause, jamais supprimés.
+
+### 11.4 Fiches du Dictionnaire
+Existent : « Taux d'épargne », « Reste à vivre », « Charges fixes », « Cash flow » (sans trait d'union). **Manquent** : « Budget », « Enveloppe », « Règle 50/30/20 ».
