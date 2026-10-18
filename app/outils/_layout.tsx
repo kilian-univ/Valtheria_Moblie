@@ -13,6 +13,8 @@ export default function OutilsLayout() {
       <Stack.Screen name="cashflow" />
       <Stack.Screen name="budget/index" />
       <Stack.Screen name="budget/mise-en-route" />
+      <Stack.Screen name="budget/cashflow" />
+      <Stack.Screen name="budget/bilan" />
     </Stack>
   );
 }

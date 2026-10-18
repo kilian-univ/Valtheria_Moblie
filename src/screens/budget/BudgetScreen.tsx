@@ -28,10 +28,12 @@ import { loadBudget } from '@/src/state/budgetData';
 import { updateBudgetPrefs, useBudgetPrefs } from '@/src/state/budgetPrefs';
 import { cycleCharges, monthly, spendable, split, splitPercents } from '@/src/utils/budget/calc';
 import { categoryLabel, COMMON_CATEGORIES, pillChoices } from '@/src/utils/budget/categories';
-import { localToday, monthKey } from '@/src/utils/budget/dates';
+import { localToday, monthKey, monthName } from '@/src/utils/budget/dates';
+import { parseKey, shiftKey } from '@/src/utils/budget/flows';
 import { envelopeNotice, envelopes } from '@/src/utils/budget/envelopes';
 import type { Budget, BudgetMode, Entry } from '@/src/utils/budget/model';
 import { monthCurve } from '@/src/utils/budget/projection';
+import { monthReview, reviewToPropose } from '@/src/utils/budget/review';
 import { chooseBudgetTip } from '@/src/utils/budget/tips';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
@@ -46,6 +48,10 @@ const MODES = [
 
 const RECENT = 5;
 const NOTICE_MS = 5000;
+
+// Bilans déjà ouverts d'office pendant cette session (le bilan se marque vu
+// en s'ouvrant ; ceci évite de l'ouvrir deux fois entre-temps)
+const proposed = new Set<string>();
 
 // Mon budget (maquette, écrans 1, 4 et 5). Tout est manuel, donc rien ne
 // doit être une corvée : un seul chiffre à tenir à jour, le solde du compte ;
@@ -90,6 +96,16 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
     subscriptions: budget.recurring.filter((r) => r.type === 'depense' && r.category === 'Abonnements').reduce((t, r) => t + r.amount, 0),
     saving: monthly(budget.recurring, 'epargne'),
   });
+
+  // Bilan du mois dernier : proposé une fois, à la première ouverture du mois
+  const lastMonth = shiftKey(month, -1);
+  const lastReview = monthReview(budget, lastMonth, today, mode);
+  const toPropose = prefs ? reviewToPropose(budget, today, mode, prefs.reviewsShown) : null;
+  useEffect(() => {
+    if (!toPropose || proposed.has(`${userKey}:${toPropose}`)) return;
+    proposed.add(`${userKey}:${toPropose}`);
+    router.push({ pathname: '/outils/budget/bilan', params: { mois: toPropose } });
+  }, [toPropose, userKey]);
 
   const reload = () => loadBudget(userKey, get, true);
   const refresh = async () => {
@@ -360,6 +376,21 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
             <SplitBar p={splitPercents(sp)} />
           </View>
         ) : null}
+
+        <View style={styles.section}>
+          <Button
+            variant="secondary"
+            label="Analyser mon cash-flow"
+            onPress={() => router.push('/outils/budget/cashflow')}
+          />
+          {lastReview ? (
+            <Button
+              variant="text"
+              label={`Ton bilan de ${monthName(parseKey(lastMonth).month)}`}
+              onPress={() => router.push({ pathname: '/outils/budget/bilan', params: { mois: lastMonth } })}
+            />
+          ) : null}
+        </View>
 
         {tip ? (
           <View style={styles.section}>

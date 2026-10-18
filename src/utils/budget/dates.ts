@@ -114,6 +114,11 @@ export function monthName(month: number): string {
   return MONTHS[month - 1] ?? '';
 }
 
+// « oct. »
+export function monthShort(month: number): string {
+  return MONTHS_SHORT[month - 1] ?? '';
+}
+
 // « Octobre 2026 »
 export function monthTitle(year: number, month: number): string {
   const name = monthName(month);
