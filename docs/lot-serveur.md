@@ -17,21 +17,22 @@ Pour chaque point :
 
 | Priorité | Point | Effet pour la personne |
 |---|---|---|
-| 1 | Correction serveur des six nouveaux types d'écrans | Les leçons du serveur ne peuvent pas encore utiliser vrai ou faux, ordre, associer, répartir à règles, simulateur ni dialogue en messages |
+| — | Correction serveur des six nouveaux types d'écrans | **En production depuis le 17 octobre 2026** (lot n° 9, PR n° 11) |
 | 1 | Changer de mot de passe depuis l'app | Le changement passe par le site |
 | — | Mot de passe oublié | **En production** (essai d'envoi réel le 17 octobre 2026) ; activé dans l'app |
 | 1 | Inscription depuis l'app | Fermée côté serveur (403) |
 | 2 | Synchronisation de la progression gardée sur le téléphone (10) | Carnet, semaine, étapes du patrimoine, précision, mots et objectifs perdus sur un nouveau téléphone ; écrans qui contredisent le serveur |
 | 2 | Dates d'activité par module et par leçon (4.6) | La leçon du jour et l'ordre des univers ne suivent que ce téléphone |
-| 2 | Phrase « À retenir » (takeaway) des leçons | Pas de déclic au carnet pour les leçons du serveur |
+| — | Phrase « À retenir » (takeaway) des leçons | **En production depuis le 17 octobre 2026** (lot n° 9, E7) |
 | 2 | Objectifs crypto et impôts | Gardés sur le téléphone seulement |
 | 2 | Gel de série et record pour les comptes | « Bientôt disponible avec ton compte » ; record gardé sur le téléphone |
 | 2 | Photo de profil | Initiale à la place de la photo |
 | 3 | Bonus de série de bonnes réponses (4.9) | Pas de bonus d'XP ni de Vals pour les bonnes réponses d'affilée ; défis de précision gardés sur le téléphone |
 | — | Portefeuille : positions, opérations, ventes, cours, logos, risque (8) | **En production depuis le 17 octobre 2026** ; l'app utilise les nouvelles routes |
-| 1 | Écrans `number` et `live_month` non joués par l'app (9.1) | S'ils apparaissent dans une leçon ou une révision, l'écran compte comme raté : score plus bas, XP réduits, notion qui recule |
-| 1 | Formats de l'app pour `dialogue` et `allocate` (9.2, 9.3) | Impossible d'écrire ces écrans pour l'app sur le site |
-| 2 | Révélation, sous-titre, document, difficulté des leçons (9.4 à 9.7) | Écrans de l'app refusés par le validateur, coffres faussés pour certains niveaux |
+| — | Écrans `number` et `live_month` non joués par l'app (9.1) | **En production** : refusés dans une leçon publiée, jamais servis en révision |
+| — | Formats de l'app pour `dialogue` et `allocate` (9.2, 9.3) | **En production depuis le 17 octobre 2026** |
+| — | Révélation, sous-titre, document, difficulté des leçons (9.4 à 9.7) | **En production depuis le 17 octobre 2026** |
+| — | Budget de l'app (11) | **En production depuis le 18 octobre 2026** (PR n° 12 et n° 13) |
 | 3 | Connexion Apple et Google | Boutons masqués |
 | 3 | Dictionnaire enrichi, notifications poussées, date d'inscription, étapes du chemin | Champs prévus mais vides |
 

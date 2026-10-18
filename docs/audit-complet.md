@@ -2,6 +2,8 @@
 
 17 octobre 2026 · branche `design/ui`, commit `e6c8860` · lecture seule : aucune correction n'a été faite dans le cadre de l'audit.
 
+**Mis à jour le 18 octobre 2026** (app `e01331b`, site et production `9efc457`) avec ce qui a été fait depuis : lot serveur n° 9, sept petits défauts des leçons, Mon budget. Voir « Depuis l'audit » et, en fin de document, « Ce qui reste, par priorité ».
+
 Cet audit reprend celui commencé le matin même et interrompu. Les constats du matin ont été revérifiés un par un dans le code actuel (numéros de ligne mis à jour). Les captures ont été refaites, et les parties manquantes ont été ajoutées :
 - iPhone SE ;
 - réduction des animations ;
@@ -43,7 +45,9 @@ Cinq familles de problèmes empêchent pourtant une sortie en l'état :
 4. **Espaces insécables** : le formateur du patrimoine utilise des espaces ordinaires, et ni les 377 textes de l'app concernés ni le contenu du site ne sont protégés. Les montants se coupent (« 900 / €. », « 20 / % », « montant / ; placés »).
 5. **Ancien design** : six écrans encore actifs (Outils, Cash-flow, Épargne, Articles, Article, Portefeuille de repli) concentrent les plantages possibles, les erreurs brutes en anglais et les défauts d'accessibilité. Les Articles n'affichent par ailleurs que 12 des 38 articles publiés.
 
-Décompte de l'audit : **6 bloquants, 39 importants, 51 gênants, 27 cosmétiques**, soit 123 problèmes. Après le chantier 1 (fiabilité), les décisions du 17 octobre et le chantier 2 (contenu faux), il en reste **3 bloquants, 11 importants (dont 2 corrigés en partie), 35 gênants (dont 4 corrigés en partie) et 24 cosmétiques**. Les lignes corrigées commencent par **Corrigé**.
+Décompte de l'audit : **6 bloquants, 39 importants, 51 gênants, 27 cosmétiques**, soit 123 problèmes. Après le chantier 1 (fiabilité), les décisions du 17 octobre et le chantier 2 (contenu faux), il en restait 3 bloquants, 11 importants (dont 2 corrigés en partie), 35 gênants (dont 4 corrigés en partie) et 24 cosmétiques.
+
+**Au 18 octobre**, après Mon budget (qui remplace Cash-flow et refait l'onglet Outils), il en reste **3 bloquants, 10 importants (dont 3 corrigés en partie), 35 gênants (dont 6 corrigés en partie) et 24 cosmétiques**, plus 5 points relevés depuis l'audit (N1 à N5). Le lot serveur n° 9 et les sept petits défauts des leçons ne correspondaient à aucune ligne du tableau : ils venaient de la référence technique des leçons. Les lignes corrigées commencent par **Corrigé**.
 
 ## Chantier 1 : la fiabilité (17 octobre 2026)
 
@@ -230,6 +234,72 @@ Aussi :
    - un chiffre sans terme déclencheur à proximité passe : c'est pour cela que le Livret A à 3 % de quatre parcours avait échappé au relevé ;
    - une clé voisine peut encore être proposée à tort quand aucune valeur ne départage.
 
+## Depuis l'audit (17 et 18 octobre 2026)
+
+### Lot serveur n° 9 : le site joue le format des leçons de l'app (17 octobre, en production)
+
+[PR n° 11](https://github.com/Valtheraa/Valtheria/pull/11) du site, fusionnée (commit `d7bdb11`), vérifiée sur staging, puis déployée en production. La sauvegarde prise juste avant est `db-20261017-225037.sql.gz`. Le détail, écart par écart, est dans `docs/reference-technique-lecons.md`, partie 5.0.
+
+- **Le format de l'app fait foi** :
+  - `dialogue` et `allocate` à règles au format de l'app ;
+  - `true_false`, `order`, `match` et `simulator` acceptés et corrigés avec les règles de l'app ;
+  - `number` et `live_month`, que l'app ne joue pas, refusés dans une leçon publiée ;
+  - `reveal` avec `start` et des lignes `dim` sans valeur, `subtitle` sur tous les types, `takeaway` à la racine.
+- **Contrôle de format** appelé à la publication et à l'approbation d'une leçon (refus 422), avec des bornes communes.
+- **Difficulté** déduite du module (cinq niveaux), et un seul point de crédit des XP.
+- **`selon_chiffres`** figé au service, puis repris à la fin de la leçon et en révision.
+- **Révision** : seules les leçons publiées sont servies.
+- **Web gelé** : une leçon au format de l'app y affiche « À jouer dans l'app Valtheria ».
+- **Vérifié en production**, depuis le code de l'app :
+  - une leçon d'essai jouée tout juste puis tout faux : 8 sur 8, puis 0 sur 8, mêmes verdicts côté app et serveur ;
+  - les quatre leçons publiées rejouées avec les mêmes verdicts (80 vérifications sur 80) ;
+  - leçon, module et compte d'essai supprimés ensuite.
+
+### Sept petits défauts des leçons (17 octobre, commit `862cb83`)
+
+- La ligne en or d'une révélation n'est jamais masquée (Salaire, Épargner).
+- Feuille de réponse : « La bonne réponse » au singulier quand il n'y en a qu'une.
+- « Taux en vigueur au … » sous un écran qui cite un chiffre réglementaire.
+- Révision de l'app : les écrans `review: false` ne sont plus rejoués.
+- Niveaux : une seule table de libellés (Entrée, Débutant, Intermédiaire, Avancé, Expert).
+- Leçon découverte Impôts : l'option « plus haut que … » lit le barème.
+- `grade.ts` : seule source de correction pour tous les types, alignée sur le site et vérifiée sur ses 74 cas partagés (`tests/fixtures/reader-grading.json`).
+
+### Mon budget (18 octobre, en production)
+
+Il remplace l'ancien Cash-flow (I21) et refait l'onglet Outils (I18). Le principe : tout est manuel, donc rien ne doit être une corvée. On saisit une fois les charges fixes, puis un seul chiffre à tenir à jour, le solde du compte. Il n'y a ni série quotidienne, ni pénalité pour un oubli.
+
+- **Site** :
+  - [PR n° 12](https://github.com/Valtheraa/Valtheria/pull/12) (commit `fc4b708`, sauvegarde `db-20261018-022500.sql.gz`) : routes `/api/budget` (lecture, mise en route, relevés de solde, réglages, bilans), jours des charges, dates des dépenses, familles, enveloppes, export RGPD ;
+  - [PR n° 13](https://github.com/Valtheraa/Valtheria/pull/13) (commit `94dc0a4`, sauvegarde `db-20261018-111627.sql.gz`) : modifier la mise en route sans redonner son solde, et fiches « Budget » et « Enveloppe » passées par le contrôle de publication.
+  - Après la PR n° 13, la production tournait sur `94dc0a4`. Pour le prouver, les sommes de contrôle des 1 028 fichiers suivis ont été comparées : elles étaient identiques. Elle tourne aujourd'hui sur `9efc457` (fichier REVISION, ci-dessous). Relevé des chiffres en dur en production : 0.
+- **App**, commits `8f87006` à `e01331b` :
+  - mise en route en quatre questions, reprise des données de l'ancien Cash-flow ;
+  - « Tu peux encore dépenser », mode Essentiel ou Détaillé, enveloppes ;
+  - cash-flow (Mois, Trimestre, Année), diagramme de flux, vue paysage ;
+  - bilan du mois, mois dans le vert d'affilée, étapes au profil ;
+  - lien avec le patrimoine : l'épargne de précaution prend les dépenses du budget, et l'épargne du mois compte pour la régularité ;
+  - remarques de Val et « ? » vers le Dictionnaire.
+  - L'ancien écran Cash-flow est supprimé : route, écran, composants, styles et squelette.
+- **Vérifications** : tsc, ESLint et 549 tests Node, plus les lots vérifiés un par un en vrai lancement web.
+
+### Déploiement : fichier REVISION (18 octobre, en production)
+
+[PR n° 14](https://github.com/Valtheraa/Valtheria/pull/14) du site, fusionnée (commit `9efc457`) et déployée en production. La sauvegarde prise juste avant est `db-20261018-113957.sql.gz`.
+
+- **Écriture** : à chaque déploiement, `deploy.sh` écrit `REVISION` (commit, date, branche, environnement, modifications non commitées) hors de `public/`, donc jamais servi.
+- **Vérification** : `scripts/check-revision.sh prod` dit ce qui tourne et le compare à `origin/main`. En production, il trouve `9efc457` = `origin/main`, aucune modification non commitée, et `/REVISION` non servi (404). Code de sortie 0.
+
+### Points relevés depuis l'audit
+
+| # | Où | Problème | Pour le régler |
+|---|---|---|---|
+| N1 | Cash-flow, « ? » à côté du titre | La seule fiche existante, « Cash flow », est rangée en Entreprise et parle du flux de trésorerie d'une entreprise (« free cash flow », bénéfice comptable). Elle ne correspond pas au cash-flow personnel de l'écran. | Décision : une fiche « Cash-flow personnel », ou une définition élargie. Puis contenu du site. |
+| N2 | Dictionnaire, catégorie Budget | « Taux d'épargne » cite une moyenne française datée (« ~15-17% ») et juge qu'un taux de 20 % est « excellent ». « Budget 50/30/20 » dit « désirs », là où l'app dit « envies ». Typographie ancienne (« 50% », « 2 000€ »). | Contenu du site. |
+| N3 | Mon budget | Nouvelles données gardées sur le téléphone seulement : étapes du budget, bilans déjà proposés, épargne confirmée faite, repère du dernier relevé. Elles sont perdues sur un nouveau téléphone, comme le reste de I36. | À ajouter à la synchronisation (lot serveur, section 10). |
+| N4 | Mon budget | Jamais essayé sur un iPhone : vue paysage par l'accéléromètre (sens de rotation sur Android déduit du code, pas essayé), VoiceOver, sons et vibrations, notification hebdomadaire du solde. | Essai sur téléphone. |
+| N5 | Onglet Outils, Articles | L'en-tête hérité (`components/topbar/header.tsx`) reste en place au-dessus des nouvelles cartes d'Outils et sur les Articles. | App, avec la refonte des Articles. |
+
 ## Méthode
 
 **Web, en vrai lancement** (Expo web, Chromium sans interface, écran tactile simulé, thème sombre) :
@@ -295,10 +365,10 @@ Les captures sont dans [docs/audit-captures/](audit-captures/). Les fichiers son
 | I15 | Réglages (thème clair) | **Corrigé (décisions).** Thème clair retiré : thème sombre seul, barre d'état claire. Le thème clair n'est pas fini :<br>- choix non mémorisé ;<br>- heure et batterie invisibles ;<br>- or, vert, rouge et couleurs de module illisibles sur fond clair (contraste de 1,8 à 3,1).<br>Sur iPhone, `userInterfaceStyle: "dark"` force en plus le sombre au démarrage. | — | `ThemeContext.tsx:16`, `app/_layout.tsx:90` (`StatusBar style="auto"`), palette claire non retravaillée. | Retirer l'option pour la sortie, ou la terminer. |
 | I16 | Lecteur | **Corrigé (lot 4).** Journaux sous `__DEV__`. Des journaux de diagnostic restent dans la version publiée, dont la réponse complète de fin de leçon avec le profil. Sur iPhone, ils vont dans le journal système. | — | `ApprendreDetailScreen.tsx:244`, `:251`, `:258`, `:429`, `:481`, sans `__DEV__`. | `if (__DEV__)`, ou les retirer. |
 | I17 | Cash-flow, Épargne, Article, Portefeuille de repli | **Corrigé (lot 1).** Ces écrans plantent sur une réponse inattendue. **Reproduit** : Cash-flow avec une réponse vide (« Cannot read properties of undefined (reading 'depenses') »). | [cashflow-plantage](audit-captures/cashflow-plantage.jpg) | Ancien design, sans garde. | Couvert par B3, puis par la refonte de ces écrans. |
-| I18 | Outils (onglet) | Ancien design : emoji en guise d'icônes, « › » en texte, aucun rôle de bouton, « Cash-flow » en anglais, « Portefeuille » alors que l'écran s'appelle « Mon patrimoine ». | [ancien-design](audit-captures/ancien-design-outils-epargne-articles.jpg) | Pas encore refait. | Refaire avec `ListRow` et des icônes Ionicons ; « Mon patrimoine », « Budget du mois ». |
+| I18 | Outils (onglet) | **Corrigé en partie (Mon budget, 18 octobre).** Onglet refait : deux cartes « Mon budget » et « Mon patrimoine » (liseré, icône Ionicons, rôle de bouton, ligne vivante « Tu peux encore dépenser… », régularité). Reste l'en-tête hérité (N5). Ancien design : emoji en guise d'icônes, « › » en texte, aucun rôle de bouton, « Cash-flow » en anglais, « Portefeuille » alors que l'écran s'appelle « Mon patrimoine ». | [ancien-design](audit-captures/ancien-design-outils-epargne-articles.jpg) | Pas encore refait. | Refaire avec `ListRow` et des icônes Ionicons ; « Mon patrimoine », « Budget du mois ». |
 | I19 | Articles (onglet) et Article | Ancien design :<br>- flèche de retour sur la racine d'un onglet ;<br>- couverture sans cache ;<br>- titres sans rôle ;<br>- liens sans rôle « lien » ;<br>- quiz sans état (résultat donné par la seule couleur). | [ancien-design](audit-captures/ancien-design-outils-epargne-articles.jpg) | Pas encore refait. | Refonte (`PageState`, `expo-image`, `IconButton`, rôles). |
 | I20 | Article | **Corrigé (lot 1).** Chargement, introuvable, erreur avec « Réessayer ». Si la requête échoue, la page n'affiche qu'un message brut en rouge (« Failed to fetch »), sans chargement ni « Réessayer ». | [article-vide](audit-captures/article-vide-sans-erreur.jpg) | Pas de `PageState` (`ArticleDetailScreen.tsx:102`). | `PageState` pour le chargement et l'erreur. |
-| I21 | Cash-flow, Épargne | **Épargne retirée (décision 10)** ; reste Cash-flow, à refaire dans un prochain chantier. Ancien design complet :<br>- formulaires sans libellés ;<br>- suppression immédiate par « ✕ », sans confirmation ;<br>- emoji ;<br>- `toLocaleString` ;<br>- cibles de 32 px. | [ancien-design](audit-captures/ancien-design-outils-epargne-articles.jpg) | Pas encore refaits. | Refonte, ou les retirer de la première version. |
+| I21 | Cash-flow, Épargne | **Corrigé (Mon budget, 18 octobre).** L'ancien Cash-flow est supprimé et remplacé par Mon budget, au nouveau design ; ses données sont reprises à la mise en route. **Épargne retirée (décision 10)**. Ancien design complet :<br>- formulaires sans libellés ;<br>- suppression immédiate par « ✕ », sans confirmation ;<br>- emoji ;<br>- `toLocaleString` ;<br>- cibles de 32 px. | [ancien-design](audit-captures/ancien-design-outils-epargne-articles.jpg) | Pas encore refaits. | Refonte, ou les retirer de la première version. |
 | I22 | Patrimoine, carnet, profil, réglages, article | **Corrigé (lots 1 et 4).** Remarque de Val et carnet lisent les données sans recharger ; l’article utilise le dictionnaire partagé. `useLearningData` relance 3 requêtes à chaque passage, juste pour la remarque de Val. L'article recharge tout le dictionnaire à chaque ouverture. | — | `ValRemark.tsx:17`, `NotebookScreen.tsx:29`, `ArticleDetailScreen.tsx:47`. | Lire le store sans recharger, et utiliser `useDictionary()`. |
 | I23 | Bundle et dépôt | **Corrigé (lot 4).** Favicon à 10 Ko, images et dépendance retirées. `favicon.png` pèse 2,97 Mo (6 336 × 2 688). `val.png` (2 Mo) et `b.png` ne servent nulle part. `react-native-render-html` est installée sans être utilisée. | — | Restes du gabarit et des essais. | Favicon à 192 px ; supprimer les images et la dépendance inutiles. |
 | I24 | `ApiContext` | 31 méthodes jamais appelées, un contexte typé `any`, et toute l'app qui se re-rend à chaque changement de profil. | — | Fichier de 784 lignes, protégé par règle. | Le découper et le typer (décision à prendre, puisque ce fichier est protégé). |
@@ -313,7 +383,7 @@ Les captures sont dans [docs/audit-captures/](audit-captures/). Les fichiers son
 | I33 | Leçon découverte Salaire | **Corrigé (chantier 2).** Lignes alignées sur la fiche de paie (net payé après impôt). **Nouveau.** La décomposition se contredit :<br>- « 1 660 € net » est un net **après** impôt dans la fiche de paie dont la leçon vient, mais les lignes 470 / 2 130 / 925 le traitent comme un net avant impôt ;<br>- le coût employeur ignore les allègements près du SMIC ;<br>- « Personne ne te montre ce chiffre » est faux : la fiche de paie affiche obligatoirement le total versé par l'employeur. | [revelation-sans-unite](audit-captures/revelation-sans-unite.jpg) | `decouvrir.ts:12`, `:33`, `:41-46`. | Aligner les lignes sur la fiche de paie de référence, et écrire « Ce chiffre est en bas de ta fiche de paie, on le regarde rarement ». |
 | I34 | Dictionnaire | **Corrigé en partie (chantier 2, en production)** : USDC, Berkshire et actions de préférence, réplication synthétique, notation de la Grèce. Restent les titres et protocoles précis (CW8, Aave). **Nouveau.** Hors chiffres faux (I25), des définitions donnent des conseils déguisés ou des informations fausses :<br>- titres et protocoles précis (CW8, Aave), « opportunité d'achat » ;<br>- « l'USDC vaut toujours 1 $ » ;<br>- faute « t'appauris ». | — | Contenu du site, généré puis importé par seeder. | Phrases de remplacement dans l'annexe contenu (section 3 B). Corriger aussi le seeder. |
 | I35 | Lecteur (tout écran inconnu) | **Corrigé (lot 4).** Texte de Val ; le JSON reste en développement. **Nouveau.** Un écran d'un type non géré, ou mal formé, affiche « Type d'écran pas encore géré » et le **JSON brut** du contenu. | — | `FallbackScreen.tsx:21-24` (`JSON.stringify(screen.payload, null, 2)`). | « Cet écran arrive bientôt dans l'app. Tu peux passer à la suite. », avec le JSON seulement sous `__DEV__`. |
-| I36 | Profil, carnet, patrimoine | **Décidé** : contenu d'apprentissage gardé entre deux lancements (modules, univers, série, XP, Vals, mots ; jamais un montant) ; synchronisation ajoutée au lot serveur (section 10). **Nouveau.** Une partie de la progression ne vit que sur le téléphone : carnet, journal de la semaine, étapes du patrimoine, précision, mots, et **objectifs du patrimoine**. Sur un nouveau téléphone (ou après une réinstallation), tout est perdu, et les écrans contredisent le serveur. Constaté avec le compte 15 sur un appareil neuf :<br>- « Série 1 j » à côté de « Ta première leçon de la semaine t'attend » ;<br>- carnet vide après 4 leçons terminées ;<br>- « étapes 0 sur 5 » dans le Profil, alors que le Patrimoine fête « deux nouvelles étapes » juste après. | [profil-incoherences](audit-captures/profil-incoherences.jpg) | AsyncStorage seul (`weekJournal`, `notebook`, `patrimoinePrefs`, `accuracy`…). Les étapes ne sont calculées qu'à l'ouverture du Patrimoine. | Court terme : calculer les étapes depuis les données du patrimoine, et dériver la semaine de l'historique du serveur. À terme : synchroniser ces données avec le compte (lot API). |
+| I36 | Profil, carnet, patrimoine | **Toujours ouvert au 18 octobre** : routes de synchronisation à faire (lot serveur, section 10), et le budget ajoute ses propres données gardées sur le téléphone (N3). **Décidé** : contenu d'apprentissage gardé entre deux lancements (modules, univers, série, XP, Vals, mots ; jamais un montant) ; synchronisation ajoutée au lot serveur (section 10). **Nouveau.** Une partie de la progression ne vit que sur le téléphone : carnet, journal de la semaine, étapes du patrimoine, précision, mots, et **objectifs du patrimoine**. Sur un nouveau téléphone (ou après une réinstallation), tout est perdu, et les écrans contredisent le serveur. Constaté avec le compte 15 sur un appareil neuf :<br>- « Série 1 j » à côté de « Ta première leçon de la semaine t'attend » ;<br>- carnet vide après 4 leçons terminées ;<br>- « étapes 0 sur 5 » dans le Profil, alors que le Patrimoine fête « deux nouvelles étapes » juste après. | [profil-incoherences](audit-captures/profil-incoherences.jpg) | AsyncStorage seul (`weekJournal`, `notebook`, `patrimoinePrefs`, `accuracy`…). Les étapes ne sont calculées qu'à l'ouverture du Patrimoine. | Court terme : calculer les étapes depuis les données du patrimoine, et dériver la semaine de l'historique du serveur. À terme : synchroniser ces données avec le compte (lot API). |
 | I37 | Icône iOS (`app.json:7`) | **Corrigé (lot 4).** `ios.icon` opaque, fond `#0D0D0F`, logo à 80 % (à valider visuellement). **Nouveau.** L'icône est transparente à 77 %, et Expo l'aplatit sur **du blanc** pour iOS : le logo apparaîtra sur un carré blanc sur l'écran d'accueil, dans TestFlight et sur l'App Store. | — | `withIosIcons` (`removeTransparency`, fond `#ffffff`). Android a son fond sombre. | Fournir `ios.icon` : 1024 × 1024, opaque, fond `#0D0D0F` (variantes `dark` et `tinted` en option). |
 | I38 | Filet contre les plantages d'animation | **Corrigé (lot 3).** Contrôle par l’arbre syntaxique, cas d’essai T1 à T9, zéro faux signalement. **Nouveau.** Le test des styles animés, ajouté après le plantage du 16 octobre, ne verrait qu'environ un cas sur quatre. Il ignore :<br>- les méthodes (`theme.withOpacity(...)`) ;<br>- les rappels de gestes et de `withTiming` ;<br>- `useAnimatedReaction` ;<br>- l'intérieur des fonctions `'worklet'`. | — | `tests/worklets.test.ts` lit le texte, et seulement trois hooks. | Passer par l'AST de TypeScript, et couvrir les 9 angles morts listés dans l'annexe iPhone (T1 à T9). |
 | I39 | Article | **Corrigé (lot 1).** Une seule instance de l’expression. **Nouveau.** L'expression régulière qui repère les mots du dictionnaire (tous les termes, `\p{L}` et lookbehind) est recompilée pour chaque paragraphe. Le moteur de Hermes est interprété : l'article peut mettre plusieurs centaines de millisecondes à s'afficher sur iPhone, alors que rien ne se voit sur le web. À mesurer. | — | `BlockRenderer.tsx:23-27` et `:46`. | Réutiliser une seule instance, ou chercher mot par mot dans un `Set` comme `dictionary.ts:425-436`. |
@@ -339,9 +409,9 @@ Les captures sont dans [docs/audit-captures/](audit-captures/). Les fichiers son
 | G15 | Grand texte | Aucun texte ne peut atteindre 200 % (plafonds de 1,2 à 1,6). L'explication du vrai ou faux est coupée à 3 lignes. | — | `Style.ts:401-448`, `TrueFalseScreen.tsx:378`. | Plafond de 2 pour le texte courant ; retirer `numberOfLines`. |
 | G16 | Cibles tactiles | Moins de 44 px : appareil photo du profil (30 px), crayon du profil (36 px), « ? » d'aide (40 px), puces du dictionnaire (36 px), onglets de niveau (38 px), boutons `sm` (36 px). | — | Tailles des composants. | `hitSlop`. |
 | G17 | Contrastes (thème sombre) | Sous le seuil de lisibilité :<br>- `textFaint` (2,13) pour des textes informatifs ;<br>- l'accent de Val (`goldDeep`) à 3,57 sur la bulle ;<br>- la bulle « Commencer » du module ivoire à 2,49 ;<br>- les icônes ivoire sur les ronds de module, de 1,4 à 2,8. | — | Palette. | `subtitle` pour le texte, accents plus sombres. |
-| G18 | VoiceOver | Libellé d'un champ lu deux fois, et erreur non rattachée au champ ; écrans muets pendant le chargement ; chemin du module lu avant le bouton retour ; croix « Fermer » lue avant le titre de la feuille ; puces de période et de catégorie sans état (anciens écrans). | — | `TextField.tsx`, `Skeleton.tsx`, `ModuleScreen.tsx`, `BottomSheet.tsx`, `HistoryChart.tsx`, `AddEntryForm.tsx`. | Corrections ponctuelles (annexe contenu, sections 1 A.6 et 1 C). |
+| G18 | VoiceOver | **Corrigé en partie (Mon budget)** : les puces de catégorie de l'ancien Cash-flow (`AddEntryForm`) sont parties avec lui. Libellé d'un champ lu deux fois, et erreur non rattachée au champ ; écrans muets pendant le chargement ; chemin du module lu avant le bouton retour ; croix « Fermer » lue avant le titre de la feuille ; puces de période et de catégorie sans état (anciens écrans). | — | `TextField.tsx`, `Skeleton.tsx`, `ModuleScreen.tsx`, `BottomSheet.tsx`, `HistoryChart.tsx`, `AddEntryForm.tsx`. | Corrections ponctuelles (annexe contenu, sections 1 A.6 et 1 C). |
 | G19 | Défilements | **Corrigé (lot 4).** Trois défilements animés ignorent la réduction des animations. | — | `ApprendreDetailScreen.tsx:606` et `:778`, `DictionaryHomeScreen.tsx:111`. | `animated: !reduced`. |
-| G20 | Vocabulaire du patrimoine | **Corrigé en partie (décision 10)** : un seul système d'objectifs, ceux du patrimoine (Épargne retirée, objectifs repris). « Portefeuille » dans Outils, mais « Mon patrimoine » à l'arrivée ; deux systèmes d'objectifs (Épargne et patrimoine) ; « Revenus passifs » ou « Intérêts sur 1 an » ; « Plus-value » pour un montant qui peut être négatif (« Plus-value réalisée » sur une vente à perte) ; « YTD ». | — | Libellés d'époques différentes. | « Mon patrimoine » partout, un seul système d'objectifs, « Intérêts estimés », « Plus ou moins-value », « Année ». |
+| G20 | Vocabulaire du patrimoine | **Corrigé en partie (décision 10, puis Mon budget)** : un seul système d'objectifs, ceux du patrimoine (Épargne retirée, objectifs repris) ; l'onglet Outils dit « Mon patrimoine » depuis le 18 octobre. Restent « Revenus passifs », « Plus-value » négative et « YTD ». « Portefeuille » dans Outils, mais « Mon patrimoine » à l'arrivée ; deux systèmes d'objectifs (Épargne et patrimoine) ; « Revenus passifs » ou « Intérêts sur 1 an » ; « Plus-value » pour un montant qui peut être négatif (« Plus-value réalisée » sur une vente à perte) ; « YTD ». | — | Libellés d'époques différentes. | « Mon patrimoine » partout, un seul système d'objectifs, « Intérêts estimés », « Plus ou moins-value », « Année ». |
 | G21 | Remarques de Val (patrimoine) | Un bien à plus de 30 % déclenche « tout dépend de lui » et « Revoir « Diversifier » ». **Vérifié** sur l'Analyse du compte 15 : la remarque vise un ETF Nasdaq-100 (65 %), lui-même composé de 100 entreprises, et renvoie à une leçon d'un univers fermé. Même cas pour la résidence principale. | [actif-variation](audit-captures/actif-variation-avant-achat.jpg) | `valTips.ts:63-72`, `:23-28`. | Exclure l'immobilier et nuancer pour les fonds (« un ETF répartit déjà, mais sur un seul marché »). Ne citer qu'une leçon publiée. |
 | G22 | Recherche d'actif | Le texte d'exemple nomme des produits (« ex. Solana, CW8, LVMH »), et il est coupé sur iPhone SE. Le formulaire de l'ancien Portefeuille cite « AAPL, BTC, Apple Inc. ». | [actif-variation](audit-captures/actif-variation-avant-achat.jpg) | `AssetSearchScreen.tsx:127`, `AddPositionForm`. | « Nom, symbole ou ISIN ». |
 | G23 | Ancien Portefeuille (repli) | **Corrigé (lot 1).** Écran supprimé. Pourcentages avec un point (« +3.45% ») ; en-tête « ‹ » ; emoji de type ; suppression par « ✕ » sans confirmation. | — | Ancien design, servi sur erreur (I28). | Le supprimer (I28). |
@@ -352,7 +422,7 @@ Les captures sont dans [docs/audit-captures/](audit-captures/). Les fichiers son
 | G28 | Notifications (textes) | Pression sur la série dans trois textes (`reminder.ts:32`, `:34`, `:36`, dont « Ta série compte sur toi ») ; « une minute » qui ne correspond pas aux durées affichées ; « tu le gardes pour toujours ». | — | `utils/reminder.ts:32-48`. | Formulations de l'annexe contenu. |
 | G29 | Code | **Corrigé (lot 1).** `ArticleDetailScreen` est ignoré par le compilateur React, à cause d'un `useMemo` manuel. | — | `ArticleDetailScreen.tsx:53`. | Retirer le `useMemo` (avec la refonte). |
 | G30 | Code | **Corrigé en partie (lots 1 et 2)** : doublons de l’ancien Portefeuille et des constantes d’espace supprimés. Trois `formatMoney` locaux aux règles différentes, deux modules de format, deux types `Position`, deux courbes de portefeuille, deux boutons retour, deux mémoires des mots, `NBSP` redéclaré dans 9 fichiers. | — | Ancien et nouveau design qui cohabitent. | Garder `utils/format.ts`, `utils/patrimoine` et les composants communs ; supprimer les doublons avec les refontes. |
-| G31 | Code | `Style.ts` fait 1 840 lignes, dont environ 1 300 pour l'ancien design. `getBasiquesStyles`, `getBoutonStyles` et `getInputStyles` sont morts. | — | Héritage. | Déplacer l'ancien design dans `legacy.ts`, puis le supprimer au fil des refontes. |
+| G31 | Code | **Corrigé en partie (Mon budget)** : `getCashflowStyles` et le squelette de l'ancien Cash-flow supprimés. `Style.ts` fait 1 840 lignes, dont environ 1 300 pour l'ancien design. `getBasiquesStyles`, `getBoutonStyles` et `getInputStyles` sont morts. | — | Héritage. | Déplacer l'ancien design dans `legacy.ts`, puis le supprimer au fil des refontes. |
 | G32 | Code | Fichiers de plus de 500 lignes : `ApprendreDetailScreen` (858), `ModuleScreen` (607), `TrueFalseScreen` (582), `OrderScreen` (574), `DiscoveryEndScreen` (542), `ValBubble` (538), `PatrimoineScreen` (528), `ChestReveal` (512), `OperationScreen` (511). | — | Croissance par ajouts. | Extraire `useLessonSession` et l'écran de fin en priorité. |
 | G33 | Configuration | `AGENTS.md` renvoie à la documentation d'Expo v54, alors que le projet est en SDK 57. | — | Fichier non mis à jour. | Pointer vers la v57. |
 | G34 | Configuration | 13 paquets `expo-*` ont un correctif de retard (expo 57.0.19, attendu 57.0.30). | — | Pas de mise à jour depuis la création. | `npx expo install --fix`, puis tests. |
@@ -596,15 +666,15 @@ En option : `moins_values_report_duree` (10 ans), `participation_seuil_salaries`
 
 | Écran | Route | Signes de l'ancien design | Proposition pour la sortie |
 |---|---|---|---|
-| Outils (onglet) | `app/(tabs)/outils.tsx` → `OutilsScreen` | En-tête hérité, emoji, « › » en texte, styles en ligne, pas de rôles | Refaire (liste de deux outils) |
-| Cash-flow | `app/outils/cashflow.tsx` → `CashflowScreen` + `components/outils/cashflow/*` | `getCashflowStyles`, « ‹ », emoji 🔁 📅, « ✕ », `toLocaleString`, formulaires sans libellés (plus de plantage depuis le chantier 1) | Gardé tel quel, refait dans un prochain chantier (décision 10) |
+| Outils (onglet) | `app/(tabs)/outils.tsx` → `OutilsScreen` | **Refait le 18 octobre** (cartes Mon budget et Mon patrimoine) ; reste l'en-tête hérité (N5) | Retirer l'en-tête hérité |
+| ~~Cash-flow~~ | ~~`app/outils/cashflow.tsx` → `CashflowScreen`~~ | **Supprimé le 18 octobre** : remplacé par Mon budget (`/outils/budget`, son cash-flow et son bilan) | — |
 | ~~Épargne~~ | ~~`app/outils/epargne.tsx` → `EpargneScreen`~~ | **Retiré (décision 10)** : objectifs repris dans ceux du patrimoine | — |
 | Articles (onglet) | `app/(tabs)/article.tsx` → `ArticleScreen` | Retour sur une racine d'onglet, `Image` sans cache, favori inaccessible, pas de `PageState`, pas de pagination | Refaire |
 | Article | `app/articles/[slug].tsx` → `ArticleDetailScreen` + `BlockRenderer` | En-tête hérité, erreur brute, quiz sans état, liens sans rôle, `Text` natif | Refaire |
 | Écran de secours du lecteur | `FallbackScreen` | Message de développeur et JSON brut | Message de Val et « Passer » |
 | En-tête hérité | `components/topbar/header.tsx`, `Back.tsx` | Pastilles « Se connecter / S'inscrire », chevron sans libellé | Supprimer avec les écrans ci-dessus |
 
-Sont à jour : première ouverture, Apprendre (accueil, univers, module, chemin), lecteur et bilan, coffre, révision, Dictionnaire (liste, fiche, test), Profil, Réglages, carnet, connexion, inscription et patrimoine (Mon patrimoine, Un actif, Noter une opération, Recherche, Analyse, Objectif).
+Sont à jour : première ouverture, Apprendre (accueil, univers, module, chemin), lecteur et bilan, coffre, révision, Dictionnaire (liste, fiche, test), Profil, Réglages, carnet, connexion, inscription, patrimoine (Mon patrimoine, Un actif, Noter une opération, Recherche, Analyse, Objectif), Mon budget (mise en route, cash-flow, vue paysage, bilan du mois) et les cartes de l'onglet Outils.
 
 ## Avant une sortie sur l'App Store
 
@@ -632,7 +702,7 @@ Sont à jour : première ouverture, Apprendre (accueil, univers, module, chemin)
 **Fortement conseillé**
 - Chiffres réglementaires partout (section dédiée). Fait : espaces insécables (B6).
 - Fait : mot de passe oublié (I12, réception à confirmer), messages d'erreur lisibles (I9), pagination des articles (I30).
-- Refaire ou retirer les écrans à l'ancien design (Outils, Cash-flow, Articles). Fait : Épargne retirée (décision 10).
+- Refaire ou retirer les écrans à l'ancien design : reste Articles et Article, avec l'en-tête hérité. Fait : Épargne retirée (décision 10), Cash-flow remplacé par Mon budget et onglet Outils refait (18 octobre).
 - Progression synchronisée, ou au moins cohérente avec le serveur (I36).
 - VoiceOver : annonces et favoris des articles (I13, I14).
 - Essai complet sur un iPhone réel, en version de production (EAS build, pas Expo Go) :
@@ -641,7 +711,8 @@ Sont à jour : première ouverture, Apprendre (accueil, univers, module, chemin)
   - réseau coupé ;
   - clavier numérique (G44) ;
   - temps d'affichage d'un article (I39) ;
-  - écran document de la leçon n° 101.
+  - écran document de la leçon n° 101 ;
+  - Mon budget (N4).
 
 ## Déjà corrigé avant cet audit
 
@@ -655,3 +726,55 @@ Ces corrections ont été faites pendant le travail sur le patrimoine, la nuit d
 | Bitcoin sans courbe sur 1J, 1S, 1M | Points par heure, Binance en secours, aucun échec gardé en cache |
 | Devises incohérentes | Tout en euros, l'original à côté, points d'achat au prix converti |
 | ETF nommé dans « Souvent suivis » | Remplacé par les placements sans cours |
+
+## Ce qui reste, par priorité (18 octobre 2026)
+
+Pour chaque point, ce qu'il faut pour le régler : **décision** (de ta part), **app** (travail dans l'app), **site** (lot du site, avec PR, staging puis production).
+
+### Priorité 1 : avant toute sortie sur l'App Store
+
+| Point | Ce qu'il faut |
+|---|---|
+| B1 Pages légales publiques (`/cgu`, `/politique-confidentialite`, `/mentions-legales` redirigent vers `/acces`) | **Décision** : ouvrir ces trois pages malgré le gel du web. Puis **site**. |
+| B4 Identifiant définitif de l'app (aujourd'hui `com.gala0022.Valtheraa`, irréversible après la première soumission) | **Décision** : le choisir (par exemple `fr.valtheria.app`). Puis **app** (`app.json`, `eas.json`). |
+| B2 Un seul module publié pour 15 univers annoncés | **Décision** : publier d'autres modules, ou n'annoncer que ce qui est ouvert. Puis **site** (contenu) ou **app** (textes de bienvenue). |
+| Essai complet sur iPhone, en build EAS : sons, vibrations, notifications, VoiceOver, grand texte, réseau coupé, clavier numérique (G44), suppression du compte et export (G46), Mon budget (N4) | **App**, avec ton iPhone (build de développement). |
+| Fiche App Store : étiquettes de confidentialité, catégorie, âge, captures, texte « pas de conseil en investissement » ; compte de démonstration avec un patrimoine rempli | **Décision** (contenu de la fiche), puis préparation. |
+| G34 Paquets Expo en retard d'un correctif | **App** : `npx expo install --fix`, puis tests. |
+
+### Priorité 2 : important
+
+| Point | Ce qu'il faut |
+|---|---|
+| I36, N3 Progression et budget gardés sur le téléphone seulement : perdus sur un nouveau téléphone, écrans qui contredisent le serveur | **Site** (routes de la section 10 du lot serveur), puis **app** (lecture, fusion, écriture). |
+| I13 VoiceOver n'annonce ni les verdicts ni les erreurs ; le vrai ou faux avance seul en 1,5 s | **App**. |
+| I19, I14, I18 (reste), N5 Articles et Article à l'ancien design (favoris inaccessibles, quiz sans état), en-tête hérité aussi sur Outils | **App** (refonte des deux écrans, suppression de l'en-tête hérité). |
+| I25 (reste) PEL estimé au taux de l'année plutôt qu'à celui de son ouverture ; défis du jour qui gardent la valeur du jour | **Site**. |
+| I34 (reste) Définitions qui citent des produits précis (CW8, Aave) | **Site** (contenu). |
+| N1 Le « ? » du Cash-flow ouvre une fiche sur la trésorerie d'entreprise | **Décision** : nouvelle fiche ou définition élargie. Puis **site**. |
+| I10 Leçon Impôts : un don « déduit » au lieu d'une réduction d'impôt | **App** (texte). |
+| I11 « Tu peux le couper dans ton profil » : le réglage est dans les Réglages, absent sans compte | **App** (texte, et rappel dans les réglages sans compte). |
+| I24 ApiContext : 31 méthodes mortes, typé `any`, re-rendus de toute l'app | **Décision** (fichier protégé), puis **app**. |
+| Fonctions qui attendent le site (lot serveur) : changer de mot de passe depuis l'app, inscription depuis l'app (fermée, 403), dates d'activité par module (4.6) | **Décision** pour l'inscription, puis **site** et **app**. |
+
+### Priorité 3 : gênant
+
+| Groupe | Points | Ce qu'il faut |
+|---|---|---|
+| Textes des leçons découvertes et du lecteur | G2, G4, G7, G24, G25, G26, G27, G28, G50 | **App** (phrases de l'annexe contenu). |
+| Contenu du site | G49 (leçon n° 100), N2 (fiches du budget), G51 (226 brouillons marqués publiés, note interne de `pea`), G37 (marche de 214 € dans la courbe) | **Site**. |
+| Accessibilité | G15 (grand texte), G16 (cibles < 44 px), G17 (contrastes), G18 (reste) | **App**. |
+| Cohérence | G1 (Val se présente trois fois, prénom et pseudo), G5, G6, G20 (reste), G43 | **Décision** pour G1 (garder un seul nom ?), puis **app**. |
+| Patrimoine | G21 (remarque sur un ETF), G22, G38, G41 (variation sur 1 an avant l'achat) | **App**. |
+| iPhone SE | G40 (contenu sous le bouton fixe) | **App**. |
+| Performances | G13, G14, G47 | **App**, à mesurer sur iPhone. |
+| Code et configuration | G30, G31, G32, G33, G35 | **App**. |
+| Fonctions qui attendent le site | Gel de série et record pour les comptes, photo de profil, objectifs crypto et impôts, bonus des bonnes réponses d'affilée (4.9), connexion Apple et Google (`docs/lot-serveur.md`) | **Site**, puis **app** ; **décision** pour Apple et Google. |
+
+### Priorité 4 : cosmétique
+
+| Points | Ce qu'il faut |
+|---|---|
+| C1, C3 à C9, C11, C14 à C19, C21 à C27 | **App**. |
+| C2 (apostrophes et guillemets droits du contenu), C20 (« ~2%/an ») | **Site** pour le contenu ; **app** pour ses propres textes (C2). |
+
