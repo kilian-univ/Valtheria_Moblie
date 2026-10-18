@@ -27,6 +27,7 @@ import ValRemark from '@/src/components/patrimoine/ValRemark';
 import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { effectiveEmergency, useBudgetLink } from '@/src/hooks/useBudgetLink';
 import { usePatrimoineProgress } from '@/src/hooks/usePatrimoineProgress';
 import { loadPatrimoine, usePatrimoineState } from '@/src/state/patrimoineData';
 import { updatePatrimoinePrefs, usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
@@ -144,7 +145,9 @@ export default function PatrimoineScreen() {
   const chartLoading = series?.range !== range;
 
   // Régularité, objectifs atteints et étapes gagnées (fêtés une seule fois)
-  const progress = usePatrimoineProgress(userKey, prefs, data.fetchedAt);
+  const link = useBudgetLink();
+  const emergencyPrefs = prefs ? effectiveEmergency(prefs.emergency, link.expenses) : null;
+  const progress = usePatrimoineProgress(userKey, prefs, data.fetchedAt, link.savingMonths);
   // Tout ce qui est gagné en même temps : une seule célébration, complétée si
   // elle est encore ouverte
   const [celebration, setCelebration] = useState<CelebrationItems | null>(null);
@@ -152,7 +155,7 @@ export default function PatrimoineScreen() {
   useEffect(() => {
     if (!portfolio || !prefs || !progress.ready) return;
     const reached = newlyReached(prefs.goals, portfolio.positions);
-    const emergency = emergencyGauge(prefs.emergency, portfolio.positions);
+    const emergency = emergencyGauge(emergencyPrefs ?? prefs.emergency, portfolio.positions);
     const at = new Date().toISOString();
     const { earned, fresh } = earn(
       prefs.milestones,
@@ -169,7 +172,7 @@ export default function PatrimoineScreen() {
       setCelebration((current) => mergeCelebration(current, { goals: reached.map((g) => g.name), milestones: fresh }));
       setCelebrationOpen(true);
     });
-  }, [portfolio, prefs, progress.ready, progress.best, userKey]);
+  }, [portfolio, prefs, emergencyPrefs, progress.ready, progress.best, userKey]);
 
   const celebrationCopy = celebration ? celebrationText(celebration) : null;
 
@@ -208,7 +211,7 @@ export default function PatrimoineScreen() {
     );
   }
   const shares = byType(positions);
-  const tip = chooseValTip({ positions, now: new Date(now), monthlyExpenses: prefs?.emergency.monthlyExpenses ?? null });
+  const tip = chooseValTip({ positions, now: new Date(now), monthlyExpenses: emergencyPrefs?.monthlyExpenses ?? null });
   const regularity = streakLabel(progress.streak);
   const v = variation(points);
   const values = modeSeries(points, mode);
@@ -408,7 +411,7 @@ export default function PatrimoineScreen() {
           </View>
         </View>
 
-        {prefs ? <GoalsSection positions={positions} prefs={prefs} hidden={hidden} /> : null}
+        {prefs ? <GoalsSection positions={positions} prefs={prefs} emergency={emergencyPrefs ?? prefs.emergency} hidden={hidden} /> : null}
 
         {portfolio.closed.length > 0 ? (
           <View style={styles.section}>

@@ -728,3 +728,10 @@ Tant que la mise en route n'est pas faite, `GET /api/budget` renvoie les récurr
 
 ### 11.4 Fiches du Dictionnaire
 Existent : « Taux d'épargne », « Reste à vivre », « Charges fixes », « Cash flow » (sans trait d'union). **Manquent** : « Budget », « Enveloppe », « Règle 50/30/20 ».
+
+### 11.5 Côté app seulement (lots 3 et 4, 18/10/2026)
+Aucune nouvelle route : le cash-flow, le bilan du mois, les mois dans le vert, les étapes et le lien avec le patrimoine se calculent sur le téléphone à partir de `GET /api/budget`.
+- Dépenses courantes du mode Essentiel : déduites de deux soldes successifs (solde + rentrées − charges fixes − épargne − solde suivant), réparties jour par jour sur les mois (`src/utils/budget/flows.ts`).
+- Bilan proposé une fois, mémoire du téléphone (`valtheria:budget:<compte>`) ; la réponse va dans `cashflow_reviews`.
+- Étapes du budget gardées sur le téléphone, comme celles du patrimoine.
+- L'ancien écran Cash-flow de l'app est supprimé ; ses routes serveur restent (le site s'en sert).

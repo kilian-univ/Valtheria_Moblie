@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import AppText from '@/src/components/common/AppText';
 import BigNumber from '@/src/components/common/BigNumber';
 import Button from '@/src/components/common/Button';
+import HelpTerm from '@/src/components/patrimoine/HelpTerm';
 import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { Spendable } from '@/src/utils/budget/calc';
@@ -71,6 +72,10 @@ export default function SpendableCard({ s, today, savingPlanned, onUpdate }: { s
             </View>
           ))}
         </View>
+        {/* Hors du bloc lu d'un trait : le « ? » reste touchable au lecteur d'écran */}
+        <View style={styles.help}>
+          <HelpTerm term="Reste à vivre" />
+        </View>
         <Button
           label={`Mettre à jour mon solde · ${agoLabel(s.balanceAge)}`}
           variant="goldOutline"
@@ -84,6 +89,7 @@ export default function SpendableCard({ s, today, savingPlanned, onUpdate }: { s
 }
 
 const styles = StyleSheet.create({
+  help: { position: 'absolute', top: space[4], right: space[4] },
   edge: { position: 'absolute', left: 0, right: 0, top: EDGE, bottom: -EDGE, borderRadius: 24, borderCurve: 'continuous' },
   card: { borderRadius: 24, borderCurve: 'continuous', borderWidth: 1, padding: 18 },
   left: { textAlign: 'left' },

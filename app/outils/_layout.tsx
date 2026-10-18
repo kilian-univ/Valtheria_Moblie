@@ -10,7 +10,6 @@ export default function OutilsLayout() {
       <Stack.Screen name="recherche" />
       <Stack.Screen name="objectif" />
       <Stack.Screen name="analyse" />
-      <Stack.Screen name="cashflow" />
       <Stack.Screen name="budget/index" />
       <Stack.Screen name="budget/mise-en-route" />
       <Stack.Screen name="budget/cashflow" />

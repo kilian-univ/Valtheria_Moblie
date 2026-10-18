@@ -102,20 +102,6 @@ export function PortfolioSkeleton() {
   );
 }
 
-// Cash-flow : mois, reste à vivre, trois totaux, onglets, entrées
-export function CashflowSkeleton() {
-  return (
-    <SkeletonGroup style={styles.page}>
-      <Skeleton width={120} height={14} />
-      <Skeleton width="100%" height={96} shape="block" />
-      <StatRow height={56} />
-      <Skeleton width="100%" height={40} shape="pill" />
-      <Skeleton width="100%" height={size.buttonHeight} shape="button" />
-      <Rows count={4} />
-    </SkeletonGroup>
-  );
-}
-
 const styles = StyleSheet.create({
   page: {
     paddingHorizontal: space[5],

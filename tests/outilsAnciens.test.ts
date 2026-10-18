@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { normalizeCashflow } from '@/src/utils/cashflow';
 import { goalGauge, newlyReached } from '@/src/utils/patrimoine/goals';
 import { earn } from '@/src/utils/patrimoine/milestones';
 import type { Position } from '@/src/utils/patrimoine/model';
@@ -12,21 +11,14 @@ import { importSavingsGoals, readSavingsGoals } from '@/src/utils/patrimoine/sav
 
 const root = new URL('../', import.meta.url);
 
-// Le 17/10, Cash-flow plantait sur { } (« reading 'depenses' ») : toute réponse
-// donne désormais des listes et des totaux
-test('Cash-flow : une réponse vide ou partielle ne laisse aucun champ manquant', () => {
-  for (const raw of [{}, null, 'Server Error', { entries: null, by_category: {} }, { totals: { reste: '12' } }]) {
-    const d = normalizeCashflow(raw);
-    assert.deepEqual(d.by_category.depenses, []);
-    assert.deepEqual(d.entries.depenses, []);
-    assert.equal(typeof d.totals.reste, 'number');
+// L'ancien Cash-flow est remplacé par Mon budget (18/10/2026) : ses données
+// sont reprises à la mise en route (tests/budget.test.ts, fromLegacy)
+test('Ancien Cash-flow retiré : plus d’écran, de route ni de composants', () => {
+  for (const f of ['app/outils/cashflow.tsx', 'src/screens/CashflowScreen.tsx', 'src/utils/cashflow.ts', 'src/components/outils/cashflow']) {
+    assert.ok(!existsSync(new URL(f, root)), f);
   }
-  assert.equal(normalizeCashflow({ totals: { reste: '12' } }).totals.reste, 12);
-});
-
-test('Cash-flow : les entrées sans identifiant sont écartées', () => {
-  const d = normalizeCashflow({ entries: { depenses: [{ id: 1, label: 'Loyer' }, { label: 'sans id' }, null] } });
-  assert.equal(d.entries.depenses.length, 1);
+  assert.ok(!/name="cashflow"/.test(readFileSync(new URL('app/outils/_layout.tsx', root), 'utf8')));
+  assert.ok(!readFileSync(new URL('src/screens/OutilsScreen.tsx', root), 'utf8').includes("'/outils/cashflow'"));
 });
 
 test('Épargne retirée : plus d’écran, de route ni de place dans Outils', () => {

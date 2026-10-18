@@ -10,10 +10,11 @@ import { bestStreak, currentStreak, depositMonths } from '@/src/utils/patrimoine
 // Pages d'achats relues au plus (100 par page)
 const MAX_PAGES = 5;
 
-// Régularité : mois avec un achat (relus chez le serveur) ou un dépôt sur un
-// livret (gardés sur le téléphone). Les mois sont retenus dans les
-// préférences, pour le profil.
-export function usePatrimoineProgress(user: UserKey, prefs: PatrimoinePrefs | null, refreshKey: number | null) {
+// Régularité : mois avec un achat (relus chez le serveur), un dépôt sur un
+// livret (gardés sur le téléphone) ou de l'épargne mise de côté dans le
+// budget (`budgetMonths`). Les mois sont retenus dans les préférences, pour
+// le profil.
+export function usePatrimoineProgress(user: UserKey, prefs: PatrimoinePrefs | null, refreshKey: number | null, budgetMonths: readonly string[] = []) {
   const { get } = useApi();
   const [buys, setBuys] = useState<{ key: number | null; dates: string[] } | null>(null);
 
@@ -42,8 +43,8 @@ export function usePatrimoineProgress(user: UserKey, prefs: PatrimoinePrefs | nu
   const deposits = prefs?.livretDeposits;
   const months = useMemo(() => {
     if (!buys) return null;
-    return depositMonths([...buys.dates.map((at) => ({ at, side: 'buy' as const })), ...(deposits ?? []).map((d) => ({ at: d.at }))]);
-  }, [buys, deposits]);
+    return [...new Set([...depositMonths([...buys.dates.map((at) => ({ at, side: 'buy' as const })), ...(deposits ?? []).map((d) => ({ at: d.at }))]), ...budgetMonths])].sort();
+  }, [buys, deposits, budgetMonths]);
 
   // Mois retenus pour le profil (sans écraser une mémoire plus riche par un échec)
   const stored = prefs?.months;

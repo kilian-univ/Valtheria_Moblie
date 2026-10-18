@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import AppText from '@/src/components/common/AppText';
 import { fonts, palette, radius, space, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useBudgetLink } from '@/src/hooks/useBudgetLink';
 import { usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
 import type { UserKey } from '@/src/state/userMemory';
 import { tap } from '@/src/utils/haptics';
@@ -21,9 +22,11 @@ export default function PatrimoineStepsCard({ user }: { user: UserKey }) {
   const colors = palette[colorScheme];
   const prefs = usePatrimoinePrefs(user);
   const [now] = useState(() => new Date());
+  // L'épargne mise de côté dans le budget compte aussi pour la régularité
+  const budgetMonths = useBudgetLink().savingMonths;
   if (!prefs) return null;
 
-  const streak = currentStreak(prefs.months, now);
+  const streak = currentStreak([...prefs.months, ...budgetMonths], now);
   const label = streakLabel(streak);
   const earned = MILESTONES.filter((m) => prefs.milestones[m.key]);
 

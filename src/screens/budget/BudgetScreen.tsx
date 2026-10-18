@@ -21,7 +21,7 @@ import PageState from '@/src/components/common/PageState';
 import HelpTerm from '@/src/components/patrimoine/HelpTerm';
 import Segmented from '@/src/components/patrimoine/Segmented';
 import ValRemark from '@/src/components/patrimoine/ValRemark';
-import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
+import { fonts, palette, radius, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { loadBudget } from '@/src/state/budgetData';
@@ -30,10 +30,11 @@ import { cycleCharges, monthly, spendable, split, splitPercents } from '@/src/ut
 import { categoryLabel, COMMON_CATEGORIES, pillChoices } from '@/src/utils/budget/categories';
 import { localToday, monthKey, monthName } from '@/src/utils/budget/dates';
 import { parseKey, shiftKey } from '@/src/utils/budget/flows';
-import { envelopeNotice, envelopes } from '@/src/utils/budget/envelopes';
+import { envelopeNotice, envelopeOverTwice, envelopes } from '@/src/utils/budget/envelopes';
 import type { Budget, BudgetMode, Entry } from '@/src/utils/budget/model';
 import { monthCurve } from '@/src/utils/budget/projection';
-import { monthReview, reviewToPropose } from '@/src/utils/budget/review';
+import { currentGreenRun, greenRunLabel } from '@/src/utils/budget/milestones';
+import { greenMonths, monthReview, reviewToPropose } from '@/src/utils/budget/review';
 import { chooseBudgetTip } from '@/src/utils/budget/tips';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
@@ -95,7 +96,11 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
     income: monthly(budget.recurring, 'revenu'),
     subscriptions: budget.recurring.filter((r) => r.type === 'depense' && r.category === 'Abonnements').reduce((t, r) => t + r.amount, 0),
     saving: monthly(budget.recurring, 'epargne'),
+    greenMonths: greenMonths(budget, today, mode).map((g) => g.green),
+    envelopeOverTwice: detailed ? envelopeOverTwice(budget.categories, budget.entries, [shiftKey(month, -2), shiftKey(month, -1)]) : null,
   });
+  // Mois dans le vert d'affilée (calculés aussi en mode Essentiel, avec les soldes)
+  const greenRun = greenRunLabel(currentGreenRun({ ...budget, settings: { ...budget.settings, mode } }, today));
 
   // Bilan du mois dernier : proposé une fois, à la première ouverture du mois
   const lastMonth = shiftKey(month, -1);
@@ -258,6 +263,12 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
           Mon budget
         </AppText>
         <Segmented fill options={MODES} value={mode} onChange={changeMode} />
+        {greenRun ? (
+          <View style={[styles.green, { backgroundColor: withOpacity(colors.success, 0.15) }]} accessible accessibilityLabel={greenRun}>
+            <Ionicons name="leaf-outline" size={13} color={colors.success} />
+            <AppText style={[styles.greenText, { color: colors.success }]}>{greenRun}</AppText>
+          </View>
+        ) : null}
         {stale ? <PageState variant="offline" text={staleDataText(staleKind, 'Tes derniers chiffres connus')} /> : null}
 
         {s ? (
@@ -468,5 +479,7 @@ const styles = StyleSheet.create({
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   link: { fontFamily: fonts.bodySemibold, fontSize: 14 },
   inline: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  green: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 28, paddingHorizontal: 10, borderRadius: radius.pill },
+  greenText: { fontFamily: fonts.bodyBold, fontSize: 13 },
   notice: { position: 'absolute', left: space[5], right: space[5], padding: space[4], borderRadius: radius.card, borderWidth: 1 },
 });

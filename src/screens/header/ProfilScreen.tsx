@@ -24,6 +24,7 @@ import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { useProfile } from '@/src/hooks/useProfile';
+import BudgetStepsCard from '@/src/components/profile/BudgetStepsCard';
 import PatrimoineStepsCard from '@/src/components/profile/PatrimoineStepsCard';
 import MedalsCard from '@/src/components/profile/MedalsCard';
 import { useAccuracy } from '@/src/state/accuracy';
@@ -231,6 +232,7 @@ export default function ProfileScreen() {
             }}
           />
           <PatrimoineStepsCard user={p.userKey} />
+          <BudgetStepsCard user={p.userKey} />
           <AccessTile
             icon={
               <IconSquare background={withOpacity(colors.chart3, 0.18)}>

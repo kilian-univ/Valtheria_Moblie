@@ -15,6 +15,7 @@ import ValRemark from '@/src/components/patrimoine/ValRemark';
 import { fonts, palette, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { effectiveEmergency, useBudgetLink } from '@/src/hooks/useBudgetLink';
 import { usePatrimoineView } from '@/src/hooks/usePatrimoineView';
 import PatrimoineStateScreen from '@/src/components/patrimoine/PatrimoineStateScreen';
 import { usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
@@ -53,7 +54,8 @@ export default function AnalyseScreen() {
   const list = roundedShares(shares);
   const tints = shareColors(colors);
   const profile = riskProfile(positions);
-  const tip = chooseValTip({ positions, now, monthlyExpenses: prefs?.emergency.monthlyExpenses ?? null });
+  const link = useBudgetLink();
+  const tip = chooseValTip({ positions, now, monthlyExpenses: prefs ? effectiveEmergency(prefs.emergency, link.expenses).monthlyExpenses : null });
   const income = positions.filter((p) => p.interestEur !== null && p.interestEur > 0);
 
   // Anneau : un arc par part

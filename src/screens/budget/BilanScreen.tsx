@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { flowColors } from '@/src/components/budget/FlowDiagram';
+import CelebrationSheet, { type Celebration } from '@/src/components/patrimoine/CelebrationSheet';
 import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
 import PageState from '@/src/components/common/PageState';
@@ -12,10 +13,11 @@ import { fonts, palette, radius, space, titleLetterSpacing, withOpacity } from '
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { loadBudget } from '@/src/state/budgetData';
-import { updateBudgetPrefs } from '@/src/state/budgetPrefs';
+import { updateBudgetPrefs, useBudgetPrefs } from '@/src/state/budgetPrefs';
 import { localToday, monthName } from '@/src/utils/budget/dates';
 import { parseKey } from '@/src/utils/budget/flows';
 import { euros, signedEuros } from '@/src/utils/budget/format';
+import { BUDGET_MILESTONES, earnBudget, type BudgetEarned } from '@/src/utils/budget/milestones';
 import type { Budget } from '@/src/utils/budget/model';
 import { monthReview, REVIEW_ANSWERS, type ReviewAnswer } from '@/src/utils/budget/review';
 import { feedback } from '@/src/utils/feedback';
@@ -44,6 +46,27 @@ export default function BilanScreen({ budget, userKey, month }: Props) {
   useEffect(() => {
     updateBudgetPrefs(userKey, (p) => (p.reviewsShown.includes(month) ? p : { ...p, reviewsShown: [...p.reviewsShown, month].slice(-24) }));
   }, [userKey, month]);
+
+  // Un mois dans le vert : le son doux de la série
+  const green = review?.green ?? false;
+  useEffect(() => {
+    if (green) feedback.streakUp();
+  }, [green]);
+
+  // Étapes gagnées depuis le dernier bilan : fêtées ici, une seule fois
+  const prefs = useBudgetPrefs(userKey);
+  const [celebration, setCelebration] = useState<Celebration | null>(null);
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
+  useEffect(() => {
+    if (!prefs) return;
+    const { earned, fresh } = earnBudget(prefs.milestones as BudgetEarned, budget, today, new Date().toISOString());
+    if (fresh.length === 0) return;
+    updateBudgetPrefs(userKey, (p) => ({ ...p, milestones: { ...earned, ...p.milestones } })).then(() => {
+      const titles = BUDGET_MILESTONES.filter((m) => fresh.includes(m.key)).map((m) => m.title);
+      setCelebration({ title: fresh.length > 1 ? 'De nouvelles étapes !' : 'Nouvelle étape !', lines: titles });
+      setCelebrationOpen(true);
+    });
+  }, [prefs, budget, today, userKey]);
 
   const choose = async (key: ReviewAnswer) => {
     feedback.pick();
@@ -179,6 +202,9 @@ export default function BilanScreen({ budget, userKey, month }: Props) {
           </>
         )}
       </ScrollView>
+      {celebration ? (
+        <CelebrationSheet open={celebrationOpen} celebration={celebration} onClose={() => setCelebrationOpen(false)} onClosed={() => setCelebration(null)} />
+      ) : null}
     </View>
   );
 }

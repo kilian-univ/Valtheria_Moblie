@@ -8,20 +8,21 @@ import { fonts, palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { tap } from '@/src/utils/haptics';
 import { longDate, money } from '@/src/utils/patrimoine/format';
-import { emergencyGauge, goalGauge, linkedPositions, measuredOnText, monthsCovered } from '@/src/utils/patrimoine/goals';
+import { emergencyGauge, goalGauge, linkedPositions, measuredOnText, monthsCovered, type Emergency } from '@/src/utils/patrimoine/goals';
 import type { Position } from '@/src/utils/patrimoine/model';
 import type { PatrimoinePrefs } from '@/src/utils/patrimoine/prefs';
 import HelpTerm from './HelpTerm';
 
-type Props = { positions: Position[]; prefs: PatrimoinePrefs; hidden: boolean };
+// emergency : l'épargne de précaution, avec les dépenses du budget s'il y en a
+type Props = { positions: Position[]; prefs: PatrimoinePrefs; emergency: Emergency; hidden: boolean };
 
 // Tes objectifs : l'épargne de précaution (proposée d'emblée), puis les
 // objectifs personnels, chacun avec sa jauge mesurée sur ses placements
-export default function GoalsSection({ positions, prefs, hidden }: Props) {
+export default function GoalsSection({ positions, prefs, emergency: e, hidden }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
-  const emergency = emergencyGauge(prefs.emergency, positions);
-  const covered = monthsCovered(prefs.emergency, positions);
+  const emergency = emergencyGauge(e, positions);
+  const covered = monthsCovered(e, positions);
   const m = (v: number) => money(v, { hidden });
 
   const open = (params: Record<string, string>) => {

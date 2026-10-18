@@ -14,9 +14,11 @@ import Segmented from '@/src/components/patrimoine/Segmented';
 import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useBudgetLink } from '@/src/hooks/useBudgetLink';
 import { usePatrimoine } from '@/src/state/patrimoineData';
 import { updatePatrimoinePrefs, usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
 import { userKeyOf } from '@/src/state/userMemory';
+import { euros } from '@/src/utils/budget/format';
 import { feedback } from '@/src/utils/feedback';
 import { tap } from '@/src/utils/haptics';
 import { money } from '@/src/utils/patrimoine/format';
@@ -44,6 +46,8 @@ export default function ObjectifScreen() {
   const hidden = prefs?.discreet ?? false;
   const goal = id ? prefs?.goals.find((g) => g.id === id) ?? null : null;
   const precaution = kind === 'precaution';
+  // Dépenses d'un mois lues dans le budget : plus rien à taper
+  const fromBudget = useBudgetLink().expenses;
 
   const [edits, setEdits] = useState<{ expenses?: string; months?: string; name?: string; amount?: string; date?: Day | null; positionIds?: number[] }>({});
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +69,12 @@ export default function ObjectifScreen() {
   const close = () => router.back();
 
   const save = () => {
+    if (precaution && fromBudget) {
+      updatePatrimoinePrefs(userKey, (p) => ({ ...p, emergency: { ...p.emergency, months: Number(months) } }));
+      feedback.right(0.6);
+      close();
+      return;
+    }
     if (precaution) {
       const value = parseDecimal(expenses);
       if (!(value > 0)) {
@@ -121,17 +131,29 @@ export default function ObjectifScreen() {
               <AppText variant="callout" tone="subtitle">
                 Un coussin pour les imprévus : de 3 à 6 mois de dépenses, gardés sur des placements sans risque (livrets).
               </AppText>
-              <TextField
-                label="Tes dépenses par mois (€)"
-                value={expenses}
-                onChangeText={(t) => {
-                  setError(null);
-                  setEdits((e) => ({ ...e, expenses: t }));
-                }}
-                keyboardType="decimal-pad"
-                placeholder="Loyer, courses, factures…"
-                error={error}
-              />
+              {fromBudget ? (
+                <View style={[styles.fromBudget, { backgroundColor: colors.panel }]} accessible accessibilityLabel={`D’après ton budget : ${euros(fromBudget.total)} de dépenses par mois.`}>
+                  <AppText variant="caption" tone="subtitle">
+                    D’après ton budget
+                  </AppText>
+                  <AppText style={styles.fromBudgetValue}>{`${euros(fromBudget.total)} par mois`}</AppText>
+                  <AppText variant="caption" tone="subtitle">
+                    {`Tes charges fixes (${euros(fromBudget.charges)}) et tes dépenses courantes en moyenne (${euros(fromBudget.average)}, sur ${fromBudget.months} mois). Ça se met à jour tout seul.`}
+                  </AppText>
+                </View>
+              ) : (
+                <TextField
+                  label="Tes dépenses par mois (€)"
+                  value={expenses}
+                  onChangeText={(t) => {
+                    setError(null);
+                    setEdits((e) => ({ ...e, expenses: t }));
+                  }}
+                  keyboardType="decimal-pad"
+                  placeholder="Loyer, courses, factures…"
+                  error={error}
+                />
+              )}
               <AppText variant="caption" tone="subtitle">
                 Combien de mois veux-tu couvrir ?
               </AppText>
@@ -230,6 +252,8 @@ export default function ObjectifScreen() {
 }
 
 const styles = StyleSheet.create({
+  fromBudget: { padding: space[3], borderRadius: 14, gap: 2 },
+  fromBudgetValue: { fontFamily: fonts.bodyBold, fontSize: 17 },
   screen: { flex: 1 },
   flex: { flex: 1 },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space[3], minHeight: 52 },
