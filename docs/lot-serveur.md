@@ -260,7 +260,7 @@ Pour chaque point :
 - `public/storage` est en place ;
 - les 40 logos des cryptos sont servis par le site ;
 - la file d'attente et la tâche planifiée tournent (logos chaque mois, instantanés toutes les 4 h).
-- Sauvegarde vérifiée juste avant : `/var/backups/valtheria/pre-deploy/db-avant-lot-portefeuille-20261016-222338.sql.gz`, restaurée à l'identique dans une base temporaire, supprimée ensuite.
+- Base sauvegardée juste avant, sauvegarde vérifiée (restaurée à l'identique dans une base temporaire, supprimée ensuite).
 - L'app bascule sur le nouveau suivi de patrimoine (8.5) : `GET /api/portfolio` répond au nouveau format.
 
 ### 8.1 Ce qui est fait
@@ -700,7 +700,7 @@ Une partie de la progression ne vit que sur le téléphone (AsyncStorage, par co
 
 ## 11. Budget de l'app : « Mon budget » (18 octobre 2026)
 
-> **État** : fait et en production (pull request n° 12 du site, fusion fc4b708 ; base sauvegardée avant, `db-20261018-022500.sql.gz`). Le serveur garde les données, l'app calcule tout.
+> **État** : fait et en production (pull request n° 12 du site, fusion fc4b708 ; base sauvegardée avant). Le serveur garde les données, l'app calcule tout.
 
 Principe : tout est manuel, donc rien ne doit être une corvée. On saisit une fois les charges fixes, puis un seul chiffre à tenir à jour (le solde du compte). Aucune série quotidienne, aucune pénalité pour un oubli.
 

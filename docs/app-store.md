@@ -1,6 +1,6 @@
 # Préparation de l'App Store
 
-État au 19 octobre 2026 : app `design/ui` et `main`, site et production en `f611d3c` (vérifié par `scripts/check-revision.sh prod`). Ce document reprend la priorité 1 de `docs/audit-complet.md`.
+État au 19 octobre 2026 : app `design/ui` et `main`, site et production en `f611d3c`. Ce document reprend la priorité 1 de `docs/audit-complet.md`.
 
 ## 0. Lot du 19 octobre ([PR n° 16](https://github.com/Valtheraa/Valtheria/pull/16), en production)
 
@@ -14,20 +14,17 @@
   - Dans l'app, « Supprimer mon compte » ouvre une feuille qui le demande.
   - Essayé sur le staging : mot de passe faux refusé (« Mot de passe incorrect. »), puis compte supprimé, jetons révoqués, retour à l'accueil.
 - **Page publique « Aide et contact »** : `https://valtheria.fr/aide`, reliée depuis les Réglages. C'est l'URL d'assistance de l'App Store.
-- **Copies prises avant chaque déploiement** : gardées 30 jours. Après vérification de la sauvegarde hors serveur de la nuit, le déploiement du 19/10 a supprimé les 15 copies plus anciennes ; il en reste 93, toutes de moins de 30 jours.
+- **Copies prises avant chaque déploiement** : gardées 30 jours (durée à reporter dans la politique de confidentialité).
 
 ### Données collectées depuis l'app (étiquettes de confidentialité d'Apple)
 
-- **Dans l'app, aucun outil de collecte** : ni Sentry, ni outil de mesure, ni Firebase, ni mise à jour à distance.
+- **Dans l'app, aucun outil de collecte** : ni suivi des erreurs, ni outil de mesure, ni mise à jour à distance.
   - `track()` n'écrit que dans la console, en développement.
   - L'app ne parle qu'à l'API de valtheria.fr et n'ouvre que ses pages.
   - Les rappels sont locaux, sans jeton de notification.
-- **Côté serveur seulement**, Sentry (région UE) reçoit les erreurs du serveur, y compris celles provoquées par une requête de l'app :
-  - sans suivi des performances (`traces_sample_rate` nul) ;
-  - sans données personnelles (`send_default_pii` à faux) ;
-  - sans les valeurs des requêtes SQL.
+- **Côté serveur seulement**, un outil de suivi des erreurs reçoit les erreurs du serveur, y compris celles provoquées par une requête de l'app, sans donnée personnelle ni suivi des performances.
 - **Pour Apple** : déclarer les données que l'app envoie au serveur pour fonctionner. Ce sont l'e-mail, l'identifiant du compte, la progression, et les données financières saisies (patrimoine, budget). Elles sont liées au compte, servent au fonctionnement de l'app et ne servent pas au pistage.
-- **À trancher** : déclarer ou non « Diagnostics » pour les erreurs du serveur remontées à Sentry. Elles sont sans donnée personnelle, mais naissent de requêtes de l'app.
+- **À trancher** : déclarer ou non « Diagnostics » pour les erreurs du serveur remontées à son outil de suivi. Elles sont sans donnée personnelle, mais naissent de requêtes de l'app.
 
 ## 1. Pages légales (B1)
 
@@ -60,20 +57,18 @@ Relu le 18/10/2026, sans rien réécrire, face à ce que font l'app et le serveu
 6. **Rappels** : des notifications locales, programmées sur le téléphone, sans rien envoyer à un serveur (pas de jeton de notification). Non mentionnées.
 7. **Capteur de mouvement** : l'inclinaison sert à la vue paysage du cash-flow ; rien n'est enregistré ni envoyé. Non mentionné.
 8. **Chat de Val** : décrit comme une partie du service, alors que l'app ne l'a pas. Depuis l'app, rien n'est envoyé à Anthropic. À préciser.
-9. **Sous-traitants manquants** :
-   - **Sentry** : suivi des erreurs du serveur, région UE (`de.sentry.io`), données personnelles non envoyées par défaut (`send_default_pii` à faux) ;
-   - **Backblaze B2** : sauvegardes quotidiennes de la base, hors serveur, gardées 30 jours. Le lieu de stockage et la base du transfert sont à vérifier.
-10. **Suppression du compte** : le texte ne dit pas ce qui se passe vraiment. Le compte est désactivé tout de suite, puis supprimé définitivement après 30 jours (`accounts:purge`, tous les jours) ; on peut le réactiver avant par e-mail.
-11. **Copies de sauvegarde** : celles prises avant chaque déploiement sont gardées **30 jours** depuis le 19/10 (elles l'étaient sans limite). La durée reste à écrire.
+9. **Sous-traitants manquants** : l'outil de suivi des erreurs du serveur et le service de sauvegarde à distance de la base ne sont pas cités (noms, régions d'hébergement et durées : à prendre dans la configuration du site, hors de ce dépôt).
+10. **Suppression du compte** : le texte ne dit pas ce qui se passe vraiment. Le compte est désactivé tout de suite, puis supprimé définitivement après 30 jours (tâche quotidienne du serveur) ; on peut le réactiver avant par e-mail.
+11. **Copies de sauvegarde** prises avant chaque déploiement : gardées **30 jours**. La durée reste à écrire.
 12. **Durées réelles**, à reporter :
     - journaux de l'application : 14 jours ;
     - session web : 120 minutes ;
-    - sauvegardes quotidiennes : 30 jours à distance, 7 jours sur le serveur.
+    - sauvegardes quotidiennes : 30 jours.
 13. **Droits** : le texte ne propose que l'e-mail. Or l'app permet l'export (fichier JSON, depuis les Réglages) et la suppression du compte (depuis les Réglages, avec le mot de passe).
 14. **Mineurs** : le texte annonce une « déclaration sur l'honneur » de l'âge à l'inscription. L'app n'en demande aucune.
 15. **Date** : « juin 2026 », antérieure au budget et à l'app.
 16. Le texte vouvoie, alors que l'app et les CGU tutoient.
-17. **Exacts** : hébergement chez Hetzner, à Nuremberg (Allemagne) ; mots de passe hachés ; aucun cookie de mesure ; polices auto-hébergées ; logos des placements servis par le site lui-même.
+17. **Exacts** : hébergeur et lieu d'hébergement (ceux des mentions légales) ; mots de passe hachés ; aucun cookie de mesure ; polices auto-hébergées ; logos des placements servis par le site lui-même.
 
 **Conditions d'utilisation**
 1. Elles ne visent que le service « accessible à l'adresse valtheria.fr », pas l'app.
@@ -85,7 +80,7 @@ Relu le 18/10/2026, sans rien réécrire, face à ce que font l'app et le serveu
 **Mentions légales**
 1. Elles ne visent que « le site Valtheria (valtheria.fr) », pas l'app.
 2. Paragraphe RGPD : il ne cite que « compte, progression, échanges avec l'assistant », sans le patrimoine ni le budget.
-3. **Exacts** : éditeur, SIREN, hébergeur (Hetzner, adresse et téléphone), avertissement « contenu éducatif ».
+3. **Exacts** : éditeur, SIREN, hébergeur (nom, adresse et téléphone), avertissement « contenu éducatif ».
 
 ## 2. Identifiant définitif (B4)
 
@@ -156,13 +151,7 @@ Vérifications :
 
 ### Le créer en production
 
-1. Sur le serveur (Tailscale), crée le compte. Le mot de passe s'affiche **une seule fois** : note-le dans ton gestionnaire de mots de passe.
-   ```
-   ssh root@100.102.80.48
-   cd /var/www/valtheria
-   php artisan review:compte-demo creer --email=revue-apple@valtheria.fr
-   ```
-   L'adresse n'a pas besoin d'être une vraie boîte : aucun e-mail n'est envoyé.
+1. Sur le serveur du site, la commande `php artisan review:compte-demo creer --email=revue-apple@valtheria.fr` crée le compte (commande du dépôt du site ; l'accès au serveur n'est pas décrit ici). Le mot de passe s'affiche **une seule fois** : note-le dans ton gestionnaire de mots de passe. L'adresse n'a pas besoin d'être une vraie boîte : aucun e-mail n'est envoyé.
 2. Depuis la racine de l'app, remplis-le **une seule fois** (une deuxième fois doublerait les opérations) :
    ```
    node --no-warnings --import ./tests/register.mjs scripts/compte-demo.ts https://valtheria.fr/api revue-apple@valtheria.fr '<mot de passe>'
