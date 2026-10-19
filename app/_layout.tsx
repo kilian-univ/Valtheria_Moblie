@@ -7,8 +7,9 @@ import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
 import { Inter_600SemiBold_Italic } from '@expo-google-fonts/inter/600SemiBold_Italic';
 import { ApiProvider } from '@/src/context/ApiContext';
+import { initMonitoring, navigationIntegration, wrapRoot } from '@/src/monitoring';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useNavigationContainerRef } from 'expo-router';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -34,6 +35,10 @@ import { configureSoundSession } from '@/src/utils/sound';
 import { loadRegulatoryFigures } from '@/src/state/regulatoryFigures';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+// Suivi des plantages (Sentry) : installé avant tout rendu, actif seulement
+// dans la version publiée, sans donnée personnelle (src/monitoring.ts)
+initMonitoring();
+
 // Démarrage : le splash natif (fond + logo, voir app.json) reste jusqu'à ce
 // que l'app soit prête (polices + session lue sur le téléphone), puis se
 // masque en fondu ; l'accueil est déjà là dessous, avec son squelette.
@@ -58,6 +63,11 @@ function RootLayoutContent() {
   });
   // Logo et Val de la bienvenue préchargés pendant le splash (0,8 s au plus)
   const imagesReady = usePreloadedImages(STARTUP_IMAGES);
+  // Les écrans parcourus avant un plantage (noms de routes, rien d'autre)
+  const navigationRef = useNavigationContainerRef();
+  useEffect(() => {
+    if (navigationRef?.current) navigationIntegration.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
   // En cas d'erreur de chargement, on affiche l'app en police système plutôt que de bloquer
   const fontsReady = (fontsLoaded || !!fontError) && imagesReady;
 
@@ -118,7 +128,7 @@ export const unstable_settings = {
 // Filet global : le layout lui-même (fournisseurs, navigation) a planté
 export const ErrorBoundary = RootErrorBoundary;
 
-export default function RootLayout() {
+function RootLayout() {
   // Session audio d'iOS configurée une seule fois, au démarrage
   useEffect(() => {
     configureSoundSession();
@@ -134,3 +144,6 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+// Enveloppe du suivi des plantages : capte les erreurs non rattrapées
+export default wrapRoot(RootLayout);

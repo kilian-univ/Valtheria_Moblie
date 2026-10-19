@@ -6,6 +6,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { palette, space } from '@/src/constants/style/Style';
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext';
+import { captureError } from '@/src/monitoring';
 import { logError } from '@/src/state/errorLog';
 import AppText from './AppText';
 import Button from './Button';
@@ -19,7 +20,9 @@ const HOME = '/apprendre';
 type Props = ErrorBoundaryProps & { where: string };
 
 // Écran de secours quand l'affichage plante : Val, un message clair,
-// « Réessayer » et « Retour à l'accueil ». L'erreur part dans le journal.
+// « Réessayer » et « Retour à l'accueil ». L'erreur part dans le journal du
+// téléphone et, dans la version publiée, au suivi des plantages (sans donnée
+// personnelle).
 // Fond opaque : une page poussée est transparente, et le fond commun vient
 // d'OpaqueScreen, à l'intérieur de la page qui vient de planter.
 function ErrorContent({ error, retry, where }: Props) {
@@ -30,6 +33,7 @@ function ErrorContent({ error, retry, where }: Props) {
 
   useEffect(() => {
     logError(where, error);
+    captureError(where, error);
   }, [error, where]);
 
   const goHome = () => {
