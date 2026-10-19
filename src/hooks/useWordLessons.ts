@@ -3,15 +3,15 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Module, useApi } from '@/src/context/ApiContext';
 import { learningStore } from '@/src/state/learningStore';
 import { lessonTextsLoaded, saveLessonText, staleLessons, useLessonTexts, wordIndexFor } from '@/src/state/lessonTexts';
+import { wordLessonsCache } from '@/src/state/wordLessonsCache';
 import type { DictionaryEntry } from '@/src/utils/dictionary';
 import type { WordIndex } from '@/src/utils/wordLessonIndex';
 
 // Leçons relues par passage, au plus (les autres au passage suivant)
 const FETCH_PER_PASS = 20;
-// Liste des modules demandée une fois par ouverture de l'app (Dictionnaire
-// ouvert sans être passé par Apprendre)
-let modulesOnce: Promise<Module[]> | null = null;
-let fetching = false;
+// La liste des modules demandée une fois (Dictionnaire ouvert sans être
+// passé par Apprendre) et le lot de textes en cours vivent dans
+// state/wordLessonsCache, remis à zéro à la déconnexion
 
 export type WordLessons = {
   index: WordIndex;
@@ -27,16 +27,19 @@ export function useWordLessons(entries: readonly DictionaryEntry[]): WordLessons
   const store = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
   const texts = useLessonTexts();
   const [fallback, setFallback] = useState<Module[] | null>(null);
-  const modules = store.modules.length > 0 ? store.modules : fallback;
+  // Déconnecté : plus de leçons connues, même si la liste de repli est encore là
+  const modules = !isAuthenticated ? null : store.modules.length > 0 ? store.modules : fallback;
 
   useEffect(() => {
     if (!isAuthenticated || store.modules.length > 0 || fallback) return;
-    modulesOnce = modulesOnce ?? (getModules() as Promise<Module[]>).catch(() => {
-      modulesOnce = null;
-      return [];
-    });
+    wordLessonsCache.modules =
+      wordLessonsCache.modules ??
+      (getModules() as Promise<Module[]>).catch(() => {
+        wordLessonsCache.modules = null;
+        return [];
+      });
     let active = true;
-    modulesOnce.then((list) => {
+    wordLessonsCache.modules.then((list) => {
       if (active && Array.isArray(list)) setFallback(list);
     });
     return () => {
@@ -52,10 +55,10 @@ export function useWordLessons(entries: readonly DictionaryEntry[]): WordLessons
 
   // Textes manquants ou trop vieux : relus par petits lots
   useEffect(() => {
-    if (!isAuthenticated || lessons.size === 0 || !texts.loaded || fetching) return;
+    if (!isAuthenticated || lessons.size === 0 || !texts.loaded || wordLessonsCache.fetching) return;
     const missing = staleLessons([...lessons.keys()]).slice(0, FETCH_PER_PASS);
     if (missing.length === 0) return;
-    fetching = true;
+    wordLessonsCache.fetching = true;
     (async () => {
       await lessonTextsLoaded();
       for (const id of missing) {
@@ -66,7 +69,7 @@ export function useWordLessons(entries: readonly DictionaryEntry[]): WordLessons
         }
       }
     })().finally(() => {
-      fetching = false;
+      wordLessonsCache.fetching = false;
     });
   }, [isAuthenticated, lessons, texts.loaded, getLesson]);
 

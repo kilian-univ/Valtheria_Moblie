@@ -146,17 +146,16 @@ export default function SettingsScreen() {
   const handleLogout = async () => {
     // Identifiant gardé avant : logout efface le profil
     const userId = user?.id;
-    // Avant logout() : il déconnecte même si la requête échoue
-    await clearLastProfile();
     try {
       await logout();
     } catch {
       // Hors ligne ou jeton expiré : la session est effacée sur le téléphone
       // quand même (logout la retire dans tous les cas)
     }
-    // Déconnexion : plus rien de la personne sur le téléphone (décision du
-    // 17 octobre 2026), comme à la suppression du compte
-    if (userId != null) await purgeAccountData(userId);
+    // Déconnexion, même hors ligne : plus rien de la personne sur le téléphone
+    // (décision du 17 octobre 2026), sauf le dernier profil (identifiant,
+    // pseudo). La suppression du compte, elle, efface tout.
+    if (userId != null) await purgeAccountData(userId, { keepLastProfile: true });
     router.dismissTo('/apprendre');
   };
 
