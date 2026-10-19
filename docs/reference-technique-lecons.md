@@ -1280,7 +1280,7 @@ Le format de l'app fait foi. Chaque modification est reprise dans `docs/lot-serv
 
 ### 5.0 Ce que change le lot serveur n° 9 (17 octobre 2026)
 
-État : pull request n° 11 du site fusionnée (d7bdb11), CI verte, vérifiée sur le staging puis **déployée en production le 17 octobre 2026** (sauvegarde de la base `db-20261017-225037.sql.gz`).
+État : pull request n° 11 du site fusionnée (d7bdb11), CI verte, vérifiée sur le staging puis **déployée en production le 17 octobre 2026** (base sauvegardée avant).
 
 | Écart | Ce que fait désormais le site |
 |---|---|

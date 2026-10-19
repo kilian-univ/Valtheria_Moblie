@@ -1,0 +1,41 @@
+# Vérifications de l'app à chaque push et sur chaque pull request :
+# tests Node, types TypeScript, ESLint. Les trois doivent passer avant toute fusion.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Tests, types et lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Installer les dépendances (package-lock.json)
+        run: npm ci
+
+      - name: Tests (npm test)
+        run: npm test
+
+      - name: Types (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Lint (ESLint, aucun avertissement toléré)
+        run: npx eslint . --max-warnings=0
