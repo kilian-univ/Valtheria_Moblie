@@ -30,12 +30,6 @@ export function toEur(amount: number, currency: string, rates: Rates): number | 
   return rate === undefined ? null : amount * rate;
 }
 
-// Euros, sinon le montant d'origine (taux inconnu)
-export function eurOr(amount: number, currency: string, rates: Rates): { value: number; currency: string } {
-  const eur = toEur(amount, currency, rates);
-  return eur === null ? { value: amount, currency } : { value: eur, currency: 'EUR' };
-}
-
 type MoneyOpts = { hidden?: boolean; exact?: boolean };
 
 // « 72,45 € » ; « 81,46 $, soit 72,45 € » quand l'origine est dans une autre

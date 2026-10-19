@@ -18,13 +18,13 @@
 
 ### Données collectées depuis l'app (étiquettes de confidentialité d'Apple)
 
-- **Dans l'app, aucun outil de collecte** : ni suivi des erreurs, ni outil de mesure, ni mise à jour à distance.
+- **Dans l'app, un seul outil de collecte : le suivi des plantages** (Sentry, lot 1 du 19/10). Actif seulement dans la version publiée (jamais en développement ni dans Expo Go), et seulement si l'adresse d'envoi a été donnée à la construction. Sans donnée personnelle : pas d'e-mail, pas d'identifiant de compte, pas de montant, pas de nom d'appareil, pas de capture d'écran, pas de mesure d'audience ni de performance ; chaque rapport est nettoyé avant envoi (`src/utils/monitoring.ts`, testé). L'écran de secours lui envoie l'erreur qui l'a provoqué ; les plantages non rattrapés partent aussi.
   - `track()` n'écrit que dans la console, en développement.
-  - L'app ne parle qu'à l'API de valtheria.fr et n'ouvre que ses pages.
+  - L'app ne parle qu'à l'API de valtheria.fr, à Sentry (plantages, région UE) et aux serveurs d'Expo (mises à jour à distance, voir partie 7), et n'ouvre que ses pages.
   - Les rappels sont locaux, sans jeton de notification.
-- **Côté serveur seulement**, un outil de suivi des erreurs reçoit les erreurs du serveur, y compris celles provoquées par une requête de l'app, sans donnée personnelle ni suivi des performances.
+- **Côté serveur**, le même outil reçoit les erreurs du serveur, y compris celles provoquées par une requête de l'app, sans donnée personnelle ni suivi des performances.
 - **Pour Apple** : déclarer les données que l'app envoie au serveur pour fonctionner. Ce sont l'e-mail, l'identifiant du compte, la progression, et les données financières saisies (patrimoine, budget). Elles sont liées au compte, servent au fonctionnement de l'app et ne servent pas au pistage.
-- **À trancher** : déclarer ou non « Diagnostics » pour les erreurs du serveur remontées à son outil de suivi. Elles sont sans donnée personnelle, mais naissent de requêtes de l'app.
+- **Tranché (lot 1)** : déclarer **« Diagnostics » → « Données de plantage »** (Crash Data), **non liées à l'identité de l'utilisateur**, **pas de pistage**, usage « Fonctionnement de l'app ». Rien d'autre dans Diagnostics (ni performance, ni autres diagnostics). La politique de confidentialité le dit (pull request du site du 19/10, « Diagnostics de l'application mobile », sous-traitant Sentry).
 
 ## 1. Pages légales (B1)
 
@@ -53,11 +53,11 @@ Relu le 18/10/2026, sans rien réécrire, face à ce que font l'app et le serveu
 4. **Patrimoine** : il est décrit comme un « simulateur » de positions. Manquent :
    - les opérations d'achat et de vente datées ;
    - l'historique de la valeur (relevés).
-5. **Données gardées sur le téléphone**, non mentionnées : le jeton de connexion (trousseau), le prénom de la première ouverture, le carnet de déclics, le journal de la semaine, les objectifs et étapes du patrimoine, les préférences du budget, la mémoire du Dictionnaire. Tout est effacé à la déconnexion et à la suppression du compte.
+5. **Données gardées sur le téléphone**, non mentionnées : le jeton de connexion (trousseau), le prénom de la première ouverture, le carnet de déclics, le journal de la semaine, les objectifs et étapes du patrimoine, les préférences du budget, la mémoire du Dictionnaire. Tout est effacé à la déconnexion (même hors ligne) et à la suppression du compte ; seul le dernier profil (identifiant et pseudo) reste après une déconnexion (lot 1).
 6. **Rappels** : des notifications locales, programmées sur le téléphone, sans rien envoyer à un serveur (pas de jeton de notification). Non mentionnées.
 7. **Capteur de mouvement** : l'inclinaison sert à la vue paysage du cash-flow ; rien n'est enregistré ni envoyé. Non mentionné.
 8. **Chat de Val** : décrit comme une partie du service, alors que l'app ne l'a pas. Depuis l'app, rien n'est envoyé à Anthropic. À préciser.
-9. **Sous-traitants manquants** : l'outil de suivi des erreurs du serveur et le service de sauvegarde à distance de la base ne sont pas cités (noms, régions d'hébergement et durées : à prendre dans la configuration du site, hors de ce dépôt).
+9. **Sous-traitants** : Sentry (erreurs du serveur et plantages de l'app) est ajouté par la pull request du site du 19/10 (lot 1) ; le service de sauvegarde à distance de la base reste à citer (nom, région et durée : à prendre dans la configuration du site, hors de ce dépôt).
 10. **Suppression du compte** : le texte ne dit pas ce qui se passe vraiment. Le compte est désactivé tout de suite, puis supprimé définitivement après 30 jours (tâche quotidienne du serveur) ; on peut le réactiver avant par e-mail.
 11. **Copies de sauvegarde** prises avant chaque déploiement : gardées **30 jours**. La durée reste à écrire.
 12. **Durées réelles**, à reporter :
@@ -135,7 +135,8 @@ Vérifications :
 - **Android** : stockage externe bloqué (inutile).
 
 ### `eas.json`
-- **Profil `production`** : API de production, environnement EAS `production`, dernière image de build iOS, numéro de build automatique.
+- **Profil `production`** : API de production, environnement EAS `production`, dernière image de build iOS, numéro de build automatique, canal de mises à jour `production` (lot 1). Le profil `preview` publie sur le canal `preview`.
+- **Variables à régler sur expo.dev** (environnement `production` du projet), jamais dans le dépôt : `EXPO_PUBLIC_SENTRY_DSN` (adresse d'envoi des plantages, en clair) et le secret `SENTRY_AUTH_TOKEN` (envoi des source maps à la construction). Sans la première, le suivi des plantages reste coupé ; sans le second, les traces arrivent sans noms de fichiers lisibles. Voir le README, « Suivi des plantages ».
 - **`submit.production`** : langue `fr-FR`. L'identifiant App Store Connect (`ascAppId`) sera demandé au premier `eas submit`, ou peut y être ajouté une fois l'app créée.
 - **Profil `development`** : il demande un client de développement, mais `expo-dev-client` n'est pas installé. À installer si tu veux un build de développement ; sinon, utilise Expo Go et le profil `preview`.
 
@@ -163,6 +164,12 @@ Limites :
 - les objectifs du patrimoine sont gardés sur le téléphone, ils ne peuvent pas être préparés à l'avance ;
 - la courbe du patrimoine ne montre l'historique qu'à partir des relevés faits par le serveur après la création.
 
-## 6. Ce qui reste à faire de ton côté
+## 6. Mises à jour à distance (EAS Update, lot 1)
+
+L'app embarque `expo-updates` : la version publiée vérifie à chaque lancement s'il existe un correctif JavaScript sur son canal (`production`) et l'applique au lancement **suivant**. Comment publier, et ce qui ne passe pas par là : README, « Mises à jour à distance ».
+
+Côté Apple : accepté, tant que la mise à jour ne change pas la nature de l'app (règle 3.3.1 de l'accord développeur : code interprété exécuté par le moteur d'Apple, sans nouvelle fonctionnalité qui changerait l'objet de l'app). Les étiquettes de confidentialité n'en sont pas affectées : Expo ne reçoit aucune donnée personnelle (un identifiant anonyme d'installation sert à compter les téléchargements).
+
+## 7. Ce qui reste à faire de ton côté
 
 Voir le compte rendu du 18/10/2026. Les points sont repris et cochés dans `docs/audit-complet.md` (« Avant une sortie sur l'App Store »).

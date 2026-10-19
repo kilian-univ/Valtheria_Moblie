@@ -17,24 +17,6 @@ export const valLines = {
   ],
 } as const;
 
-export const welcomeLine = {
-  title: 'Bienvenue !',
-  text: (moduleTitle: string) => `Je te conseille **${moduleTitle}** pour commencer.`,
-};
-
-export const moduleDoneLine = {
-  title: 'Bien joué !',
-  text: (finished: string, next: string | null) =>
-    next
-      ? `Tu as terminé **${finished}**. Je te propose **${next}** pour continuer.`
-      : `Tu as terminé **${finished}**.`,
-};
-
-export const allDoneLine = {
-  title: 'Tout est terminé !',
-  text: 'Tu as fini tous les modules. Je te préviens dès que de nouveaux arrivent. En attendant, les articles t’attendent.',
-};
-
 export const guestLine = {
   title: 'Garde ta progression',
   text: 'Crée ton compte pour suivre tes leçons, garder ta série et reprendre où tu en étais.',

@@ -29,7 +29,6 @@ import {
   supportsLedger,
   type Position,
 } from '../src/utils/patrimoine/model';
-import { positionPayload } from '../src/utils/patrimoine/legacyPayload';
 import { parseDecimal, previewOperation } from '../src/utils/patrimoine/preview';
 import { chooseValTip, FORBIDDEN_ADVICE } from '../src/utils/patrimoine/valTips';
 
@@ -279,20 +278,6 @@ test('remarque de Val : une seule, par priorité, toujours avec une leçon', () 
     assert.ok(tip.link.universe && tip.link.keywords.length > 0, 'chaque remarque mène à une leçon');
     assert.ok(!FORBIDDEN_ADVICE.test(tip.text), `pas de conseil d’achat ou de vente : ${tip.text}`);
   }
-});
-
-// ── Formulaire actuel (repli) : le livret ─────────────────────────────
-
-test('livret : le montant part en prix, le taux dans rate (et plus en prix)', () => {
-  assert.deepEqual(positionPayload({ type: 'livret', ticker: 'livret_bleu', name: 'Livret Bleu', first: '5 000', second: '2,4', currency: 'USD' }), {
-    ticker: 'LIVRET_BLEU', name: 'Livret Bleu', type: 'livret', quantity: 1, buy_price: 5000, buy_currency: 'EUR', is_livret: true, rate: 2.4,
-  });
-  // Livret réglementé : le taux saisi n'est pas envoyé (taux du site)
-  assert.equal('rate' in positionPayload({ type: 'livret', ticker: 'livret_a', name: 'Livret A', first: '5 000', second: '2,4', currency: 'EUR' }), false);
-  assert.equal('rate' in positionPayload({ type: 'livret', ticker: 'L', name: 'L', first: '100', second: '', currency: 'EUR' }), false);
-  assert.deepEqual(positionPayload({ type: 'crypto', ticker: 'sol', name: 'Solana', first: '2', second: '150,5', currency: 'USD' }), {
-    ticker: 'SOL', name: 'Solana', type: 'crypto', quantity: 2, buy_price: 150.5, buy_currency: 'USD',
-  });
 });
 
 // ── Lien vers la leçon ─────────────────────────────────────────────────

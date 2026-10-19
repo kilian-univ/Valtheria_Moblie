@@ -109,6 +109,14 @@
         {
           "motionPermission": "Valtheria lit l’inclinaison du téléphone pour afficher ton cash-flow en paysage quand tu le tournes. Rien n’est enregistré ni envoyé."
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "valtheria",
+          "project": "valtheria-app",
+          "url": "https://de.sentry.io/"
+        }
       ]
     ],
     "experiments": {
@@ -120,6 +128,14 @@
       "eas": {
         "projectId": "26ab6003-28d5-4500-b317-7ab2444ded4a"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/26ab6003-28d5-4500-b317-7ab2444ded4a",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

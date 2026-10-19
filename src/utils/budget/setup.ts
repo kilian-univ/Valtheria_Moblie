@@ -5,7 +5,7 @@
 // de l'ancien Cash-flow (reprise), sinon de rien. Fonctions pures, testables
 // avec Node.
 
-import type { Budget, BudgetMode, LegacyItem, Recurring } from './model';
+import type { Budget, BudgetMode, LegacyItem } from './model';
 import { mainIncome } from './calc';
 
 // label : la question ; short : le nom de la charge dans le budget
@@ -144,6 +144,3 @@ export function setupPayload(draft: SetupDraft, keepBalance = false) {
     mode: draft.mode,
   };
 }
-
-// Récurrent d'avant la mise en route (sans jour) : à compléter
-export const needsDay = (r: Recurring) => r.day === null;
