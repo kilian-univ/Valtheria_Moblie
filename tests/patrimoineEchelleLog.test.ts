@@ -94,7 +94,7 @@ test('Plus-value : option impossible, avec son explication ; choix mémorisé in
   assert.deepEqual(logScaleState(false, 'plus-value', [7236]), { applied: false, note: null, disabledReason: LOG_DISABLED_PLUS_VALUE });
   // Ailleurs, rien tant que l'échelle n'est pas choisie ; une phrase quand elle l'est
   assert.deepEqual(logScaleState(false, 'valeur', [1, 2]), { applied: false, note: null, disabledReason: null });
-  assert.deepEqual(logScaleState(true, 'cours', [89.6, 110]), { applied: true, note: 'Échelle logarithmique', disabledReason: null });
+  assert.deepEqual(logScaleState(true, 'cours', [9, 253]), { applied: true, note: 'Échelle logarithmique', disabledReason: null });
 });
 
 test('repère rond en euros : sans centimes, même sous 100 €', () => {

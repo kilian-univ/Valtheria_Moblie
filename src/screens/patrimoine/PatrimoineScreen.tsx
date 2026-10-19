@@ -40,6 +40,7 @@ import { byType } from '@/src/utils/patrimoine/analysis';
 import {
   CHART_MODES,
   chartSummary,
+  compactTick,
   clipPoints,
   DEFAULT_PERIOD,
   depositIndexes,
@@ -49,6 +50,7 @@ import {
   plottedSeries,
   portfolioRange,
   roundGrowth,
+  scrubDateLabel,
   tickLabel,
   variation,
   type ChartMode,
@@ -115,7 +117,17 @@ export default function PatrimoineScreen() {
     () => (series?.range === range ? splitAnomalies(series.points, (p) => p.value, hideAnomalies) : null),
     [series, range, hideAnomalies]
   );
-  const points = useMemo(() => (split ? clipPoints(split.kept, period, new Date(now)) : []), [split, period, now]);
+  const periodPoints = useMemo(() => (split ? clipPoints(split.kept, period, new Date(now)) : []), [split, period, now]);
+  // Pendant le chargement d'une autre plage, la courbe affichée reste celle d'avant :
+  // le passage de l'une à l'autre s'anime à l'arrivée de la nouvelle
+  const ready = split !== null;
+  const sig = `${period}|${range}|${hideAnomalies ? 1 : 0}|${periodPoints.length}|${periodPoints[0]?.date ?? ''}|${periodPoints[periodPoints.length - 1]?.value ?? ''}`;
+  const [shown, setShown] = useState<{ sig: string; points: ChartPoint[]; period: Period } | null>(null);
+  if (ready && shown?.sig !== sig) setShown({ sig, points: periodPoints, period });
+  const points = ready ? periodPoints : (shown?.points ?? []);
+  const shownPeriod = ready ? period : (shown?.period ?? period);
+  // Point touché sur la courbe : le grand montant et sa variation le suivent
+  const [scrub, setScrub] = useState<number | null>(null);
   const anomalies = useMemo(() => (split ? clipPoints(split.hidden, period, new Date(now)) : []), [split, period, now]);
 
   // Supprimer un relevé (appui long sur un point, ou depuis le menu de la courbe)
@@ -216,7 +228,9 @@ export default function PatrimoineScreen() {
   const shares = byType(positions);
   const tip = chooseValTip({ positions, now: new Date(now), monthlyExpenses: emergencyPrefs?.monthlyExpenses ?? null });
   const regularity = streakLabel(progress.streak);
-  const v = variation(points);
+  const scrubbed = scrub !== null && scrub < points.length ? points[scrub] : null;
+  const v = scrubbed ? variation(points.slice(0, (scrub as number) + 1)) : variation(points);
+  const variationText = scrubbed && points.length > 0 ? `depuis le ${shortDate(points[0].date, new Date(now))}` : periodLabel(shownPeriod);
   const values = modeSeries(points, mode);
   // Échelle logarithmique : la valeur telle quelle ; en Performance, la croissance de
   // 1 € investi (1 + rendement) ; jamais en Plus-value (montant qui peut être négatif)
@@ -232,15 +246,10 @@ export default function PatrimoineScreen() {
     ? 'Courbe de ton patrimoine, montants masqués.'
     : chartSummary(points, period, (x) => money(x));
 
-  const tipFor = (i: number) => {
-    const p = points[i];
-    const date = shortDate(p.date, new Date(now));
-    if (mode === 'performance') {
-      return { title: signedPercent(values[i], hidden), caption: date };
-    }
-    if (mode === 'plus-value') return { title: signedMoney(p.value - p.invested, { hidden }), caption: date };
-    return { title: m(p.value), caption: date, extra: `investi ${m(p.invested)}` };
-  };
+  // Valeur écrite près du plus haut et du plus bas (rien en mode discret)
+  const extremeLabel = hidden
+    ? undefined
+    : (x: number) => (mode === 'performance' ? tickLabel(growthAxis ? (x - 1) * 100 : x, 'pct') : mode === 'plus-value' ? signedMoney(x) : money(x));
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -298,16 +307,16 @@ export default function PatrimoineScreen() {
           <AppText variant="caption" tone="subtitle">
             Valeur totale
           </AppText>
-          <BigNumber text={money(portfolio.totalEur, { hidden })} size={44} tone="text" style={styles.left} />
+          <BigNumber text={money(scrubbed ? scrubbed.value : portfolio.totalEur, { hidden })} size={44} tone="text" style={styles.left} />
         </View>
         {v ? (
           <AppText
             style={[styles.variation, { color: v.delta >= 0 ? colors.success : colors.error }]}
-            accessibilityLabel={hidden ? `Variation ${periodLabel(period)} masquée` : `${signedMoney(v.delta)} ${v.pct !== null ? `soit ${signedPercent(v.pct)}` : ''} ${periodLabel(period)}`}
+            accessibilityLabel={hidden ? `Variation ${variationText} masquée` : `${signedMoney(v.delta)} ${v.pct !== null ? `soit ${signedPercent(v.pct)}` : ''} ${variationText}`}
           >
             {signedMoney(v.delta, { hidden })}
             {v.pct !== null ? ` (${signedPercent(v.pct, hidden)})` : ''}{' '}
-            <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{periodLabel(period)}</AppText>
+            <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{variationText}</AppText>
           </AppText>
         ) : null}
 
@@ -331,15 +340,19 @@ export default function PatrimoineScreen() {
               color={colors.gold}
               dashed={mode === 'valeur' ? points.map((p) => p.invested) : null}
               dashedColor={colors.frostInk}
-              dashedLabel={(x) => `montant investi : ${m(x)}`}
+              dashedLabel={(x) => `investi ${m(x)}`}
               level={mode === 'valeur' ? null : { value: growthAxis ? 1 : 0, label: mode === 'performance' ? '0 %' : '0 €', color: colors.subtitle }}
               signColors={mode === 'valeur' ? null : { above: colors.success, below: colors.error }}
               log={logScale}
-              formatTick={hidden ? undefined : (x) => (growthAxis ? tickLabel((x - 1) * 100, 'pct') : tickLabel(x, mode === 'performance' ? 'pct' : 'eur'))}
+              formatTick={hidden ? undefined : (x) => (growthAxis ? compactTick((x - 1) * 100, 'pct') : compactTick(x, mode === 'performance' ? 'pct' : 'eur'))}
               tickRound={growthAxis ? roundGrowth : undefined}
               dots={deposits.map((index) => ({ index, color: colors.success }))}
               area={mode === 'valeur'}
-              tip={tipFor}
+              extremeLabel={extremeLabel}
+              times={points.map((p) => Date.parse(p.date))}
+              dateLabel={(i) => scrubDateLabel(points[i].date, shownPeriod, new Date(now))}
+              onScrub={setScrub}
+              animateKey={`${mode}-${shownPeriod}`}
               summary={summary}
               onLongPressPoint={(i) => askDelete(points[i])}
             />

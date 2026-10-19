@@ -2,7 +2,7 @@
 // performance), points de versement, toucher-glisser et phrase pour le lecteur
 // d'écran. Sans React : testable avec Node.
 
-import { money } from './format';
+import { money, shortDate } from './format';
 import type { ChartPoint, Operation, PricePoint } from './model';
 
 export type Period = '1J' | '1S' | '1M' | 'YTD' | '1A' | '5A' | 'Tout';
@@ -120,7 +120,9 @@ export function variation(points: ChartPoint[]): Variation | null {
 }
 
 // Repère de la courbe : bornes et passage valeur ↔ pixel
-export type Frame = { width: number; height: number; padTop: number; padBottom: number };
+// padX : marge horizontale à l'intérieur de la zone, pour qu'un point posé au
+// premier ou au dernier relevé ne soit jamais coupé par le bord
+export type Frame = { width: number; height: number; padTop: number; padBottom: number; padX?: number };
 
 export type Scale = {
   // Bornes affichées (marge comprise)
@@ -134,8 +136,9 @@ export type Scale = {
   contains: (v: number) => boolean;
 };
 
-// Marge au-dessus et au-dessous de la courbe (part de l'écart affiché)
-export const SCALE_MARGIN = 0.08;
+// Marge au-dessus et au-dessous de la courbe (part de l'écart affiché) : la
+// courbe touche presque le haut et le bas de la zone
+export const SCALE_MARGIN = 0.06;
 
 // L'axe s'adapte aux seules valeurs de la courbe affichée (jamais à zéro, ni au
 // prix de revient ou au montant investi, qui ont leur étiquette en bordure),
@@ -158,18 +161,19 @@ export function makeScale(values: readonly number[], count: number, frame: Frame
   hi += margin;
   const span = hi - lo;
   const inner = frame.height - frame.padTop - frame.padBottom;
-  const step = count > 1 ? frame.width / (count - 1) : 0;
+  const padX = frame.padX ?? 0;
+  const step = count > 1 ? (frame.width - 2 * padX) / (count - 1) : 0;
   const back = (u: number) => (log ? Math.exp(u) : u);
   return {
     min: back(lo),
     max: back(hi),
     log,
-    x: (i) => (count > 1 ? i * step : frame.width / 2),
+    x: (i) => (count > 1 ? padX + i * step : frame.width / 2),
     y: (v) => {
       const u = log ? (v > 0 ? Math.log(v) : lo - span) : v;
       return frame.padTop + (1 - (u - lo) / span) * inner;
     },
-    index: (x) => (count > 1 ? Math.max(0, Math.min(count - 1, Math.round(x / step))) : 0),
+    index: (x) => (count > 1 ? Math.max(0, Math.min(count - 1, Math.round((x - padX) / step))) : 0),
     contains: (v) => {
       const u = log ? (v > 0 ? Math.log(v) : -Infinity) : v;
       return u >= lo && u <= hi;
@@ -330,6 +334,10 @@ export function priceSummary(points: PricePoint[], period: Period, money: (v: nu
 
 export const LOG_DISABLED_PLUS_VALUE = 'Pas d’échelle logarithmique pour un montant qui peut être négatif.';
 export const LOG_FALLBACK = 'Échelle linéaire : une valeur nulle ou négative sur cette période.';
+export const LOG_ACTIVE = 'Échelle logarithmique';
+export const LOG_ALIKE = 'Sur cette période, les deux échelles se ressemblent : les écarts sont faibles.';
+// En deçà de ce rapport entre le maximum et le minimum, les deux échelles se ressemblent
+export const LOG_ALIKE_RATIO = 2;
 
 // Valeurs tracées. En Performance avec l'échelle logarithmique : la croissance
 // de 1 € investi (1 + rendement), toujours positive ; sinon les valeurs du mode.
@@ -361,5 +369,112 @@ export function logScaleState(requested: boolean, mode: ChartMode | 'cours', plo
   if (!requested) return { applied: false, note: null, disabledReason: null };
   const finite = plotted.filter((v) => Number.isFinite(v));
   if (finite.length === 0 || finite.some((v) => v <= 0)) return { applied: false, note: LOG_FALLBACK, disabledReason: null };
-  return { applied: true, note: 'Échelle logarithmique', disabledReason: null };
+  const ratio = Math.max(...finite) / Math.min(...finite);
+  return { applied: true, note: ratio < LOG_ALIKE_RATIO ? LOG_ALIKE : LOG_ACTIVE, disabledReason: null };
+}
+
+// ── Mise en page de la courbe ──────────────────────────────────────────────
+
+// Hauteur de la zone tracée : 220 px sur iPhone SE (667 de haut), 260 sur un
+// grand iPhone (932), entre les deux en proportion
+export function chartHeight(screenHeight: number): number {
+  const t = (screenHeight - 667) / (932 - 667);
+  return Math.round(220 + Math.max(0, Math.min(1, t)) * 40);
+}
+
+// Repère court pour la marge de droite : « 28 k€ », « 26,5 k€ », « 200 € »,
+// « + 13 % »
+export function compactTick(v: number, unit: 'eur' | 'pct'): string {
+  if (unit === 'pct') return tickLabel(v, 'pct');
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '\u2212' : '';
+  if (abs >= 1_000_000) return `${sign}${String(roundSignificant(abs / 1_000_000, 3)).replace('.', ',')}\u00a0M€`;
+  if (abs >= 10_000) return `${sign}${String(Math.round(abs / 100) / 10).replace('.', ',')}\u00a0k€`;
+  return tickLabel(v, 'eur');
+}
+
+// Le point le plus haut et le plus bas de la période (le premier atteint) ;
+// null pour une courbe plate ou de moins de trois points
+export function extremes(values: readonly (number | null)[]): { max: number; min: number } | null {
+  let max = -1;
+  let min = -1;
+  values.forEach((v, i) => {
+    if (v === null || !Number.isFinite(v)) return;
+    if (max < 0 || v > (values[max] as number)) max = i;
+    if (min < 0 || v < (values[min] as number)) min = i;
+  });
+  if (max < 0 || values.filter((v) => v !== null).length < 3 || values[max] === values[min]) return null;
+  return { max, min };
+}
+
+export type Box = { x: number; y: number; w: number; h: number };
+export type Pt = { x: number; y: number };
+
+// Distance verticale entre une boîte et la courbe, sur la largeur de la boîte
+// (négative si la courbe la traverse), et chevauchement des autres étiquettes
+function clearance(box: Box, curve: readonly Pt[], obstacles: readonly Box[]): number {
+  let best = Infinity;
+  for (const p of curve) {
+    if (p.x < box.x - 2 || p.x > box.x + box.w + 2) continue;
+    const d = p.y < box.y ? box.y - p.y : p.y > box.y + box.h ? p.y - box.y - box.h : -Math.min(p.y - box.y, box.y + box.h - p.y);
+    if (d < best) best = d;
+  }
+  for (const o of obstacles) {
+    const overlap = box.x < o.x + o.w && o.x < box.x + box.w && box.y < o.y + o.h && o.y < box.y + box.h;
+    if (overlap) best = Math.min(best, -100);
+  }
+  return best;
+}
+
+// Place une étiquette parmi des positions possibles : ramenée dans la zone,
+// celle qui reste le plus loin de la courbe et des autres étiquettes
+export function placeLabel(candidates: readonly Pt[], size: { w: number; h: number }, curve: readonly Pt[], zone: Box, obstacles: readonly Box[] = []): Box {
+  return placeLabelScored(candidates, size, curve, zone, obstacles).box;
+}
+
+// Même placement, avec la distance gardée à la courbe (négative : aucune
+// position ne l'évite, l'étiquette doit aller ailleurs)
+export function placeLabelScored(
+  candidates: readonly Pt[],
+  size: { w: number; h: number },
+  curve: readonly Pt[],
+  zone: Box,
+  obstacles: readonly Box[] = []
+): { box: Box; clear: number } {
+  let best: Box | null = null;
+  let score = -Infinity;
+  for (const c of candidates) {
+    const box = {
+      x: Math.max(zone.x, Math.min(zone.x + zone.w - size.w, c.x)),
+      y: Math.max(zone.y, Math.min(zone.y + zone.h - size.h, c.y)),
+      w: size.w,
+      h: size.h,
+    };
+    const s = clearance(box, curve, obstacles);
+    if (s > score) {
+      score = s;
+      best = box;
+    }
+  }
+  return { box: best ?? { x: zone.x, y: zone.y, ...size }, clear: score };
+}
+
+// Largeur approchée d'un texte (Inter), pour placer une étiquette sans la mesurer
+export function textWidth(text: string, fontSize: number): number {
+  return Math.ceil(text.length * fontSize * 0.56);
+}
+
+// Jour d'une date (heure locale), pour vibrer à chaque changement de jour
+export function dayKey(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+// Date du point touché : « 12 oct. », avec l'heure sur 1 jour et 1 semaine
+// (relevés horaires) : « 12 oct. · 14 h 05 »
+export function scrubDateLabel(t: number | string, period: Period, now: Date): string {
+  const base = shortDate(t, now);
+  if (period !== '1J' && period !== '1S') return base;
+  const d = new Date(t);
+  return `${base} · ${d.getHours()}\u00a0h\u00a0${String(d.getMinutes()).padStart(2, '0')}`;
 }

@@ -28,7 +28,7 @@ import { tap } from '@/src/utils/haptics';
 import { actionErrorText } from '@/src/utils/loadError';
 import { splitAnomalies } from '@/src/utils/patrimoine/anomalies';
 import { TYPE_LABELS } from '@/src/utils/patrimoine/analysis';
-import { clipPrices, DEFAULT_PERIOD, logScaleState, operationMarks, periodLabel, priceRange, priceSummary, tickLabel, type Period } from '@/src/utils/patrimoine/chart';
+import { clipPrices, compactTick, DEFAULT_PERIOD, logScaleState, operationMarks, periodLabel, priceRange, priceSummary, scrubDateLabel, type Period } from '@/src/utils/patrimoine/chart';
 import { moneyEur, originalNote, ratesOf, toEur } from '@/src/utils/patrimoine/currency';
 import { longDate, money, quantity, quantityLabel, rateDateLabel, shortDate, signedMoney, signedPercent } from '@/src/utils/patrimoine/format';
 import { isStalePrice, parseOperations, parsePriceHistory, type Operation, type PricePoint } from '@/src/utils/patrimoine/model';
@@ -97,8 +97,17 @@ export default function ActifScreen() {
   const chartCurrency = prices && seriesRate === null ? prices.currency.toUpperCase() : 'EUR';
   const converted = prices ? prices.points.map((p) => ({ t: p.t, price: p.price * (seriesRate ?? 1) })) : [];
   const split = prices?.range === range ? splitAnomalies(converted, (p) => p.price, hideAnomalies) : null;
-  const points = split ? clipPrices(split.kept, period, now) : [];
+  const periodPoints = split ? clipPrices(split.kept, period, now) : [];
   const anomalies = split ? clipPrices(split.hidden, period, now) : [];
+  // Pendant le chargement d'une autre plage, la courbe affichée reste celle d'avant
+  // (empreinte des points : ni boucle, ni dépendance à la mémorisation)
+  const sig = `${period}|${range}|${hideAnomalies ? 1 : 0}|${periodPoints.length}|${periodPoints[0]?.t ?? ''}|${periodPoints[periodPoints.length - 1]?.price ?? ''}`;
+  const [shown, setShown] = useState<{ sig: string; points: PricePoint[]; period: Period } | null>(null);
+  if (split && shown?.sig !== sig) setShown({ sig, points: periodPoints, period });
+  const points = split ? periodPoints : (shown?.points ?? []);
+  const shownPeriod = split ? period : (shown?.period ?? period);
+  // Point touché sur la courbe : la position et sa variation le suivent
+  const [scrub, setScrub] = useState<number | null>(null);
   const marks = operationMarks(points, ops?.list ?? []);
   // Échelle logarithmique du cours : appliquée si toutes les valeurs sont positives
   const priceLog = logScaleState(prefs?.logScale ?? false, 'cours', points.map((p) => p.price));
@@ -165,23 +174,18 @@ export default function ActifScreen() {
   // Valeur de la position et plus-value depuis les achats, en euros
   const valueShown = position ? (position.valueEur ?? position.value) : 0;
   const gainShown = position ? (position.valueEur !== null && position.investedEur !== null ? position.valueEur - position.investedEur : position.gain) : 0;
-  // Variation du cours sur la période affichée, appliquée à la quantité détenue
+  // Variation du cours sur la période affichée (jusqu'au point touché), appliquée
+  // à la quantité détenue
+  const scrubbed = scrub !== null && scrub < points.length ? points[scrub] : null;
   const first = points.length >= 2 ? points[0].price : null;
-  const last = points.length >= 2 ? points[points.length - 1].price : null;
+  const last = scrubbed ? scrubbed.price : points.length >= 2 ? points[points.length - 1].price : null;
+  const periodText = scrubbed && points.length > 0 ? `depuis le ${shortDate(points[0].t, now)}` : periodLabel(shownPeriod);
+  // Valeur de la position au cours du point touché
+  const scrubValue = scrubbed && position ? (chartCurrency === 'EUR' ? position.quantity * scrubbed.price : toEur(position.quantity * scrubbed.price, chartCurrency, rates)) : null;
   const periodPct = first !== null && last !== null && first > 0 ? (last / first - 1) * 100 : null;
   const periodAmount = position && first !== null && last !== null ? (chartCurrency === 'EUR' ? position.quantity * (last - first) : toEur(position.quantity * (last - first), chartCurrency, rates)) : null;
 
   const opLabel = (op: Operation) => `${op.side === 'buy' ? 'Achat' : 'Vente'} de ${quantityLabel(op.quantity, ticker, type)}`;
-  const tipFor = (i: number) => {
-    const p = points[i];
-    const mark = marks.find((m) => m.index === i);
-    const op = mark ? ops?.list.find((o) => o.id === mark.operationId) : undefined;
-    return {
-      title: money(p.price, { currency: chartCurrency, exact: true }),
-      caption: shortDate(p.t, now),
-      extra: mark && op ? `${mark.side === 'buy' ? 'ton achat' : 'ta vente'} : ${moneyEur(op.unitPrice, op.currency, rates, { exact: true, hidden })}` : undefined,
-    };
-  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -211,13 +215,18 @@ export default function ActifScreen() {
             accessible
             accessibilityLabel={`Ta position : ${hidden ? 'masquée' : money(valueShown)}${
               market && !hidden ? `, ${signedMoney(gainShown)} depuis tes achats` : ''
-            }${market && !hidden && periodPct !== null && periodAmount !== null ? `, ${signedMoney(periodAmount)} ${periodLabel(period)}` : ''}`}
+            }${market && !hidden && periodPct !== null && periodAmount !== null ? `, ${signedMoney(periodAmount)} ${periodText}` : ''}`}
           >
             <AppText variant="caption" tone="subtitle">
               Ta position
             </AppText>
-            <BigNumber text={money(valueShown, { hidden, currency: position.valueEur !== null ? 'EUR' : currency })} size={40} tone="text" style={styles.left} />
-            {market ? (
+            <BigNumber
+              text={scrubValue !== null ? money(scrubValue, { hidden }) : money(valueShown, { hidden, currency: position.valueEur !== null ? 'EUR' : currency })}
+              size={40}
+              tone="text"
+              style={styles.left}
+            />
+            {market && !scrubbed ? (
               <AppText style={[styles.variation, { color: gainShown >= 0 ? colors.success : colors.error }]}>
                 {signedMoney(gainShown, { hidden })} ({signedPercent(position.gainPct, hidden)}){' '}
                 <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>depuis tes achats</AppText>
@@ -226,7 +235,7 @@ export default function ActifScreen() {
             {market && periodPct !== null && periodAmount !== null ? (
               <AppText style={[styles.variation, { color: periodAmount >= 0 ? colors.success : colors.error }]}>
                 {signedMoney(periodAmount, { hidden })} ({signedPercent(periodPct, hidden)}){' '}
-                <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{periodLabel(period)}</AppText>
+                <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{periodText}</AppText>
               </AppText>
             ) : null}
           </View>
@@ -246,7 +255,7 @@ export default function ActifScreen() {
                   area={false}
                   level={
                     pru !== null
-                      ? { value: pru, label: hidden ? 'ton prix de revient' : `ton prix de revient : ${money(pru, { currency: chartCurrency, exact: true })}`, color: colors.frostInk }
+                      ? { value: pru, label: hidden ? 'prix de revient' : `prix de revient ${money(pru, { currency: chartCurrency, exact: true })}`, color: colors.frostInk }
                       : null
                   }
                   // Point d'un achat ou d'une vente : à son prix, converti comme la liste
@@ -256,8 +265,12 @@ export default function ActifScreen() {
                     return { index: m.index, color: m.side === 'buy' ? colors.success : colors.error, value: at ?? undefined };
                   })}
                   log={priceLog.applied}
-                  formatTick={hidden ? undefined : (x) => (chartCurrency === 'EUR' ? tickLabel(x, 'eur') : money(x, { currency: chartCurrency }))}
-                  tip={tipFor}
+                  formatTick={hidden ? undefined : (x) => (chartCurrency === 'EUR' ? compactTick(x, 'eur') : money(x, { currency: chartCurrency }))}
+                  extremeLabel={hidden ? undefined : (x) => money(x, { currency: chartCurrency, exact: x < 100 })}
+                  times={points.map((p) => p.t)}
+                  dateLabel={(i) => scrubDateLabel(points[i].t, shownPeriod, now)}
+                  onScrub={setScrub}
+                  animateKey={shownPeriod}
                   summary={priceSummary(points, period, (x) => money(x, { currency: chartCurrency }), name)}
                 />
               ) : (

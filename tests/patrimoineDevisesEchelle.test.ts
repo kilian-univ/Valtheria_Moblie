@@ -18,14 +18,14 @@ const pt = (value: number, invested: number, i = 0): ChartPoint => ({ id: null, 
 
 // ── Échelle ─────────────────────────────────────────────────────────────
 
-test('échelle : la plage de la courbe affichée, 8 % de marge, jamais zéro', () => {
+test('échelle : la plage de la courbe affichée, 6 % de marge, jamais zéro', () => {
   const s = makeScale([24000, 26000, 29000], 3, FRAME);
-  assert.equal(s.min, 24000 - 5000 * 0.08);
-  assert.equal(s.max, 29000 + 5000 * 0.08);
+  assert.equal(s.min, 24000 - 5000 * 0.06);
+  assert.equal(s.max, 29000 + 5000 * 0.06);
   assert.ok(!s.contains(0), 'zéro hors de la plage');
   assert.ok(!s.contains(19744), 'le montant investi ne déforme pas l’échelle');
-  assert.equal(s.y(29000 + 400), 0);
-  assert.equal(s.y(24000 - 400), 100);
+  assert.equal(s.y(29000 + 300), 0);
+  assert.equal(s.y(24000 - 300), 100);
   // Courbe plate : une petite plage autour de la valeur
   const flat = makeScale([1400, 1400], 2, FRAME);
   assert.ok(flat.min < 1400 && flat.max > 1400);
