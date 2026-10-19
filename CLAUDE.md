@@ -10,13 +10,13 @@
 - Ne jamais contourner ce blocage. Si une modification de cette zone semble nécessaire, s'arrêter et expliquer pourquoi.
 - Avant chaque commit, vérifier que ni `src/context/ApiContext.tsx` ni un fichier d'environnement ne figurent dans les modifications.
 
-## Sauvegarde
+## Branches et fusion
 
-Règle obligatoire, après chaque commit, toujours :
-1. pousser `design/ui` sur origin (`git push origin design/ui`) ;
-2. avancer `main` en avance rapide sur `design/ui` (`git checkout main && git merge --ff-only design/ui`) ;
-3. pousser `main` sur origin (`git push origin main`), puis revenir sur `design/ui` ;
-4. lancer `git fetch origin`, puis afficher `git log -1 --oneline origin/main` et `git log -1 --oneline origin/design/ui` ;
-5. écrire ces deux lignes à la fin du compte rendu.
+Règle obligatoire, pour chaque chantier :
+1. ne jamais pousser sur `main` ni sur `design/ui`, et ne jamais fusionner quoi que ce soit ;
+2. créer une branche dédiée depuis `main` à jour (`git fetch origin && git checkout -b <nom-du-chantier> origin/main`), nommée d'après le chantier (par exemple `lot-0-securite-et-cadre`) ;
+3. y faire les commits du chantier, puis la pousser (`git push -u origin <nom-du-chantier>`) ;
+4. terminer par une demande de fusion (pull request) vers `main`, qui décrit ce qui change, ce qui a été vérifié (tsc, ESLint, tests) et ce que le relecteur doit regarder ;
+5. Kilian relit et fusionne lui-même. Ne jamais fusionner, ne jamais forcer un push, ne jamais réécrire l'historique d'une branche poussée.
 
-Ne jamais terminer une tâche sans ces deux lignes, et elles doivent être identiques. Si l'avance rapide est impossible, ne jamais forcer : s'arrêter et demander.
+Avant chaque commit, vérifier que ni `src/context/ApiContext.tsx` ni un fichier d'environnement ne figurent dans les modifications (voir « Zone protégée »). Le compte rendu de fin de chantier donne l'adresse de la pull request.
