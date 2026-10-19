@@ -44,12 +44,9 @@ import {
   clipPoints,
   DEFAULT_PERIOD,
   depositIndexes,
-  logScaleState,
   modeSeries,
   periodLabel,
-  plottedSeries,
   portfolioRange,
-  roundGrowth,
   scrubDateLabel,
   tickLabel,
   variation,
@@ -232,14 +229,6 @@ export default function PatrimoineScreen() {
   const v = scrubbed ? variation(points.slice(0, (scrub as number) + 1)) : variation(points);
   const variationText = scrubbed && points.length > 0 ? `depuis le ${shortDate(points[0].date, new Date(now))}` : periodLabel(shownPeriod);
   const values = modeSeries(points, mode);
-  // Échelle logarithmique : la valeur telle quelle ; en Performance, la croissance de
-  // 1 € investi (1 + rendement) ; jamais en Plus-value (montant qui peut être négatif)
-  const requestedLog = prefs?.logScale ?? false;
-  const growthLike = plottedSeries(values, mode, requestedLog);
-  const logState = logScaleState(requestedLog, mode, growthLike);
-  const logScale = logState.applied;
-  const chartValues = logScale ? growthLike : values;
-  const growthAxis = logScale && mode === 'performance';
   const deposits = mode === 'valeur' ? depositIndexes(points) : [];
   const m = (x: number) => money(x, { hidden });
   const summary = hidden
@@ -249,7 +238,7 @@ export default function PatrimoineScreen() {
   // Valeur écrite près du plus haut et du plus bas (rien en mode discret)
   const extremeLabel = hidden
     ? undefined
-    : (x: number) => (mode === 'performance' ? tickLabel(growthAxis ? (x - 1) * 100 : x, 'pct') : mode === 'plus-value' ? signedMoney(x) : money(x));
+    : (x: number) => (mode === 'performance' ? tickLabel(x, 'pct') : mode === 'plus-value' ? signedMoney(x) : money(x));
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -336,16 +325,14 @@ export default function PatrimoineScreen() {
         <View style={styles.chart}>
           {points.length >= 2 ? (
             <LineChart
-              values={chartValues}
+              values={values}
               color={colors.gold}
               dashed={mode === 'valeur' ? points.map((p) => p.invested) : null}
               dashedColor={colors.frostInk}
               dashedLabel={(x) => `investi ${m(x)}`}
-              level={mode === 'valeur' ? null : { value: growthAxis ? 1 : 0, label: mode === 'performance' ? '0 %' : '0 €', color: colors.subtitle }}
+              level={mode === 'valeur' ? null : { value: 0, label: mode === 'performance' ? '0 %' : '0 €', color: colors.subtitle }}
               signColors={mode === 'valeur' ? null : { above: colors.success, below: colors.error }}
-              log={logScale}
-              formatTick={hidden ? undefined : (x) => (growthAxis ? compactTick((x - 1) * 100, 'pct') : compactTick(x, mode === 'performance' ? 'pct' : 'eur'))}
-              tickRound={growthAxis ? roundGrowth : undefined}
+              formatTick={hidden ? undefined : (x) => compactTick(x, mode === 'performance' ? 'pct' : 'eur')}
               dots={deposits.map((index) => ({ index, color: colors.success }))}
               area={mode === 'valeur'}
               extremeLabel={extremeLabel}
@@ -364,11 +351,6 @@ export default function PatrimoineScreen() {
             </View>
           )}
         </View>
-        {logState.note && points.length >= 2 ? (
-          <AppText variant="caption" tone="subtitle" accessibilityLiveRegion="polite">
-            {logState.note}
-          </AppText>
-        ) : null}
         {mode === 'valeur' && points.length >= 2 ? (
           <View style={styles.legend} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <Legend color={colors.gold} label="valeur" />
@@ -393,9 +375,6 @@ export default function PatrimoineScreen() {
             onChange={(hide) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, hideAnomalies: hide }))}
             anomalies={anomalies.filter((p) => p.id !== null).map((p) => ({ key: String(p.id), label: `${shortDate(p.date, new Date(now))} · ${m(p.value)}` }))}
             onDelete={(key) => askDelete(anomalies.find((p) => String(p.id) === key))}
-            log={requestedLog}
-            onLogChange={(log) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, logScale: log }))}
-            logDisabled={logState.disabledReason}
           />
         </View>
 

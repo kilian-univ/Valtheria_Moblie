@@ -3,7 +3,7 @@
 // Courbes du patrimoine, refonte du 19/10/2026 : échelle à 6 % de marge et
 // marge horizontale intérieure, hauteur selon l'écran, repères courts de la
 // marge de droite, extrêmes de la période, étiquettes qui évitent la courbe,
-// phrase de l'échelle logarithmique, date et jour du point touché.
+// date et jour du point touché ; échelle logarithmique retirée (19/10/2026).
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -13,16 +13,16 @@ import {
   compactTick,
   dayKey,
   extremes,
-  LOG_ACTIVE,
-  LOG_ALIKE,
-  logScaleState,
   makeScale,
+  niceTicks,
   placeLabel,
-  plottedSeries,
+  roundSignificant,
   scrubDateLabel,
   textWidth,
+  tickLabel,
   type Pt,
 } from '../src/utils/patrimoine/chart';
+import { hasRetiredKeys, parsePrefs } from '../src/utils/patrimoine/prefs';
 
 const FRAME = { width: 320, height: 220, padTop: 0, padBottom: 0, padX: 7 };
 
@@ -90,15 +90,34 @@ test('étiquette : placée loin de la courbe, dans la zone, sans chevaucher les 
   assert.equal(other.x, 200);
 });
 
-test('échelle logarithmique : dite seulement si le maximum dépasse 2 fois le minimum', () => {
-  assert.equal(logScaleState(true, 'valeur', [24017, 29084]).note, LOG_ALIKE);
-  assert.equal(logScaleState(true, 'cours', [9.04, 253]).note, LOG_ACTIVE);
-  assert.equal(logScaleState(true, 'cours', [50, 100]).note, LOG_ACTIVE);
-  // L'option reste choisie (appliquée) dans les deux cas
-  assert.equal(logScaleState(true, 'valeur', [24017, 29084]).applied, true);
-  // Performance : sur la croissance de 1 € (1 + rendement)
-  assert.equal(logScaleState(true, 'performance', plottedSeries([-3.9, 16.4], 'performance', true)).note, LOG_ALIKE);
-  assert.equal(logScaleState(true, 'performance', plottedSeries([-40, 120], 'performance', true)).note, LOG_ACTIVE);
+test('valeur seule, courbe plate, valeurs proches de zéro : une plage finie, rien de cassé', () => {
+  const one = makeScale([27000], 1, FRAME);
+  assert.ok(one.min < 27000 && one.max > 27000);
+  assert.equal(one.x(0), 320 / 2);
+  const flat = makeScale([1400, 1400], 2, FRAME);
+  assert.ok(flat.min < 1400 && flat.max > 1400 && Number.isFinite(flat.y(1400)));
+  const tiny = makeScale([0.0012, 0.003, 0.0105], 3, FRAME);
+  for (const v of [0.0012, 0.003, 0.0105]) assert.ok(tiny.y(v) >= 0 && tiny.y(v) <= 220);
+  for (const t of niceTicks(tiny)) assert.ok(Number.isFinite(t) && t >= tiny.min && t <= tiny.max);
+});
+
+test('repère rond en euros : sans centimes, même sous 100 € ; arrondi des millions', () => {
+  assert.equal(tickLabel(10, 'eur'), '10\u00a0€');
+  assert.equal(tickLabel(12.5, 'eur'), '12,50\u00a0€');
+  assert.equal(roundSignificant(26480), 26000);
+  assert.equal(roundSignificant(1.2549, 3), 1.25);
+  assert.equal(roundSignificant(0), 0);
+});
+
+test('échelle logarithmique retirée : le choix mémorisé est effacé des préférences', () => {
+  const raw = { discreet: true, logScale: true };
+  assert.equal(hasRetiredKeys(raw), true);
+  const prefs = parsePrefs(raw);
+  assert.equal('logScale' in prefs, false);
+  assert.equal(prefs.discreet, true);
+  // Une fois réécrites, plus rien à nettoyer
+  assert.equal(hasRetiredKeys(JSON.parse(JSON.stringify(prefs))), false);
+  assert.equal(hasRetiredKeys(null), false);
 });
 
 test('point touché : date avec l’heure sur 1 jour et 1 semaine ; un jour par date', () => {

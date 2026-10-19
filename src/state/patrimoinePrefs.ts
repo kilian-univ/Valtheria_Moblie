@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useSyncExternalStore } from 'react';
 
-import { parsePrefs, type PatrimoinePrefs } from '@/src/utils/patrimoine/prefs';
+import { hasRetiredKeys, parsePrefs, type PatrimoinePrefs } from '@/src/utils/patrimoine/prefs';
 import type { UserKey } from './userMemory';
 
 // Préférences du suivi de patrimoine, sur le téléphone, par compte : mode
@@ -23,7 +23,10 @@ export function loadPatrimoinePrefs(user: UserKey): Promise<PatrimoinePrefs> {
     let prefs = parsePrefs(null);
     try {
       const raw = await AsyncStorage.getItem(storageKey(user));
-      prefs = parsePrefs(raw === null ? null : JSON.parse(raw));
+      const parsed: unknown = raw === null ? null : JSON.parse(raw);
+      prefs = parsePrefs(parsed);
+      // Une option retirée (échelle logarithmique) : réécrites sans elle, une fois
+      if (hasRetiredKeys(parsed)) await AsyncStorage.setItem(storageKey(user), JSON.stringify(prefs));
     } catch {
       // illisible : préférences par défaut
     }

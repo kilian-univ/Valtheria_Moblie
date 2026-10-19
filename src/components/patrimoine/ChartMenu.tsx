@@ -21,17 +21,12 @@ type Props = {
   // Supprimer un relevé anormal (courbe du patrimoine seulement) : appelé une
   // fois le menu refermé, pour ouvrir la confirmation
   onDelete?: (key: string) => void;
-  // Échelle logarithmique (mémorisée)
-  log: boolean;
-  onLogChange: (log: boolean) => void;
-  // Échelle impossible pour ce mode (Plus-value) : options grisées, avec la raison
-  logDisabled?: string | null;
 };
 
 // Petit menu de la courbe : « Masquer les relevés anormaux » ou « Afficher
 // tout », et la liste des relevés anormaux (un chemin pour le lecteur
 // d'écran, qui ne peut pas faire d'appui long sur un point)
-export default function ChartMenu({ hide, onChange, anomalies, onDelete, log, onLogChange, logDisabled = null }: Props) {
+export default function ChartMenu({ hide, onChange, anomalies, onDelete }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const [open, setOpen] = useState(false);
@@ -83,37 +78,6 @@ export default function ChartMenu({ hide, onChange, anomalies, onDelete, log, on
             <AppText variant="caption" tone="subtitle">
               {status}
             </AppText>
-            <View accessibilityRole="radiogroup" accessibilityLabel={logDisabled ? `Échelle. ${logDisabled}` : 'Échelle'}>
-              <Choice
-                label="Échelle linéaire"
-                disabled={!!logDisabled}
-                selected={!log}
-                onPress={() => {
-                  if (log) {
-                    select();
-                    onLogChange(false);
-                  }
-                }}
-              />
-              <Choice
-                label="Échelle logarithmique"
-                caption="Un même pourcentage prend la même hauteur, utile sur plusieurs années."
-                disabled={!!logDisabled}
-                selected={log}
-                onPress={() => {
-                  if (!log) {
-                    select();
-                    onLogChange(true);
-                  }
-                }}
-                last
-              />
-            </View>
-            {logDisabled ? (
-              <AppText variant="caption" tone="subtitle">
-                {logDisabled}
-              </AppText>
-            ) : null}
             {onDelete && count > 0 ? (
               <View style={styles.list}>
                 <AppText variant="sectionLabel" accessibilityRole="header">
@@ -148,19 +112,17 @@ export default function ChartMenu({ hide, onChange, anomalies, onDelete, log, on
   );
 }
 
-function Choice({ label, caption, selected, onPress, last, disabled }: { label: string; caption?: string; selected: boolean; onPress: () => void; last?: boolean; disabled?: boolean }) {
+function Choice({ label, caption, selected, onPress, last }: { label: string; caption?: string; selected: boolean; onPress: () => void; last?: boolean }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
       accessibilityRole="radio"
-      accessibilityState={{ checked: selected, disabled }}
+      accessibilityState={{ checked: selected }}
       aria-checked={selected}
-      aria-disabled={disabled}
       accessibilityLabel={caption ? `${label}. ${caption}` : label}
-      style={({ pressed }) => [styles.choice, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, pressed && { opacity: 0.7 }, disabled && styles.disabled]}
+      style={({ pressed }) => [styles.choice, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, pressed && { opacity: 0.7 }]}
     >
       <View style={styles.flex}>
         <AppText style={styles.choiceLabel}>{label}</AppText>
@@ -181,6 +143,5 @@ const styles = StyleSheet.create({
   choice: { flexDirection: 'row', alignItems: 'center', gap: space[3], minHeight: 56, paddingVertical: space[2] },
   choiceLabel: { fontFamily: fonts.bodySemibold, fontSize: 16 },
   list: { gap: space[1] },
-  disabled: { opacity: 0.4 },
   anomaly: { flexDirection: 'row', alignItems: 'center', gap: space[2], minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth },
 });

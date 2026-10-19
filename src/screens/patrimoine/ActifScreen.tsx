@@ -28,7 +28,7 @@ import { tap } from '@/src/utils/haptics';
 import { actionErrorText } from '@/src/utils/loadError';
 import { splitAnomalies } from '@/src/utils/patrimoine/anomalies';
 import { TYPE_LABELS } from '@/src/utils/patrimoine/analysis';
-import { clipPrices, compactTick, DEFAULT_PERIOD, logScaleState, operationMarks, periodLabel, priceRange, priceSummary, scrubDateLabel, type Period } from '@/src/utils/patrimoine/chart';
+import { clipPrices, compactTick, DEFAULT_PERIOD, operationMarks, periodLabel, priceRange, priceSummary, scrubDateLabel, type Period } from '@/src/utils/patrimoine/chart';
 import { moneyEur, originalNote, ratesOf, toEur } from '@/src/utils/patrimoine/currency';
 import { longDate, money, quantity, quantityLabel, rateDateLabel, shortDate, signedMoney, signedPercent } from '@/src/utils/patrimoine/format';
 import { isStalePrice, parseOperations, parsePriceHistory, type Operation, type PricePoint } from '@/src/utils/patrimoine/model';
@@ -109,8 +109,6 @@ export default function ActifScreen() {
   // Point touché sur la courbe : la position et sa variation le suivent
   const [scrub, setScrub] = useState<number | null>(null);
   const marks = operationMarks(points, ops?.list ?? []);
-  // Échelle logarithmique du cours : appliquée si toutes les valeurs sont positives
-  const priceLog = logScaleState(prefs?.logScale ?? false, 'cours', points.map((p) => p.price));
 
   // Opération touchée : modifier ou supprimer
   const [sheet, setSheet] = useState<{ op: Operation; confirm: boolean } | null>(null);
@@ -264,7 +262,6 @@ export default function ActifScreen() {
                     const at = op ? inChart(op.unitPrice, op.currency) : null;
                     return { index: m.index, color: m.side === 'buy' ? colors.success : colors.error, value: at ?? undefined };
                   })}
-                  log={priceLog.applied}
                   formatTick={hidden ? undefined : (x) => (chartCurrency === 'EUR' ? compactTick(x, 'eur') : money(x, { currency: chartCurrency }))}
                   extremeLabel={hidden ? undefined : (x) => money(x, { currency: chartCurrency, exact: x < 100 })}
                   times={points.map((p) => p.t)}
@@ -281,11 +278,6 @@ export default function ActifScreen() {
                 </View>
               )}
             </View>
-            {priceLog.note && points.length >= 2 ? (
-              <AppText variant="caption" tone="subtitle" accessibilityLiveRegion="polite">
-                {priceLog.note}
-              </AppText>
-            ) : null}
             {marks.length > 0 ? (
               <View style={styles.legend} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                 <LegendDot color={colors.success} label="tes achats" />
@@ -300,8 +292,6 @@ export default function ActifScreen() {
                 hide={hideAnomalies}
                 onChange={(hide) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, hideAnomalies: hide }))}
                 anomalies={anomalies.map((p) => ({ key: String(p.t), label: `${shortDate(p.t, now)} · ${money(p.price, { currency: chartCurrency, exact: true })}` }))}
-                log={prefs?.logScale ?? false}
-                onLogChange={(log) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, logScale: log }))}
               />
             </View>
           </>

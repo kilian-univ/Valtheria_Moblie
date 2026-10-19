@@ -41,12 +41,8 @@ type Drawing = {
   level?: { value: number; label?: string; color: string } | null;
   // Courbe d'une couleur au-dessus de `level`, d'une autre au-dessous
   signColors?: { above: string; below: string } | null;
-  // Échelle logarithmique (seulement si toutes les valeurs sont positives)
-  log?: boolean;
   // Repères de valeur, courts (marge de droite)
   formatTick?: (v: number) => string;
-  // Arrondi des repères d'une échelle logarithmique
-  tickRound?: (v: number) => number;
   dots?: ChartDot[];
   area?: boolean;
   // Valeur écrite près du point le plus haut et le plus bas (sinon un point seul)
@@ -86,7 +82,7 @@ const firstValue = (values: (number | null)[]) => values.find((v): v is number =
 // Empreinte des données : une nouvelle lecture de la même courbe ne s'anime pas
 const signature = (d: Drawing) => {
   const n = d.values.length;
-  return `${n}:${d.values[0]}:${d.values[n - 1]}:${d.log ? 1 : 0}:${d.dashed?.length ?? 0}:${d.level?.value ?? ''}`;
+  return `${n}:${d.values[0]}:${d.values[n - 1]}:${d.dashed?.length ?? 0}:${d.level?.value ?? ''}`;
 };
 
 function frameOf(width: number, height: number, withTicks: boolean) {
@@ -97,7 +93,7 @@ function frameOf(width: number, height: number, withTicks: boolean) {
 function scaleOf(d: Drawing, width: number, height: number): { scale: Scale; zoneW: number } {
   const { zoneW, frame } = frameOf(width, height, !!d.formatTick);
   const numeric = d.values.filter((v): v is number => v !== null);
-  return { scale: makeScale(numeric, d.values.length, frame, { log: d.log }), zoneW };
+  return { scale: makeScale(numeric, d.values.length, frame), zoneW };
 }
 
 type Pill = { box: Box; text: string; inside: boolean };
@@ -180,7 +176,7 @@ function ChartDrawing({ d, width, height, touched }: { d: Drawing; width: number
   const { scale, zoneW, levelEdge, extremeBoxes, levelPill, dashedPill } = layoutOf(d, width, height);
   const { values } = d;
   const allNumbers = values.every((v) => v !== null) ? (values as number[]) : null;
-  const ticks = d.formatTick ? niceTicks(scale, 3, d.tickRound) : [];
+  const ticks = d.formatTick ? niceTicks(scale) : [];
   const start = firstValue(values);
   const lineColor = d.color;
   const zeroY = d.level ? Math.max(0, Math.min(height, scale.y(d.level.value))) : 0;

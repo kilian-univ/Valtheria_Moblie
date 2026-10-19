@@ -1,6 +1,6 @@
 /// <reference types="node" />
 // Lancer : npm test
-// Courbes (échelle, repères, échelle logarithmique, plus-value, rendement
+// Courbes (échelle, repères, plus-value, rendement
 // pondéré par le temps), devises (tout en euros, l'original à côté) et taux
 // des livrets réglementés
 
@@ -31,16 +31,6 @@ test('échelle : la plage de la courbe affichée, 6 % de marge, jamais zéro', (
   assert.ok(flat.min < 1400 && flat.max > 1400);
 });
 
-test('échelle logarithmique : un même pourcentage prend la même hauteur', () => {
-  const s = makeScale([100, 1000, 10000], 3, FRAME, { log: true, margin: 0 });
-  assert.ok(s.log);
-  assert.ok(Math.abs(s.y(100) - s.y(1000) - (s.y(1000) - s.y(10000))) < 1e-9, '×10 = même hauteur');
-  assert.equal(s.y(10000), 0);
-  assert.equal(s.y(100), 100);
-  // Une valeur nulle ou négative : retour au linéaire
-  assert.equal(makeScale([-50, 100], 2, FRAME, { log: true }).log, false);
-});
-
 test('repères : trois valeurs rondes dans la plage affichée', () => {
   const ticks = niceTicks(makeScale([20392, 29084], 2, FRAME));
   assert.ok(ticks.length >= 2 && ticks.length <= 3, String(ticks));
@@ -50,9 +40,6 @@ test('repères : trois valeurs rondes dans la plage affichée', () => {
   }
   const pct = niceTicks(makeScale([-4, 9], 2, FRAME));
   assert.ok(pct.length >= 2 && pct.length <= 3 && pct.includes(0), `zéro parmi les repères : ${pct}`);
-  const log = niceTicks(makeScale([60, 3000], 2, FRAME, { log: true }));
-  assert.ok(log.length >= 2 && log.length <= 3, String(log));
-  assert.ok(log.every((v) => /^[125]0*$/.test(String(v))), `valeurs 1, 2, 5 × 10^n : ${log}`);
   assert.equal(tickLabel(27000, 'eur'), '27\u202F000\u00A0€');
   assert.equal(tickLabel(10, 'pct'), '+\u00a010\u00a0%');
   assert.equal(tickLabel(0, 'pct'), '0\u00a0%');

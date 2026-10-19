@@ -21,8 +21,6 @@ export type PatrimoinePrefs = {
   months: string[];
   // Courbes : relevés anormaux masqués (activé par défaut)
   hideAnomalies: boolean;
-  // Courbes de valeur et de cours : échelle logarithmique (désactivée par défaut)
-  logScale: boolean;
   // Icône choisie pour un placement sans cours, par symbole (en majuscules)
   icons: Record<string, IconKey>;
   // Objectifs de l'ancien outil Épargne du site déjà repris (une seule fois)
@@ -37,7 +35,6 @@ export const DEFAULT_PREFS: PatrimoinePrefs = {
   milestones: {},
   months: [],
   hideAnomalies: true,
-  logScale: false,
   icons: {},
   savingsImported: false,
 };
@@ -49,6 +46,14 @@ const ICONS_MAX = 200;
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+
+// Clés d'anciennes options, retirées depuis : effacées des préférences gardées
+// (logScale : échelle logarithmique des courbes, retirée le 19/10/2026)
+export const RETIRED_PREF_KEYS: readonly string[] = ['logScale'];
+
+export function hasRetiredKeys(raw: unknown): boolean {
+  return !!raw && typeof raw === 'object' && RETIRED_PREF_KEYS.some((k) => k in (raw as Record<string, unknown>));
+}
 
 export function parsePrefs(raw: unknown): PatrimoinePrefs {
   const r = obj(raw);
@@ -100,7 +105,6 @@ export function parsePrefs(raw: unknown): PatrimoinePrefs {
     milestones,
     months: [...new Set(months)].sort(),
     hideAnomalies: r.hideAnomalies !== false,
-    logScale: r.logScale === true,
     icons,
     savingsImported: r.savingsImported === true,
   };
