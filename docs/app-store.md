@@ -136,6 +136,7 @@ Vérifications :
 
 ### `eas.json`
 - **Profil `production`** : API de production, environnement EAS `production`, dernière image de build iOS, numéro de build automatique, canal de mises à jour `production` (lot 1). Le profil `preview` publie sur le canal `preview`.
+- **Projet EAS** : `@valtheria/Valtheria` sur l'organisation `valtheria` du compte de l'utilisateur (identifiant `0244685c-1a6d-49a4-b988-9e9ea4f68182`, créé le 20/10). L'ancien projet appartenait au compte de Kilian et n'est plus visé par aucune construction ni mise à jour.
 - **Variables à régler sur expo.dev** (environnement `production` du projet), jamais dans le dépôt : `EXPO_PUBLIC_SENTRY_DSN` (adresse d'envoi des plantages, en clair) et le secret `SENTRY_AUTH_TOKEN` (envoi des source maps à la construction). Sans la première, le suivi des plantages reste coupé ; sans le second, les traces arrivent sans noms de fichiers lisibles. Voir le README, « Suivi des plantages ».
 - **`submit.production`** : langue `fr-FR`. L'identifiant App Store Connect (`ascAppId`) sera demandé au premier `eas submit`, ou peut y être ajouté une fois l'app créée.
 - **Profil `development`** : il demande un client de développement, mais `expo-dev-client` n'est pas installé. À installer si tu veux un build de développement ; sinon, utilise Expo Go et le profil `preview`.
