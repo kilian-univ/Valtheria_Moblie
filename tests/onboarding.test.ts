@@ -32,6 +32,7 @@ import {
   REMINDER_SLOTS,
   reminderMessageFor,
   lessonDoneToday,
+  plannedReminders,
   REMINDER_DAYS_AHEAD,
   upcomingReminders,
 } from '../src/utils/reminder';
@@ -222,6 +223,46 @@ test('leçon du jour faite : plus de rappel aujourd’hui, le premier est demain
   // Par défaut : 30 jours (limite d'iOS : 64 notifications en attente, budget compris)
   assert.equal(REMINDER_DAYS_AHEAD, 30);
   assert.equal(upcomingReminders(now, { hour: 19, minute: 0 }).length, 30);
+});
+
+test('liste exacte programmée : leçon faite avant l’heure du rappel → rien aujourd’hui, le premier demain', () => {
+  const time = { hour: 19, minute: 0 };
+  const beforeHour = new Date(2026, 9, 10, 9, 0);
+  // Sans leçon aujourd'hui : le rappel de ce soir est programmé, puis 29 jours
+  const plain = plannedReminders(beforeHour, time, null);
+  assert.equal(plain.length, 30);
+  assert.deepEqual([plain[0].date.getDate(), plain[0].date.getHours(), plain[0].date.getMinutes()], [10, 19, 0]);
+  assert.equal(plain[29].date.getDate(), new Date(2026, 9, 10 + 29).getDate());
+  // Leçon faite ce matin : aucun rappel le 10, le premier le 11, toujours 30
+  const done = plannedReminders(beforeHour, time, '2026-10-10');
+  assert.equal(done.length, 30);
+  assert.equal(done.some((r) => r.date.getDate() === 10 && r.date.getMonth() === 9), false);
+  assert.deepEqual([done[0].date.getDate(), done[0].date.getHours()], [11, 19]);
+  // Les jours se suivent sans trou, toujours à 19 h locales (le changement
+  // d'heure du 25 octobre ne décale pas le rappel), et chaque rappel a un texte
+  for (let i = 1; i < done.length; i++) {
+    const previous = new Date(done[i - 1].date);
+    previous.setDate(previous.getDate() + 1);
+    assert.equal(done[i].date.toDateString(), previous.toDateString());
+    assert.equal(done[i].date.getHours(), 19);
+  }
+  assert.ok(done.every((r) => r.title && r.body));
+  // Une leçon faite un autre jour ne change rien
+  assert.deepEqual(plannedReminders(beforeHour, time, '2026-10-09').map((r) => r.date.getTime()), plain.map((r) => r.date.getTime()));
+});
+
+test('liste exacte programmée : leçon faite après l’heure du rappel → identique, le premier est demain', () => {
+  const time = { hour: 19, minute: 0 };
+  const afterHour = new Date(2026, 9, 10, 20, 30);
+  const done = plannedReminders(afterHour, time, '2026-10-10');
+  const plain = plannedReminders(afterHour, time, null);
+  assert.deepEqual(done.map((r) => r.date.getTime()), plain.map((r) => r.date.getTime()));
+  assert.deepEqual([done[0].date.getDate(), done[0].date.getHours()], [11, 19]);
+  assert.equal(done.length, 30);
+  // Objectif connu : un jour sur deux, le texte de l'objectif
+  const withObjective = plannedReminders(afterHour, time, null, 'epargner');
+  assert.ok(withObjective.some((r) => r.body.includes('épargne')));
+  assert.ok(withObjective.some((r) => !r.body.includes('épargne')));
 });
 
 test('le texte du rappel parle comme Val et change d’un jour à l’autre', () => {

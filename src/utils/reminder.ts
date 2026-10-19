@@ -86,3 +86,18 @@ export function upcomingReminders(now: Date, time: ReminderTime, days = REMINDER
   }
   return out;
 }
+
+export type PlannedReminder = { date: Date; title: string; body: string };
+
+// Ce que l'app programme exactement (state/reminder.ts, schedule) : une
+// notification par jour avec son texte, aucune le jour où la leçon est déjà
+// faite (le premier rappel est alors demain), `days` jours d'avance
+export function plannedReminders(
+  now: Date,
+  time: ReminderTime,
+  lastLessonDay: string | null | undefined,
+  objective?: string | null,
+  days = REMINDER_DAYS_AHEAD
+): PlannedReminder[] {
+  return upcomingReminders(now, time, days, lessonDoneToday(lastLessonDay, now)).map((date) => ({ date, ...reminderMessageFor(date, objective) }));
+}

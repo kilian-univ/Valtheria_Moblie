@@ -3,7 +3,7 @@ import type * as NotificationsModule from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { localDay } from '@/src/utils/day';
-import { DEFAULT_REMINDER, lessonDoneToday, REMINDER_DAYS_AHEAD, ReminderTime, reminderMessageFor, upcomingReminders } from '@/src/utils/reminder';
+import { DEFAULT_REMINDER, plannedReminders, ReminderTime } from '@/src/utils/reminder';
 import { REMINDER_SOUND_FILE, reminderSound } from '@/src/utils/soundRules';
 import { lastObjective } from './objective';
 import { onboardingStore } from './onboarding';
@@ -108,12 +108,10 @@ async function schedule(Notifications: typeof NotificationsModule, time: Reminde
     });
   }
   // Objectif connu (profil, sinon première ouverture) : un jour sur deux,
-  // le rappel en parle
+  // le rappel en parle. Leçon du jour déjà faite : le premier rappel est
+  // demain. La liste exacte est calculée par plannedReminders (testée).
   const objective = (await lastObjective()) ?? (await onboardingStore.load()).objective;
-  // Leçon du jour déjà faite : le premier rappel est demain
-  const now = new Date();
-  for (const date of upcomingReminders(now, time, REMINDER_DAYS_AHEAD, lessonDoneToday(await lastLessonDay(), now))) {
-    const { title, body } = reminderMessageFor(date, objective);
+  for (const { date, title, body } of plannedReminders(new Date(), time, await lastLessonDay(), objective)) {
     await Notifications.scheduleNotificationAsync({
       identifier: `${OWN_PREFIX}${date.toISOString()}`,
       content: { title, body, sound: reminderSound(), data: { target: 'apprendre' } },
