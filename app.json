@@ -2,6 +2,7 @@
   "expo": {
     "name": "Valtheria",
     "slug": "Valtheria",
+    "owner": "valtheria",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -126,11 +127,11 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "26ab6003-28d5-4500-b317-7ab2444ded4a"
+        "projectId": "0244685c-1a6d-49a4-b988-9e9ea4f68182"
       }
     },
     "updates": {
-      "url": "https://u.expo.dev/26ab6003-28d5-4500-b317-7ab2444ded4a",
+      "url": "https://u.expo.dev/0244685c-1a6d-49a4-b988-9e9ea4f68182",
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
