@@ -1,12 +1,40 @@
 # Préparation de l'App Store
 
-État au 18 octobre 2026 : app `design/ui` et `main`, site et production en `a36b01d` (vérifié par `scripts/check-revision.sh prod`). Ce document reprend la priorité 1 de `docs/audit-complet.md`.
+État au 19 octobre 2026 : app `design/ui` et `main`, site et production en `f611d3c` (vérifié par `scripts/check-revision.sh prod`). Ce document reprend la priorité 1 de `docs/audit-complet.md`.
+
+## 0. Lot du 19 octobre ([PR n° 16](https://github.com/Valtheraa/Valtheria/pull/16), en production)
+
+- **Mentions « [À CONFIRMER] »** : retirées de la politique de confidentialité. La ligne sur la durée des données techniques, vide sans son information, est masquée. Rien d'autre n'est réécrit. Un test refuse désormais cette mention sur toute page publique.
+- **Inscription depuis l'app** : ouverte par l'API (`API_REGISTER_ENABLED`, ouverte par défaut ; `false` la referme), le site web restant fermé.
+  - L'acceptation des CGU est notée à l'inscription.
+  - Parcours complet essayé depuis l'app sur le staging : pseudo, e-mail et mot de passe, rappel, compte connecté.
+  - En production, l'API répond 422 (et non plus 403) à une demande invalide.
+- **Suppression du compte : elle échouait toujours depuis l'app.** Le client figé envoie `DELETE /api/user` sans le mot de passe que le serveur exige.
+  - Le site ajoute `POST /api/user/delete`, avec le mot de passe dans le corps.
+  - Dans l'app, « Supprimer mon compte » ouvre une feuille qui le demande.
+  - Essayé sur le staging : mot de passe faux refusé (« Mot de passe incorrect. »), puis compte supprimé, jetons révoqués, retour à l'accueil.
+- **Page publique « Aide et contact »** : `https://valtheria.fr/aide`, reliée depuis les Réglages. C'est l'URL d'assistance de l'App Store.
+- **Copies prises avant chaque déploiement** : gardées 30 jours. Après vérification de la sauvegarde hors serveur de la nuit, le déploiement du 19/10 a supprimé les 15 copies plus anciennes ; il en reste 93, toutes de moins de 30 jours.
+
+### Données collectées depuis l'app (étiquettes de confidentialité d'Apple)
+
+- **Dans l'app, aucun outil de collecte** : ni Sentry, ni outil de mesure, ni Firebase, ni mise à jour à distance.
+  - `track()` n'écrit que dans la console, en développement.
+  - L'app ne parle qu'à l'API de valtheria.fr et n'ouvre que ses pages.
+  - Les rappels sont locaux, sans jeton de notification.
+- **Côté serveur seulement**, Sentry (région UE) reçoit les erreurs du serveur, y compris celles provoquées par une requête de l'app :
+  - sans suivi des performances (`traces_sample_rate` nul) ;
+  - sans données personnelles (`send_default_pii` à faux) ;
+  - sans les valeurs des requêtes SQL.
+- **Pour Apple** : déclarer les données que l'app envoie au serveur pour fonctionner. Ce sont l'e-mail, l'identifiant du compte, la progression, et les données financières saisies (patrimoine, budget). Elles sont liées au compte, servent au fonctionnement de l'app et ne servent pas au pistage.
+- **À trancher** : déclarer ou non « Diagnostics » pour les erreurs du serveur remontées à Sentry. Elles sont sans donnée personnelle, mais naissent de requêtes de l'app.
 
 ## 1. Pages légales (B1)
 
 **Fait.** Le site sert sans code d'accès `/cgu`, `/politique-confidentialite` (l'ancienne adresse `/politique-de-confidentialite` y redirige) et `/mentions-legales`. Le reste du site reste derrière la porte d'accès, `/cgv` compris. C'est une exception au gel du web, accordée le 18/10/2026 : [PR n° 15](https://github.com/Valtheraa/Valtheria/pull/15), en production.
 
 Liens depuis l'app, vérifiés en vrai lancement web :
+- **Réglages**, « Aide et contact » : `https://valtheria.fr/aide` (19/10).
 - **Connexion** : « Conditions d'utilisation · Confidentialité · Mentions légales » sous les boutons.
 - **Inscription** : « En continuant, tu acceptes les conditions d'utilisation et la politique de confidentialité ».
 - **Réglages**, « Confidentialité et conditions » : les trois pages.
@@ -16,7 +44,7 @@ Liens depuis l'app, vérifiés en vrai lancement web :
 Relu le 18/10/2026, sans rien réécrire, face à ce que font l'app et le serveur aujourd'hui. Les points 1 à 3 sont les plus urgents : la page est désormais publique.
 
 **Politique de confidentialité**
-1. **Trois mentions « [À CONFIRMER : …] » sont visibles par tous** : base des transferts hors UE, délai après la suppression du compte, durée des journaux techniques.
+1. ~~Trois mentions « [À CONFIRMER : …] » visibles par tous~~ : **retirées le 19/10**. Restent à écrire : la base des transferts hors UE, le délai réel de suppression (30 jours) et la durée des journaux (14 jours).
 2. **Elle ne parle que du site** (valtheria.fr) : rien sur l'app iOS.
 3. **Le budget est absent.** Le serveur garde des données financières personnelles :
    - rentrées et jour de paie ;
@@ -36,7 +64,7 @@ Relu le 18/10/2026, sans rien réécrire, face à ce que font l'app et le serveu
    - **Sentry** : suivi des erreurs du serveur, région UE (`de.sentry.io`), données personnelles non envoyées par défaut (`send_default_pii` à faux) ;
    - **Backblaze B2** : sauvegardes quotidiennes de la base, hors serveur, gardées 30 jours. Le lieu de stockage et la base du transfert sont à vérifier.
 10. **Suppression du compte** : le texte ne dit pas ce qui se passe vraiment. Le compte est désactivé tout de suite, puis supprimé définitivement après 30 jours (`accounts:purge`, tous les jours) ; on peut le réactiver avant par e-mail.
-11. **Copies de sauvegarde** : celles prises avant chaque déploiement sont **gardées sans limite**. Il y en a 48 depuis le 30/08/2026, dans `/var/backups/valtheria/pre-deploy`. Un compte supprimé y reste donc au-delà des 30 jours. Il faut fixer une durée (et la faire appliquer), ou l'écrire.
+11. **Copies de sauvegarde** : celles prises avant chaque déploiement sont gardées **30 jours** depuis le 19/10 (elles l'étaient sans limite). La durée reste à écrire.
 12. **Durées réelles**, à reporter :
     - journaux de l'application : 14 jours ;
     - session web : 120 minutes ;
@@ -51,7 +79,7 @@ Relu le 18/10/2026, sans rien réécrire, face à ce que font l'app et le serveu
 1. Elles ne visent que le service « accessible à l'adresse valtheria.fr », pas l'app.
 2. Rien sur les outils de suivi (patrimoine, budget) : des données saisies par l'utilisateur, des calculs indicatifs. L'avertissement « pas de conseil en investissement » ne vise que les contenus et Val.
 3. « Tu peux supprimer ton compte à tout moment depuis tes paramètres » : vrai dans l'app, mais sans le délai de 30 jours.
-4. « L'inscription est gratuite » : l'inscription depuis l'app est fermée aujourd'hui (voir plus bas).
+4. « L'inscription est gratuite » : exact depuis le 19/10, où l'inscription depuis l'app est ouverte.
 5. Rien sur le droit applicable, les modifications des CGU ni la responsabilité. À voir avec un juriste ; Apple fournit par défaut son contrat de licence standard.
 
 **Mentions légales**

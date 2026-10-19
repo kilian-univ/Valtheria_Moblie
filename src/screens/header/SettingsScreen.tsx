@@ -17,7 +17,7 @@ import BudgetReminderSettingRow from '@/src/components/budget/BudgetReminderSett
 import ObjectiveSheet from '@/src/components/profile/ObjectiveSheet';
 import ProfileAvatar from '@/src/components/profile/ProfileAvatar';
 import { SettingsRow, SettingsSection, useSettingsRowStyles } from '@/src/components/profile/SettingsList';
-import { FORGOT_PASSWORD_URL, LEGAL_NOTICE_URL, PRIVACY_URL, TERMS_URL } from '@/src/constants/links';
+import { FORGOT_PASSWORD_URL, HELP_URL, LEGAL_NOTICE_URL, PRIVACY_URL, TERMS_URL } from '@/src/constants/links';
 import { fonts, palette, radius, size, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -34,7 +34,7 @@ import { initialOf, levelA11y, truncateEmail } from '@/src/utils/profile';
 
 const AVATAR = 64;
 
-type Sheet = 'pseudo' | 'password' | 'objective' | 'legal' | null;
+type Sheet = 'pseudo' | 'password' | 'objective' | 'legal' | 'delete' | null;
 
 // Réglages (ouverts par la roue dentée du profil) : compte, préférences,
 // données. Reprend tout le comportement de l'ancien profil : pseudo, mot de
@@ -42,7 +42,7 @@ type Sheet = 'pseudo' | 'password' | 'objective' | 'legal' | null;
 // suppression reste facile à trouver (règle d'Apple) : une ligne grisée,
 // sans rouge ; le rouge n'apparaît que dans la confirmation.
 export default function SettingsScreen() {
-  const { user, logout, exportUser, deleteAccount, updateUser, post, isAuthenticated, isLoading } = useApi();
+  const { user, logout, exportUser, updateUser, post, isAuthenticated, isLoading } = useApi();
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const p = useProfile();
@@ -145,26 +145,36 @@ export default function SettingsScreen() {
     router.dismissTo('/apprendre');
   };
 
+  // Suppression du compte (règle d'Apple) : confirmée par le mot de passe, que le site exige.
+  // POST /user/delete : le DELETE /user d'ApiContext part sans corps, donc sans mot de passe.
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const handleDelete = () => {
-    Alert.alert('Supprimer le compte', 'Cette action est définitive. Confirmer ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: async () => {
-          // Identifiant gardé avant : deleteAccount efface le profil
-          const userId = user?.id;
-          try {
-            await deleteAccount();
-            await clearLastProfile();
-            if (userId != null) await purgeAccountData(userId);
-            router.dismissTo('/apprendre');
-          } catch (err) {
-            Alert.alert('Suppression impossible', actionErrorText(err, 'Réessaie dans un instant.', 'Pas de connexion internet : ton compte n’a pas été supprimé. Réessaie dans un instant.'));
-          }
-        },
-      },
-    ]);
+    setDeletePassword('');
+    setDeleteError(null);
+    open('delete');
+  };
+  const confirmDelete = async () => {
+    // Identifiant gardé avant : la déconnexion efface le profil
+    const userId = user?.id;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await post('/user/delete', { password: deletePassword });
+    } catch (err) {
+      setDeleting(false);
+      setDeleteError(actionErrorText(err, 'La suppression n’a pas abouti. Réessaie dans un instant.', 'Pas de connexion internet : ton compte n’a pas été supprimé. Réessaie dans un instant.'));
+      return;
+    }
+    // Les jetons sont révoqués côté serveur : la déconnexion ne fait plus que vider le téléphone
+    await logout().catch(() => {});
+    await clearLastProfile();
+    if (userId != null) await purgeAccountData(userId);
+    setDeleting(false);
+    close();
+    router.dismissTo('/apprendre');
+    Alert.alert('Compte supprimé', 'Ton compte est désactivé. Il sera supprimé définitivement dans 30 jours. Pour le réactiver avant, écris à contact@valtheria.fr.');
   };
 
   const pseudoNow = user?.pseudo ?? '';
@@ -222,6 +232,7 @@ export default function SettingsScreen() {
 
         <SettingsSection title="Données et compte">
           <SettingsRow icon="download-outline" label="Exporter mes données" onPress={handleExport} />
+          <SettingsRow icon="help-circle-outline" label="Aide et contact" onPress={() => WebBrowser.openBrowserAsync(HELP_URL).catch(() => {})} />
           <SettingsRow icon="document-text-outline" label="Confidentialité et conditions" onPress={() => open('legal')} />
           <SettingsRow icon="log-out-outline" label="Se déconnecter" onPress={handleLogout} chevron={false} />
           <SettingsRow icon="trash-outline" label="Supprimer mon compte" onPress={handleDelete} muted last />
@@ -284,6 +295,40 @@ export default function SettingsScreen() {
               </AppText>
             ) : null}
             <Button label={FORGOT_PASSWORD_ENABLED ? 'Recevoir le lien' : 'Ouvrir le site'} onPress={sendReset} disabled={resetSent} />
+          </View>
+        </BottomSheet>
+      ) : null}
+
+      {mounted === 'delete' ? (
+        <BottomSheet open={sheet === 'delete'} onRequestClose={close} onClosed={unmount}>
+          <View style={styles.sheet}>
+            <AppText variant="title3" accessibilityRole="header">
+              Supprimer ton compte
+            </AppText>
+            <AppText variant="callout" tone="subtitle">
+              Ton compte est désactivé tout de suite, et ce que l’app garde sur ce téléphone est effacé. Il est supprimé
+              définitivement au bout de 30 jours ; pour le réactiver avant, écris à contact@valtheria.fr.
+            </AppText>
+            <TextField
+              label="Ton mot de passe"
+              value={deletePassword}
+              onChangeText={(t) => {
+                setDeletePassword(t);
+                setDeleteError(null);
+              }}
+              secret
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="password"
+              autoComplete="current-password"
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                if (deletePassword) confirmDelete();
+              }}
+              error={deleteError}
+            />
+            <Button variant="danger" label="Supprimer mon compte" onPress={confirmDelete} disabled={!deletePassword} loading={deleting} />
+            <Button variant="text" label="Annuler" onPress={close} />
           </View>
         </BottomSheet>
       ) : null}

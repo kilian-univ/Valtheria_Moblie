@@ -3,5 +3,7 @@
 export const TERMS_URL = 'https://valtheria.fr/cgu';
 export const PRIVACY_URL = 'https://valtheria.fr/politique-confidentialite';
 export const LEGAL_NOTICE_URL = 'https://valtheria.fr/mentions-legales';
+// Aide et contact (publique, URL d'assistance de l'App Store)
+export const HELP_URL = 'https://valtheria.fr/aide';
 // Mot de passe oublié, sur le site (routes/auth.php : forgot-password)
 export const FORGOT_PASSWORD_URL = 'https://valtheria.fr/forgot-password';
