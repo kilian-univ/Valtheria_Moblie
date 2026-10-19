@@ -7,6 +7,7 @@ import AppText from '@/src/components/common/AppText';
 import Header from '@/src/components/topbar/header';
 import { fonts, moduleColors, palette, space, universeCard, withOpacity } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
+import { emailConfirmationOf } from '@/src/utils/emailConfirmation';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useBudget } from '@/src/state/budgetData';
 import { usePatrimoinePrefs } from '@/src/state/patrimoinePrefs';
@@ -84,6 +85,8 @@ export default function OutilsScreen() {
   } else if (budget) budgetLive = 'Mise en route en deux minutes';
   // L'épargne mise de côté dans le budget compte pour la régularité
   const regularity = prefs ? streakLabel(currentStreak([...prefs.months, ...(budget ? savingMonths(budget, localToday()) : [])], now)) : null;
+  // 7 jours sans confirmer l'adresse : les deux outils attendent la confirmation
+  const locked = emailConfirmationOf(user, now.getTime()).required ? 'Confirme ton adresse e-mail pour l’ouvrir' : null;
 
   return (
     <View style={styles.screen}>
@@ -101,7 +104,7 @@ export default function OutilsScreen() {
           label="AU QUOTIDIEN"
           title="Mon budget"
           description="Ce que tu peux encore dépenser, à jour avec un seul chiffre : ton solde."
-          live={budgetLive}
+          live={locked ?? budgetLive}
           route="/outils/budget"
         />
         <ToolCard
@@ -110,7 +113,7 @@ export default function OutilsScreen() {
           label="SUR LA DURÉE"
           title="Mon patrimoine"
           description="Tes livrets, placements et objectifs, réunis au même endroit."
-          live={regularity ? `Régularité : ${regularity}` : null}
+          live={locked ?? (regularity ? `Régularité : ${regularity}` : null)}
           route="/outils/portefeuille"
         />
       </ScrollView>

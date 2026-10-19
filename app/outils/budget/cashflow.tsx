@@ -1,3 +1,4 @@
+import EmailConfirmGate from '@/src/components/account/EmailConfirmGate';
 import { OpaqueScreen } from '@/src/components/common/AppBackground';
 import BudgetGate from '@/src/screens/budget/BudgetGate';
 
@@ -5,7 +6,9 @@ import BudgetGate from '@/src/screens/budget/BudgetGate';
 export default function BudgetCashflow() {
   return (
     <OpaqueScreen tab="outils">
-      <BudgetGate page="cashflow" />
+      <EmailConfirmGate title="Mon budget" what="ton budget">
+        <BudgetGate page="cashflow" />
+      </EmailConfirmGate>
     </OpaqueScreen>
   );
 }

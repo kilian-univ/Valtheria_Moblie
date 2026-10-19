@@ -1,5 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 
+import EmailConfirmGate from '@/src/components/account/EmailConfirmGate';
 import { OpaqueScreen } from '@/src/components/common/AppBackground';
 import BudgetGate from '@/src/screens/budget/BudgetGate';
 
@@ -8,7 +9,9 @@ export default function BudgetBilan() {
   const { mois } = useLocalSearchParams<{ mois?: string }>();
   return (
     <OpaqueScreen tab="outils">
-      <BudgetGate page="bilan" month={typeof mois === 'string' ? mois : undefined} />
+      <EmailConfirmGate title="Mon budget" what="ton budget">
+        <BudgetGate page="bilan" month={typeof mois === 'string' ? mois : undefined} />
+      </EmailConfirmGate>
     </OpaqueScreen>
   );
 }

@@ -1,3 +1,4 @@
+import EmailConfirmGate from '@/src/components/account/EmailConfirmGate';
 import { OpaqueScreen } from '@/src/components/common/AppBackground';
 import PatrimoineGate from '@/src/screens/patrimoine/PatrimoineGate';
 
@@ -6,7 +7,9 @@ import PatrimoineGate from '@/src/screens/patrimoine/PatrimoineGate';
 export default function Portefeuille() {
   return (
     <OpaqueScreen tab="outils">
-      <PatrimoineGate />
+      <EmailConfirmGate title="Mon patrimoine" what="ton patrimoine">
+        <PatrimoineGate />
+      </EmailConfirmGate>
     </OpaqueScreen>
   );
 }

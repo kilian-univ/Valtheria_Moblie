@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { BottomTabBar, type BottomTabBarProps } from 'expo-router/tabs';
 import { ComponentProps } from 'react';
-import { ColorValue } from 'react-native';
+import { ColorValue, View } from 'react-native';
+
+import EmailConfirmBanner from '@/src/components/account/EmailConfirmBanner';
 
 import { palette, textVariants } from '@/src/constants/style/Style';
 import { TAB_ROUTES } from '@/src/constants/tabs';
@@ -16,12 +19,25 @@ function tabIcon(name: IconName) {
   };
 }
 
+// Barre des onglets, avec au-dessus le bandeau « Confirme ton adresse e-mail »
+// tant que l'adresse n'est pas confirmée (visible sur les quatre onglets)
+function TabBar(props: BottomTabBarProps) {
+  return (
+    <View>
+      <EmailConfirmBanner />
+      <BottomTabBar {...props} />
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
 
   return (
     <Tabs
+      // Rendue comme un composant : la navigation appelle tabBar comme une simple fonction
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.gold,

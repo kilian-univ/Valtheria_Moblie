@@ -21,6 +21,7 @@ import { SkeletonProvider } from '@/src/components/common/Skeleton';
 import OnboardingGate from '@/src/components/onboarding/OnboardingGate';
 import ReminderTapRouter from '@/src/components/onboarding/ReminderTapRouter';
 import SessionRecovery from '@/src/components/common/SessionRecovery';
+import EmailConfirmationRefresh from '@/src/components/account/EmailConfirmationRefresh';
 import StartupGate from '@/src/components/splash/StartupGate';
 import { VAL_SALUT_GLOW, valPose } from '@/src/components/common/ValFullBody';
 import { LOGO } from '@/src/constants/brand';
@@ -65,6 +66,8 @@ function RootLayoutContent() {
       <ApiProvider>
         {/* Profil manquant au démarrage (hors ligne, serveur en panne) : relu dès que possible */}
         <SessionRecovery />
+        {/* Adresse confirmée dans le navigateur : vu dès le retour dans l'app */}
+        <EmailConfirmationRefresh />
         {/* Une seule animation de reflet, partagée par tous les squelettes */}
         <SkeletonProvider>
           <View style={{ flex: 1, backgroundColor: colors.background }}>

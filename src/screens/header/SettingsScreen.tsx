@@ -21,6 +21,7 @@ import { FORGOT_PASSWORD_URL, HELP_URL, LEGAL_NOTICE_URL, PRIVACY_URL, TERMS_URL
 import { fonts, palette, radius, size, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useEmailConfirmation } from '@/src/hooks/useEmailConfirmation';
 import { useProfile } from '@/src/hooks/useProfile';
 import type { Objective } from '@/src/lesson/discovery';
 import { FORGOT_PASSWORD_ENABLED } from '@/src/screens/header/LoginScreen';
@@ -46,6 +47,7 @@ export default function SettingsScreen() {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const p = useProfile();
+  const emailConfirmation = useEmailConfirmation();
   const rowStyles = useSettingsRowStyles();
   const lastRowStyles = useSettingsRowStyles(true);
 
@@ -119,6 +121,19 @@ export default function SettingsScreen() {
 
   // --- Données ---
   const handleExport = async () => {
+    // 7 jours sans confirmer l'adresse : l'export attend la confirmation
+    if (emailConfirmation.required) {
+      const to = emailConfirmation.email ? ` envoyé à ${emailConfirmation.email}` : '';
+      Alert.alert(
+        'Confirme ton adresse e-mail',
+        `L’export de tes données attend la confirmation de ton adresse : touche le lien du courriel${to}.`,
+        [
+          { text: 'Plus tard', style: 'cancel' },
+          ...(emailConfirmation.left > 0 ? [] : [{ text: 'Renvoyer le courriel', onPress: () => void emailConfirmation.resend() }]),
+        ]
+      );
+      return;
+    }
     try {
       const data = await exportUser();
       // Un fichier JSON, partagé par la feuille de partage (décision du 17 octobre 2026)
