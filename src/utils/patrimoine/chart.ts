@@ -179,7 +179,8 @@ export function makeScale(values: readonly number[], count: number, frame: Frame
 
 // Texte d'un repère de valeur : « 27 000 € » ; « + 10 % », « 0 % », « − 5 % »
 export function tickLabel(v: number, unit: 'eur' | 'pct'): string {
-  if (unit === 'eur') return money(v);
+  // Repère rond : sans centimes, même sous 100 € (« 10 € », pas « 10,00 € »)
+  if (unit === 'eur') return Number.isInteger(v) ? money(v).replace(/,00(?=\u00a0)/, '') : money(v);
   const r = Math.round(v * 10) / 10;
   const abs = String(Math.abs(r)).replace('.', ',');
   return r === 0 ? '0\u00a0%' : `${r > 0 ? '+' : '−'}\u00a0${abs}\u00a0%`;
@@ -191,10 +192,47 @@ function niceSteps(rough: number): number[] {
   return [1, 2, 2.5, 5, 10, 20].map((m) => m * p);
 }
 
+// Arrondi à quelques chiffres significatifs : 26 480 → 26 000, 0,01234 → 0,012
+export function roundSignificant(v: number, digits = 2): number {
+  if (v === 0 || !Number.isFinite(v)) return v;
+  const p = 10 ** (Math.floor(Math.log10(Math.abs(v))) - digits + 1);
+  return Math.round((Math.round(v / p) * p) * 1e12) / 1e12;
+}
+
+// Plus grand pas « rond » (1, 2, 2,5, 5 × 10^n) qui ne dépasse pas `limit`
+function niceStepAtMost(limit: number): number {
+  const p = 10 ** Math.floor(Math.log10(limit));
+  return [5, 2.5, 2, 1].map((m) => m * p).find((step) => step <= limit) ?? p;
+}
+
+// Repères d'une échelle logarithmique : des valeurs régulièrement espacées en
+// pourcentage (donc à la même hauteur l'une de l'autre), réparties dans la
+// plage de la courbe (marges exclues), puis arrondies : par `round` s'il est
+// donné, sinon toutes au même pas rond, assez fin (un tiers du plus petit
+// écart) pour garder des écarts presque égaux
+function logTicks(min: number, max: number, count: number, round?: (v: number) => number): number[] {
+  const lo = Math.log(min);
+  const hi = Math.log(max);
+  const inner = (hi - lo) / (1 + 2 * SCALE_MARGIN);
+  const start = lo + (hi - lo - inner) / 2;
+  const ideal = Array.from({ length: count }, (_, k) => Math.exp(start + (inner * (k + 0.5)) / count));
+  const gap = Math.min(...ideal.slice(1).map((v, i) => v - ideal[i]));
+  const step = gap > 0 ? niceStepAtMost(gap / 3) : 0;
+  const byStep = (v: number) => (step > 0 ? Math.round((Math.round(v / step) * step) * 1e12) / 1e12 : v);
+  const out: number[] = [];
+  for (const v0 of ideal) {
+    const v = (round ?? byStep)(v0);
+    if (v >= min && v <= max && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+
 // Trois repères de valeur arrondis proprement, dans les bornes affichées
-// (deux si la plage est trop étroite). Logarithmique : des valeurs rondes
-// régulières en pourcentage (1, 2, 5 × 10^n), sinon les repères linéaires.
-export function niceTicks(scale: Pick<Scale, 'min' | 'max' | 'log'>, count = 3): number[] {
+// (deux si la plage est trop étroite). Logarithmique : sur une large plage, les
+// valeurs rondes 1, 2, 5 × 10^n ; sinon des valeurs régulières en pourcentage,
+// arrondies par `round` (sinon à un même pas rond) ; en dernier recours, les
+// repères linéaires.
+export function niceTicks(scale: Pick<Scale, 'min' | 'max' | 'log'>, count = 3, round?: (v: number) => number): number[] {
   const { min, max } = scale;
   if (!(max > min)) return [];
   if (scale.log && min > 0) {
@@ -210,6 +248,8 @@ export function niceTicks(scale: Pick<Scale, 'min' | 'max' | 'log'>, count = 3):
       const pick = [0, Math.round((out.length - 1) / 2), out.length - 1];
       return [...new Set(pick)].map((i) => out[i]);
     }
+    const even = logTicks(min, max, count, round);
+    if (even.length >= 2) return even;
   }
   const inner = (max - min) / (1 + 2 * SCALE_MARGIN);
   const lo = min + (max - min - inner) / 2;
@@ -284,4 +324,42 @@ export function priceSummary(points: PricePoint[], period: Period, money: (v: nu
   const from = points[0].price;
   const to = points[points.length - 1].price;
   return `Le cours de ${name} est passé de ${money(from)} à ${money(to)} ${periodLabel(period)}.`;
+}
+
+// ── Échelle logarithmique selon le mode ──────────────────────────────────
+
+export const LOG_DISABLED_PLUS_VALUE = 'Pas d’échelle logarithmique pour un montant qui peut être négatif.';
+export const LOG_FALLBACK = 'Échelle linéaire : une valeur nulle ou négative sur cette période.';
+
+// Valeurs tracées. En Performance avec l'échelle logarithmique : la croissance
+// de 1 € investi (1 + rendement), toujours positive ; sinon les valeurs du mode.
+export function plottedSeries(values: readonly number[], mode: ChartMode | 'cours', log: boolean): number[] {
+  return mode === 'performance' && log ? values.map((v) => 1 + v / 100) : [...values];
+}
+
+// Repère « rond » d'une croissance : rendement en pour cent entier (sous 10 %),
+// sinon à deux chiffres significatifs (1,25 → + 25 %)
+export function roundGrowth(g: number): number {
+  const pct = (g - 1) * 100;
+  const nice = Math.abs(pct) < 10 ? Math.round(pct) : roundSignificant(pct);
+  return 1 + nice / 100;
+}
+
+export type LogScaleState = {
+  // Échelle logarithmique réellement appliquée à la courbe
+  applied: boolean;
+  // Petite phrase sous la courbe (l'échelle est active, ou pourquoi elle ne l'est pas)
+  note: string | null;
+  // Option grisée dans le menu, avec son explication
+  disabledReason: string | null;
+};
+
+// Choix mémorisé (`requested`) et ce qui est possible pour ce mode et ces
+// valeurs tracées (après plottedSeries)
+export function logScaleState(requested: boolean, mode: ChartMode | 'cours', plotted: readonly number[]): LogScaleState {
+  if (mode === 'plus-value') return { applied: false, note: null, disabledReason: LOG_DISABLED_PLUS_VALUE };
+  if (!requested) return { applied: false, note: null, disabledReason: null };
+  const finite = plotted.filter((v) => Number.isFinite(v));
+  if (finite.length === 0 || finite.some((v) => v <= 0)) return { applied: false, note: LOG_FALLBACK, disabledReason: null };
+  return { applied: true, note: 'Échelle logarithmique', disabledReason: null };
 }

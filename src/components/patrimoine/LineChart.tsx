@@ -31,6 +31,8 @@ type Props = {
   log?: boolean;
   // Texte des repères de valeur (euros ou pourcentage)
   formatTick?: (v: number) => string;
+  // Arrondi des repères d'une échelle logarithmique (croissance de 1 € en Performance)
+  tickRound?: (v: number) => number;
   dots?: ChartDot[];
   area?: boolean;
   height?: number;
@@ -50,7 +52,7 @@ const HOLD_MS = 550;
 
 // Courbe avec toucher-glisser : trait vertical, point, étiquette au-dessus,
 // vibration légère à chaque point franchi. Le lecteur d'écran lit le résumé.
-export default function LineChart({ values, color, dashed, dashedColor, dashedLabel, level, signColors, log = false, formatTick, dots = [], area = true, height = 170, tip, summary, onLongPressPoint }: Props) {
+export default function LineChart({ values, color, dashed, dashedColor, dashedLabel, level, signColors, log = false, formatTick, tickRound, dots = [], area = true, height = 170, tip, summary, onLongPressPoint }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const [width, setWidth] = useState(0);
@@ -64,7 +66,7 @@ export default function LineChart({ values, color, dashed, dashedColor, dashedLa
   const scale = makeScale(numeric, values.length, { width: Math.max(1, width), height, padTop: PAD_TOP, padBottom: PAD_BOTTOM }, { log });
   const bottom = height - PAD_BOTTOM;
   // Repères de valeur, sauf celui qui tombe sur la ligne de niveau (elle a son étiquette)
-  const ticks = formatTick ? niceTicks(scale).filter((t) => !level || Math.abs(scale.y(t) - scale.y(level.value)) > 8) : [];
+  const ticks = formatTick ? niceTicks(scale, 3, tickRound).filter((t) => !level || Math.abs(scale.y(t) - scale.y(level.value)) > 8) : [];
   // Ligne hors de la plage : étiquette en haut (↑) ou en bas (↓) de la courbe
   const edge = (v: number) => (scale.contains(v) ? null : v > scale.max ? 'top' : 'bottom');
   const levelEdge = level ? edge(level.value) : null;

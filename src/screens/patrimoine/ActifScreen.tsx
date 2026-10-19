@@ -28,7 +28,7 @@ import { tap } from '@/src/utils/haptics';
 import { actionErrorText } from '@/src/utils/loadError';
 import { splitAnomalies } from '@/src/utils/patrimoine/anomalies';
 import { TYPE_LABELS } from '@/src/utils/patrimoine/analysis';
-import { clipPrices, DEFAULT_PERIOD, operationMarks, periodLabel, priceRange, priceSummary, tickLabel, type Period } from '@/src/utils/patrimoine/chart';
+import { clipPrices, DEFAULT_PERIOD, logScaleState, operationMarks, periodLabel, priceRange, priceSummary, tickLabel, type Period } from '@/src/utils/patrimoine/chart';
 import { moneyEur, originalNote, ratesOf, toEur } from '@/src/utils/patrimoine/currency';
 import { longDate, money, quantity, quantityLabel, rateDateLabel, shortDate, signedMoney, signedPercent } from '@/src/utils/patrimoine/format';
 import { isStalePrice, parseOperations, parsePriceHistory, type Operation, type PricePoint } from '@/src/utils/patrimoine/model';
@@ -100,6 +100,8 @@ export default function ActifScreen() {
   const points = split ? clipPrices(split.kept, period, now) : [];
   const anomalies = split ? clipPrices(split.hidden, period, now) : [];
   const marks = operationMarks(points, ops?.list ?? []);
+  // Échelle logarithmique du cours : appliquée si toutes les valeurs sont positives
+  const priceLog = logScaleState(prefs?.logScale ?? false, 'cours', points.map((p) => p.price));
 
   // Opération touchée : modifier ou supprimer
   const [sheet, setSheet] = useState<{ op: Operation; confirm: boolean } | null>(null);
@@ -253,7 +255,7 @@ export default function ActifScreen() {
                     const at = op ? inChart(op.unitPrice, op.currency) : null;
                     return { index: m.index, color: m.side === 'buy' ? colors.success : colors.error, value: at ?? undefined };
                   })}
-                  log={prefs?.logScale ?? false}
+                  log={priceLog.applied}
                   formatTick={hidden ? undefined : (x) => (chartCurrency === 'EUR' ? tickLabel(x, 'eur') : money(x, { currency: chartCurrency }))}
                   tip={tipFor}
                   summary={priceSummary(points, period, (x) => money(x, { currency: chartCurrency }), name)}
@@ -266,6 +268,11 @@ export default function ActifScreen() {
                 </View>
               )}
             </View>
+            {priceLog.note && points.length >= 2 ? (
+              <AppText variant="caption" tone="subtitle" accessibilityLiveRegion="polite">
+                {priceLog.note}
+              </AppText>
+            ) : null}
             {marks.length > 0 ? (
               <View style={styles.legend} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                 <LegendDot color={colors.success} label="tes achats" />
