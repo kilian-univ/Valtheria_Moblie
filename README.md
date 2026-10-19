@@ -18,7 +18,7 @@ cd Valtheria_Moblie
 npm ci
 ```
 
-Rien d'autre : pas de fichier `.env` à créer, pas de clé à renseigner. La seule variable d'environnement lue par l'app est `EXPO_PUBLIC_API_URL` (voir « Environnements ») ; sans elle, l'app parle à la production.
+Rien d'autre : pas de fichier `.env` à créer, pas de clé à renseigner. L'app lit deux variables d'environnement, toutes deux facultatives en développement : `EXPO_PUBLIC_API_URL` (voir « Environnements » ; sans elle, l'app parle à la production) et `EXPO_PUBLIC_SENTRY_DSN` (voir « Suivi des plantages » ; sans elle, rien n'est envoyé).
 
 Vérification que tout est en place : `npx expo-doctor` (21 contrôles) et `npx expo install --check`.
 
@@ -61,6 +61,8 @@ src/lesson/          Le modèle des leçons : normalisation du format serveur, c
 src/hooks/           Hooks React qui relient écrans, magasins et API
 src/constants/       Design system (style/Style.ts), onglets, liens, textes de Val, images des univers
 src/context/         ApiContext (client de l'API, zone protégée) et ThemeContext
+src/monitoring.ts    Suivi des plantages (Sentry) : activation, nettoyage, envoi depuis l'écran de secours
+metro.config.js      Configuration Metro d'Expo complétée par Sentry (identifiants de debug des bundles)
 tests/               Tests Node, un fichier par domaine, plus le chargeur register.mjs
 assets/              Images (webp) et sons (m4a), tous référencés par le code
 docs/                Documentation du projet (voir plus bas)
@@ -102,6 +104,35 @@ Fonctions pures, sans React ni React Native, testées par `tests/`. Par domaine 
 - Espaces insécables : une seule source (`frenchSpaces`), appliquée à l'affichage ; `tests/frenchSpaces.test.ts` et `tests/espaces.test.ts`.
 - Aucun chiffre réglementaire écrit en dur : ils viennent de l'API (`/api/regulatory-figures`).
 
+## Suivi des plantages (Sentry)
+
+- **Quand** : seulement dans la version publiée (`__DEV__` faux) **et** si `EXPO_PUBLIC_SENTRY_DSN` était définie à la construction. En développement et dans Expo Go, rien ne part jamais.
+- **Quoi** : les plantages non rattrapés et les erreurs reçues par l'écran de secours (`AppErrorScreen`), avec le modèle d'appareil, les versions, l'écran concerné et les écrans parcourus. **Jamais** d'e-mail, d'identifiant de compte, de montant, de jeton, de nom d'appareil, de capture d'écran, ni de mesure d'audience ou de performance : `src/utils/monitoring.ts` nettoie chaque rapport (testé dans `tests/monitoring.test.ts`).
+- **Côté Sentry** (région UE, `de.sentry.io`, comme le serveur) : une organisation `valtheria`, un projet `valtheria-app` de type React Native. Si les noms diffèrent, les reporter dans `app.json` (plugin `@sentry/react-native/expo`).
+- **Côté EAS** (expo.dev, projet Valtheria, environnement `production`) : la variable `EXPO_PUBLIC_SENTRY_DSN` (le DSN du projet Sentry, en clair) et le secret `SENTRY_AUTH_TOKEN` (jeton d'organisation Sentry avec le droit `project:releases`, pour envoyer les source maps à chaque `eas build`). Ces deux valeurs ne vont jamais dans le dépôt.
+- **Vérifier** : après une construction `production`, l'écran « Tout réinitialiser » du mode développement n'existe pas en production ; le plus simple est de provoquer une erreur de rendu de test une fois (ou d'attendre le premier vrai plantage) et de contrôler dans Sentry qu'aucun champ personnel n'apparaît.
+
+## Mises à jour à distance (EAS Update)
+
+L'app embarque `expo-updates`. Chaque version construite porte une **version d'exécution** égale à sa `version` dans `app.json` (`runtimeVersion.policy: appVersion`) et un **canal** (`production` ou `preview`, dans `eas.json`).
+
+Publier un correctif sans repasser par Apple :
+
+```bash
+npm test && npx tsc --noEmit && npm run lint      # comme pour une PR
+npx eas-cli update --channel production --message "Correctif : …"
+```
+
+La version publiée vérifie à chaque lancement (`checkAutomatically: ON_LOAD`) et applique le correctif au lancement **suivant**. Pour l'essayer d'abord sans toucher aux utilisateurs : construire avec le profil `preview` et publier sur le canal `preview`.
+
+Limites, à connaître avant de compter dessus :
+- seuls le JavaScript et les ressources (images, sons) changent ; **tout changement natif** (nouveau module `expo-*` ou paquet natif, plugin dans `app.json`, permission, icône, écran de démarrage, `version`) demande une nouvelle construction et un passage par Apple ;
+- un correctif ne vise que les versions construites avec la **même** `version` : après un passage de `1.0.0` à `1.0.1`, les anciennes installations ne le reçoivent pas tant qu'elles n'ont pas été mises à jour par l'App Store ;
+- l'utilisateur voit le correctif au deuxième lancement après sa publication, pas tout de suite ;
+- une mise à jour qui plante au démarrage est annulée automatiquement par `expo-updates` au lancement suivant (retour à la version embarquée ou à la dernière qui marchait), mais il vaut mieux republier vite une version saine ou revenir en arrière avec `eas update:republish` ;
+- Apple l'accepte tant que la mise à jour ne change pas la nature de l'app (pas de nouvelle fonctionnalité majeure par ce canal) ;
+- le suivi des plantages étiquette chaque rapport avec l'identifiant de la mise à jour appliquée (`mise_a_jour`, `canal`), pour savoir quel code tournait.
+
 ## Environnements
 
 | | Staging | Production |
@@ -132,3 +163,4 @@ Les règles pour l'assistant de développement sont dans `CLAUDE.md` et `AGENTS.
 - [docs/lot-serveur.md](docs/lot-serveur.md) : ce que l'app attend de l'API du site.
 - [docs/reference-technique-lecons.md](docs/reference-technique-lecons.md) : format des leçons, correction, révision.
 - [docs/a-faire-version-installee.md](docs/a-faire-version-installee.md) : ce qui demande une version installée (hors Expo Go).
+- [docs/rappels.md](docs/rappels.md) : le rappel quotidien, le jour de leçon faite, la limite des 30 jours.
