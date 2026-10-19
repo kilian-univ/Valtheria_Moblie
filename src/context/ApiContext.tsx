@@ -1,7 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
+
+import { purgeAccountData } from "@/src/state/purge";
 
 // ---------------------------------------------------------------------------
 // Constante d'API — à adapter selon l'environnement (dev / prod)
@@ -200,24 +202,9 @@ export type Portfolio = {
   [key: string]: any;
 };
 
-export type CashflowEntry = {
-  id: number;
-  [key: string]: any;
-};
-
 export type CashflowCategory = {
   id: number;
   name: string;
-  [key: string]: any;
-};
-
-export type SavingsGoal = {
-  id: number;
-  [key: string]: any;
-};
-
-export type SavingsContribution = {
-  id: number;
   [key: string]: any;
 };
 
@@ -237,6 +224,10 @@ export function ApiProvider({ children }: any) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Le jeton en cours, lisible au moment où une réponse arrive : une 401
+  // reçue par une requête partie avec un ANCIEN jeton (déconnexion puis
+  // reconnexion entre-temps) ne doit pas effacer la nouvelle session
+  const tokenRef = useRef<string | null>(null);
 
   // Écrit/efface le token à la fois dans le state React et AsyncStorage.
   const saveToken = useCallback(async (newToken: string | null) => {
@@ -244,6 +235,7 @@ export function ApiProvider({ children }: any) {
       await writeStoredToken(newToken);
     } finally {
       // La session suit toujours la demande, même si le stockage échoue
+      tokenRef.current = newToken;
       setToken(newToken);
     }
   }, []);
@@ -254,6 +246,7 @@ export function ApiProvider({ children }: any) {
     (async () => {
       try {
         const stored = await readStoredTokenSafely();
+        tokenRef.current = stored;
         setToken(stored);
 
         if (stored) {
@@ -267,9 +260,11 @@ export function ApiProvider({ children }: any) {
 
             if (response.ok && readable && json) {
               setUser(unwrap(json));
-            } else if (response.status === 401) {
-              // Token expiré/invalide -> on nettoie tout
+            } else if (response.status === 401 && tokenRef.current === stored) {
+              // Token expiré/invalide -> on nettoie tout (sauf si une
+              // connexion a remplacé ce jeton pendant la requête)
               await writeStoredToken(null).catch(() => {});
+              tokenRef.current = null;
               setToken(null);
             }
             // Autre erreur (500, 503 : maintenance, surcharge ; réponse
@@ -337,18 +332,23 @@ export function ApiProvider({ children }: any) {
   // Wrapper générique pour toutes les routes protégées par auth:sanctum
   const authRequest = useCallback(
     async (path: string, method: "GET" | "POST" | "PATCH" | "DELETE" = "GET", body?: any) => {
+      // Jeton avec lequel CETTE requête part
+      const used = token;
       const { response, json, readable } = await request(`${API_BASE_URL}${path}`, {
         method,
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${used}`,
         },
         body: body ? JSON.stringify(body) : undefined,
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
+        // 401 : la session est effacée seulement si la requête utilisait le
+        // jeton courant. Une réponse tardive d'une requête partie avec un
+        // jeton déjà remplacé ou déjà effacé ne touche pas à la session.
+        if (response.status === 401 && used !== null && tokenRef.current === used) {
           await saveToken(null);
           setUser(null);
         }
@@ -374,14 +374,23 @@ export function ApiProvider({ children }: any) {
   );
   const del = useCallback((path: string) => authRequest(path, "DELETE"), [authRequest]);
 
+  // Déconnexion : le jeton est révoqué côté serveur si le réseau le permet,
+  // puis la session est effacée et les données de la personne purgées du
+  // téléphone, MÊME HORS LIGNE. Le dernier profil (identifiant, pseudo) est
+  // gardé ; la suppression du compte, elle, efface tout (SettingsScreen).
+  // Ne lève jamais d'erreur : l'appelant n'a rien à rattraper.
   const logout = useCallback(async () => {
+    const userId = user?.id;
     try {
       await authRequest("/auth/logout", "POST");
+    } catch {
+      // hors ligne, ou jeton déjà expiré : la session locale est effacée quand même
     } finally {
       await saveToken(null);
       setUser(null);
     }
-  }, [authRequest, saveToken]);
+    if (userId != null) await purgeAccountData(userId, { keepLastProfile: true }).catch(() => {});
+  }, [authRequest, saveToken, user?.id]);
 
   // Recharge le profil depuis le serveur et met à jour "user"
   // (utile après un updateUser, ou pour rafraîchir xp/vals/streak à la main).
