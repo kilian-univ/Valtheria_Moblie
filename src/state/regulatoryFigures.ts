@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSyncExternalStore } from 'react';
 
 import { API_BASE_URL } from '@/src/context/ApiContext';
 import { parseFigures, withFallback, type Figure, type Figures } from '@/src/utils/regulatoryFigures';
@@ -85,15 +84,4 @@ export function loadRegulatoryFigures(): Promise<void> {
 // Chiffres du moment (secours compris), hors React
 export function getRegulatoryFigures(): Figures {
   return figures;
-}
-
-const subscribe = (l: () => void) => {
-  listeners.add(l);
-  return () => {
-    listeners.delete(l);
-  };
-};
-
-export function useRegulatoryFigures(): Figures {
-  return useSyncExternalStore(subscribe, () => figures);
 }

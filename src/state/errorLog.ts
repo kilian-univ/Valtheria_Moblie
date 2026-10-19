@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { appendLoggedError, errorEntry, parseErrorLog, type LoggedError } from '@/src/utils/errorLog';
+import { appendLoggedError, errorEntry, parseErrorLog } from '@/src/utils/errorLog';
 
 // Journal des erreurs d'affichage : chaque erreur part dans le journal de
 // l'appareil (console.error : terminal d'Expo, et Console.app sur iPhone),
@@ -23,12 +23,4 @@ export function logError(where: string, error: unknown) {
     .catch(() => {
       // stockage indisponible : l'erreur reste dans le journal de l'appareil
     });
-}
-
-export async function readErrorLog(): Promise<LoggedError[]> {
-  try {
-    return parseErrorLog(await AsyncStorage.getItem(KEY));
-  } catch {
-    return [];
-  }
 }

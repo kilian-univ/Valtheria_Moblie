@@ -12,8 +12,6 @@ export type Currency = 'EUR' | 'USD';
 
 const CURRENCY_SYMBOL: Record<Currency, string> = { EUR: '€', USD: '$' };
 
-export const MASKED = `•••••${NBSP}€`;
-
 const numberFormats = new Map<string, Intl.NumberFormat>();
 
 function digits(value: number, minDecimals: number, maxDecimals: number): string {
@@ -109,45 +107,6 @@ export function withUnit(value: string, unit: string | null | undefined): string
 export function formatXp(value: number): string {
   const sign = value < 0 ? MINUS : '+';
   return `${sign}${NBSP}${digits(value, 0, 0)}${NBSP}XP`;
-}
-
-// Abréviations françaises usuelles (CLDR fr) : liste fixe pour un rendu
-// identique sur tous les moteurs.
-const SHORT_MONTHS = [
-  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-];
-
-const MINUTE = 60_000;
-const DAY = 86_400_000;
-
-function startOfDay(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-}
-
-// Avec now = 15 oct. 2026 à 14 h :
-// il y a 20 s            → "à l'instant"
-// ce matin à 9 h         → "aujourd'hui"
-// 14 oct. 2026           → "hier"
-// 12 oct. 2026           → "il y a 3 jours"
-// 2 sept. 2026           → "2 sept."
-// 12 oct. 2025           → "12 oct. 2025"
-// date invalide          → ""
-export function formatRelativeDate(input: Date | string | number, now: Date = new Date()): string {
-  const date = input instanceof Date ? input : new Date(input);
-  const time = date.getTime();
-  if (Number.isNaN(time)) return '';
-
-  const elapsed = now.getTime() - time;
-  if (elapsed >= 0 && elapsed < MINUTE) return "à l'instant";
-
-  const days = Math.round((startOfDay(now) - startOfDay(date)) / DAY);
-  if (days === 0) return "aujourd'hui";
-  if (days === 1) return 'hier';
-  if (days > 1 && days < 7) return `il y a ${days}${NBSP}jours`;
-
-  const dayMonth = `${date.getDate()}${NBSP}${SHORT_MONTHS[date.getMonth()]}`;
-  return date.getFullYear() === now.getFullYear() ? dayMonth : `${dayMonth} ${date.getFullYear()}`;
 }
 
 // Nombre arrondi vers le bas, suivi de « + », pour annoncer un volume sans

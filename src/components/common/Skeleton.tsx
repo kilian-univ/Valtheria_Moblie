@@ -7,7 +7,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
 import { DimensionValue, StyleProp, StyleSheet, useWindowDimensions, View, ViewStyle } from 'react-native';
 import Animated, {
@@ -204,23 +203,6 @@ export function SkeletonGroup({ children, style }: { children: ReactNode; style?
       {children}
     </Animated.View>
   );
-}
-
-// Renvoie true seulement si le chargement dure plus de 300 ms : un chargement
-// rapide n'affiche jamais de squelette (pas de clignotement).
-export function useDelayedLoading(isLoading: boolean): boolean {
-  const [delayPassed, setDelayPassed] = useState(false);
-
-  useEffect(() => {
-    if (!isLoading) return;
-    const timer = setTimeout(() => setDelayPassed(true), durations.skeletonDelay);
-    return () => {
-      clearTimeout(timer);
-      setDelayPassed(false);
-    };
-  }, [isLoading]);
-
-  return isLoading && delayPassed;
 }
 
 const styles = StyleSheet.create({

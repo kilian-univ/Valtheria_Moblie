@@ -182,7 +182,6 @@ export function parseClosed(raw: unknown): ClosedPosition | null {
 
 // Valeur d'une position en euros (repli : sa valeur en devise si le taux manque)
 export const valueEurOf = (p: Position): number => p.valueEur ?? p.value;
-export const investedEurOf = (p: Position): number => p.investedEur ?? p.invested;
 
 export function parsePortfolio(raw: unknown): Portfolio | null {
   const r = obj(raw);

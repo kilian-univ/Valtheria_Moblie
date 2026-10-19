@@ -407,13 +407,6 @@ export function pathContentHeight(stepCount: number, decors: DecorSpot[]): numbe
   return Math.max(pathHeight(stepCount), bottom);
 }
 
-// Décalage d'effet de profondeur : nul quand le décor est au milieu de
-// l'écran, borné à ±PARALLAX_MAX
-export function parallaxShift(decorCenterY: number, scrollY: number, viewport: number): number {
-  const shift = (scrollY + viewport / 2 - decorCenterY) * PARALLAX_FACTOR;
-  return Math.max(-PARALLAX_MAX, Math.min(PARALLAX_MAX, shift));
-}
-
 // ---------------------------------------------------------------------------
 // Retour d'une leçon réussie
 // ---------------------------------------------------------------------------

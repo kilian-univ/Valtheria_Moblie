@@ -148,12 +148,6 @@ export function availableModules(universeModules: readonly Module[]): Module[] {
     .flatMap((g) => g.modules.filter((m) => !isDone(m)));
 }
 
-// Niveau du module dans son univers (« INTERMÉDIAIRE »), null sans niveaux
-export function moduleLevelLabel(module: Module, universeModules: readonly Module[]): string | null {
-  const group = levelGroups(universeModules).find((g) => g.modules.some((m) => m.id === module.id));
-  return group && group.key !== null ? group.label : null;
-}
-
 // Pastille d'un univers sur l'accueil : niveau atteint (le niveau en cours),
 // « À découvrir » sans leçon terminée, « Terminé » à la fin
 export type UniversePill = { label: string; level: string | null };

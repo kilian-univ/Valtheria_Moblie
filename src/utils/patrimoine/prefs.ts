@@ -27,18 +27,6 @@ export type PatrimoinePrefs = {
   savingsImported: boolean;
 };
 
-export const DEFAULT_PREFS: PatrimoinePrefs = {
-  discreet: false,
-  livretDeposits: [],
-  emergency: { monthlyExpenses: null, months: EMERGENCY_MONTHS.default },
-  goals: [],
-  milestones: {},
-  months: [],
-  hideAnomalies: true,
-  icons: {},
-  savingsImported: false,
-};
-
 const DEPOSITS_KEPT = 400;
 export const GOALS_MAX = 20;
 const LINKS_MAX = 100;
