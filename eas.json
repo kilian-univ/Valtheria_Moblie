@@ -15,7 +15,8 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://staging.valtheria.fr/api"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -25,7 +26,8 @@
       "environment": "production",
       "ios": {
         "image": "latest"
-      }
+      },
+      "channel": "production"
     },
     "simulator": {
       "ios": {
