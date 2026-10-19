@@ -116,8 +116,8 @@ L'API appartient au dépôt du site. Ce que l'app en attend, route par route, es
 
 ## Règles du projet
 
-1. **Une branche par chantier, une pull request, une relecture.** On ne pousse jamais sur `main` ni sur `design/ui`. Chaque chantier part d'une branche créée depuis `main` à jour, se termine par une pull request vers `main`, et c'est Kilian qui relit et fusionne. Personne d'autre ne fusionne, personne ne force un push.
-2. **La CI doit être verte** (tests, types, lint) avant toute fusion.
+1. **Une branche par chantier, une pull request, une CI verte.** On ne pousse jamais directement sur `main`, et jamais en force. Chaque chantier part d'une branche créée depuis `main` à jour et se termine par une pull request vers `main`, fusionnée une fois la vérification automatique verte et l'accord du responsable du projet donné.
+2. **Les gros changements de structure** (fichier central réécrit, nouvelle dépendance, changement d'architecture) sont signalés clairement dans la pull request, pour que Kilian puisse donner son avis.
 3. **Zone protégée** : `src/context/ApiContext.tsx` et tout fichier d'environnement (`.env`, `.env.local`, variantes) ne se modifient pas sans décision explicite. Avant chaque commit, vérifier qu'ils ne sont pas dans les modifications.
 4. **Rien sur l'infrastructure dans le dépôt** : pas d'adresse de serveur, de commande d'accès, de nom de service d'hébergement ni de secret, ni dans le code ni dans `docs/`.
 5. **Expo SDK 57** : se référer à la documentation versionnée (`https://docs.expo.dev/versions/v57.0.0/`), pas à une autre version.

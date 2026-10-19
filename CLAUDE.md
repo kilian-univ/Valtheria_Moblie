@@ -13,10 +13,14 @@
 ## Branches et fusion
 
 Règle obligatoire, pour chaque chantier :
-1. ne jamais pousser sur `main` ni sur `design/ui`, et ne jamais fusionner quoi que ce soit ;
-2. créer une branche dédiée depuis `main` à jour (`git fetch origin && git checkout -b <nom-du-chantier> origin/main`), nommée d'après le chantier (par exemple `lot-0-securite-et-cadre`) ;
-3. y faire les commits du chantier, puis la pousser (`git push -u origin <nom-du-chantier>`) ;
-4. terminer par une demande de fusion (pull request) vers `main`, qui décrit ce qui change, ce qui a été vérifié (tsc, ESLint, tests) et ce que le relecteur doit regarder ;
-5. Kilian relit et fusionne lui-même. Ne jamais fusionner, ne jamais forcer un push, ne jamais réécrire l'historique d'une branche poussée.
+1. créer une branche dédiée depuis `main` à jour (`git fetch origin && git checkout -b <nom-du-chantier> origin/main`), nommée d'après le chantier (par exemple `lot-0-securite-et-cadre`) ;
+2. y faire les commits du chantier, puis la pousser (`git push -u origin <nom-du-chantier>`) ;
+3. ouvrir une pull request vers `main`, qui décrit ce qui change, ce qui a été vérifié et ce qu'il faut relire ;
+4. attendre que la vérification automatique (CI : tests, types, lint) soit verte ; si elle échoue, corriger sur la branche ;
+5. fusionner la pull request soi-même, mais seulement après l'accord explicite de l'utilisateur dans la conversation (« tu peux fusionner »). Sans cet accord, s'arrêter à la pull request et donner son adresse dans le compte rendu.
 
-Avant chaque commit, vérifier que ni `src/context/ApiContext.tsx` ni un fichier d'environnement ne figurent dans les modifications (voir « Zone protégée »). Le compte rendu de fin de chantier donne l'adresse de la pull request.
+Jamais de push direct sur `main`, jamais de push forcé, jamais de réécriture de l'historique d'une branche poussée.
+
+Gros changements de structure (réécriture d'un fichier central, nouvelle dépendance, changement d'architecture) : les signaler clairement dans le compte rendu, pour que l'utilisateur puisse demander l'avis de Kilian. Kilian n'est pas un relecteur obligatoire.
+
+Avant chaque commit, vérifier que ni `src/context/ApiContext.tsx` ni un fichier d'environnement ne figurent dans les modifications (voir « Zone protégée »).
