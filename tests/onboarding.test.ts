@@ -31,6 +31,8 @@ import {
   REMINDER_MESSAGES,
   REMINDER_SLOTS,
   reminderMessageFor,
+  lessonDoneToday,
+  REMINDER_DAYS_AHEAD,
   upcomingReminders,
 } from '../src/utils/reminder';
 
@@ -202,6 +204,24 @@ test('rappels : un par jour à l’heure choisie, à partir d’aujourd’hui si
   );
   const after = upcomingReminders(new Date(2026, 9, 10, 20, 0), { hour: 19, minute: 0 }, 2);
   assert.equal(after[0].getDate(), 11);
+});
+
+test('leçon du jour faite : plus de rappel aujourd’hui, le premier est demain ; 30 jours d’avance', () => {
+  const now = new Date(2026, 9, 10, 9, 0);
+  assert.equal(lessonDoneToday('2026-10-10', now), true);
+  assert.equal(lessonDoneToday('2026-10-09', now), false);
+  assert.equal(lessonDoneToday(null, now), false);
+  const skipped = upcomingReminders(now, { hour: 19, minute: 0 }, 2, true);
+  assert.deepEqual(
+    skipped.map((d) => [d.getDate(), d.getHours()]),
+    [
+      [11, 19],
+      [12, 19],
+    ]
+  );
+  // Par défaut : 30 jours (limite d'iOS : 64 notifications en attente, budget compris)
+  assert.equal(REMINDER_DAYS_AHEAD, 30);
+  assert.equal(upcomingReminders(now, { hour: 19, minute: 0 }).length, 30);
 });
 
 test('le texte du rappel parle comme Val et change d’un jour à l’autre', () => {

@@ -43,6 +43,7 @@ import { addToNotebook } from '@/src/state/notebook';
 import { recordLessonDone } from '@/src/state/learningLog';
 import { saveLessonText } from '@/src/state/lessonTexts';
 import { cachedLesson, rememberLesson } from '@/src/state/revisionMemory';
+import { reminderAfterLesson } from '@/src/state/reminder';
 import { recordLessonXp } from '@/src/state/weekJournal';
 import { userKeyOf } from '@/src/state/userMemory';
 import { universeOfModule } from '@/src/utils/modulePath';
@@ -465,6 +466,8 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       const owner = known.find((m) => (m.lessons ?? []).some((l) => l.id === lessonId));
       const at = new Date();
       if (owner) recordLessonDone(userKeyOf(user?.id), lessonId, owner.id, at).catch(() => {});
+      // Leçon du jour faite : plus de rappel aujourd'hui, les suivants repartent de demain
+      reminderAfterLesson(at).catch(() => {});
       const slug = owner ? (universeOfModule(owner, universes)?.slug ?? null) : null;
       rememberLesson(
         userKeyOf(user?.id),

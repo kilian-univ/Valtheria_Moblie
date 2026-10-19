@@ -2,21 +2,26 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type * as NotificationsModule from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { DEFAULT_REMINDER, ReminderTime, reminderMessageFor, upcomingReminders } from '@/src/utils/reminder';
+import { localDay } from '@/src/utils/day';
+import { DEFAULT_REMINDER, lessonDoneToday, REMINDER_DAYS_AHEAD, ReminderTime, reminderMessageFor, upcomingReminders } from '@/src/utils/reminder';
 import { REMINDER_SOUND_FILE, reminderSound } from '@/src/utils/soundRules';
 import { lastObjective } from './objective';
 import { onboardingStore } from './onboarding';
 
 // Rappel quotidien en notifications LOCALES (rien côté serveur). Un seul
 // rappel par jour, jamais plus. Pour que le texte change chaque jour, on
-// programme les 14 prochains jours, chacun avec son texte, et on
-// reprogramme à chaque ouverture de l'app (refreshReminder). Ses
+// programme les 30 prochains jours (REMINDER_DAYS_AHEAD), chacun avec son
+// texte, et on reprogramme à chaque ouverture de l'app (refreshReminder) et
+// à chaque fin de leçon (reminderAfterLesson) : le jour où la leçon est
+// faite, aucun rappel ne part, les suivants repartent du lendemain. Après
+// 30 jours sans ouvrir l'app, il n'y a plus de rappel (docs/rappels.md). Ses
 // notifications portent l'identifiant « rappel-… » : les reprogrammer
 // n'efface pas le rappel du budget (« budget-… », state/budgetReminder.ts).
 
 const KEY = 'valtheria:rappel';
+// Jour local de la dernière leçon terminée sur ce téléphone
+const KEY_LAST_LESSON = 'valtheria:rappel:derniere-lecon';
 const CHANNEL = 'rappel-quotidien';
-const DAYS_AHEAD = 14;
 
 export type ReminderSettings = { enabled: boolean; time: ReminderTime };
 
@@ -84,6 +89,14 @@ async function cancelOwn(Notifications: typeof NotificationsModule): Promise<voi
   }
 }
 
+async function lastLessonDay(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(KEY_LAST_LESSON);
+  } catch {
+    return null;
+  }
+}
+
 async function schedule(Notifications: typeof NotificationsModule, time: ReminderTime): Promise<void> {
   await cancelOwn(Notifications);
   if (Platform.OS === 'android') {
@@ -97,7 +110,9 @@ async function schedule(Notifications: typeof NotificationsModule, time: Reminde
   // Objectif connu (profil, sinon première ouverture) : un jour sur deux,
   // le rappel en parle
   const objective = (await lastObjective()) ?? (await onboardingStore.load()).objective;
-  for (const date of upcomingReminders(new Date(), time, DAYS_AHEAD)) {
+  // Leçon du jour déjà faite : le premier rappel est demain
+  const now = new Date();
+  for (const date of upcomingReminders(now, time, REMINDER_DAYS_AHEAD, lessonDoneToday(await lastLessonDay(), now))) {
     const { title, body } = reminderMessageFor(date, objective);
     await Notifications.scheduleNotificationAsync({
       identifier: `${OWN_PREFIX}${date.toISOString()}`,
@@ -140,7 +155,7 @@ export async function disableReminder(): Promise<void> {
   await saveSettings({ ...settings, enabled: false });
 }
 
-// À chaque ouverture : prolonge les rappels de 14 jours (textes renouvelés)
+// À chaque ouverture : prolonge les rappels de 30 jours (textes renouvelés)
 export async function refreshReminder(): Promise<void> {
   const settings = await getReminderSettings();
   if (!settings.enabled) return;
@@ -157,6 +172,17 @@ export async function refreshReminder(): Promise<void> {
   }
 }
 
+// Fin d'une leçon : le jour est noté, et les rappels repartent de demain
+// (celui d'aujourd'hui, s'il n'était pas encore passé, est annulé)
+export async function reminderAfterLesson(now: Date = new Date()): Promise<void> {
+  try {
+    await AsyncStorage.setItem(KEY_LAST_LESSON, localDay(now));
+  } catch {
+    // stockage indisponible : le rappel du jour partira, sans autre conséquence
+  }
+  await refreshReminder();
+}
+
 // Réglage affiché, vérifié contre l'autorisation du téléphone
 export async function getCheckedReminderSettings(): Promise<ReminderSettings> {
   await refreshReminder();
@@ -170,7 +196,7 @@ export async function resetReminder(): Promise<void> {
   } catch {
     // rien de programmé : sans conséquence
   }
-  await AsyncStorage.removeItem(KEY).catch(() => {});
+  await AsyncStorage.multiRemove([KEY, KEY_LAST_LESSON]).catch(() => {});
 }
 
 // Toucher un rappel ouvre l'accueil d'Apprendre (décision du 17 octobre

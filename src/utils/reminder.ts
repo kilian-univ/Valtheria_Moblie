@@ -2,7 +2,15 @@
 // l'autre. Fonctions pures, sans React : testables avec Node. La
 // programmation des notifications vit dans state/reminder.
 
+import { localDay } from './day';
+
 export type ReminderTime = { hour: number; minute: number };
+
+// Jours programmés d'avance à chaque ouverture (un texte différent par
+// jour, donc une notification par jour). iOS n'accepte que 64 notifications
+// en attente par app : 30 laissent la place au rappel du budget. Au-delà de
+// 30 jours sans ouvrir l'app, il n'y a plus de rappel (voir docs/rappels.md).
+export const REMINDER_DAYS_AHEAD = 30;
 
 export const REMINDER_SLOTS: readonly { id: 'matin' | 'midi' | 'soir'; label: string; time: ReminderTime }[] = [
   { id: 'matin', label: 'Matin', time: { hour: 8, minute: 0 } },
@@ -58,12 +66,19 @@ export function reminderMessageFor(date: Date, objective?: string | null): { tit
   return REMINDER_MESSAGES[((day % REMINDER_MESSAGES.length) + REMINDER_MESSAGES.length) % REMINDER_MESSAGES.length];
 }
 
+// La leçon du jour est-elle déjà faite ? (jour local de la dernière leçon
+// terminée sur ce téléphone, gardé par state/reminder)
+export function lessonDoneToday(lastLessonDay: string | null | undefined, now: Date): boolean {
+  return !!lastLessonDay && lastLessonDay === localDay(now);
+}
+
 // Prochains rappels : un par jour à l'heure choisie, à partir de maintenant
-// (aujourd'hui si l'heure n'est pas passée), `days` jours
-export function upcomingReminders(now: Date, time: ReminderTime, days = 14): Date[] {
+// (aujourd'hui si l'heure n'est pas passée), `days` jours. `skipToday` :
+// la leçon du jour est faite, le premier rappel est demain.
+export function upcomingReminders(now: Date, time: ReminderTime, days = REMINDER_DAYS_AHEAD, skipToday = false): Date[] {
   const out: Date[] = [];
   const first = new Date(now.getFullYear(), now.getMonth(), now.getDate(), time.hour, time.minute, 0, 0);
-  if (first.getTime() <= now.getTime()) first.setDate(first.getDate() + 1);
+  if (skipToday || first.getTime() <= now.getTime()) first.setDate(first.getDate() + 1);
   for (let i = 0; i < days; i++) {
     const d = new Date(first);
     d.setDate(first.getDate() + i);
