@@ -87,7 +87,8 @@ export default function LessonCard({
           ) : null}
 
           <Button
-            label={replay ? 'REFAIRE' : 'COMMENCER'}
+            label={replay ? 'Refaire' : 'Commencer'}
+            uppercase
             icon={replay ? 'refresh' : 'play'}
             onPress={() => onStart(view)}
             loading={loading}

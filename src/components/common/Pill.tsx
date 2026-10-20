@@ -7,7 +7,7 @@ import AppText from './AppText';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-// badge : capitales en petit (« LEÇON TERMINÉE »), 26 de haut
+// badge : capitales en petit (« Leçon terminée », mises en capitales par le style), 26 de haut
 // md : pastille d'information (bienvenue), 32 de haut, filet fin
 // sm : petite pastille de chiffre (XP, gels)
 // lg : verdict mis en avant (révélation d'une leçon), 38 de haut
@@ -100,6 +100,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   lgText: {
     fontFamily: fonts.bodyBold,

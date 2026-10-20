@@ -76,6 +76,9 @@ type ButtonProps = {
   strong?: boolean;
   accessibilityRole?: 'button' | 'link';
   size?: ButtonSize;
+  // Libellé en capitales à l'affichage (la chaîne reste en casse normale,
+  // mieux lue par VoiceOver ; audit C3)
+  uppercase?: boolean;
 };
 
 const LABEL_TONE: Record<ButtonVariant, TextTone> = {
@@ -109,6 +112,7 @@ export default function Button({
   tone,
   color,
   underline = false,
+  uppercase = false,
   strong = false,
   accessibilityRole = 'button',
 }: ButtonProps) {
@@ -168,6 +172,7 @@ export default function Button({
           strong && styles.strong,
           underline && styles.underline,
           small && styles.smallLabel,
+          uppercase && styles.uppercase,
         ]}
       >
         {label}
@@ -308,6 +313,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyExtraBold,
     fontSize: 14,
     lineHeight: 18,
+  },
+  uppercase: {
+    textTransform: 'uppercase',
   },
   underline: {
     textDecorationLine: 'underline',

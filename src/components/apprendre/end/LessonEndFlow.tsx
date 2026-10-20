@@ -149,7 +149,7 @@ export default function LessonEndFlow({
           summary={summary}
           lessonTitle={lessonTitle}
           takeaway={takeaway}
-          kicker={revision ? 'RÉVISION TERMINÉE' : undefined}
+          kicker={revision ? 'Révision terminée' : undefined}
           bestRun={accuracy?.bestRun ?? null}
           perfect={accuracy?.perfect ?? false}
           onNext={next}

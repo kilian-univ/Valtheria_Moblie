@@ -116,7 +116,7 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
         <View
           style={styles.texts}
           accessible
-          accessibilityLabel={`${spokenBadge(card.badge)}. ${card.title}. ${card.text}${spokenProgress}`}
+          accessibilityLabel={`${card.badge}. ${card.title}. ${card.text}${spokenProgress}`}
         >
           <Pill
             size="badge"
@@ -178,10 +178,6 @@ export default function GuestLessonCard({ card, tint, universeSlug, onAction, on
 }
 
 // « LEÇON TERMINÉE » → « Leçon terminée » pour le lecteur d’écran
-function spokenBadge(badge: string): string {
-  return badge.charAt(0) + badge.slice(1).toLowerCase();
-}
-
 const styles = StyleSheet.create({
   wrap: {
     paddingBottom: DEPTH,

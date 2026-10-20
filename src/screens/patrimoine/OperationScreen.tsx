@@ -461,7 +461,7 @@ function PreviewBox({
   return (
     <View style={[styles.preview, { backgroundColor: withOpacity(colors.gold, 0.07), borderColor: withOpacity(colors.gold, 0.3) }]}>
       <AppText style={[styles.previewTitle, { color: colors.gold }]} accessibilityRole="header">
-        {preview.side === 'buy' ? 'APRÈS CET ACHAT' : 'APRÈS CETTE VENTE'}
+        {preview.side === 'buy' ? 'Après cet achat' : 'Après cette vente'}
       </AppText>
       {preview.side === 'buy' ? (
         <>
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   warning: { padding: 14, borderRadius: radius.card, borderWidth: 1 },
   preview: { padding: 14, paddingHorizontal: 16, borderRadius: radius.card, borderWidth: 1, gap: 6 },
-  previewTitle: { fontFamily: fonts.bodyExtraBold, fontSize: 11, letterSpacing: 1.2 },
+  previewTitle: { fontFamily: fonts.bodyExtraBold, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' },
   previewLine: { flexDirection: 'row', justifyContent: 'space-between', gap: space[2] },
   previewValue: { fontFamily: fonts.bodyBold },
   footer: { paddingHorizontal: space[5], paddingTop: space[2] },

@@ -126,14 +126,14 @@ export function homeCard(input: {
     return {
       objective,
       state,
-      badge: '6 SUR 6',
+      badge: '6 sur 6',
       title: 'Tu as fait le tour !',
       text: register
         ? 'Six sujets, six déclics. Crée ton compte pour débloquer les vrais modules.'
         : 'Six sujets, six déclics. La suite, ce sont les vrais modules : ils t’attendent dès l’ouverture des inscriptions.',
       progress: null,
       action: register ? 'creer-compte' : 'rejouer',
-      actionLabel: register ? 'CRÉER MON COMPTE' : 'REJOUER UNE LEÇON',
+      actionLabel: register ? 'Créer mon compte' : 'Rejouer une leçon',
       secondary: register ? { action: 'autre-sujet', label: 'Rejouer une leçon' } : null,
     };
   }
@@ -141,24 +141,24 @@ export function homeCard(input: {
     return {
       objective,
       state,
-      badge: 'LEÇON TERMINÉE',
+      badge: 'Leçon terminée',
       title,
       text: `La suite t’attend dans l’univers ${universeName(discoveryPlan(objective), input.universes)}.`,
       progress: { line: remainingLabel(remainingTopics(input.played)), dots: topicDots(input.played) },
       action: register ? 'creer-compte' : 'autre-sujet',
-      actionLabel: register ? 'CRÉER MON COMPTE' : 'UN AUTRE SUJET',
+      actionLabel: register ? 'Créer mon compte' : 'Un autre sujet',
       secondary: register ? otherTopic : null,
     };
   }
   return {
     objective,
     state,
-    badge: 'POUR TOI, 1 MIN',
+    badge: 'Pour toi, 1 min',
     title,
     text: lessonHook(objective),
     progress: null,
     action: state === 'commencee' ? 'reprendre' : 'commencer',
-    actionLabel: state === 'commencee' ? 'REPRENDRE' : 'COMMENCER',
+    actionLabel: state === 'commencee' ? 'Reprendre' : 'Commencer',
     secondary: otherTopic,
   };
 }

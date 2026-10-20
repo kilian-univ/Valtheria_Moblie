@@ -293,7 +293,7 @@ function ServerRevisionPlayer({
   );
 
   const mode = useMemo(
-    () => ({ lesson, onFinished: finished, badge: 'RÉVISION', retry: false, exitTo: '/apprendre' as const }),
+    () => ({ lesson, onFinished: finished, badge: 'Révision', retry: false, exitTo: '/apprendre' as const }),
     [lesson, finished]
   );
   return <ApprendreDetailScreen discovery={mode} />;
@@ -451,7 +451,7 @@ function RevisionPlayer({
   );
 
   const mode = useMemo(
-    () => ({ lesson, onFinished: finished, badge: 'RÉVISION', retry: false, exitTo: '/apprendre' as const }),
+    () => ({ lesson, onFinished: finished, badge: 'Révision', retry: false, exitTo: '/apprendre' as const }),
     [lesson, finished]
   );
   return <ApprendreDetailScreen discovery={mode} />;
