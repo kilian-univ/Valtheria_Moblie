@@ -45,6 +45,8 @@ import { saveLessonText } from '@/src/state/lessonTexts';
 import { cachedLesson, rememberLesson } from '@/src/state/revisionMemory';
 import { reminderAfterLesson } from '@/src/state/reminder';
 import { recordLessonXp } from '@/src/state/weekJournal';
+import { newAttemptId } from '@/src/utils/lessonAttempt';
+import { streakFieldsOf } from '@/src/utils/streakServer';
 import { userKeyOf } from '@/src/state/userMemory';
 import { universeOfModule } from '@/src/utils/modulePath';
 import { declicForLesson } from '@/src/utils/notebook';
@@ -156,6 +158,9 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const [screens, setScreens] = useState<LessonScreen[]>(() => discovery?.lesson.screens ?? []);
   // Leçon telle que servie : ses écrans notés sont gardés pour la révision
   const rawLesson = useRef<unknown>(null);
+  // Identifiant de la partie : le même si « Réessayer » renvoie la fin de leçon,
+  // un nouveau à chaque leçon chargée (le serveur ne crédite jamais deux fois)
+  const attemptId = useRef(newAttemptId());
   // Titre et phrase clé de la leçon (bilan de fin)
   const [lessonInfo, setLessonInfo] = useState<{ title: string | null; takeaway: string | null; marked: string | null }>(() => ({
     title: discovery?.lesson.title ?? null,
@@ -239,6 +244,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
         // Forme du serveur → format interne : tout se passe dans lesson/normalize.ts
         const lesson = normalizeLesson(data);
         rawLesson.current = data;
+        attemptId.current = newAttemptId();
         // Texte gardé : il relie les mots du Dictionnaire à cette leçon
         saveLessonText(Number(id), data);
 
@@ -430,13 +436,13 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
       // Format attendu : { "<index d'écran>": [tentative1, tentative2, ...] }
       const responses = buildResponses(answers, screens);
 
-      const res = await completeLesson(Number(id), { responses });
+      const res = await completeLesson(Number(id), { responses, attempt_id: attemptId.current });
       // Réponse complète (avec le profil) : jamais dans le journal d'une version publiée
       if (__DEV__) console.log('COMPLETE RÉSULTAT:', JSON.stringify(res, null, 2));
 
       // 1. Instantané : XP et série viennent directement de la réponse de /complete
       if (res?.user) {
-        learningStore.setState({ xp: res.user.xp, streak: res.user.streak });
+        learningStore.setState({ xp: res.user.xp, streak: res.user.streak, ...streakFieldsOf(res.user) });
       }
 
       // 2. En tâche de fond pendant que l'utilisateur lit les écrans de fin :

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useSyncExternalStore } from 'react';
 
 import { cleanMedalDays } from '@/src/utils/streakRewards';
+import { bestStreakOf } from '@/src/utils/streakServer';
 
 // Récompenses de la série d'un compte connecté, par utilisateur, sur le
 // téléphone : meilleure série atteinte (la série vient du serveur, qui ne la
@@ -89,13 +90,14 @@ export const streakRewardsStore = {
 };
 
 // Meilleure série d'un compte (au moins la série en cours), mise à jour au fil
-// des séries vues
-export function useBestStreak(userId: number | string | null | undefined, streak: number): number {
+// des séries vues ; le record du serveur (20/10/2026), s'il est connu, compte
+// aussi et est gardé sur le téléphone
+export function useBestStreak(userId: number | string | null | undefined, streak: number, serverBest: number | null = null): number {
   useSyncExternalStore(streakRewardsStore.subscribe, () => version);
   useEffect(() => {
     if (userId === null || userId === undefined) return;
-    streakRewardsStore.load(userId).then(() => streakRewardsStore.seeStreak(userId, streak));
-  }, [userId, streak]);
+    streakRewardsStore.load(userId).then(() => streakRewardsStore.seeStreak(userId, bestStreakOf(streak, serverBest)));
+  }, [userId, streak, serverBest]);
   const record = userId === null || userId === undefined ? null : streakRewardsStore.cached(userId);
-  return Math.max(streak, record?.best ?? 0);
+  return bestStreakOf(streak, record?.best, serverBest);
 }

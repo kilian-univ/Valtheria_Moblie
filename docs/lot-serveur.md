@@ -736,3 +736,12 @@ Aucune nouvelle route : le cash-flow, le bilan du mois, les mois dans le vert, l
 - Bilan proposé une fois, mémoire du téléphone (`valtheria:budget:<compte>`) ; la réponse va dans `cashflow_reviews`.
 - Étapes du budget gardées sur le téléphone, comme celles du patrimoine.
 - L'ancien écran Cash-flow de l'app est supprimé ; ses routes serveur restent (le site s'en sert).
+
+## 12. Fiabilité et cohérence (20 octobre 2026)
+
+> **État** : pull request n° 19 du site ; app sur la branche `lot-3-serveur-tentatives-gels`.
+
+- **Fin de leçon idempotente** : `POST /api/lessons/{id}/complete` accepte `attempt_id` (identifiant de la partie, choisi par l'app : `src/utils/lessonAttempt.ts`, le même à chaque « Réessayer », un nouveau à chaque leçon chargée). Une partie déjà créditée renvoie sa première réponse telle quelle avec `replayed: true` ; une partie encore en cours d'enregistrement répond 409 (`tentative_en_cours`). XP, Vals, série et coffre ne sont jamais crédités deux fois.
+- **Limites de tentatives** : connexion 5/min par adresse et 20/min par IP ; inscription 6/min par IP (plus 5 comptes par heure) ; mot de passe oublié 3/min par adresse ; suppression du compte 3/min. Dépassement : 429, `message` à la racine (« Trop de tentatives. Réessaie dans 42 secondes. »), `code: trop_de_tentatives`, `retry_after`. L'app affiche ce message tel quel.
+- **Gels de série et record** (comptes connectés) : un gel gagné tous les 7 jours de série, 2 en réserve au plus, consommé automatiquement pour chaque jour manqué ; record tenu à jour. Renvoyés dans le profil (`/api/user`, connexion, inscription), `/api/progress` et la réponse de `/complete` : `streak_freezes`, `streak_best`, `streak_frozen_yesterday`. L'app les lit (`src/utils/streakServer.ts`, `learningStore`) ; un serveur plus ancien ne les renvoie pas et l'app se comporte comme avant.
+- **Reprise à la première connexion** : `POST /api/user/streak/reprise { best, freezes }` (`src/hooks/useStreakImport.ts`), une seule fois par compte, jamais à la baisse côté serveur.
