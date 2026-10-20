@@ -102,8 +102,12 @@ export function useBlink(enabled: boolean): boolean {
 
   useEffect(() => {
     if (!enabled) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const later = (ms: number, run: () => void) => timers.push(setTimeout(run, ms));
+    // Un seul minuteur à la fois : chaque étape programme la suivante, et
+    // l'arrêt annule celle en cours (audit C14)
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const later = (ms: number, run: () => void) => {
+      timer = setTimeout(run, ms);
+    };
     const blinkOnce = (then: () => void) => {
       setClosed(true);
       later(BLINK_CLOSED_MS, () => {
@@ -119,7 +123,7 @@ export function useBlink(enabled: boolean): boolean {
       );
     };
     schedule();
-    return () => timers.forEach(clearTimeout);
+    return () => clearTimeout(timer);
   }, [enabled]);
 
   return enabled && closed;

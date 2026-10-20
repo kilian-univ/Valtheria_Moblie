@@ -150,15 +150,28 @@ export default function ArticleDetailScreen() {
               {article.reading_time ? ` · ${article.reading_time} min de lecture` : ''}
             </Text>
 
+            {/* Deux boutons nommés, avec leur état (audit I14) */}
             <View style={styles.actions}>
-              <Pressable onPress={handleReadLater} hitSlop={8}>
+              <Pressable
+                onPress={handleReadLater}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={article.is_read_later ? 'Retirer de ma liste à lire' : 'Lire plus tard'}
+                accessibilityState={{ selected: !!article.is_read_later }}
+              >
                 <Ionicons
                   name={article.is_read_later ? 'bookmark' : 'bookmark-outline'}
                   size={22}
                   color={colors.gold}
                 />
               </Pressable>
-              <Pressable onPress={handleFavorite} hitSlop={8}>
+              <Pressable
+                onPress={handleFavorite}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={article.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                accessibilityState={{ selected: !!article.is_favorite }}
+              >
                 <Ionicons
                   name={article.is_favorite ? 'star' : 'star-outline'}
                   size={22}

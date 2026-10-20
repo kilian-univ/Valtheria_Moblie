@@ -6,6 +6,7 @@ import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
 import { Inter_600SemiBold_Italic } from '@expo-google-fonts/inter/600SemiBold_Italic';
+import { Inter_400Regular_Italic } from '@expo-google-fonts/inter/400Regular_Italic';
 import { ApiProvider } from '@/src/context/ApiContext';
 import { initMonitoring, navigationIntegration, wrapRoot } from '@/src/monitoring';
 import { useFonts } from 'expo-font';
@@ -60,6 +61,7 @@ function RootLayoutContent() {
     Inter_700Bold,
     Inter_800ExtraBold,
     Inter_600SemiBold_Italic,
+    Inter_400Regular_Italic,
   });
   // Logo et Val de la bienvenue préchargés pendant le splash (0,8 s au plus)
   const imagesReady = usePreloadedImages(STARTUP_IMAGES);

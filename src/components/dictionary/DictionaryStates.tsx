@@ -55,7 +55,7 @@ export function NoResult({
 
 // Sans compte (401) : invitation, sans message d'erreur
 export function Reserved({ count, onRegister, onLogin }: { count: number | null; onRegister: () => void; onLogin: () => void }) {
-  const words = count ? `aux ${formatInteger(count)} mots de l'argent` : "aux mots de l'argent";
+  const words = count ? `aux ${formatInteger(count)} mots de l’argent` : 'aux mots de l’argent';
   return (
     <View style={styles.center}>
       <ValFullBody pose="salut" height={VAL_HEIGHT} />

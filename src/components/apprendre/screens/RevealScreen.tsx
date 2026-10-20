@@ -168,6 +168,8 @@ export default function RevealScreen({ screen, estimate, enterDelay, setVal }: L
 
   const rounded = shown === value ? value : Math.round(shown * 10 ** decimals) / 10 ** decimals;
   const valueText = (n: number) => withUnit(formatNumber(n, decimals), unit);
+  // Lignes du détail : un nombre porte l'unité de l'écran (« 2 130 € »), un texte reste tel quel (audit G2)
+  const lineText = (v: number | string) => (typeof v === 'number' ? withUnit(formatNumber(v), unit) : v);
   const heading = label ?? 'En vrai';
 
   return (
@@ -227,14 +229,22 @@ export default function RevealScreen({ screen, estimate, enterDelay, setVal }: L
                   {line.label}
                 </AppText>
                 <AppText variant="callout" tone={line.key ? 'gold' : 'text'} style={styles.factValue}>
-                  {typeof line.value === 'number' ? formatNumber(line.value) : line.value}
+                  {lineText(line.value)}
                 </AppText>
               </View>
             ))}
+            {/* Lignes atténuées : libellé et valeur, en sous-titre (audit G4) */}
             {notes.map((line, i) => (
-              <AppText key={`n${i}`} variant="caption" tone="subtitle" style={styles.note}>
-                {line.label}
-              </AppText>
+              <View key={`n${i}`} style={[styles.fact, styles.note]} accessible>
+                <AppText variant="caption" tone="subtitle" style={styles.factLabel}>
+                  {line.label}
+                </AppText>
+                {line.value !== '' ? (
+                  <AppText variant="caption" tone="subtitle" style={styles.factValue}>
+                    {lineText(line.value)}
+                  </AppText>
+                ) : null}
+              </View>
             ))}
           </View>
         ) : null}

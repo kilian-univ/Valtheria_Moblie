@@ -15,6 +15,8 @@ export const fonts = {
   bodyExtraBold: 'Inter_800ExtraBold',
   // Emphase dans la bulle de Val (**mot**)
   bodyEmphasis: 'Inter_600SemiBold_Italic',
+  // Citations (quoteText) : la vraie italique, pas celle synthÃ©tisÃ©e par iOS
+  bodyItalic: 'Inter_400Regular_Italic',
 } as const;
 
 // Titres Fraunces : interlettrage resserré proportionnel à la taille
@@ -612,8 +614,7 @@ export function getBlockStyles(colorScheme: ColorScheme) {
     quoteText: {
       color: colors.text,
       fontSize: 17,
-      fontFamily: fonts.body,
-      fontStyle: 'italic',
+      fontFamily: fonts.bodyItalic,
       lineHeight: 24,
     },
     quoteAuthor: {

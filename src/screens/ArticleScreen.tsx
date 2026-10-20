@@ -17,6 +17,9 @@ import { fetchArticlesPage } from '@/src/state/articlesFeed';
 import { mergeArticles } from '@/src/utils/articlesPage';
 import { loadErrorKind, staleDataText, type LoadError } from '@/src/utils/loadError';
 
+// Ouvre un article (carte entière ou titre)
+const openArticle = (slug: string) => router.push({ pathname: '/articles/[slug]', params: { slug } });
+
 type Feed = {
   items: Article[];
   // Dernière page lue, et dernière page du serveur
@@ -138,13 +141,16 @@ export default function ArticlesScreen() {
         }}
         onEndReachedThreshold={0.6}
         renderItem={({ item }) => (
-          <Pressable style={styles.card} onPress={() => router.push({ pathname: '/articles/[slug]', params: { slug: item.slug } })}>
+          // La carte entière répond au toucher mais n'est pas un élément pour
+          // VoiceOver : le titre (lien) et l'étoile (bouton) le sont, chacun à
+          // part (audit I14)
+          <Pressable style={styles.card} onPress={() => openArticle(item.slug)} accessible={false}>
             {item.cover_image ? <Image source={{ uri: item.cover_image }} contentFit="cover" recyclingKey={item.slug} style={styles.cover} /> : null}
 
             <View style={styles.cardBody}>
               <View style={styles.cardHeader}>
                 {item.category ? (
-                  <View style={styles.categoryBadge}>
+                  <View style={styles.categoryBadge} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                     <Text style={styles.categoryBadgeText}>{item.category}</Text>
                   </View>
                 ) : null}
@@ -154,29 +160,39 @@ export default function ArticlesScreen() {
                     e.stopPropagation();
                     handleFavorite(item);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  accessibilityState={{ selected: !!item.is_favorite }}
                 >
                   <Ionicons name={item.is_favorite ? 'star' : 'star-outline'} size={20} color={colors.gold} />
                 </Pressable>
               </View>
 
-              <Text style={styles.title} numberOfLines={2}>
-                {item.title}
-              </Text>
-
-              {item.excerpt ? (
-                <Text style={styles.excerpt} numberOfLines={2}>
-                  {item.excerpt}
+              <Pressable
+                onPress={() => openArticle(item.slug)}
+                accessibilityRole="link"
+                accessibilityLabel={item.category ? `${item.title}, ${item.category}` : item.title}
+                accessibilityHint="Ouvre l’article"
+              >
+                <Text style={styles.title} numberOfLines={2}>
+                  {item.title}
                 </Text>
-              ) : null}
 
-              {item.published_at ? (
-                <Text style={styles.date}>
-                  {new Date(item.published_at).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'long',
-                  })}
-                </Text>
-              ) : null}
+                {item.excerpt ? (
+                  <Text style={styles.excerpt} numberOfLines={2}>
+                    {item.excerpt}
+                  </Text>
+                ) : null}
+
+                {item.published_at ? (
+                  <Text style={styles.date}>
+                    {new Date(item.published_at).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'long',
+                    })}
+                  </Text>
+                ) : null}
+              </Pressable>
             </View>
           </Pressable>
         )}

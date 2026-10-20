@@ -228,7 +228,7 @@ test('montants, mode discret, quantités, initiales', () => {
   assert.equal(initials('Appartement (part)', ''), 'AP');
   const now = Date.parse('2026-10-16T12:00:00Z');
   assert.equal(updatedLabel(now - 3 * 60_000, now), 'Mis à jour il y a 3\u00A0min');
-  assert.equal(updatedLabel(now - 10_000, now), "Mis à jour à l'instant");
+  assert.equal(updatedLabel(now - 10_000, now), 'Mis à jour à l’instant');
 });
 
 // ── Répartition et profil de risque ────────────────────────────────────
