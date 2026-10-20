@@ -42,7 +42,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 
 ## Leçon 1 : Mettre de l'argent de côté, « L'argent qui fond »
 
-**Déclic : l'argent qui dort sur un compte courant perd de la [valeur] ; mis de côté en [premier], au bon endroit, il est protégé.**
+**Déclic : l'argent qui dort sur un compte courant perd de la [valeur] ; mis de côté en [premier], au bon endroit, il est mieux protégé.**
 
 1. **Le pari** (`slider`, non noté)
    - « Tu laisses 1 000 € sur ton compte courant pendant 10 ans. Avec 2 % d'inflation par an, que pourras-tu encore acheter avec, en euros d'aujourd'hui ? »
@@ -58,7 +58,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - Le pourcentage s'affiche en grand, le montant en euros en petit dessous (10 % = 180 €).
    - Sous l'épargne, en direct : « Dans un an : <montant × 12> € ».
    - Réussi si l'épargne fait au moins 10 % et les besoins au moins 50 %.
-   - Val, réussi (fier) : « <épargne> % de ta paie, c'est <montant> € par mois et <montant × 12> € dans un an, sans y penser. » Pas réussi, épargne trop basse (rassurant) : « Essaie d'en garder au moins 10 %. Tes envies s'en remettront. » Pas réussi, besoins trop bas (rassurant) : « Garde au moins la moitié pour le loyer et les courses. »
+   - Val, réussi (fier) : « <épargne> % de ta paie, c'est <montant> € par mois et <montant × 12> € dans un an, sans y penser. » Pas réussi, épargne trop basse (rassurant) : « Beaucoup visent au moins 10 %. Tes envies s'en remettront. » Pas réussi, besoins trop bas (rassurant) : « Garde au moins la moitié pour le loyer et les courses. »
 4. **Vrai ou faux en rafale** (nouveau, noté)
    - « Le Livret A peut te faire perdre des euros. » Faux : « Ce que tu y mets est garanti. »
    - « L'argent d'un Livret A est disponible à tout moment. » Vrai : « Tu peux le retirer quand tu veux, sans frais. »
@@ -117,7 +117,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - « Une crypto est garantie par une banque centrale. » Faux : « Aucune banque centrale ne garantit le bitcoin ni les autres cryptos. »
    - « Si une plateforme fait faillite, tu peux perdre ce que tu y avais déposé. » Vrai : « C'est arrivé à des millions de clients en 2022. »
    - « Le nombre total de bitcoins est limité à l'avance. » Vrai : « Il n'y en aura jamais plus de 21 millions. »
-   - « En France, les gains en crypto ne sont jamais imposés. » Faux : « Quand tu revends contre des euros avec un gain, il est imposé à 31,4 %, sauf si tes ventes de l'année ne dépassent pas 305 €. »
+   - « En France, les gains en crypto ne sont jamais imposés. » Faux : « Quand tu revends contre des euros avec un gain, il est en général imposé à 31,4 %, sauf si tes ventes de l'année ne dépassent pas 305 €. »
    - Val, réussi (célébrant) : « Tu en sais plus que la moitié des gens qui en achètent. » Pas réussi (rassurant) : « Rien de grave, la crypto est pleine d'idées reçues. »
 4. **Le dialogue** (nouveau, noté)
    - Personnage : Léo, ton pote, très enthousiaste.
@@ -167,7 +167,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 
 ## Leçon 5 : Payer moins d'impôts, « Le mythe de la tranche »
 
-**Déclic : changer de [tranche] ne fait jamais perdre d'argent ; seule la partie au-dessus du [seuil] est taxée plus.** La leçon utilise le vrai barème de l'impôt pour une part, lu dans les chiffres réglementaires. Ses trois premières tranches suffisent à l'exemple : 0 % jusqu'à 11 600 €, 11 % jusqu'à 29 579 €, 30 % au-delà. La prime franchit le seuil de la troisième tranche de 1 000 € de chaque côté, et tous les montants se calculent à partir du barème.
+**Déclic : changer de [tranche] ne fait pas perdre d'argent, sauf effet sur certaines aides ; seule la partie au-dessus du [seuil] est taxée plus.** La leçon utilise le vrai barème de l'impôt pour une part, lu dans les chiffres réglementaires. Ses trois premières tranches suffisent à l'exemple : 0 % jusqu'à 11 600 €, 11 % jusqu'à 29 579 €, 30 % au-delà. La prime franchit le seuil de la troisième tranche de 1 000 € de chaque côté, et tous les montants se calculent à partir du barème.
 
 1. **Le pari** (`slider`, non noté)
    - « Une prime de 2 000 € fait passer ton revenu imposable de 28 579 € à 30 579 €, et tu changes de tranche : de 11 % à 30 %. De combien augmente ton impôt ? »
@@ -248,7 +248,7 @@ Phrase d'accroche de chaque leçon, sur la carte de l'accueil sans compte tant q
 | La machine à intérêts | Ce que le temps fait à 100 € par mois |
 | Le grand huit | Ce que la crypto peut faire en un an |
 | Le vrai prix d'un crédit | Ce que coûte vraiment un emprunt |
-| Le mythe de la tranche | Pourquoi une prime ne fait jamais perdre d'argent |
+| Le mythe de la tranche | Pourquoi une prime ne fait pas perdre d'argent |
 | Ton vrai salaire | Ce que tu coûtes à ton employeur |
 
 La prochaine leçon en teaser est la première leçon du premier module publié de l'univers conseillé ; à défaut, le premier module disponible.

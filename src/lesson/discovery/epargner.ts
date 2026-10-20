@@ -1,6 +1,6 @@
 // Leçon découverte 1 — objectif « Mettre de l'argent de côté ».
 // Déclic : l'argent qui dort sur un compte courant perd de la valeur ; mis de
-// côté en premier, au bon endroit, il est protégé.
+// côté en premier, au bon endroit, il est mieux protégé.
 // Texte : lecons-decouvertes.md (leçon 1). Au format de GET /lessons/{id} :
 // elle passe par normalizeLesson, comme une vraie leçon.
 // L'inflation de l'exemple est celle des chiffres réglementaires du site
@@ -27,7 +27,7 @@ export function buildEpargner(figures: Figures) {
   return {
     title: 'L’argent qui fond',
     // Déclic du document : carte « À RETENIR » de la fin de leçon
-    takeaway: 'L’argent qui dort sur un compte courant perd de la [valeur] ; mis de côté en [premier], au bon endroit, il est protégé.',
+    takeaway: 'L’argent qui dort sur un compte courant perd de la [valeur] ; mis de côté en [premier], au bon endroit, il est mieux protégé.',
     // Phrase d'accroche : carte de l'accueil sans compte
     hook: 'Pourquoi l’argent qui dort perd de la valeur',
     screens: [
@@ -70,7 +70,7 @@ export function buildEpargner(figures: Figures) {
             line: '{epargne} % de ta paie, c’est {epargne_montant} € par mois et {epargne_montant*12} € dans un an, sans y penser.',
             mood: 'fier',
           },
-          wrong: { line: 'Essaie d’en garder au moins 10 %. Tes envies s’en remettront.', mood: 'rassurant' },
+          wrong: { line: 'Beaucoup visent au moins 10 %. Tes envies s’en remettront.', mood: 'rassurant' },
         },
         payload: {
           question: 'Ta paie de 1 800 € vient de tomber. Quelle part pour chaque pot ?',
@@ -91,7 +91,7 @@ export function buildEpargner(figures: Figures) {
             {
               bucket: 'epargne',
               min: 10,
-              val: { line: 'Essaie d’en garder au moins 10 %. Tes envies s’en remettront.', mood: 'rassurant' },
+              val: { line: 'Beaucoup visent au moins 10 %. Tes envies s’en remettront.', mood: 'rassurant' },
             },
             { bucket: 'besoins', min: 50, val: { line: 'Garde au moins la moitié pour le loyer et les courses.', mood: 'rassurant' } },
           ],
