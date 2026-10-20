@@ -81,11 +81,11 @@ function SignupFlow() {
   const passwordRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
 
+  // Une seule fois, à l'arrivée sur l'inscription (objectif figé à ce moment-là)
+  const [startObjective] = useState(state.objective);
   useEffect(() => {
-    track('inscription_commencee', { objectif: state.objective });
-    // Une seule fois, à l'arrivée sur l'inscription
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    track('inscription_commencee', { objectif: startObjective });
+  }, [startObjective]);
 
   // Leçon découverte : 20 XP et la série du jour, une seule fois. Envoyée
   // avec le post du rendu où le jeton existe (celui d'avant l'inscription
@@ -130,6 +130,48 @@ function SignupFlow() {
     setStep('rappel');
   };
 
+  // Inscription refusée par register : la même demande, relue en entier,
+  // donne le code (inscription fermée) et error.message. Aucune condition
+  // dans un try, ni « finally » : le compilateur React sauterait l'écran.
+  const afterRegisterFailure = async (err: unknown, body: { name: string; email: string; password: string; password_confirmation: string }) => {
+    const message = err instanceof Error ? err.message : undefined;
+    if (isNetworkMessage(message)) {
+      setError(signupError(message));
+      return;
+    }
+    let again: Awaited<ReturnType<typeof postAuth>> | null = null;
+    try {
+      again = await postAuth('/auth/register', body);
+    } catch {
+      again = null;
+    }
+    if (again === null) {
+      setError(signupErrorFrom(null, message));
+      return;
+    }
+    if (again.ok) {
+      // Passée cette fois (erreur passagère) : on se connecte avec le compte créé
+      let loggedIn = false;
+      try {
+        await login(body.email, body.password);
+        loggedIn = true;
+      } catch {
+        loggedIn = false;
+      }
+      if (loggedIn) accountCreated();
+      else setError(signupErrorFrom(null, message));
+    } else if (isRegistrationClosed(again.failure)) {
+      // Pseudo et objectif restent mémorisés pour une prochaine tentative ;
+      // l'accueil sans compte s'en souvient
+      onboardingStore.update({ signupClosedAt: Date.now() });
+      setClosed(true);
+    } else {
+      // Le serveur répond autre chose : l'inscription est ouverte
+      onboardingStore.update({ signupClosedAt: null });
+      setError(signupErrorFrom(again.failure, message));
+    }
+  };
+
   const createAccount = async () => {
     setPseudoTouched(true);
     if (!canCreate) return;
@@ -143,35 +185,9 @@ function SignupFlow() {
       await register(body.name, body.email, body.password, body.password_confirmation);
       accountCreated();
     } catch (err) {
-      const message = err instanceof Error ? err.message : undefined;
-      if (isNetworkMessage(message)) {
-        setError(signupError(message));
-        return;
-      }
-      // register ne garde que le message à la racine : la même demande, relue
-      // en entier, donne le code (inscription fermée) et error.message
-      try {
-        const again = await postAuth('/auth/register', body);
-        if (again.ok) {
-          // Passée cette fois (erreur passagère) : on se connecte avec le compte créé
-          await login(body.email, body.password);
-          accountCreated();
-        } else if (isRegistrationClosed(again.failure)) {
-          // Pseudo et objectif restent mémorisés pour une prochaine tentative ;
-          // l'accueil sans compte s'en souvient
-          onboardingStore.update({ signupClosedAt: Date.now() });
-          setClosed(true);
-        } else {
-          // Le serveur répond autre chose : l'inscription est ouverte
-          onboardingStore.update({ signupClosedAt: null });
-          setError(signupErrorFrom(again.failure, message));
-        }
-      } catch {
-        setError(signupErrorFrom(null, message));
-      }
-    } finally {
-      setSubmitting(false);
+      await afterRegisterFailure(err, body);
     }
+    setSubmitting(false);
   };
 
   // Inscription fermée : « Revenir plus tard » mène à l'accueil sans compte

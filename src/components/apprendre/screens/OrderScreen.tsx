@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import { AccessibilityActionEvent, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -109,12 +109,12 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
     .map((sl) => `${sl.y}:${sl.h}`)
     .join(',');
 
-  // Avant l'image suivante : un geste lit toujours les places de l'ordre actuel
+  // Avant l'image suivante : un geste lit toujours les places de l'ordre
+  // actuel (slotsKey : les places, pas l'identité du tableau)
+  const syncLayout = useEffectEvent(() => layout.set(slotsFor(order, heights)));
   useLayoutEffect(() => {
-    layout.set(slotsFor(order, heights));
-    // slotsKey : les places, pas l'identité du tableau
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slotsKey, layout]);
+    syncLayout();
+  }, [slotsKey]);
 
   // Un ordre est toujours proposé : Valider est actif dès l'arrivée
   useEffect(() => {
@@ -129,14 +129,17 @@ export default function OrderScreen({ screen, answered, onDraftChange }: LessonS
   }, [order, screen, items, n, onDraftChange]);
 
   // Correction : une ligne de plus toutes les 80 ms, puis le rangement.
-  // Animations réduites : tout de suite (voir shownColored, isSettled)
-  useEffect(() => {
-    if (!answered || reduced) return;
+  // Animations réduites : tout de suite (voir shownColored, isSettled).
+  // Une seule fois, à la validation.
+  const startCorrection = useEffectEvent((): (() => void) | undefined => {
+    if (reduced) return;
     const timers = order.map((_, i) => setTimeout(() => setColored(i + 1), (i + 1) * motion.reveal));
     timers.push(setTimeout(() => setSettled(true), n * motion.reveal + motion.state));
     return () => timers.forEach(clearTimeout);
-    // Une seule fois, à la validation
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    if (!answered) return;
+    return startCorrection();
   }, [answered]);
 
   const move = (a: number, b: number) => {

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Text from '@/src/components/common/Text';
 import Animated, {
@@ -70,10 +70,10 @@ export default function StreakFlame({ days, size, ignite = false, growFrom }: St
   const breath = useSharedValue(1);
   // Gerbe d'étincelles : 1 = finie (invisible), relancée de 0 à 1
   const burst = useSharedValue(1);
-  const fireBurst = () => {
+  const fireBurst = useCallback(() => {
     burst.set(0);
     burst.set(withTiming(1, { duration: BURST_DURATION, easing: Easing.out(Easing.cubic) }));
-  };
+  }, [burst]);
 
   const ignited = useRef(false);
 
@@ -106,9 +106,7 @@ export default function StreakFlame({ days, size, ignite = false, growFrom }: St
       return;
     }
     pop.set(1);
-    // fireBurst ne change que des valeurs partagées
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ignite, growFrom, days, lit, reduced, pop]);
+  }, [ignite, growFrom, days, lit, reduced, pop, fireBurst]);
 
   // Vacillement et lueur qui respire, en boucle
   useEffect(() => {

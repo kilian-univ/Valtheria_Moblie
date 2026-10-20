@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { ImageSourcePropType, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -168,8 +168,9 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
   };
 
   // 1. Anticipation, toute seule : tremblement qui grandit, paliers de
-  // rareté, lumière qui filtre, puis l'attente
-  useEffect(() => {
+  // rareté, lumière qui filtre, puis l'attente. Une seule fois, à l'arrivée
+  // (useEffectEvent : les valeurs du moment, sans relancer l'effet)
+  const anticipate = useEffectEvent((): (() => void) | undefined => {
     if (reduced) return;
     const shakes = growingShake(plan.ready, SHAKE_PERIOD, SHAKE_MIN, SHAKE_MAX);
     const half = timing(SHAKE_PERIOD / 2);
@@ -189,9 +190,8 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
     at(plan.leak, () => leak.set(withTiming(1, timing(motion.screen))));
     at(plan.ready, wait);
     return clearTimers;
-    // Une seule fois, à l'arrivée
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
+  useEffect(() => anticipate(), []);
 
   // Fin de la retombée : coffre ouvert dans sa lumière, rareté inscrite,
   // montant final, sans rejouer ce qui a déjà sonné
