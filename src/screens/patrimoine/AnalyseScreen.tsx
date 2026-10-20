@@ -87,7 +87,7 @@ export default function AnalyseScreen() {
             variant="empty"
             mood="complice"
             title="Bientôt disponible"
-            text="La répartition par zone géographique arrivera quand le site saura dire où chaque actif est investi."
+            text="Bientôt, la répartition par zone géographique."
           />
         ) : positions.length === 0 ? (
           <PageState variant="empty" mood="rassurant" text="Ajoute un premier actif pour voir ta répartition." />

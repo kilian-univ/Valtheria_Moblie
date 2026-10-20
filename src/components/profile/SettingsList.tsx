@@ -125,8 +125,9 @@ const styles = StyleSheet.create({
     gap: space[3] + 2,
     flex: 1,
   },
+  // Le libellé garde sa place, la valeur (tronquée à une ligne) prend le reste
   label: {
-    flex: 1,
+    flexShrink: 0,
   },
   labelText: {
     fontFamily: fonts.bodyMedium,
@@ -134,6 +135,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   value: {
-    maxWidth: '50%',
+    flex: 1,
+    textAlign: 'right',
   },
 });

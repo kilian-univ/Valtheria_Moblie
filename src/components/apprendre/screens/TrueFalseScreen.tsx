@@ -32,6 +32,8 @@ import { trueFalseReaction, trueFalseResults, trueFalseScore } from '@/src/lesso
 import { grade } from '@/src/utils/grade';
 import type { TrueFalseScreen as TrueFalseModel } from '@/src/lesson/model';
 import { safeGesture } from '@/src/utils/gestureSafety';
+import { useScreenReader } from '@/src/hooks/useScreenReader';
+import { announce } from '@/src/utils/announce';
 import { feedback } from '@/src/utils/feedback';
 import RoundChoice from '../player/RoundChoice';
 import ScreenIntro from '../player/ScreenIntro';
@@ -187,13 +189,16 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   };
 
   // Verdict affiché : la carte suivante arrive seule après 1,5 s (une
-  // attente par verdict ; advance lit les réponses données à ce moment-là)
+  // attente par verdict ; advance lit les réponses données à ce moment-là).
+  // Lecteur d'écran actif : rien n'avance tout seul, le verdict est annoncé
+  // et le bouton « Carte suivante » fait passer (audit I13).
+  const screenReader = useScreenReader();
   const next = useEffectEvent(() => advance(answers));
   useEffect(() => {
-    if (phase !== 'verdict') return;
+    if (phase !== 'verdict' || screenReader) return;
     const timer = setTimeout(() => next(), motion.nextCard);
     return () => clearTimeout(timer);
-  }, [phase, answers]);
+  }, [phase, answers, screenReader]);
 
   // Bouton : la carte part du bon côté, comme balayée
   const send = (value: boolean) => {
@@ -302,6 +307,11 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   const verdictInk = right === null ? colors.goldRing : right ? colors.success : colors.error;
   const verdictFace = right === null ? colors.optionFace : right ? colors.successSheet : colors.dangerSheet;
   const truth = `${card.answer ? 'C’est vrai' : 'C’est faux'}${card.explanation ? ` : ${card.explanation}` : '.'}`;
+  // VoiceOver : verdict et explication annoncés dès qu'ils s'affichent
+  const announceVerdict = useEffectEvent(() => announce(`${right ? 'Bien vu !' : 'Raté !'} ${truth}`, 300));
+  useEffect(() => {
+    if (phase === 'verdict') announceVerdict();
+  }, [phase]);
   const behind = Math.min(BACK_TILTS.length, cards.length - 1 - Math.max(index, 0));
 
   return (
@@ -378,7 +388,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
                       <AppText maxFontSizeMultiplier={1.3} style={styles.verdictTitle}>
                         {right ? 'Bien vu\u00A0!' : 'Raté\u00A0!'}
                       </AppText>
-                      <AppText variant="body" maxFontSizeMultiplier={1.4} numberOfLines={3} style={styles.truth}>
+                      <AppText variant="body" maxFontSizeMultiplier={1.6} style={styles.truth}>
                         {truth}
                       </AppText>
                     </View>
@@ -409,7 +419,13 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
             >
               <Countdown key={answers.length} />
               <AppText variant="callout" tone="subtitle">
-                {answers.length < cards.length ? 'Carte suivante… touche pour passer' : 'Ton score arrive… touche pour passer'}
+                {screenReader
+                  ? answers.length < cards.length
+                    ? 'Touche pour passer à la carte suivante'
+                    : 'Touche pour voir ton score'
+                  : answers.length < cards.length
+                    ? 'Carte suivante… touche pour passer'
+                    : 'Ton score arrive… touche pour passer'}
               </AppText>
             </Pressable>
           ) : null}

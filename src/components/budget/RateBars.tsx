@@ -70,7 +70,7 @@ function RateBars({ series, selected }: { series: { month: string; rate: number 
                     </SvgText>
                   </>
                 ) : (
-                  <SvgText x={cx} y={zero - 5} textAnchor="middle" fontSize={10} fontFamily={fonts.body} fill={colors.textFaint}>
+                  <SvgText x={cx} y={zero - 5} textAnchor="middle" fontSize={10} fontFamily={fonts.body} fill={colors.subtitle}>
                     —
                   </SvgText>
                 )}

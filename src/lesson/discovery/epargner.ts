@@ -134,7 +134,7 @@ export function buildEpargner(figures: Figures) {
         type: 'choice',
         scored: true,
         val: {
-          correct: { line: 'Le vrai secret de ceux qui épargnent sans effort.', mood: 'fier' },
+          correct: { line: 'Le vrai secret pour épargner sans effort.', mood: 'fier' },
           wrong: { line: 'C’est ce que fait presque tout le monde, et c’est pour ça que ça marche rarement.', mood: 'rassurant' },
         },
         explanation:

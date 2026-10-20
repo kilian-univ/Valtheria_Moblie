@@ -162,6 +162,7 @@ export default function ProfileScreen() {
               color={colors.subtitle}
               variant="plain"
               size={36}
+              hitSlop={4}
               onPress={() => {
                 setObjectiveMounted(true);
                 setObjectiveOpen(true);
@@ -174,7 +175,7 @@ export default function ProfileScreen() {
           title={p.objectiveLabel}
           done={p.progress.done}
           total={p.progress.total}
-          emptyMessage={p.noLessons ? 'Les leçons de cet univers arrivent bientôt.' : null}
+          emptyMessage={p.noLessons ? 'Les leçons de cet univers arrivent bientôt. En attendant, revois « Avant d’investir ».' : null}
           next={
             next
               ? { title: next.lesson.title, onPress: () => launch(next.lesson), accessibilityLabel: `Prochaine leçon : ${next.lesson.title}` }

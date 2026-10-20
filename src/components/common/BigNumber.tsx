@@ -37,7 +37,7 @@ export default function BigNumber({ text, size, sizingText, tone = 'gold', style
         numberOfLines={1}
         // Filet de sécurité natif (le web ne le connaît pas : le calcul suffit)
         adjustsFontSizeToFit={Platform.OS !== 'web'}
-        maxFontSizeMultiplier={1}
+        maxFontSizeMultiplier={1.2}
         accessibilityElementsHidden
         importantForAccessibility="no"
         style={[

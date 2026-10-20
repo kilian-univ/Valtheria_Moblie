@@ -26,7 +26,7 @@ export default function QuitSheet({ open, onStay, onQuit, onClosed }: QuitSheetP
             Quitter la leçon ?
           </AppText>
           <AppText variant="body" tone="subtitle" style={styles.center}>
-            Tu y étais presque. Si tu pars maintenant, tu devras la recommencer depuis le début.
+            Si tu pars maintenant, tu recommenceras depuis le début.
           </AppText>
         </View>
         <View style={styles.actions}>

@@ -31,6 +31,7 @@ export default function Chip({ label, onPress, icon, active = false, accessibili
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ selected: active }}
+      hitSlop={{ top: 4, bottom: 4 }}
       style={({ pressed }) => [
         styles.chip,
         {

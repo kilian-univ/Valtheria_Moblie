@@ -105,8 +105,10 @@ export default function ModulePath({
   const trophyIndex = views.length;
 
   // Terminé : l'or (couleur des récompenses) ; en cours : couleur du module
-  const goldColors: NodeColors = { face: theme.gold, deep: theme.goldDeep, icon: theme.ivory };
-  const moduleNode: NodeColors = { face: colors.face, deep: colors.deep, icon: theme.ivory };
+  // Icônes sombres sur les faces claires (or, couleur du module) : l'ivoire n'y
+  // était lisible qu'à 1,4-2,8 (audit G17)
+  const goldColors: NodeColors = { face: theme.gold, deep: theme.goldDeep, icon: theme.onGold };
+  const moduleNode: NodeColors = { face: colors.face, deep: colors.deep, icon: colors.onFace };
   const off: NodeColors = {
     face: theme.pathLockedFace,
     deep: theme.pathLockedDeep,

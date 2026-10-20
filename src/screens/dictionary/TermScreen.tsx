@@ -230,7 +230,7 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
             <TermIllustration category={entry.category} />
           </View>
           {state && state !== 'nouveau' ? <WordStateTag state={state} /> : null}
-          <AppText maxFontSizeMultiplier={1.6} style={[styles.definition, { color: colors.text }]}>
+          <AppText maxFontSizeMultiplier={2} style={[styles.definition, { color: colors.text }]}>
             {entry.definition}
           </AppText>
         </StaggerItem>

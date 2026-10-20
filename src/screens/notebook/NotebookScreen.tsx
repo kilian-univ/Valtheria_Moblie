@@ -78,7 +78,7 @@ export default function NotebookScreen() {
                 {d.lessonTitle}
               </AppText>
             ) : null}
-            <AppText maxFontSizeMultiplier={1.4} style={styles.phrase}>
+            <AppText maxFontSizeMultiplier={1.8} style={styles.phrase}>
               {plainDeclic(d.text)}
             </AppText>
           </View>

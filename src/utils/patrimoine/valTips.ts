@@ -60,15 +60,20 @@ export function chooseValTip({ positions, now, monthlyExpenses }: TipContext): V
     };
   }
 
-  // 2. Un actif (hors sans risque) à plus de 30 %
+  // 2. Un actif (hors sans risque) à plus de 30 %. Un bien saisi à la main
+  // (résidence, objet) n'est pas « un seul actif » à répartir : exclu (audit G21)
   const biggest = positions
-    .filter((p) => riskOf(p) !== 'sans_risque')
+    .filter((p) => riskOf(p) !== 'sans_risque' && !p.isManual)
     .map((p) => ({ p, share: Math.max(0, valueEurOf(p)) / total }))
     .sort((a, b) => b.share - a.share)[0];
   if (biggest && biggest.share > TIP_RULES.concentration && positions.length > 1) {
+    // Un ETF répartit déjà sur des dizaines d'entreprises, mais sur un seul marché
+    const fund = biggest.p.type === 'etf';
     return {
       key: 'concentration',
-      text: `${biggest.p.name} pèse ${pct(biggest.share)} de ton patrimoine. Quand un seul actif pèse autant, tout dépend de lui.`,
+      text: fund
+        ? `${biggest.p.name} pèse ${pct(biggest.share)} de ton patrimoine. Un ETF répartit déjà sur beaucoup d’entreprises, mais sur un seul marché : tout dépend de lui.`
+        : `${biggest.p.name} pèse ${pct(biggest.share)} de ton patrimoine. Quand un seul actif pèse autant, tout dépend de lui.`,
       link: TARGETS.concentration,
     };
   }

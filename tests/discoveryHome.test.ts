@@ -218,7 +218,7 @@ test('carte du compte : inscription ouverte ou fermée', () => {
   assert.deepEqual(accountCard(true), {
     kind: 'closed',
     title: 'Les inscriptions ouvrent très bientôt',
-    text: 'En attendant, toutes les leçons sont à toi.',
+    text: 'En attendant, les six leçons découvertes sont à toi.',
     action: 'login',
     actionLabel: 'Se connecter',
   });

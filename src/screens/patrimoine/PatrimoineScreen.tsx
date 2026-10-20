@@ -314,7 +314,7 @@ export default function PatrimoineScreen() {
             tone={portfolio.gainEur >= 0 ? 'success' : 'error'}
             term="Plus-value latente"
           />
-          <Figure label="Revenus passifs" value={signedMoney(portfolio.passiveIncomeEur, { hidden })} tone="gold" term="Revenus passifs" />
+          <Figure label="Revenus passifs" value={signedMoney(portfolio.passiveIncomeEur, { hidden, whole: true })} tone="gold" term="Revenus passifs" />
         </View>
 
         <Segmented options={CHART_MODES} value={mode} onChange={setMode} />

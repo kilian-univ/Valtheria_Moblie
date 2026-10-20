@@ -172,17 +172,23 @@ export default function ActifScreen() {
   const gainShown = position ? (position.valueEur !== null && position.investedEur !== null ? position.valueEur - position.investedEur : position.gain) : 0;
   // Variation du cours sur la période affichée (jusqu'au point touché), appliquée
   // à la quantité détenue
+  const opList = ops?.list ?? [];
   const scrubbed = scrub !== null && scrub < points.length ? points[scrub] : null;
-  const first = points.length >= 2 ? points[0].price : null;
+  // La variation ne remonte jamais avant le premier achat (audit G41) : sur
+  // une période plus longue que la détention, elle part du cours au premier
+  // achat et le dit
+  const firstBuyAt = opList.reduce<number | null>((min, op) => (op.side === 'buy' ? Math.min(min ?? Infinity, Date.parse(op.executedAt)) : min), null);
+  const startIndex = firstBuyAt !== null && points.length >= 2 && points[0].t < firstBuyAt ? points.findIndex((p) => p.t >= firstBuyAt) : 0;
+  const sinceBuy = startIndex > 0;
+  const first = points.length >= 2 && startIndex >= 0 ? points[startIndex].price : null;
   const last = scrubbed ? scrubbed.price : points.length >= 2 ? points[points.length - 1].price : null;
-  const periodText = scrubbed && points.length > 0 ? `depuis le ${shortDate(points[0].t, now)}` : periodLabel(shownPeriod);
+  const periodText = scrubbed && points.length > 0 ? `depuis le ${shortDate(points[startIndex > 0 ? startIndex : 0].t, now)}` : sinceBuy ? 'depuis ton premier achat' : periodLabel(shownPeriod);
   // Valeur de la position au cours du point touché
   const scrubValue = scrubbed && position ? (chartCurrency === 'EUR' ? position.quantity * scrubbed.price : toEur(position.quantity * scrubbed.price, chartCurrency, rates)) : null;
   const periodPct = first !== null && last !== null && first > 0 ? (last / first - 1) * 100 : null;
   const periodAmount = position && first !== null && last !== null ? (chartCurrency === 'EUR' ? position.quantity * (last - first) : toEur(position.quantity * (last - first), chartCurrency, rates)) : null;
 
   const opLabel = (op: Operation) => `${op.side === 'buy' ? 'Achat' : 'Vente'} de ${quantityLabel(op.quantity, ticker, type)}`;
-  const opList = ops?.list ?? [];
 
   // Tout ce qui précède les opérations : en-tête de la liste virtualisée
   // (les opérations s'accumulent au fil des années, seules les lignes

@@ -439,14 +439,14 @@ export function SpeechBubble({
         ) : null}
         {/* Tout le texte est posé dès le départ (taille de bulle stable) ;
             les mots pas encore écrits sont simplement invisibles. */}
-        <Text maxFontSizeMultiplier={1.6} style={[styles.text, { color: colors.onBubble }]}>
+        <Text maxFontSizeMultiplier={2} style={[styles.text, { color: colors.onBubble }]}>
           {words.map((word, i) => (
             <Text key={i} style={[word.bold && styles.emphasis, i >= shown && styles.hidden]}>
               {word.text}
             </Text>
           ))}
           {accent ? (
-            <Text style={[styles.accent, { color: colors.goldDeep }, shown < words.length && styles.hidden]}>
+            <Text style={[styles.accent, { color: colors.bubbleAccent }, shown < words.length && styles.hidden]}>
               {` ${accent}`}
             </Text>
           ) : null}

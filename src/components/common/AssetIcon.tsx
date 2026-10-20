@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import AppText from '@/src/components/common/AppText';
@@ -42,7 +43,7 @@ export default function AssetIcon({ logoUrl, name, ticker, type, size = 40, icon
   if (logoUrl && !failed) {
     return (
       <View style={[styles.logoBox, box, { backgroundColor: colors.surfaceAlt }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Image source={{ uri: logoUrl }} style={box} onError={() => setFailed(true)} resizeMode="contain" />
+        <Image source={{ uri: logoUrl }} style={box} onError={() => setFailed(true)} contentFit="contain" cachePolicy="memory-disk" />
       </View>
     );
   }

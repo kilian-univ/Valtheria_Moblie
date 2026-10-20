@@ -124,7 +124,7 @@ export default function AssetSearchScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space[8] }]} keyboardShouldPersistTaps="handled">
         <TextField
           label="Rechercher"
-          placeholder="Nom, symbole ou ISIN (ex. Solana, CW8, LVMH)"
+          placeholder="Nom, symbole ou ISIN"
           value={q}
           onChangeText={setQ}
           autoFocus
@@ -161,7 +161,7 @@ export default function AssetSearchScreen() {
         {list ? (
           list.length > 0 ? (
             <View>{list.map((a, i) => row(a, i, list.length))}</View>
-          ) : (
+          ) : suggestions.length > 0 ? null : (
             <AppText variant="callout" tone="subtitle" accessibilityLiveRegion="polite">
               {found?.failed ? 'La recherche ne répond pas pour l’instant. Réessaie dans un moment, ou ajoute l’actif à la main.' : `Aucun actif trouvé pour « ${query} ».`}
             </AppText>
