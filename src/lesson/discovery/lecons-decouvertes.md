@@ -69,7 +69,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
    - « Pour mettre de côté sans y penser, le plus efficace ? »
    - Garder ce qui reste à la fin du mois ; programmer un virement le jour où la paie tombe (bonne) ; mettre de côté chaque fois qu'une prime arrive.
    - Explication : « À la fin du mois, il reste rarement quelque chose, et les primes sont irrégulières. Un virement le jour de la paie, c'est te payer en premier. »
-   - Val, bonne réponse (fier) : « Le vrai secret de ceux qui épargnent sans effort. » Erreur (rassurant) : « C'est ce que fait presque tout le monde, et c'est pour ça que ça marche rarement. »
+   - Val, bonne réponse (fier) : « Le vrai secret pour épargner sans effort. » Erreur (rassurant) : « C'est ce que fait presque tout le monde, et c'est pour ça que ça marche rarement. »
 
 ## Leçon 2 : Commencer à investir, « La machine à intérêts »
 

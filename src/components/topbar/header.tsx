@@ -51,7 +51,7 @@ export default function Header({ showBack = false, hideAuthActions = false }: He
                 style={header_styles.pillBtn}
                 onPress={() => router.push('/client/register')}
               >
-                <Text style={header_styles.pillBtnLabel}>S’inscrire</Text>
+                <Text style={header_styles.pillBtnLabel}>Créer mon compte</Text>
               </Pressable>
             </>
           )}

@@ -207,7 +207,7 @@ export default function LoginScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space[3] }]}>
         <Button label="Se connecter" onPress={handleLogin} disabled={!canSubmit} loading={submitting} />
-        <Button variant="text" label="Pas encore de compte ? Créer un compte" onPress={() => router.replace('/client/register')} />
+        <Button variant="text" label="Pas encore de compte ? Créer mon compte" onPress={() => router.replace('/client/register')} />
         <LegalLinks />
       </View>
     </KeyboardAvoidingView>

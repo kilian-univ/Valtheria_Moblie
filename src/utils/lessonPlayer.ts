@@ -128,10 +128,10 @@ export function estimateVerdict(guess: number, actual: number, unit: string | nu
   const gap = Math.abs(guess - actual) / Math.max(Math.abs(actual), 1e-9);
   if (gap <= 0.1) {
     const away = withUnit(formatNumber(Math.abs(guess - actual), decimals), unit);
-    return { text: `Tout près : tu étais à ${away}`, close: true, direction };
+    return { text: `Tout près : à ${away} près`, close: true, direction };
   }
   const much = gap > 0.5 ? 'Bien' : 'Un peu';
-  return { text: `${much} ${direction === 'more' ? 'plus' : 'moins'} que tu pensais`, close: false, direction };
+  return { text: `${much} ${direction === 'more' ? 'plus' : 'moins'} que ce que tu pensais`, close: false, direction };
 }
 
 // Lignes d'une révélation qui apportent une information nouvelle : celles

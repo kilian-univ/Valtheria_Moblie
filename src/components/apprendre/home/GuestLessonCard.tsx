@@ -58,7 +58,7 @@ const DECOR_OPACITY = 0.22;
 const SPOKEN: Record<HomeCardAction, string> = {
   'autre-sujet': 'Un autre sujet',
   'creer-compte': 'Créer mon compte',
-  reprendre: 'Reprendre la leçon',
+  reprendre: 'Recommencer la leçon',
   commencer: 'Commencer la leçon',
   rejouer: 'Rejouer une leçon',
 };

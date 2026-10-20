@@ -81,12 +81,12 @@ test('grand chiffre : taille gardée s’il tient, réduite sinon, jamais sous l
 test('révélation : verdict selon l’écart, avec l’écart en clair quand on était tout près', () => {
   assert.deepEqual(estimateVerdict(820, 820, '€'), { text: 'Pile dans le mille', close: true, direction: 'exact' });
   const near = estimateVerdict(850, 820, '€');
-  assert.equal(near.text, `Tout près : tu étais à 30${NBSP}€`);
+  assert.equal(near.text, `Tout près : à 30${NBSP}€ près`);
   assert.equal(near.close, true);
-  assert.equal(estimateVerdict(700, 820, '€').text, 'Un peu plus que tu pensais');
-  assert.equal(estimateVerdict(300, 820, '€').text, 'Bien plus que tu pensais');
-  assert.equal(estimateVerdict(1000, 820, '€').text, 'Un peu moins que tu pensais');
-  assert.equal(estimateVerdict(60000, 16500, 'dollars').text, 'Bien moins que tu pensais');
+  assert.equal(estimateVerdict(700, 820, '€').text, 'Un peu plus que ce que tu pensais');
+  assert.equal(estimateVerdict(300, 820, '€').text, 'Bien plus que ce que tu pensais');
+  assert.equal(estimateVerdict(1000, 820, '€').text, 'Un peu moins que ce que tu pensais');
+  assert.equal(estimateVerdict(60000, 16500, 'dollars').text, 'Bien moins que ce que tu pensais');
   assert.equal(estimateVerdict(60000, 16500, 'dollars').close, false);
 });
 
