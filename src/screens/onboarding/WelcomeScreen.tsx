@@ -24,7 +24,8 @@ import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { onboardingStore } from '@/src/state/onboarding';
 import { track } from '@/src/utils/track';
-import { trustPills } from '@/src/utils/welcome';
+import { fetchUniverses } from '@/src/utils/universes';
+import { openUniversesCount, trustPills } from '@/src/utils/welcome';
 
 const TITLE_SIZE = 38;
 const VAL_LINE = 'Salut ! Moi, c’est Val.';
@@ -60,13 +61,14 @@ export default function WelcomeScreen() {
   const { get } = useApi();
   const { width, height, fontScale } = useWindowDimensions();
   const [words, setWords] = useState<number | null>(null);
+  const [openUniverses, setOpenUniverses] = useState<number | null>(null);
 
   useEffect(() => {
     track('bienvenue_vue');
   }, []);
 
-  // Vrai nombre de mots du dictionnaire (route publique) ; indisponible : la
-  // pastille ne s'affiche pas
+  // Vrais nombres : mots du dictionnaire et univers ouverts (routes
+  // publiques) ; indisponible : la pastille ne s'affiche pas
   useEffect(() => {
     let active = true;
     get('/dictionary')
@@ -74,6 +76,9 @@ export default function WelcomeScreen() {
         if (active && Array.isArray(data)) setWords(data.length);
       })
       .catch(() => {});
+    fetchUniverses(get).then((list) => {
+      if (active) setOpenUniverses(openUniversesCount(list));
+    });
     return () => {
       active = false;
     };
@@ -127,7 +132,7 @@ export default function WelcomeScreen() {
           </Reveal>
           <Reveal delay={CASCADE_START + CASCADE_STEP * 2}>
             <View style={styles.pills}>
-              {trustPills(words).map((pill) => (
+              {trustPills(words, openUniverses).map((pill) => (
                 <Pill
                   key={pill.key}
                   size="md"
