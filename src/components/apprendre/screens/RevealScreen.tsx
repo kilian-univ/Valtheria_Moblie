@@ -15,6 +15,7 @@ import Pill from '@/src/components/common/Pill';
 import { easeOut, motion, timing } from '@/src/constants/motion';
 import { fonts, palette, radius, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import { COUNT_STEP_MS } from '@/src/hooks/useCountUp';
 import type { RevealScreen as RevealModel } from '@/src/lesson/model';
 import { widestText, windowFitHeight } from '@/src/utils/fit';
 import { formatNumber, withUnit } from '@/src/utils/format';
@@ -105,10 +106,16 @@ export default function RevealScreen({ screen, estimate, enterDelay, setVal }: L
       setPhase('roll');
       let begin: number | null = null;
       let ticks = 0;
+      let last = -Infinity;
       const tick = (now: number) => {
         if (begin === null) begin = now;
         const progress = Math.min(1, (now - begin) / motion.roll);
-        setShown(from + (value - from) * easeOut(progress));
+        // Au plus une mise à jour toutes les 50 ms (comme useCountUp) : chaque
+        // mise à jour est un rendu
+        if (progress < 1 && now - last >= COUNT_STEP_MS) {
+          last = now;
+          setShown(from + (value - from) * easeOut(progress));
+        }
         if (progress < 1) {
           const step = Math.floor(progress * ROLL_TICKS);
           if (step > ticks) {
