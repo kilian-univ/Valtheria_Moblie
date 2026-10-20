@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
@@ -11,6 +11,7 @@ import { durations } from '@/src/constants/motion';
 import { fonts, palette, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { ValLine } from '@/src/lesson/model';
+import { announce } from '@/src/utils/announce';
 import { correctAnswerLabel } from '@/src/utils/lessonPlayer';
 import { VAL_DIAMETER } from './ScreenIntro';
 
@@ -68,6 +69,15 @@ export default function AnswerSheet({
   const { correct } = verdict;
 
   const [collapsed, setCollapsedState] = useState(false);
+  // VoiceOver : le verdict et la correction sont annoncés à l'ouverture (audit I13)
+  const spoken = [
+    correct ? 'Bien vu !' : 'Pas tout à fait.',
+    !correct && verdict.correctText ? `${correctAnswerLabel(verdict.correctCount ?? 1)}${verdict.correctText}.` : '',
+    verdict.explanation ?? '',
+  ].join(' ');
+  useEffect(() => {
+    if (open) announce(spoken, 400);
+  }, [open, spoken]);
   const setCollapsed = (next: boolean) => {
     setCollapsedState(next);
     onCollapsedChange?.(next);
