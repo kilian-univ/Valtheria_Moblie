@@ -1,6 +1,7 @@
 import { StyleSheet, TextStyle } from "react-native";
 
-export type ColorScheme = 'light' | 'dark';
+// Thème unique : sombre (le thème clair a été retiré le 20/10/2026)
+export type ColorScheme = 'dark';
 
 // Polices chargées dans app/_layout.tsx. La graisse est portée par la famille :
 // ne pas ajouter de fontWeight en plus (iOS retomberait sur la police système).
@@ -108,87 +109,6 @@ export const palette = {
     chart3: '#7C9CC4',
     chart4: '#A06E48',
     chart5: '#64646E',
-  },
-
-  // Thème clair — même identité, inversée pour la lisibilité de jour
-  light: {
-    background: '#FAFAFA',
-    // Thème clair : fond commun uni (aucun changement)
-    surface: '#FFFFFF',
-    surfaceAlt: '#F0EFF4',
-    text: '#0D0D0F',
-    subtitle: '#5B5B63',
-    border: '#E2E1E6',
-    gold: '#E8B23D',
-    success: '#16A34A',
-    error: '#DC4C3E',
-    successDeep: '#0F7A35',
-    dangerDeep: '#A8362B',
-    successSoft: 'rgba(22,163,74,0.12)',
-    dangerSoft: 'rgba(220,76,62,0.12)',
-    successSheet: '#EAF6EE',
-    dangerSheet: '#FBECEA',
-    reliefEdge: 'rgba(0,0,0,0.13)',
-    progressShine: 'rgba(255,255,255,0.5)',
-    goldGlint: 'rgba(255,248,220,0.9)',
-    pathLockedFace: '#DDDCE2',
-    pathLockedDeep: '#BDBCC4',
-    pathShine: 'rgba(255,255,255,0.35)',
-    ivory: '#F7F4EE',
-    nodeHighlight: '#FFFFFF',
-    nodeShade: '#000000',
-    nodeInnerLight: 'rgba(255,255,255,0.25)',
-    groundShadow: '#000000',
-    pathScrim: 'rgba(0,0,0,0.25)',
-    cardEdge: 'rgba(0,0,0,0.25)',
-    // Jetons ajoutés pour suivre la palette sombre (le thème clair n'est pas retravaillé)
-    textFaint: 'rgba(13,13,15,0.26)',
-    controlBorder: 'rgba(0,0,0,0.13)',
-    goldSoft: 'rgba(232,178,61,0.13)',
-    frost: 'rgba(74,138,184,0.14)',      // jour sauvé par un gel (bleu glacier discret)
-    frostInk: '#4A8AB8',                 // flocon du gel de série
-    bubble: '#FFFFFF',                   // bulle de Val (blanche sur le fond clair)
-    onBubble: '#0D0D0F',                 // texte de la bulle de Val
-    goldDeep: '#B08526',
-    goldHalo: 'rgba(232,178,61,0.12)',
-    goldLine: 'rgba(232,178,61,0.35)',
-    goldRing: 'rgba(232,178,61,0.45)',
-    onGold: '#0D0D0F',
-    shadow: '#000000',
-    blobLight: '#000000',
-    blobDark: '#000000',
-    surface2: '#ECEBF0',
-    surfaceEdge: '#DEDCE3',
-    optionFace: '#FFFFFF',
-    optionEdge: '#DEDCE3',
-    optionBorder: 'rgba(0,0,0,0.10)',
-    disabledFace: '#E4E3E8',
-    disabledEdge: '#CFCED6',
-    disabledText: 'rgba(13,13,15,0.38)',
-    panel: 'rgba(0,0,0,0.04)',
-    panelStrong: 'rgba(0,0,0,0.05)',
-    cardSurface: 'rgba(0,0,0,0.03)',
-    cardBorder: 'rgba(0,0,0,0.08)',
-    artFrame: '#F0EFF4',
-    track: 'rgba(0,0,0,0.08)',
-    goldPill: 'rgba(201,168,76,0.18)',
-    goldTile: 'rgba(201,168,76,0.18)',
-    goldLight: '#B8952F',
-    barEmpty: '#E4E4E8',
-    pileBack: '#EEEDF2',
-    pileBackDeep: '#E4E3E8',
-    chatBubble: '#ECEBF0',
-    streak: '#D9752F',
-    streakGlow: 'rgba(217,117,47,0.25)',
-    scrim: 'rgba(0,0,0,0.4)',
-    focusRing: '#E8B23D',                // = gold
-    skeletonShine: 'rgba(0,0,0,0.05)',
-    logoShine: 'rgba(255,255,255,0.5)',
-    chart1: '#E8B23D',                   // = gold
-    chart2: '#8A8272',
-    chart3: '#4F74A3',
-    chart4: '#A06E48',
-    chart5: '#8C8C96',
   },
 };
 

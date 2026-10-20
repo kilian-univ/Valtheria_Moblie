@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-type ColorScheme = 'light' | 'dark';
+type ColorScheme = 'dark';
 
 type ThemeContextValue = {
   colorScheme: ColorScheme;
@@ -8,9 +8,8 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-// Thème unique : sombre (décision du 17 octobre 2026, le thème clair n'est
-// pas proposé). La palette claire reste dans Style.ts, sans réglage pour
-// l'afficher.
+// Thème unique : sombre (décision du 17 octobre 2026). La palette claire a
+// été retirée le 20 octobre 2026 : plus aucun code du thème clair.
 const VALUE: ThemeContextValue = { colorScheme: 'dark' };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
