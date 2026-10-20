@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, ScrollView, View } from 'react-native';
 import Text from '@/src/components/common/Text';
 
 import BlockRenderer from '@/src/components/article/BlockRenderer';
@@ -126,7 +127,7 @@ export default function ArticleDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {article.cover_image && (
-          <Image source={{ uri: article.cover_image }} style={styles.cover} />
+          <Image source={{ uri: article.cover_image }} contentFit="cover" style={styles.cover} />
         )}
 
         <View style={styles.content}>
