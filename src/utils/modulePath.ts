@@ -439,6 +439,7 @@ export type Visibility = 'visible' | 'above' | 'below';
 
 // top / height : rond dans le contenu défilant ; scrollY / viewport : zone visible
 export function visibility(top: number, height: number, scrollY: number, viewport: number): Visibility {
+  'worklet';
   if (top + height < scrollY) return 'above';
   if (top > scrollY + viewport) return 'below';
   return 'visible';

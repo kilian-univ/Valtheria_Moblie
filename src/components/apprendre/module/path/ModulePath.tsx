@@ -115,13 +115,13 @@ export default function ModulePath({
 
   const focusIndex = current >= 0 ? current : trophyIndex;
   const focusShape = current >= 0 ? viewShape(views[current]) : 'trophy';
-  const focusRect = width > 0 ? nodeRect(focusIndex, width, focusShape) : null;
-  const focusKey = focusRect ? `${focusRect.x}|${focusRect.y}` : '';
+  // Le rectangle du rond en cours, pour l'écran (arrivée, bouton « leçon en
+  // cours ») : recalculé dans l'effet à partir de ses entrées, pour des
+  // dépendances simples (le compilateur React refuse un composant où une
+  // règle ESLint est désactivée)
   useEffect(() => {
-    if (focusRect) onFocusRect(focusRect);
-    // focusKey résume focusRect
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusKey, onFocusRect]);
+    if (width > 0) onFocusRect(nodeRect(focusIndex, width, focusShape));
+  }, [width, focusIndex, focusShape, onFocusRect]);
 
   // Vibrations du déverrouillage : réussite, puis ouverture du rond suivant
   useEffect(() => {
