@@ -8,6 +8,9 @@ import { error as errorHaptic } from '@/src/utils/haptics';
 // Lance une leçon : la démarre côté serveur à CHAQUE lancement, rejeu
 // compris (chaque /start ouvre une partie que /complete consomme, sinon
 // 403 not_started — API.md du site), puis ouvre le lecteur.
+const launchErrorText = (err: unknown): string =>
+  isNetworkError(err) ? 'Impossible de lancer la leçon : pas de connexion internet.' : 'Impossible de lancer la leçon : le serveur ne répond pas.';
+
 export function useLessonLauncher() {
   const { startLesson } = useApi();
   const router = useRouter();
@@ -18,21 +21,19 @@ export function useLessonLauncher() {
     if (startingId !== null) return false;
     setStartingId(lesson.id);
     setLaunchError(null);
+    // (ni « finally » ni condition dans le try/catch : le compilateur React
+    // sauterait le hook)
     try {
       await startLesson(lesson.id);
       router.push({ pathname: '/apprendre/[id]', params: { id: lesson.id } });
-      return true;
     } catch (err) {
       errorHaptic();
-      setLaunchError(
-        isNetworkError(err)
-          ? 'Impossible de lancer la leçon : pas de connexion internet.'
-          : 'Impossible de lancer la leçon : le serveur ne répond pas.'
-      );
-      return false;
-    } finally {
+      setLaunchError(launchErrorText(err));
       setStartingId(null);
+      return false;
     }
+    setStartingId(null);
+    return true;
   };
 
   return { launch, startingId, launchError };

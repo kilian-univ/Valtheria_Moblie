@@ -139,13 +139,16 @@ export function useDailyRevision(userId: number | null | undefined) {
     setStatus(key, 'running');
     (async () => {
       for (const { lesson, module } of missing) {
+        // (univers et clé hors du try : le compilateur React saute le hook si
+        // un try contient une condition ou une clé calculée par un appel)
+        const slug = universeOfModule(module, universes)?.slug ?? null;
+        const lessonKey = String(lesson.id);
         try {
           const data = await getLesson(lesson.id);
           // Son texte sert aussi à relier les mots du Dictionnaire aux leçons
           saveLessonText(lesson.id, data, lesson.title);
-          const slug = universeOfModule(module, universes)?.slug ?? null;
           const entry = cachedLesson(lesson.id, data, slug, new Date().toISOString());
-          await updateRevisionMemory(key, (m) => ({ ...m, lessons: { ...m.lessons, [String(lesson.id)]: entry } }));
+          await updateRevisionMemory(key, (m) => ({ ...m, lessons: { ...m.lessons, [lessonKey]: entry } }));
         } catch {
           // Hors ligne ou leçon indisponible : sans cette leçon
         }

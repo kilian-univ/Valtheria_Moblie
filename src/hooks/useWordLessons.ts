@@ -62,8 +62,10 @@ export function useWordLessons(entries: readonly DictionaryEntry[]): WordLessons
     (async () => {
       await lessonTextsLoaded();
       for (const id of missing) {
+        // (le titre hors du try : le compilateur React saute le hook sinon)
+        const title = lessons.get(id)?.title ?? null;
         try {
-          saveLessonText(id, await getLesson(id), lessons.get(id)?.title ?? null);
+          saveLessonText(id, await getLesson(id), title);
         } catch {
           // hors ligne ou leçon indisponible : on garde le titre seul
         }

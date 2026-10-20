@@ -160,12 +160,14 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
   const openLesson = async (lesson: DictionaryLesson) => {
     let module = moduleOfLesson(learningStore.getState().modules, lesson.id);
     if (!module) {
+      // (la condition hors du try : le compilateur React saute l'écran sinon)
+      let fetched: Module[] | null = null;
       try {
-        const modules: Module[] = await getModules();
-        module = moduleOfLesson(Array.isArray(modules) ? modules : [], lesson.id);
+        fetched = await getModules();
       } catch {
-        module = null;
+        fetched = null;
       }
+      module = fetched ? moduleOfLesson(Array.isArray(fetched) ? fetched : [], lesson.id) : null;
     }
     if (module) router.push({ pathname: '/apprendre/module/[moduleId]', params: { moduleId: module.id } });
     else router.push('/apprendre');

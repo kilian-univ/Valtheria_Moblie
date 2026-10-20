@@ -26,6 +26,23 @@ export const OFFLINE_REASON = 'Connecte-toi à internet pour lancer une leçon.'
 // Modules et progression de l'onglet Apprendre. Recharge à chaque affichage
 // de l'écran ; les données déjà chargées (learningStore, partagé avec le
 // lecteur de leçon) restent affichées pendant le rechargement et hors ligne.
+// État du magasin après un chargement réussi (hors du try : le compilateur
+// React saute le hook si un try/catch contient une condition)
+function loadedState(modules: Module[], progress: Progress, universes: Universe[] | null, knownUniverses: Universe[]) {
+  return {
+    modules: Array.isArray(modules) ? modules : [],
+    universes: universes ?? knownUniverses,
+    xp: progress?.xp ?? 0,
+    streak: progress?.streak ?? 0,
+    level: progress?.level ?? 1,
+    vals: progress?.vals ?? 0,
+    loaded: true,
+    // Gels en réserve, record, gel utilisé hier (serveur du 20/10/2026 ou plus récent)
+    ...streakFieldsOf(progress),
+  };
+}
+const loadErrorOf = (err: unknown): LoadError => (isNetworkError(err) ? 'network' : 'server');
+
 export function useLearningData() {
   const { get, getModules, getProgress, isAuthenticated, isLoading: authPending, user } = useApi();
   const userId: number | undefined = user?.id;
@@ -43,22 +60,12 @@ export function useLearningData() {
         getProgress(),
         fetchUniverses(get),
       ]);
-      learningStore.setState({
-        modules: Array.isArray(modules) ? modules : [],
-        universes: universes ?? learningStore.getState().universes,
-        xp: progress?.xp ?? 0,
-        streak: progress?.streak ?? 0,
-        level: progress?.level ?? 1,
-        vals: progress?.vals ?? 0,
-        loaded: true,
-        // Gels en réserve, record, gel utilisé hier (serveur du 20/10/2026 ou plus récent)
-        ...streakFieldsOf(progress),
-      });
+      learningStore.setState(loadedState(modules, progress, universes, learningStore.getState().universes));
       // Gardé pour le prochain lancement (contenu d'apprentissage seulement)
       saveLearning(userId);
       setError(null);
     } catch (err) {
-      setError(isNetworkError(err) ? 'network' : 'server');
+      setError(loadErrorOf(err));
     }
   }, [get, getModules, getProgress, userId]);
 

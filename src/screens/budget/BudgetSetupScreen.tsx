@@ -94,9 +94,10 @@ export default function BudgetSetupScreen({ budget, userKey, editing }: { budget
     } catch {
       feedback.wrong(0.6);
       setError('Ton budget n’a pas pu être enregistré. Réessaie dans un instant.');
-    } finally {
-      setBusy(false);
     }
+    // (après le try/catch, pas dans un « finally » : le compilateur React
+    // sauterait tout l'écran)
+    setBusy(false);
   };
 
   const sheetCopy = () => {
