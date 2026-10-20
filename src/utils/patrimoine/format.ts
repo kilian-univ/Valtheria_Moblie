@@ -35,17 +35,18 @@ function symbol(currency: string): string {
 // 48 320 € ; 805 € ; 12,40 € ; 0,0123 € (petits cours de cryptos) ; « ••••• € »
 // en mode discret. À partir de 100 €, arrondi à l'euro ; `exact` garde les
 // centimes (prix unitaire, prix de revient).
-export function money(value: number, opts: { hidden?: boolean; currency?: string; exact?: boolean } = {}): string {
+// whole : toujours à l'euro près (tuiles côte à côte, même arrondi)
+export function money(value: number, opts: { hidden?: boolean; currency?: string; exact?: boolean; whole?: boolean } = {}): string {
   const cur = symbol(opts.currency ?? 'EUR');
   if (opts.hidden) return `${HIDDEN}${NBSP}${cur}`;
   const abs = Math.abs(value);
-  const decimals = abs > 0 && abs < 1 ? 4 : opts.exact || abs < 100 ? 2 : 0;
+  const decimals = opts.whole ? 0 : abs > 0 && abs < 1 ? 4 : opts.exact || abs < 100 ? 2 : 0;
   const sign = value < 0 && abs >= 0.5 / 10 ** decimals ? MINUS : '';
   return `${sign}${grouped(value, decimals)}${NBSP}${cur}`;
 }
 
 // + 6 320 € ; − 95 € ; masqué en mode discret
-export function signedMoney(value: number, opts: { hidden?: boolean; currency?: string; exact?: boolean } = {}): string {
+export function signedMoney(value: number, opts: { hidden?: boolean; currency?: string; exact?: boolean; whole?: boolean } = {}): string {
   if (opts.hidden) return money(0, opts);
   const body = money(Math.abs(value), opts);
   if (Math.abs(value) < 0.005) return body;

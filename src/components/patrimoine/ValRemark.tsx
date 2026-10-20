@@ -16,15 +16,20 @@ export default function ValRemark({ tip }: { tip: { text: string; link: LessonTa
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { modules, universes } = useLearningSnapshot();
+  // Le lien n'est proposé que si une leçon publiée en parle (audit G21) ;
+  // sinon, la remarque seule
+  const href = lessonHref(tip.link, modules, universes);
+  const hasLesson = href.pathname === '/apprendre/module/[moduleId]';
   const open = () => {
     tap();
-    router.push(lessonHref(tip.link, modules, universes) as never);
+    router.push(href as never);
   };
   return (
     <Pressable
       onPress={open}
-      accessibilityRole="link"
-      accessibilityLabel={`Val : ${tip.text} ${tip.link.label}`}
+      disabled={!hasLesson}
+      accessibilityRole={hasLesson ? 'link' : 'text'}
+      accessibilityLabel={hasLesson ? `Val : ${tip.text} ${tip.link.label}` : `Val : ${tip.text}`}
       style={({ pressed }) => [
         styles.card,
         { backgroundColor: withOpacity(colors.gold, pressed ? 0.12 : 0.07), borderColor: withOpacity(colors.gold, 0.25) },
@@ -33,10 +38,12 @@ export default function ValRemark({ tip }: { tip: { text: string; link: LessonTa
       <ValAvatar mood="complice" diameter={46} />
       <View style={styles.body}>
         <AppText variant="callout">
-          {tip.text}{' '}
-          <AppText variant="callout" style={[styles.link, { color: colors.gold }]}>
-            {tip.link.label}
-          </AppText>
+          {tip.text}
+          {hasLesson ? (
+            <AppText variant="callout" style={[styles.link, { color: colors.gold }]}>
+              {` ${tip.link.label}`}
+            </AppText>
+          ) : null}
         </AppText>
       </View>
     </Pressable>
