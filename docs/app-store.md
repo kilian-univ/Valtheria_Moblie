@@ -1,6 +1,6 @@
 # Préparation de l'App Store
 
-État au 19 octobre 2026 : app `design/ui` et `main`, site et production en `f611d3c`. Ce document reprend la priorité 1 de `docs/audit-complet.md`.
+État au 20 octobre 2026 : app `main` (`f9c4b0a`, lot 6), site en production (`056dd2c`). Ce document reprend la priorité 1 de `docs/audit-complet.md`. Le premier build iOS de production : partie 7.
 
 ## 0. Lot du 19 octobre ([PR n° 16](https://github.com/Valtheraa/Valtheria/pull/16), en production)
 
@@ -141,6 +141,19 @@ Vérifications :
 - **`submit.production`** : langue `fr-FR`. L'identifiant App Store Connect (`ascAppId`) sera demandé au premier `eas submit`, ou peut y être ajouté une fois l'app créée.
 - **Profil `development`** : il demande un client de développement, mais `expo-dev-client` n'est pas installé. À installer si tu veux un build de développement ; sinon, utilise Expo Go et le profil `preview`.
 
+### Vérifié le 20 octobre 2026, avant le premier build
+
+Compte Apple Developer validé (personne physique). Contrôles faits depuis la racine du projet, sans rien construire :
+
+- `npx expo-doctor` : 21 contrôles sur 21.
+- `npx expo config --type introspect` (l'`Info.plist` qui sortira du build) : `CFBundleIdentifier` → `fr.valtheria.app`, `CFBundleShortVersionString` → `1.0.0`, `ITSAppUsesNonExemptEncryption` → faux, `CFBundleDevelopmentRegion` → `fr`, `NSMotionUsageDescription` → le texte ci-dessus, et aucun autre texte de permission (ni micro, ni Face ID, ni photos). Pas de `CFBundleVersion` local : le numéro de build vient d'EAS (source distante), qui demande sa valeur de départ au premier build (répondre `1`).
+- **Images** : `icon-ios.png` 1024 × 1024 sans transparence ; `icon.png` 1254 × 1254 (Android, icône adaptative) ; `logo-valtheria.png` 720 × 229 pour l'écran de démarrage, affiché sur 180 points.
+- **Projet EAS lié** : `npx eas-cli project:info` → `@valtheria/Valtheria`, identifiant `0244685c-1a6d-49a4-b988-9e9ea4f68182` ; `npx eas-cli whoami` → `valtheria`.
+- **Variables EAS, environnement `production`** : `EXPO_PUBLIC_SENTRY_DSN` (en clair, région UE) et `SENTRY_AUTH_TOKEN` (secret) sont présentes. Le profil `production` d'`eas.json` les charge (`environment: production`) et pose `EXPO_PUBLIC_API_URL` sur la production.
+- **Canal de mises à jour** : `production` créé le 20/10 (`npx eas-cli channel:create production`), avec sa branche `production`. Le build l'inscrit dans l'app ; `eas update --channel production` le vise.
+- **Notifications** : `expo-notifications` ajoute l'autorisation `aps-environment` (notifications à distance) au build, alors que l'app ne programme que des rappels locaux. EAS propose donc, au premier build, de créer une clé de notifications Apple : répondre non, les rappels n'en ont pas besoin.
+- Aucune construction encore faite sur ce projet (`npx eas-cli build:list` vide) : le premier build crée l'App ID, le certificat de distribution et le profil de provisionnement chez Apple.
+
 ## 5. Compte de démonstration pour Apple
 
 **Prêt et essayé de bout en bout sur le staging**, puis le staging a été remis dans son état d'origine. Résultat, vu dans l'app web :
@@ -171,6 +184,62 @@ L'app embarque `expo-updates` : la version publiée vérifie à chaque lancement
 
 Côté Apple : accepté, tant que la mise à jour ne change pas la nature de l'app (règle 3.3.1 de l'accord développeur : code interprété exécuté par le moteur d'Apple, sans nouvelle fonctionnalité qui changerait l'objet de l'app). Les étiquettes de confidentialité n'en sont pas affectées : Expo ne reçoit aucune donnée personnelle (un identifiant anonyme d'installation sert à compter les téléchargements).
 
-## 7. Ce qui reste à faire de ton côté
+## 7. Premier build iOS de production : commandes et réponses
+
+À lancer soi-même, depuis la racine du projet, avec `eas-cli` 25.2 ou plus (`npx eas-cli --version`). Chaque question posée par la commande est listée avec la réponse attendue. Un build dure une vingtaine de minutes sur les serveurs d'EAS ; fermer le terminal ne l'annule pas.
+
+### Avant
+
+```bash
+cd /Users/kant1/Developer/Valtheria_Moblie
+git checkout main && git pull
+npx eas-cli whoami                      # doit afficher « valtheria »
+npx eas-cli project:info                # doit afficher @valtheria/Valtheria
+```
+
+Si `whoami` affiche autre chose : `npx eas-cli logout` puis `npx eas-cli login` avec le compte `valtheria`.
+
+### 1. Construire
+
+```bash
+npx eas-cli build --platform ios --profile production
+```
+
+Questions, dans l'ordre où elles arrivent (celles qui n'apparaissent pas sont déjà réglées par `eas.json`) :
+
+1. **« No remote versions are configured for this project. What version would you like to initialize at? »** → `1`. C'est le numéro de build (`CFBundleVersion`) ; EAS l'augmentera seul à chaque build suivant.
+2. **« Do you want to log in to your Apple account? »** → `Y`. Puis **« Apple ID »** → l'adresse du compte Apple Developer, **« Password »** → son mot de passe, **« Enter the 6 digit code »** → le code reçu sur un appareil Apple (double authentification). Si le compte a plusieurs équipes, **« Select a team »** → l'équipe à ton nom (type Individual).
+3. **« Generate a new Apple Distribution Certificate? »** → `Y`. Si la commande propose plutôt de choisir un certificat existant, choisir d'en générer un nouveau.
+4. **« Generate a new Apple Provisioning Profile? »** → `Y`.
+5. **« Would you like to set up Push Notifications for your project? »** (ou « Generate a new Apple Push Notifications service key? ») → `n`. Les rappels sont locaux ; aucune clé n'est nécessaire.
+6. Ensuite, rien à répondre : envoi du projet, attente, puis le lien de la construction (`https://expo.dev/accounts/valtheria/projects/Valtheria/builds/…`). Le message « Build in progress… press Ctrl+C to exit » signifie seulement que le terminal attend ; `Ctrl+C` ne l'annule pas.
+
+Entre-temps, EAS enregistre chez Apple l'App ID `fr.valtheria.app` avec la capacité « Push Notifications » (déduite de l'autorisation ajoutée par `expo-notifications`) : c'est normal.
+
+Pour suivre ou retrouver le résultat : `npx eas-cli build:list --platform ios --limit 1`.
+
+### 2. Envoyer sur App Store Connect
+
+```bash
+npx eas-cli submit --platform ios --profile production --latest
+```
+
+1. **« Do you want to log in to your Apple account? »** → `Y`, mêmes identifiants (la session est souvent encore ouverte : la question ne revient pas).
+2. L'app n'existe pas encore sur App Store Connect : EAS la crée. **« What would you like to name your app? »** → `Valtheria` ; **« SKU »** → laisser la valeur proposée ; la langue vient d'`eas.json` (`fr-FR`). Si une liste d'apps est proposée, choisir `Valtheria (fr.valtheria.app)`.
+3. **« What would you like to use for authentication? »** ou **« Would you like to generate a new App Store Connect API key? »** → générer une nouvelle clé (`Y`). EAS la garde pour les envois suivants ; ne pas choisir le mot de passe spécifique à l'app.
+4. Ensuite, rien à répondre : « Submitted your app to Apple App Store Connect! », puis Apple traite le fichier (quelques minutes à une heure) et le build apparaît dans TestFlight.
+
+Après le premier envoi, l'identifiant App Store Connect de l'app (`ascAppId`, un nombre dans l'adresse `appstoreconnect.apple.com/apps/<nombre>/…`) peut être posé dans `eas.json`, `submit.production.ios`, pour ne plus être demandé.
+
+### 3. Dans App Store Connect
+
+- **Agreements, Tax, and Banking** : pour une app gratuite, l'accord du programme développeur accepté à l'inscription suffit. Si une page demande d'accepter une version plus récente de l'accord, l'accepter avant `eas submit`.
+- **Version 1.0** : nom, sous-titre, description, mots-clés, captures d'écran iPhone (6,9 pouces et 6,5 pouces), adresse d'assistance `https://valtheria.fr/aide`, politique de confidentialité `https://valtheria.fr/politique-confidentialite`.
+- **Confidentialité de l'app** (étiquettes) : partie 0 de ce document.
+- **Chiffrement** : rien à répondre, `ITSAppUsesNonExemptEncryption` est déjà dans le build.
+- **App Review Information** : « Sign-in required », avec le compte de démonstration (partie 5).
+- **Build** : choisir celui envoyé par `eas submit`, puis « Add for Review ».
+
+## 8. Ce qui reste à faire de ton côté
 
 Voir le compte rendu du 18/10/2026. Les points sont repris et cochés dans `docs/audit-complet.md` (« Avant une sortie sur l'App Store »).
