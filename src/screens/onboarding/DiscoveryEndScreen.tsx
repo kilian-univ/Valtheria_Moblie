@@ -249,7 +249,7 @@ function EndContent() {
       router.push('/client/register');
       return;
     }
-    onboardingStore.update({ step: 'pseudo' });
+    onboardingStore.update({ step: 'compte' });
     router.push('/bienvenue/inscription');
   };
 

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,8 +17,7 @@ import { PRIVACY_URL, TERMS_URL } from '@/src/constants/links';
 import { palette, space } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { discoveryPlan, type Objective, pseudoValLine } from '@/src/lesson/discovery';
-import { learningStore } from '@/src/state/learningStore';
+import { type Objective } from '@/src/lesson/discovery';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { enableReminder } from '@/src/state/reminder';
 import {
@@ -44,12 +43,12 @@ const VAL_DIAMETER = 64;
 
 type Step = SignupStep;
 
-// Inscription en trois étapes : pseudo, compte, rappel. Reprend à l'étape
-// mémorisée ; ouverte d'ailleurs (« Créer mon compte »), elle part du pseudo.
-// Prénom déjà donné à Val : deux étapes seulement (compte, rappel), le
-// pseudo est prérempli et modifiable dans l'étape du compte.
-// La mémoire du téléphone (prénom, pseudo, étape) est lue avant tout : les
-// étapes en dépendent (ouverture directe de l'inscription au démarrage)
+// Inscription en deux étapes : le compte (pseudo, adresse, mot de passe),
+// puis le rappel. Le pseudo est proposé d'après le prénom donné à Val, et
+// modifiable ; sans prénom, le champ est vide. Val ne se présente pas de
+// nouveau : il l'a fait sur la bienvenue (décision du 20/10/2026).
+// La mémoire du téléphone (prénom, pseudo, étape) est lue avant tout : le
+// pseudo proposé et l'étape d'arrivée en dépendent
 export default function SignupScreen() {
   const { loaded } = useOnboarding();
   useEffect(() => {
@@ -64,15 +63,11 @@ function SignupFlow() {
   const insets = useSafeAreaInsets();
   const { register, login, post, isAuthenticated } = useApi();
   const { state } = useOnboarding();
-  const plan = state.objective ? discoveryPlan(state.objective) : null;
-  // Univers déjà chargés (compte connecté auparavant) : leur nom réel
-  const { universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
 
-  // Étapes fixées à l'arrivée (le prénom ne change pas pendant l'inscription)
-  const [steps] = useState(() => signupSteps(state.firstName));
-  const pseudoInAccount = !steps.includes('pseudo');
-  const [step, setStep] = useState<Step>(() => signupStartStep(state.step, state.firstName));
+  const steps = signupSteps();
+  const [step, setStep] = useState<Step>(() => signupStartStep(state.step));
   // Pseudo déjà choisi, sinon proposé d'après le prénom donné à Val
+  const fromFirstName = !state.pseudo && pseudoFromFirstName(state.firstName) !== '';
   const [pseudo, setPseudo] = useState(state.pseudo || pseudoFromFirstName(state.firstName));
   const [pseudoTouched, setPseudoTouched] = useState(false);
   const [email, setEmail] = useState('');
@@ -106,14 +101,8 @@ function SignupFlow() {
     // l'effet même si le jeton était déjà là avant
   }, [isAuthenticated, post, step]);
 
-  const goTo = (next: Step) => {
-    setStep(next);
-    onboardingStore.update({ step: next });
-  };
-
   const back = () => {
-    if (step === 'compte' && !pseudoInAccount) goTo('pseudo');
-    else if (router.canGoBack()) router.back();
+    if (router.canGoBack()) router.back();
     // Parcours repris directement sur l'inscription : retour à la fin de leçon
     else router.replace(state.status === 'en-cours' && state.objective ? '/bienvenue/fin' : '/apprendre');
   };
@@ -125,24 +114,11 @@ function SignupFlow() {
   };
 
   // ---------------------------------------------------------------------------
-  // Étape 1 : pseudo
+  // Étape 1 : compte (pseudo, adresse, mot de passe)
   // ---------------------------------------------------------------------------
   const cleanPseudo = pseudo.trim();
   const pseudoProblem = pseudoError(cleanPseudo);
-
-  const submitPseudo = () => {
-    setPseudoTouched(true);
-    if (pseudoProblem) return;
-    onboardingStore.update({ pseudo: cleanPseudo });
-    goTo('compte');
-  };
-
-  // ---------------------------------------------------------------------------
-  // Étape 2 : compte
-  // ---------------------------------------------------------------------------
-  // Pseudo saisi dans cette étape (prénom connu) : il doit être valable aussi
-  const canCreate =
-    emailValid(email) && passwordValid(password) && !submitting && (!pseudoInAccount || !pseudoProblem);
+  const canCreate = emailValid(email) && passwordValid(password) && !submitting && !pseudoProblem;
 
   // Compte créé (le jeton est enregistré par ApiContext)
   const accountCreated = () => {
@@ -155,9 +131,9 @@ function SignupFlow() {
   };
 
   const createAccount = async () => {
-    if (pseudoInAccount) setPseudoTouched(true);
+    setPseudoTouched(true);
     if (!canCreate) return;
-    if (pseudoInAccount) onboardingStore.update({ pseudo: cleanPseudo });
+    onboardingStore.update({ pseudo: cleanPseudo });
     setSubmitting(true);
     setError(null);
     const body = { name: cleanPseudo, email: email.trim(), password, password_confirmation: password };
@@ -205,7 +181,7 @@ function SignupFlow() {
   };
 
   // ---------------------------------------------------------------------------
-  // Étape 3 : rappel
+  // Étape 2 : rappel
   // ---------------------------------------------------------------------------
   const activate = async () => {
     setSubmitting(true);
@@ -225,8 +201,7 @@ function SignupFlow() {
   let body: ReactNode;
   let footer: ReactNode;
 
-  // Champ du pseudo : son étape, ou l'étape du compte quand le prénom est
-  // connu (« suivant » passe alors à l'adresse e-mail)
+  // Champ du pseudo, dans l'étape du compte (« suivant » passe à l'adresse e-mail)
   const focusEmail = () => emailRef.current?.focus();
   const pseudoField = (
     <TextField
@@ -242,12 +217,12 @@ function SignupFlow() {
       textContentType="nickname"
       autoComplete="username-new"
       returnKeyType="next"
-      onSubmitEditing={pseudoInAccount ? focusEmail : submitPseudo}
-      submitBehavior={pseudoInAccount ? 'submit' : undefined}
+      onSubmitEditing={focusEmail}
+      submitBehavior="submit"
       maxLength={20}
-      // Prérempli dans l'étape du compte : un pseudo à corriger se signale tout de suite
-      error={(pseudoTouched || pseudoInAccount) && cleanPseudo ? pseudoProblem : null}
-      hint="Visible seulement si tu partages ta progression."
+      // Prérempli : un pseudo à corriger se signale tout de suite
+      error={(pseudoTouched || fromFirstName) && cleanPseudo ? pseudoProblem : null}
+      hint={fromFirstName ? 'Proposé d’après ton prénom : tu peux le changer.' : 'Visible seulement si tu partages ta progression.'}
     />
   );
 
@@ -271,32 +246,18 @@ function SignupFlow() {
         <Button variant="secondary" label="Revenir plus tard" onPress={later} />
       </>
     );
-  } else if (step === 'pseudo') {
-    body = (
-      <>
-        <ValBubble
-          mood="complice"
-          diameter={VAL_DIAMETER}
-          text={plan ? pseudoValLine(plan, universes) : 'Moi, c’est Val. Et toi ?'}
-        />
-        <AppText variant="title2" accessibilityRole="header" style={styles.title}>
-          Comment Val doit t’appeler ?
-        </AppText>
-        {pseudoField}
-      </>
-    );
-    footer = <Button label="Continuer" onPress={submitPseudo} disabled={!cleanPseudo} />;
   } else if (step === 'compte') {
+    const name = cleanFirstName(state.firstName) || cleanPseudo;
     body = (
       <>
         <AppText variant="title2" accessibilityRole="header">
-          {`Dernière étape, ${pseudoInAccount ? cleanFirstName(state.firstName) : cleanPseudo}`}
+          {name ? `Dernière étape, ${name}` : 'Dernière étape'}
         </AppText>
         <AppText variant="callout" tone="subtitle">
           Pour garder ta série sur tous tes appareils.
         </AppText>
         <SocialButtons />
-        {pseudoInAccount ? pseudoField : null}
+        {pseudoField}
         <TextField
           ref={emailRef}
           label="Adresse e-mail"
@@ -375,7 +336,7 @@ function SignupFlow() {
         {reminderRefused ? (
           <AppText variant="callout" tone="subtitle" accessibilityRole="alert">
             Les notifications sont coupées pour Valtheria. Tu peux les autoriser dans les réglages du téléphone, puis
-            choisir ton heure dans ton profil.
+            choisir ton heure dans les Réglages.
           </AppText>
         ) : null}
       </>

@@ -16,7 +16,6 @@ import {
   OBJECTIVE_OPTIONS,
   OBJECTIVES,
   type Objective,
-  pseudoValLine,
   toObjective,
   universeName,
 } from '../src/lesson/discovery';
@@ -135,11 +134,8 @@ test('six objectifs du document, avec leur icône, leur univers conseillé et un
   for (const o of OBJECTIVES) {
     const plan = DISCOVERY[o];
     assert.equal(plan.universe.slug, UNIVERSES[o], o);
-    // La phrase de Val nomme l'univers et finit par « Moi, c'est Val. Et toi ? »
-    const line = pseudoValLine(plan);
-    assert.ok(line.includes(`l’univers ${plan.universe.name}.`), o);
-    assert.ok(line.endsWith('Moi, c’est Val. Et toi ?'), o);
-    for (const word of FORBIDDEN) assert.ok(!line.toLowerCase().includes(word), `${o} : ${word}`);
+    // L'accroche de Val, sans mot interdit
+    for (const word of FORBIDDEN) assert.ok(!plan.valLead.toLowerCase().includes(word), `${o} : ${word}`);
   }
   // Objectif inconnu : « je découvre »
   assert.equal(discoveryPlan(null), DISCOVERY.decouvrir);
@@ -159,28 +155,11 @@ test('univers conseillés : noms exacts du serveur (ThemesResetSeeder du site)',
   );
 });
 
-test('étape du pseudo : les six phrases de Val, naturelles même avec un nom long', () => {
-  assert.deepEqual(
-    OBJECTIVES.map((o) => pseudoValLine(DISCOVERY[o])),
-    [
-      'Mettre de l’argent de côté ? On commencera par l’univers Avant d’investir. Moi, c’est Val. Et toi ?',
-      'Faire travailler ton argent ? On commencera par l’univers Bourse. Moi, c’est Val. Et toi ?',
-      'La crypto, sans le bruit autour ? On commencera par l’univers Crypto. Moi, c’est Val. Et toi ?',
-      'Un logement à toi, un jour ? On commencera par l’univers Se loger. Moi, c’est Val. Et toi ?',
-      'Payer moins d’impôts ? On commencera par l’univers Impôts, déclarations et remboursements. Moi, c’est Val. Et toi ?',
-      'Tu découvres ? Parfait, on commencera par l’univers Paie, primes et aides. Moi, c’est Val. Et toi ?',
-    ]
-  );
-});
-
-test('étape du pseudo : le nom réel de l’univers quand les univers du serveur sont chargés', () => {
+test('nom de l’univers : le nom réel du serveur quand les univers sont chargés', () => {
   const loaded = (slug: string, name: string): Universe => ({ id: 1, slug, name, description: null, position: 12, moduleIds: [] });
   const plan = DISCOVERY.impots;
-  // Renommé sur le serveur : c'est ce nom-là que Val cite
-  assert.equal(
-    pseudoValLine(plan, [loaded('impots', 'Impôts et déclarations')]),
-    'Payer moins d’impôts ? On commencera par l’univers Impôts et déclarations. Moi, c’est Val. Et toi ?'
-  );
+  // Renommé sur le serveur : c'est ce nom-là qui est cité
+  assert.equal(universeName(plan, [loaded('impots', 'Impôts et déclarations')]), 'Impôts et déclarations');
   // Apostrophe droite du serveur → apostrophe typographique
   assert.equal(universeName(DISCOVERY.epargner, [loaded('avant-d-investir', "Avant d'investir")]), 'Avant d’investir');
   // Autre univers chargé, ou nom vide : le nom du code

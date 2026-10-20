@@ -107,13 +107,6 @@ export function universeName(plan: DiscoveryPlan, universes: readonly Universe[]
   return (loaded || plan.universe.name).replace(/'/g, '’');
 }
 
-// Phrase de Val à l'étape du pseudo : l'accroche de l'objectif, puis l'univers
-// nommé en fin de phrase (naturel même avec un nom long)
-export function pseudoValLine(plan: DiscoveryPlan, universes: readonly Universe[] = []): string {
-  const next = plan.valLead.endsWith(',') ? 'on commencera' : 'On commencera';
-  return `${plan.valLead} ${next} par l’univers ${universeName(plan, universes)}. Moi, c’est Val. Et toi ?`;
-}
-
 export function discoveryPlan(objective: Objective | null | undefined): DiscoveryPlan {
   return DISCOVERY[toObjective(objective) ?? 'decouvrir'];
 }

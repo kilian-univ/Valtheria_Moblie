@@ -7,8 +7,9 @@ import { localDay } from './day';
 import { cleanMedalDays } from './streakRewards';
 
 // Bienvenue → prénom → objectif → leçon découverte → fin → inscription
-// (pseudo, compte, rappel) → accueil d'Apprendre
-export const ONBOARDING_STEPS = ['bienvenue', 'prenom', 'objectif', 'lecon', 'fin', 'pseudo', 'compte', 'rappel'] as const;
+// (compte, rappel) → accueil d'Apprendre. Le pseudo n'a plus d'étape à lui
+// (20/10/2026) : proposé d'après le prénom dans l'étape du compte, modifiable.
+export const ONBOARDING_STEPS = ['bienvenue', 'prenom', 'objectif', 'lecon', 'fin', 'compte', 'rappel'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 // en-cours : parcours à reprendre ; termine : compte créé ou connecté (jamais
@@ -68,7 +69,9 @@ export function parseOnboarding(raw: unknown, now: Date = new Date()): Onboardin
   if (!raw || typeof raw !== 'object') return INITIAL_ONBOARDING;
   const r = raw as Record<string, unknown>;
   const status: OnboardingStatus = r.status === 'termine' || r.status === 'plus-tard' ? r.status : 'en-cours';
-  const step = (ONBOARDING_STEPS as readonly unknown[]).includes(r.step) ? (r.step as OnboardingStep) : 'bienvenue';
+  // Parcours mémorisé à l'ancienne étape du pseudo (avant le 20/10/2026) : le compte
+  const rawStep = r.step === 'pseudo' ? 'compte' : r.step;
+  const step = (ONBOARDING_STEPS as readonly unknown[]).includes(rawStep) ? (rawStep as OnboardingStep) : 'bienvenue';
   // Ancien objectif (première version) : traduit vers le plus proche
   const objective = toObjective(r.objective);
   // Sans objectif, ni leçon ni fin : on repart du choix de l'objectif
@@ -127,7 +130,6 @@ export function routeForStep(step: OnboardingStep): OnboardingRoute {
       return '/bienvenue/lecon';
     case 'fin':
       return '/bienvenue/fin';
-    case 'pseudo':
     case 'compte':
     case 'rappel':
       return '/bienvenue/inscription';
@@ -192,19 +194,19 @@ export function pseudoFromFirstName(firstName: string): string {
 // Inscription
 // ---------------------------------------------------------------------------
 
-export type SignupStep = 'pseudo' | 'compte' | 'rappel';
+export type SignupStep = 'compte' | 'rappel';
 
-// Étapes de l'inscription. Prénom déjà donné à Val (et qui donne un pseudo) :
-// pas d'étape du pseudo, on commence au compte, le pseudo y est prérempli
-// et modifiable. Sinon : pseudo, compte, rappel.
-export function signupSteps(firstName: string | null | undefined): SignupStep[] {
-  return firstName && pseudoFromFirstName(firstName) ? ['compte', 'rappel'] : ['pseudo', 'compte', 'rappel'];
+// Étapes de l'inscription : le compte (pseudo proposé d'après le prénom donné
+// à Val, modifiable ; adresse ; mot de passe), puis le rappel
+export const SIGNUP_STEPS: readonly SignupStep[] = ['compte', 'rappel'];
+
+export function signupSteps(): SignupStep[] {
+  return [...SIGNUP_STEPS];
 }
 
-// Étape d'arrivée : celle mémorisée (compte, rappel), sinon la première
-export function signupStartStep(saved: string | null | undefined, firstName: string | null | undefined): SignupStep {
-  if (saved === 'compte' || saved === 'rappel') return saved;
-  return signupSteps(firstName)[0];
+// Étape d'arrivée : le rappel s'il était mémorisé (compte déjà créé), sinon le compte
+export function signupStartStep(saved: string | null | undefined): SignupStep {
+  return saved === 'rappel' ? 'rappel' : 'compte';
 }
 
 // Règles réellement exigées par POST /api/auth/register (AuthController :

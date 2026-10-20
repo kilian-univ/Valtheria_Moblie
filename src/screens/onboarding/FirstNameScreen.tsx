@@ -15,7 +15,8 @@ import { track } from '@/src/utils/track';
 
 const VAL_WIDTH = 96;
 const VAL_HEIGHT = Math.round(VAL_WIDTH / valPose('salut').ratio);
-const VAL_LINE = 'Salut ! Moi, c’est Val. Et toi, comment je t’appelle ?';
+// Val s'est présenté sur la bienvenue : ici, il ne demande que le prénom
+const VAL_LINE = 'Et toi, comment je t’appelle ?';
 
 // Prénom (étape 1 sur 2) : Val demande comment t'appeler. Gardé sur le
 // téléphone ; « Passer » toujours possible.
