@@ -100,7 +100,7 @@ export default function Button({
   disabledReason,
   loading = false,
   size = 'md',
-  fullWidth = variant !== 'text' && variant !== 'textDanger' && variant !== 'link' && size !== 'sm',
+  fullWidth: fullWidthProp,
   accessibilityHint,
   silent = false,
   style,
@@ -112,6 +112,10 @@ export default function Button({
   strong = false,
   accessibilityRole = 'button',
 }: ButtonProps) {
+  // Pleine largeur par défaut, sauf boutons texte, lien et petits (calculé
+  // ici : une expression logique en valeur par défaut d'un paramètre fait
+  // sauter le composant par le compilateur React)
+  const fullWidth = fullWidthProp ?? (variant !== 'text' && variant !== 'textDanger' && variant !== 'link' && size !== 'sm');
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
