@@ -109,7 +109,7 @@ export function buildImpots(figures: Figures) {
               id: 'don',
               statement: 'Un don à une association peut réduire ton impôt.',
               answer: true,
-              explanation: 'Une grande partie du don peut être déduite de ton impôt.',
+              explanation: 'Une grande partie du don est retirée de ton impôt lui-même : c’est une réduction d’impôt.',
             },
             {
               id: 'marginal',
