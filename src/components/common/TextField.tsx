@@ -53,7 +53,7 @@ const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
             setFocused(false);
             onBlur?.(e);
           }}
-          placeholderTextColor={colors.textFaint}
+          placeholderTextColor={colors.subtitle}
           selectionColor={colors.gold}
           cursorColor={colors.gold}
           maxFontSizeMultiplier={1.4}

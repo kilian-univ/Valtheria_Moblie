@@ -23,7 +23,7 @@ export default function HelpTerm({ term, alt = [] }: { term: string; alt?: strin
         tap();
         router.push(termHref(entry.term, entry.category));
       }}
-      hitSlop={12}
+      hitSlop={14}
       accessibilityRole="button"
       accessibilityLabel={`Définition : ${entry.term}`}
       accessibilityHint="Ouvre sa fiche du Dictionnaire"

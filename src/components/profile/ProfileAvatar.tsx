@@ -57,6 +57,7 @@ export default function ProfileAvatar({ size, initial, ratio, accessibilityLabel
           onPress={onCamera}
           accessibilityLabel="Changer ma photo"
           size={30}
+          hitSlop={7}
           style={[styles.camera, { backgroundColor: colors.gold, borderColor: colors.background }]}
         />
       ) : null}

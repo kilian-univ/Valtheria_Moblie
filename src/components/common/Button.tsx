@@ -179,6 +179,8 @@ export default function Button({
   return (
     <View style={[fullWidth && styles.fullWidth, style]}>
       <Pressable
+        // Petit bouton (36 px) : zone touchable portée à 44 px (audit G16)
+        hitSlop={small ? { top: 4, bottom: 4 } : undefined}
         onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}

@@ -35,6 +35,7 @@ export default function LevelTabs({ groups, selected, onSelect }: LevelTabsProps
         accessibilityRole="tab"
         accessibilityState={{ selected: active, disabled: !g.unlocked }}
         accessibilityLabel={`${g.label}${g.completed ? ', terminé' : !g.unlocked ? ', verrouillé' : ''}`}
+        hitSlop={{ top: 3, bottom: 3 }}
         style={({ pressed }) => [
           styles.tab,
           fit ? styles.fitTab : styles.scrollTab,

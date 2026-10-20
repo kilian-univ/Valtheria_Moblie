@@ -52,6 +52,7 @@ export const palette = {
     frostInk: '#8FBEE0',                 // flocon du gel de série
     bubble: '#F7F4EE',                   // bulle de Val (ivoire)
     onBubble: '#0D0D0F',                 // texte de la bulle de Val
+    bubbleAccent: '#7A6528',             // mot en avant dans la bulle : or profond lisible sur l'ivoire (5,2:1)
     onGold: '#0D0D0F',                   // texte posé sur l'or
     success: '#3FA876',
     error: '#E0715F',
@@ -317,43 +318,45 @@ export const textVariants = {
       letterSpacing: -0.97,
       fontVariant: ['tabular-nums'],
     },
-    maxFontSizeMultiplier: 1.2,
+    maxFontSizeMultiplier: 1.3,
   },
+  // Plafonds (audit G15) : le texte courant peut doubler (200 %), les titres et
+  // les boutons grandissent moins pour que la mise en page tienne
   title1: {
     style: { fontFamily: fonts.title, fontSize: 30, lineHeight: 36, letterSpacing: titleLetterSpacing(30) },
-    maxFontSizeMultiplier: 1.3,
+    maxFontSizeMultiplier: 1.4,
   },
   title2: {
     style: { fontFamily: fonts.title, fontSize: 24, lineHeight: 30, letterSpacing: titleLetterSpacing(24) },
-    maxFontSizeMultiplier: 1.3,
+    maxFontSizeMultiplier: 1.4,
   },
   title3: {
     style: { fontFamily: fonts.title, fontSize: 20, lineHeight: 26, letterSpacing: titleLetterSpacing(20) },
-    maxFontSizeMultiplier: 1.3,
+    maxFontSizeMultiplier: 1.5,
   },
   body: {
     style: { fontFamily: fonts.body, fontSize: 16, lineHeight: 24 },
-    maxFontSizeMultiplier: 1.6,
+    maxFontSizeMultiplier: 2,
   },
   bodyMedium: {
     style: { fontFamily: fonts.bodyMedium, fontSize: 16, lineHeight: 22 },
-    maxFontSizeMultiplier: 1.6,
+    maxFontSizeMultiplier: 2,
   },
   callout: {
     style: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20 },
-    maxFontSizeMultiplier: 1.6,
+    maxFontSizeMultiplier: 2,
   },
   caption: {
     style: { fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 18 },
-    maxFontSizeMultiplier: 1.4,
+    maxFontSizeMultiplier: 1.8,
   },
   button: {
     style: { fontFamily: fonts.bodySemibold, fontSize: 16, lineHeight: 20 },
-    maxFontSizeMultiplier: 1.3,
+    maxFontSizeMultiplier: 1.4,
   },
   tabLabel: {
     style: { fontFamily: fonts.bodyMedium, fontSize: 11, lineHeight: 13 },
-    maxFontSizeMultiplier: 1.2,
+    maxFontSizeMultiplier: 1.3,
   },
   sectionLabel: {
     style: {
@@ -363,7 +366,7 @@ export const textVariants = {
       letterSpacing: 1.4,
       textTransform: 'uppercase',
     },
-    maxFontSizeMultiplier: 1.2,
+    maxFontSizeMultiplier: 1.4,
   },
 } as const satisfies Record<string, TextVariant>;
 

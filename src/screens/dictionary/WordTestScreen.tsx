@@ -126,7 +126,7 @@ function WordTestEnd({ entry, entries, won, userKey }: { entry: DictionaryEntry;
           <>
             <View style={[styles.answer, { backgroundColor: colors.panel, borderColor: colors.cardBorder }]} accessible>
               <AppText variant="sectionLabel">La bonne réponse</AppText>
-              <AppText maxFontSizeMultiplier={1.6} style={styles.definition}>
+              <AppText maxFontSizeMultiplier={2} style={styles.definition}>
                 {entry.definition}
               </AppText>
             </View>

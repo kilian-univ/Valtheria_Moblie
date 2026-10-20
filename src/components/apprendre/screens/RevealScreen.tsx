@@ -232,7 +232,7 @@ export default function RevealScreen({ screen, estimate, enterDelay, setVal }: L
               </View>
             ))}
             {notes.map((line, i) => (
-              <AppText key={`n${i}`} variant="caption" style={[styles.note, { color: colors.textFaint }]}>
+              <AppText key={`n${i}`} variant="caption" tone="subtitle" style={styles.note}>
                 {line.label}
               </AppText>
             ))}
