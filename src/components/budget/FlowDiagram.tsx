@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { memo, useId } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Defs, G, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 
@@ -64,7 +64,7 @@ type Props = {
 // en dégradé du vert des rentrées vers la couleur de chaque famille. Toucher
 // une famille met son chemin en avant et estompe le reste. Dessin fixe, sans
 // animation : rien à réduire.
-export default function FlowDiagram({ variant, postes, sources, width, height, focus, onFocus, summary }: Props) {
+function FlowDiagram({ variant, postes, sources, width, height, focus, onFocus, summary }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const tint = flowColors(colors);
@@ -218,3 +218,7 @@ export default function FlowDiagram({ variant, postes, sources, width, height, f
 const styles = StyleSheet.create({
   hit: { position: 'absolute' },
 });
+
+// Mémorisé : redessiné seulement quand ses propriétés changent, pas à chaque
+// rendu de l'écran qui le contient
+export default memo(FlowDiagram);

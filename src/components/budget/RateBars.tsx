@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { LayoutChangeEvent, View } from 'react-native';
 import Svg, { G, Line, Rect, Text as SvgText } from 'react-native-svg';
 
@@ -24,7 +24,7 @@ function shortMonth(key: string): string {
 // Taux d'épargne des six derniers mois (maquette, écran 3) : barres dorées,
 // rouges sous la ligne du zéro quand le mois a coûté plus qu'il n'a rapporté.
 // Le mois affiché en plein, les autres atténués. Dessin fixe, sans animation.
-export default function RateBars({ series, selected }: { series: { month: string; rate: number | null }[]; selected: string }) {
+function RateBars({ series, selected }: { series: { month: string; rate: number | null }[]; selected: string }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const [width, setWidth] = useState(0);
@@ -85,3 +85,7 @@ export default function RateBars({ series, selected }: { series: { month: string
     </View>
   );
 }
+
+// Mémorisé : redessiné seulement quand ses propriétés changent, pas à chaque
+// rendu de l'écran qui le contient
+export default memo(RateBars);

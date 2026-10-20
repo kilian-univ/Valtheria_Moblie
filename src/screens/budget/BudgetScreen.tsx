@@ -65,8 +65,11 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
   const insets = useSafeAreaInsets();
   const { get, post, patch, del } = useApi();
   const prefs = useBudgetPrefs(userKey);
-  const today = localToday();
-  const month = monthKey(today);
+  // Chaînes garanties par le gabarit : le compilateur React ne mémorise rien
+  // de ce qui dérive du résultat d'une fonction qu'il croit modifiable (ici,
+  // tout l'écran dérive de la date du jour)
+  const today = `${localToday()}`;
+  const month = `${monthKey(today)}`;
   const [refreshing, setRefreshing] = useState(false);
   // Mode choisi : affiché tout de suite, enregistré sur le serveur
   const [modeShown, setModeShown] = useState<BudgetMode | null>(null);
@@ -100,6 +103,9 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
   const charges = cycleCharges(budget.recurring, today);
   const monthEntries = budget.entries.filter((e) => e.on.startsWith(month) && e.on <= today);
   const sp = split({ recurring: budget.recurring, categories: budget.categories, entries: detailed ? monthEntries : [] });
+  // Calculé ici (dernier usage de sp avant les hooks) : la barre reçoit les
+  // mêmes pourcentages tant que le budget ne change pas
+  const splitP = sp ? splitPercents(sp) : null;
   const alertPct = budget.settings.envelopeAlertPct;
   const env = envelopes(budget.categories, budget.entries, month, alertPct);
   const curve = detailed ? monthCurve({ recurring: budget.recurring, balances: budget.balances, entries: budget.entries, today }) : null;
@@ -157,9 +163,24 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
     }
   };
 
+  const closeEntrySheet = () => setEntrySheet((x) => (x ? { ...x, open: false } : x));
   const saveEntry = async (d: EntryDraft) => {
     const editing = entrySheet?.editing ?? null;
     const label = d.type === 'revenu' ? (editing?.type === 'revenu' ? editing.label : 'Rentrée') : categoryLabel(d.category);
+    // Alerte douce : une enveloppe qui vient de passer son seuil. Calculée
+    // avant l'envoi : le compilateur React saute tout l'écran quand un
+    // try/catch contient une condition (ternaire, &&, ?.)
+    const editingId = editing ? editing.id : null;
+    const spend = !d.recurring && d.type === 'depense';
+    const after = spend
+      ? envelopes(
+          budget.categories,
+          [...budget.entries.filter((e) => e.id !== editingId), { id: -1, type: 'depense', category: d.category, label, amount: d.amount, on: d.on }],
+          month,
+          alertPct
+        )
+      : null;
+    const notice = after ? envelopeNotice(env, after) : null;
     try {
       if (editing) {
         await patch(`/cashflow/entries/${editing.id}`, { type: d.type, amount: d.amount, category: d.category, occurred_on: d.on, label });
@@ -170,18 +191,8 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
       }
       await reload();
       feedback.drop();
-      setEntrySheet((x) => (x ? { ...x, open: false } : x));
-      // Alerte douce : une enveloppe qui vient de passer son seuil
-      if (!d.recurring && d.type === 'depense') {
-        const after = envelopes(
-          budget.categories,
-          [...budget.entries.filter((e) => e.id !== editing?.id), { id: -1, type: 'depense', category: d.category, label, amount: d.amount, on: d.on }],
-          month,
-          alertPct
-        );
-        const text = envelopeNotice(env, after);
-        if (text) setNotice(text);
-      }
+      closeEntrySheet();
+      if (notice) setNotice(notice);
       return true;
     } catch {
       feedback.wrong(0.6);
@@ -403,7 +414,7 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
           </View>
         </View>
 
-        {sp ? (
+        {splitP ? (
           <View style={styles.section}>
             <View style={styles.inline}>
               <AppText variant="sectionLabel" accessibilityRole="header">
@@ -411,7 +422,7 @@ export default function BudgetScreen({ budget, userKey, stale, staleKind }: Prop
               </AppText>
               <HelpTerm term="Budget 50/30/20" alt={['Règle 50/30/20']} />
             </View>
-            <SplitBar p={splitPercents(sp)} />
+            <SplitBar p={splitP} />
           </View>
         ) : null}
 

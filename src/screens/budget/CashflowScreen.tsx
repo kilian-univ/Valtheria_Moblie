@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useIsFocused } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -77,8 +77,10 @@ export default function CashflowScreen({ budget }: { budget: Budget }) {
   const tint = flowColors(colors);
   const insets = useSafeAreaInsets();
   const focused = useIsFocused();
-  const today = localToday();
-  const cur = monthKey(today);
+  // Chaînes garanties par le gabarit : le compilateur React ne mémorise rien
+  // de ce qui dérive du résultat d'une fonction qu'il croit modifiable
+  const today = `${localToday()}`;
+  const cur = `${monthKey(today)}`;
   const mode = budget.settings.mode;
   const [period, setPeriod] = useState<Period>('mois');
   const [anchor, setAnchor] = useState(cur);
@@ -98,8 +100,11 @@ export default function CashflowScreen({ budget }: { budget: Budget }) {
   }
 
   const start = firstMonth(budget, mode);
-  const months = periodMonths(anchor, period, today);
-  const flow = periodFlow(budget, months, today, mode);
+  // Flux de la période et série des taux : mémorisés explicitement, pour que
+  // les graphiques (FlowDiagram, RateBars) reçoivent les mêmes objets d'un
+  // rendu à l'autre et ne se redessinent pas au moindre état de l'écran
+  const months = useMemo(() => periodMonths(anchor, period, today), [anchor, period, today]);
+  const flow = useMemo(() => periodFlow(budget, months, today, mode), [budget, months, today, mode]);
   const prevMonths = periodMonths(shiftPeriod(anchor, period, -1), period, today);
   const prev = periodFlow(budget, prevMonths, today, mode);
   const points = ratePoints(flow.rate);
@@ -107,7 +112,7 @@ export default function CashflowScreen({ budget }: { budget: Budget }) {
   const delta = points !== null && prevPoints !== null ? points - prevPoints : null;
   const title = periodTitle(anchor, period);
   const lastMonth = months[months.length - 1] ?? anchor;
-  const series = rateSeries(budget, lastMonth, today, mode);
+  const series = useMemo(() => rateSeries(budget, lastMonth, today, mode), [budget, lastMonth, today, mode]);
   const previous = [1, 2, 3].map((n) => periodFlow(budget, periodMonths(shiftPeriod(anchor, period, -n), period, today), today, mode));
   const rows = compareToAverage(flow, previous);
   const families = familyTotals(flow.postes);
