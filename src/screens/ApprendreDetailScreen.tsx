@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 // Défilement du gestionnaire de gestes : un curseur ou une carte qui prend
 // le geste l'interrompt, au lieu de défiler en même temps
+import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
 import Animated, { SlideInRight, SlideOutLeft, useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,7 +30,7 @@ import PageState from '@/src/components/common/PageState';
 import { SkeletonGroup } from '@/src/components/common/Skeleton';
 import { devSlowLoading } from '@/src/constants/dev';
 import { easeOut, motion } from '@/src/constants/motion';
-import { palette, space } from '@/src/constants/style/Style';
+import { palette, space, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useApi } from '@/src/context/ApiContext';
 import { isNetworkError } from '@/src/hooks/useLearningData';
@@ -232,6 +233,14 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
   const pendingLeave = useRef<any>(null);
 
   const scrollRef = useRef<ScrollView>(null);
+  // Il reste du contenu sous le pied fixe : un fondu le signale (audit G40,
+  // iPhone SE). Mesures du défilement, et un état seulement quand ça change.
+  const [moreBelow, setMoreBelow] = useState(false);
+  const scrollMetrics = useRef({ y: 0, content: 0, layout: 0 });
+  const updateMoreBelow = () => {
+    const m = scrollMetrics.current;
+    setMoreBelow(m.layout > 0 && m.content - m.y - m.layout > 12);
+  };
   const screenY = useRef(0);
   // Défilement coupé pendant un geste (curseur, carte, ligne déplacée)
   const [scrollLocked, setScrollLocked] = useState(false);
@@ -709,6 +718,21 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                       ref={scrollRef}
                       style={styles.scroll}
                       scrollEnabled={!scrollLocked}
+                      onScroll={(e) => {
+                        scrollMetrics.current.y = e.nativeEvent.contentOffset.y;
+                        updateMoreBelow();
+                      }}
+                      scrollEventThrottle={48}
+                      onContentSizeChange={(_w, h) => {
+                        scrollMetrics.current.content = h;
+                        updateMoreBelow();
+                      }}
+                      onLayout={(e) => {
+                        // Nouvel écran (remonté) : on repart du haut
+                        scrollMetrics.current.y = 0;
+                        scrollMetrics.current.layout = e.nativeEvent.layout.height;
+                        updateMoreBelow();
+                      }}
                       // Après validation, de la place sous le contenu : feuille
                       // repliée, les dernières options restent visibles au-dessus
                       contentContainerStyle={[styles.scrollContent, answered && styles.scrollContentAnswered]}
@@ -760,6 +784,9 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                       </Cascade>
                     </ScrollView>
                   </Animated.View>
+                  {moreBelow ? (
+                    <LinearGradient pointerEvents="none" colors={[withOpacity(colors.background, 0), colors.background]} style={styles.fade} />
+                  ) : null}
                 </View>
 
                 {/* Vrai ou faux, associer, dialogue : la réponse part d'elle-même */}
@@ -854,7 +881,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: space[5],
     paddingTop: space[2],
-    paddingBottom: space[5],
+    // De la place sous la dernière réponse : elle ne finit pas sous le fondu
+    paddingBottom: space[8],
+  },
+  fade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 56,
   },
   scrollContentAnswered: {
     paddingBottom: COLLAPSED_SHEET_ROOM,
