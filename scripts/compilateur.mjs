@@ -21,14 +21,9 @@ const babel = require('@babel/core');
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
-// Fichiers sautés en connaissance de cause, avec la raison : à vider dès que
-// possible.
-const TOLERES = {
-  // Zone protégée (CLAUDE.md) : correctif prêt, à appliquer par Kilian ou avec
-  // l'accord explicite de l'utilisateur. Deux `try` sans `catch` et un
-  // `finally` dans ApiProvider.
-  'src/context/ApiContext.tsx': 'zone protégée : correctif en attente',
-};
+// Fichiers sautés en connaissance de cause, avec la raison (chemin relatif →
+// raison) : vide, et à garder vide autant que possible.
+const TOLERES = {};
 
 function listSources(dir) {
   const out = [];
