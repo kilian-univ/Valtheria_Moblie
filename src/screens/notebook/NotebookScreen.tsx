@@ -23,7 +23,7 @@ type Section = { key: string; slug: string | null; name: string | null; first: b
 
 const ItemGap = () => <View style={styles.itemGap} />;
 
-// « Ton carnet » : les déclics des leçons terminées, groupés par univers
+// « Mon carnet » : les déclics des leçons terminées, groupés par univers
 // (pastille de couleur), du plus récent au plus ancien ; en bas, le test.
 // Liste virtualisée : le carnet grandit à chaque leçon, seules les lignes
 // visibles sont montées.
@@ -42,7 +42,7 @@ export default function NotebookScreen() {
       <View style={styles.bar}>
         <BackButton onBack={() => router.back()} />
         <AppText variant="bodyMedium" accessibilityRole="header" style={styles.barTitle}>
-          Ton carnet
+          Mon carnet
         </AppText>
         <View style={styles.barSpacer} />
       </View>

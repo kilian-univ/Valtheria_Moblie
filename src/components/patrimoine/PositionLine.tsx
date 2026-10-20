@@ -105,7 +105,7 @@ export function ClosedLine({ position: p, hidden, last }: { position: ClosedPosi
     <View
       style={[styles.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
       accessible
-      accessibilityLabel={`${p.name}, position clôturée, plus-value réalisée ${hidden ? 'masquée' : signedMoney(gain)}`}
+      accessibilityLabel={`${p.name}, position soldée, plus-value réalisée ${hidden ? 'masquée' : signedMoney(gain)}`}
     >
       <AssetIcon logoUrl={p.logoUrl} name={p.name} ticker={p.ticker} type={p.type} size={34} />
       <View style={styles.middle}>

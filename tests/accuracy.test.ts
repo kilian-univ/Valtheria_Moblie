@@ -111,7 +111,7 @@ test('mémoire : lecture prudente, reprise de la mémoire sans compte', () => {
 test('défis et libellés', () => {
   assert.deepEqual(CHALLENGES.map((c) => c.id), ['run-5', 'run-10', 'run-20', 'perfect-1', 'perfect-10']);
   assert.equal(challengeHeadline(findChallenge('run-10')!), 'Nouveau défi : 10\u00A0d’affilée\u00A0!');
-  assert.equal(bestRunLine(7), 'Meilleure série : 7 d’affilée');
-  assert.equal(allTimeBestLine(12), 'Ta meilleure série : 12 d’affilée');
+  assert.equal(bestRunLine(7), 'Record : 7 bonnes réponses d’affilée');
+  assert.equal(allTimeBestLine(12), 'Ton record : 12 bonnes réponses d’affilée');
   assert.equal(findChallenge('rien'), null);
 });

@@ -428,7 +428,7 @@ export default function PatrimoineScreen() {
               }}
               accessibilityRole="button"
               accessibilityState={{ expanded: closedOpen }}
-              accessibilityLabel={`Positions clôturées, ${portfolio.closed.length}`}
+              accessibilityLabel={`Positions soldées, ${portfolio.closed.length}`}
               style={styles.closedHead}
             >
               <AppText variant="sectionLabel">POSITIONS CLÔTURÉES · {portfolio.closed.length}</AppText>

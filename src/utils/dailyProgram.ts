@@ -112,7 +112,7 @@ export function programState(lessonDone: boolean, revisionDone: boolean, lessonA
   if (!lessonAvailable && !lessonDone) {
     return revisionDone
       ? { lessonDone, revisionDone, count: 1, total: 1, dayDone: true, line: 'Révision faite, à demain !', mood: 'celebrant' }
-      : { lessonDone, revisionDone, count: 0, total: 1, dayDone: false, line: 'Tu es à jour ! Une petite révision ?', mood: 'complice' };
+      : { lessonDone, revisionDone, count: 0, total: 1, dayDone: false, line: 'Une petite révision pour garder le rythme ?', mood: 'complice' };
   }
   const count = (lessonDone ? 1 : 0) + (revisionDone ? 1 : 0);
   const base = { lessonDone, revisionDone, count, total: 2 as const, dayDone: lessonDone && revisionDone };

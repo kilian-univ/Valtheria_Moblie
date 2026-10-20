@@ -165,14 +165,14 @@ export function findChallenge(id: string): Challenge | null {
 // Libellés
 // ---------------------------------------------------------------------------
 
-// « Meilleure série : 7 d'affilée »
+// « Record : 7 bonnes réponses d'affilée » (« série » reste aux jours ; audit G6)
 export function bestRunLine(run: number): string {
-  return `Meilleure série : ${run} d’affilée`;
+  return `Record : ${run} bonnes réponses d’affilée`;
 }
 
-// « Ta meilleure série : 12 d'affilée »
+// « Ton record : 12 bonnes réponses d'affilée »
 export function allTimeBestLine(run: number): string {
-  return `Ta meilleure série : ${run} d’affilée`;
+  return `Ton record : ${run} bonnes réponses d’affilée`;
 }
 
 // « Nouveau défi : 10 d'affilée ! »

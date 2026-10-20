@@ -128,7 +128,7 @@ test('carrousel : objectif, puis en cours du plus récent au plus ancien, puis l
 
 test('programme du jour sans leçon disponible : la révision seule, sur 1', () => {
   const todo = programState(false, false, false);
-  assert.deepEqual([todo.count, todo.total, todo.dayDone, todo.line], [0, 1, false, 'Tu es à jour ! Une petite révision ?']);
+  assert.deepEqual([todo.count, todo.total, todo.dayDone, todo.line], [0, 1, false, 'Une petite révision pour garder le rythme ?']);
   assert.equal(programCounter(todo.count, todo.total), '0\u00A0sur\u00A01');
   const done = programState(false, true, false);
   assert.deepEqual([done.count, done.total, done.dayDone, done.line], [1, 1, true, 'Révision faite, à demain !']);
