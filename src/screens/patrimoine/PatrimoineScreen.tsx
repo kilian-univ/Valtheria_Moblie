@@ -23,6 +23,7 @@ import LineChart from '@/src/components/patrimoine/LineChart';
 import PeriodPicker from '@/src/components/patrimoine/PeriodPicker';
 import PositionLine, { ClosedLine } from '@/src/components/patrimoine/PositionLine';
 import Segmented from '@/src/components/patrimoine/Segmented';
+import UpdatedSince from '@/src/components/patrimoine/UpdatedSince';
 import ValRemark from '@/src/components/patrimoine/ValRemark';
 import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useApi } from '@/src/context/ApiContext';
@@ -53,15 +54,13 @@ import {
   type ChartMode,
   type Period,
 } from '@/src/utils/patrimoine/chart';
-import { money, shortDate, signedMoney, signedPercent, updatedLabel } from '@/src/utils/patrimoine/format';
+import { money, shortDate, signedMoney, signedPercent } from '@/src/utils/patrimoine/format';
 import { celebrationText, mergeCelebration, type CelebrationItems } from '@/src/utils/patrimoine/celebration';
 import { emergencyGauge, markReached, newlyReached } from '@/src/utils/patrimoine/goals';
 import { earn } from '@/src/utils/patrimoine/milestones';
 import { parseChart, type ChartPoint } from '@/src/utils/patrimoine/model';
 import { streakLabel } from '@/src/utils/patrimoine/regularity';
 import { chooseValTip } from '@/src/utils/patrimoine/valTips';
-
-const TICK_MS = 30_000;
 
 // Mon patrimoine (lot portefeuille du site) : valeur totale, courbe avec le
 // montant investi, répartition, remarque de Val, positions.
@@ -82,12 +81,11 @@ export default function PatrimoineScreen() {
   const [period, setPeriod] = useState<Period>(DEFAULT_PERIOD);
   const [closedOpen, setClosedOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), TICK_MS);
-    return () => clearInterval(id);
-  }, []);
+  // Repère « aujourd'hui » des découpages par période : l'instant de la
+  // dernière relecture du portefeuille (le « Mis à jour il y a… » a sa propre
+  // minuterie, pour ne pas redessiner l'écran toutes les 30 s)
+  const [mountedAt] = useState(() => Date.now());
+  const now = data.fetchedAt ?? mountedAt;
 
   // Courbe : la plage du serveur, puis la période découpée sur le téléphone
   const range = portfolioRange(period);
@@ -150,9 +148,10 @@ export default function PatrimoineScreen() {
     } catch {
       feedback.wrong(0.6);
       setDeleteError('La suppression n’a pas abouti. Réessaie dans un instant.');
-    } finally {
-      setDeleting(false);
     }
+    // (après le try/catch, pas dans un « finally » : le compilateur React
+    // sauterait tout l'écran)
+    setDeleting(false);
   };
   const chartLoading = series?.range !== range;
 
@@ -276,9 +275,7 @@ export default function PatrimoineScreen() {
           Mon patrimoine
         </AppText>
         <View style={styles.metaRow}>
-          <AppText variant="caption" tone="subtitle">
-            {updatedLabel(data.fetchedAt, now)}
-          </AppText>
+          <UpdatedSince at={data.fetchedAt} />
           {regularity ? (
             <Pill
               size="sm"
