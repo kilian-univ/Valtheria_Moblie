@@ -95,17 +95,16 @@ test('inscription : l’objectif ne part que si le serveur l’accepte, sinon la
   assert.equal(await sendDiscoveryCredit(down, null), 'echec');
 });
 
-test('enchaînement : bienvenue, prénom, objectif, leçon, fin, puis l’inscription', () => {
-  assert.deepEqual(
-    [...ONBOARDING_STEPS],
-    ['bienvenue', 'prenom', 'objectif', 'lecon', 'fin', 'pseudo', 'compte', 'rappel']
-  );
+test('enchaînement : bienvenue, prénom, objectif, leçon, fin, puis l’inscription (compte, rappel)', () => {
+  assert.deepEqual([...ONBOARDING_STEPS], ['bienvenue', 'prenom', 'objectif', 'lecon', 'fin', 'compte', 'rappel']);
   assert.equal(stepAfter('bienvenue'), 'prenom');
   assert.equal(stepAfter('prenom'), 'objectif');
   assert.equal(stepAfter('objectif'), 'lecon');
   assert.equal(stepAfter('lecon'), 'fin');
-  assert.equal(stepAfter('fin'), 'pseudo');
+  assert.equal(stepAfter('fin'), 'compte');
   assert.equal(stepAfter('rappel'), 'rappel');
+  // Parcours mémorisé à l'ancienne étape du pseudo : reprend au compte
+  assert.equal(parseOnboarding({ step: 'pseudo', firstName: 'Léa' }).step, 'compte');
 });
 
 test('reprise : le prénom reprend sur son écran, le prénom donné est gardé', () => {
@@ -145,7 +144,6 @@ test('reprise : chaque étape a son écran', () => {
   assert.equal(routeForStep('objectif'), '/bienvenue/objectif');
   assert.equal(routeForStep('lecon'), '/bienvenue/lecon');
   assert.equal(routeForStep('fin'), '/bienvenue/fin');
-  assert.equal(routeForStep('pseudo'), '/bienvenue/inscription');
   assert.equal(routeForStep('compte'), '/bienvenue/inscription');
   assert.equal(routeForStep('rappel'), '/bienvenue/inscription');
 });
@@ -271,35 +269,27 @@ test('le texte du rappel parle comme Val et change d’un jour à l’autre', ()
   assert.deepEqual(reminderMessageFor(new Date(2026, 9, 10, 8)), reminderMessageFor(new Date(2026, 9, 10, 22)));
 });
 
-test('inscription : prénom connu, pas d’étape du pseudo', () => {
-  assert.deepEqual(signupSteps('Kantin'), ['compte', 'rappel']);
-  assert.deepEqual(signupSteps('  Élise '), ['compte', 'rappel']);
-  // Sans prénom, ou un prénom qui ne donne aucun pseudo : l'étape reste
-  assert.deepEqual(signupSteps(''), ['pseudo', 'compte', 'rappel']);
-  assert.deepEqual(signupSteps(null), ['pseudo', 'compte', 'rappel']);
-  assert.deepEqual(signupSteps(undefined), ['pseudo', 'compte', 'rappel']);
-  assert.deepEqual(signupSteps('!!!'), ['pseudo', 'compte', 'rappel']);
+test('inscription : deux étapes, le pseudo dans celle du compte, plus d’étape à lui', () => {
+  assert.deepEqual(signupSteps(), ['compte', 'rappel']);
+  // Étape d'arrivée : le rappel s'il était mémorisé, sinon le compte (quel que soit le prénom)
+  assert.equal(signupStartStep('rappel'), 'rappel');
+  assert.equal(signupStartStep('compte'), 'compte');
+  assert.equal(signupStartStep('pseudo'), 'compte');
+  assert.equal(signupStartStep('termine'), 'compte');
+  assert.equal(signupStartStep(undefined), 'compte');
 });
 
-test('inscription : étape d’arrivée', () => {
-  // Fin de la leçon découverte (step « pseudo ») avec un prénom : le compte
-  assert.equal(signupStartStep('pseudo', 'Kantin'), 'compte');
-  assert.equal(signupStartStep('pseudo', ''), 'pseudo');
-  // « Créer mon compte » ailleurs (step quelconque)
-  assert.equal(signupStartStep('termine', 'Kantin'), 'compte');
-  assert.equal(signupStartStep(undefined, ''), 'pseudo');
-  // Étape mémorisée reprise telle quelle
-  assert.equal(signupStartStep('compte', ''), 'compte');
-  assert.equal(signupStartStep('rappel', 'Kantin'), 'rappel');
-});
-
-test('inscription : le pseudo prérempli suit les règles du serveur', () => {
+test('inscription : le pseudo proposé d’après le prénom, modifiable, aux règles du serveur', () => {
   const src = readFileSync(new URL('../src/screens/onboarding/SignupScreen.tsx', import.meta.url), 'utf8');
   // Barre de progression sur les étapes réelles
   assert.ok(src.includes('step={steps.indexOf(step) + 1}') && src.includes('total={steps.length}'));
-  // Champ « Ton pseudo » dans l'étape du compte, création bloquée si invalide
-  assert.ok(src.includes('{pseudoInAccount ? pseudoField : null}'));
-  assert.ok(src.includes('(!pseudoInAccount || !pseudoProblem)'));
+  // Champ « Ton pseudo » toujours dans l'étape du compte, création bloquée si invalide
+  assert.ok(src.includes('{pseudoField}'));
+  assert.ok(src.includes('!submitting && !pseudoProblem'));
+  // Val ne se présente plus qu'une fois, sur la bienvenue
+  assert.ok(!src.includes('Moi, c’est Val'));
+  const firstName = readFileSync(new URL('../src/screens/onboarding/FirstNameScreen.tsx', import.meta.url), 'utf8');
+  assert.ok(!firstName.includes('Moi, c’est Val'));
   assert.equal(pseudoError(pseudoFromFirstName('Kantin')), null);
 });
 

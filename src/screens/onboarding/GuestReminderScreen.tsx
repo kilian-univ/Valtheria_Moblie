@@ -61,7 +61,7 @@ export default function GuestReminderScreen() {
           Quand veux-tu qu’on se retrouve ?
         </AppText>
         <ReminderPicker value={time} onChange={setTime} />
-        <ReminderPromise />
+        <ReminderPromise settingsAvailable={false} />
         {refused ? (
           <AppText variant="callout" tone="subtitle" accessibilityRole="alert">
             Les notifications sont coupées pour Valtheria. Tu peux les autoriser dans les réglages du téléphone, puis

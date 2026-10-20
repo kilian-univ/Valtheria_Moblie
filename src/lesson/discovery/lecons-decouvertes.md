@@ -181,7 +181,7 @@ Chaque écran donne son type, son contenu et les répliques de Val avec son hume
 3. **Vrai ou faux en rafale** (nouveau, noté)
    - « Changer de tranche peut faire baisser ton revenu après impôt. » Faux : « Seule la partie au-dessus du seuil est taxée plus. »
    - « Le prélèvement à la source est un impôt en plus. » Faux : « C'est seulement une façon de payer ton impôt, chaque mois. »
-   - « Un don à une association peut réduire ton impôt. » Vrai : « Une grande partie du don peut être déduite de ton impôt. »
+   - « Un don à une association peut réduire ton impôt. » Vrai : « Une grande partie du don est retirée de ton impôt lui-même : c’est une réduction d’impôt. »
    - « Ton taux marginal est le taux de ta dernière tranche. » Vrai : « Et il ne s'applique qu'à la partie de ton revenu dans cette tranche. »
    - Val, réussi (célébrant) : « Tu comprends déjà mieux l'impôt que la plupart des gens. » Pas réussi (rassurant) : « L'impôt est rempli d'idées reçues. On va les démonter ensemble. »
 4. **Associer** (nouveau, noté)

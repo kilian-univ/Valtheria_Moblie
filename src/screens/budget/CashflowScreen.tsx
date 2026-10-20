@@ -150,7 +150,9 @@ export default function CashflowScreen({ budget }: { budget: Budget }) {
             <AppText accessibilityRole="header" style={styles.title}>
               Cash-flow
             </AppText>
-            <HelpTerm term="Cash flow" alt={['Cash-flow']} />
+            {/* La fiche « Cash flow » du Dictionnaire parle d'entreprise : celle du budget
+                personnel est « Budget » (N1, 20/10/2026) */}
+            <HelpTerm term="Budget" alt={['Capacité d’épargne']} />
           </View>
           <View style={styles.nav}>
             <IconButton icon="chevron-back" iconSize={18} color={colors.subtitle} onPress={() => move(-1)} disabled={!canPrev} accessibilityLabel="Période précédente" />

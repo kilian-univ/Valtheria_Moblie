@@ -87,10 +87,6 @@ function Backdrop({ frame }: { frame: (gradient: ReactNode, square: object) => R
   const { width: w, height: h } = useWindowDimensions();
   const id = `bg${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
 
-  if (colorScheme === 'light') {
-    return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />;
-  }
-
   const diagonal = Math.ceil(Math.hypot(w, h));
   const square = { width: diagonal, height: diagonal, left: (w - diagonal) / 2, top: (h - diagonal) / 2 };
   const gradient = (
@@ -245,16 +241,10 @@ export function BackdropFade({ tab, top, height, direction, solid = 0 }: Backdro
         </Mask>
       </Defs>
       <G mask={`url(#${id}m)`}>
-        {colorScheme === 'light' ? (
-          <Rect x={0} y={0} width={w} height={height} fill={colors.background} />
-        ) : (
-          <>
-            <Rect x={0} y={0} width={w} height={height} fill={colors.background} />
-            <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}night)`} />
-            <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}gold)`} />
-            <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}p)`} opacity={GRAIN_OPACITY} />
-          </>
-        )}
+        <Rect x={0} y={0} width={w} height={height} fill={colors.background} />
+        <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}night)`} />
+        <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}gold)`} />
+        <Rect x={0} y={0} width={w} height={height} fill={`url(#${id}p)`} opacity={GRAIN_OPACITY} />
       </G>
     </Svg>
   );

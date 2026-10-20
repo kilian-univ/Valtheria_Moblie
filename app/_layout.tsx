@@ -29,7 +29,7 @@ import { LOGO } from '@/src/constants/brand';
 import { VAULT_IMAGE } from '@/src/components/onboarding/VaultScene';
 import { usePreloadedImages } from '@/src/hooks/usePreloadedImages';
 import { palette } from '@/src/constants/style/Style';
-import { CustomDarkTheme, CustomLightTheme } from '@/src/constants/theme';
+import { CustomDarkTheme } from '@/src/constants/theme';
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext';
 import { configureSoundSession } from '@/src/utils/sound';
 import { loadRegulatoryFigures } from '@/src/state/regulatoryFigures';
@@ -72,7 +72,7 @@ function RootLayoutContent() {
   const fontsReady = (fontsLoaded || !!fontError) && imagesReady;
 
   return (
-    <NavigationThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : CustomLightTheme}>
+    <NavigationThemeProvider value={CustomDarkTheme}>
       <ApiProvider>
         {/* Profil manquant au démarrage (hors ligne, serveur en panne) : relu dès que possible */}
         <SessionRecovery />
