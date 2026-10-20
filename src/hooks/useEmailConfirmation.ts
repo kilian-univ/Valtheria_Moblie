@@ -49,9 +49,10 @@ export function useEmailConfirmation() {
       }
     } catch {
       setNote('Impossible de vérifier pour le moment. Réessaie dans un instant.');
-    } finally {
-      setChecking(false);
     }
+    // (après le try/catch, pas dans un « finally » : le compilateur React
+    // sauterait le hook)
+    setChecking(false);
   }
 
   return { ...state, left, sending, checking, note, resend, recheck };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   SharedValue,
@@ -94,8 +94,9 @@ export default function RevealScreen({ screen, estimate, enterDelay, setVal }: L
     if (verdict && intro) setVal({ line: intro.line, mood: verdict.close ? 'fier' : 'alerte' });
   }, [verdict, screen.val.intro, setVal]);
 
-  // Séquence complète
-  useEffect(() => {
+  // Séquence complète, jouée une fois à l'arrivée (useEffectEvent : les
+  // valeurs du moment, sans relancer l'effet)
+  const play = useEffectEvent((): (() => void) | undefined => {
     // Animations réduites : tout est posé, seule la vibration reste
     if (reduced) {
       land();
@@ -136,16 +137,16 @@ export default function RevealScreen({ screen, estimate, enterDelay, setVal }: L
       pending.forEach(clearTimeout);
       cancelAnimationFrame(frame.current);
     };
-    // La séquence ne se joue qu'une fois, à l'arrivée
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
+  useEffect(() => play(), []);
 
   // Verdict posé : la pastille, puis les barres l'une après l'autre
-  useEffect(() => {
-    if (phase !== 'verdict') return;
+  const showVerdict = useEffectEvent(() => {
     pill.set(withTiming(1, timing(motion.state)));
     fills.forEach((fill, i) => fill.set(withDelay(motion.state + i * motion.sheet, withTiming(1, timing(motion.max)))));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    if (phase === 'verdict') showVerdict();
   }, [phase]);
 
   // Un toucher pendant la séquence : l'état final tout de suite

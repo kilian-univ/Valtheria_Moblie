@@ -1,4 +1,4 @@
-import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
@@ -28,7 +28,9 @@ function useTween(target: number[]): number[] {
   const current = useRef(target);
   const key = target.join(',');
 
-  useEffect(() => {
+  // key : les valeurs, pas l'identité du tableau (useEffectEvent lit la cible
+  // du moment sans relancer l'effet)
+  const start = useEffectEvent((): (() => void) | undefined => {
     const from = current.current;
     if (reduced || from.length !== target.length) {
       current.current = target;
@@ -47,9 +49,8 @@ function useTween(target: number[]): number[] {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-    // key : les valeurs, pas l'identité du tableau
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, reduced]);
+  });
+  useEffect(() => start(), [key, reduced]);
 
   return shown;
 }
@@ -75,10 +76,10 @@ export default memo(function SimChart({ main, base, scale }: SimChartProps) {
   const both = useTween([...main, ...base]);
   const mainShown = both.slice(0, main.length);
   const baseShown = both.slice(main.length);
-  const bothKey = both.join(',');
 
-  // Tracés recalculés seulement quand les points, la largeur ou l'échelle changent
-  const paths = useMemo(() => {
+  // Tracés : mémorisés par le compilateur React (recalculés quand les points,
+  // la largeur ou l'échelle changent)
+  const paths = (() => {
     const top = Math.max(scale, 1e-9);
     const point = (v: number, i: number, n: number) =>
       `${((i / Math.max(1, n - 1)) * width).toFixed(1)},${(PAD + (1 - Math.max(0, v) / top) * (HEIGHT_NOW - 2 * PAD)).toFixed(1)}`;
@@ -88,9 +89,7 @@ export default memo(function SimChart({ main, base, scale }: SimChartProps) {
       base: line(baseShown),
       area: `${line(mainShown)} L${width},${HEIGHT_NOW} L0,${HEIGHT_NOW} Z`,
     };
-    // bothKey : les points, pas l'identité des tableaux
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bothKey, width, scale, HEIGHT_NOW]);
+  })();
 
   return (
     <View

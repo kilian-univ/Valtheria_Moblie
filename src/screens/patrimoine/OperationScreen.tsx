@@ -203,42 +203,47 @@ export default function OperationScreen() {
     return side === 'buy' ? 'Enregistrer l’achat' : 'Enregistrer la vente';
   })();
 
+  // L'enregistrement lui-même, à part : le compilateur React saute tout
+  // l'écran quand un try/catch contient une condition ou un « finally »
+  const saveOperation = async () => {
+    if (!payload || !payload.ok) return;
+    let positionId: number | null = existing?.id ?? null;
+    let deposit = 0;
+    if (kind === 'market') {
+      const res = editing ? await patch(`/portfolio/operations/${editing.id}`, payload.body) : await post('/portfolio/operations', payload.body);
+      positionId = typeof res?.position?.id === 'number' ? res.position.id : positionId;
+    } else if (existing) {
+      const body = kind === 'livret' ? { name: payload.body.name, quantity: 1, buy_price: payload.body.buy_price, rate: payload.body.rate ?? null } : payload.body;
+      await patch(`/portfolio/positions/${existing.id}`, body);
+      if (kind === 'livret') deposit = livretDeposit(existing.value, Number(payload.body.buy_price));
+    } else {
+      const res = await post('/portfolio/positions', payload.body);
+      positionId = typeof res?.id === 'number' ? res.id : null;
+      if (kind === 'livret') deposit = livretDeposit(null, Number(payload.body.buy_price));
+    }
+    // Icône d'un livret ou d'un bien : gardée sur le téléphone, par symbole
+    const iconTicker = kind === 'market' ? null : (existing?.ticker ?? (typeof payload.body.ticker === 'string' ? payload.body.ticker : null));
+    if (iconTicker) updatePatrimoinePrefs(userKey, (p) => setIcon(p, iconTicker, iconChoice));
+    if (deposit > 0) {
+      updatePatrimoinePrefs(userKey, (p) => addLivretDeposit(p, { at: new Date().toISOString(), amount: deposit, positionId }));
+    }
+    feedback.right(0.8);
+    await loadPatrimoine(userKey, getPortfolio, true);
+    if (positionId !== null) markPositionPulse(positionId);
+    if (params.positionId || positionId === null) router.back();
+    else router.replace({ pathname: '/outils/actif/[id]', params: { id: String(positionId) } });
+  };
   const save = async () => {
     if (!payload || !payload.ok || busy) return;
     setBusy(true);
     setError(null);
     try {
-      let positionId: number | null = existing?.id ?? null;
-      let deposit = 0;
-      if (kind === 'market') {
-        const res = editing ? await patch(`/portfolio/operations/${editing.id}`, payload.body) : await post('/portfolio/operations', payload.body);
-        positionId = typeof res?.position?.id === 'number' ? res.position.id : positionId;
-      } else if (existing) {
-        const body = kind === 'livret' ? { name: payload.body.name, quantity: 1, buy_price: payload.body.buy_price, rate: payload.body.rate ?? null } : payload.body;
-        await patch(`/portfolio/positions/${existing.id}`, body);
-        if (kind === 'livret') deposit = livretDeposit(existing.value, Number(payload.body.buy_price));
-      } else {
-        const res = await post('/portfolio/positions', payload.body);
-        positionId = typeof res?.id === 'number' ? res.id : null;
-        if (kind === 'livret') deposit = livretDeposit(null, Number(payload.body.buy_price));
-      }
-      // Icône d'un livret ou d'un bien : gardée sur le téléphone, par symbole
-      const iconTicker = kind === 'market' ? null : (existing?.ticker ?? (typeof payload.body.ticker === 'string' ? payload.body.ticker : null));
-      if (iconTicker) updatePatrimoinePrefs(userKey, (p) => setIcon(p, iconTicker, iconChoice));
-      if (deposit > 0) {
-        updatePatrimoinePrefs(userKey, (p) => addLivretDeposit(p, { at: new Date().toISOString(), amount: deposit, positionId }));
-      }
-      feedback.right(0.8);
-      await loadPatrimoine(userKey, getPortfolio, true);
-      if (positionId !== null) markPositionPulse(positionId);
-      if (params.positionId || positionId === null) router.back();
-      else router.replace({ pathname: '/outils/actif/[id]', params: { id: String(positionId) } });
+      await saveOperation();
     } catch (e: unknown) {
       feedback.wrong(0.6);
       setError(actionErrorText(e, 'Enregistrement impossible pour l’instant. Réessaie dans un instant.'));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   const title = editing || params.operationId ? 'Modifier l’opération' : kind === 'livret' ? (existing ? 'Ton livret' : 'Ajouter un livret') : kind === 'manual' ? (existing ? 'Mettre à jour' : 'Ajouter un bien') : 'Noter une opération';

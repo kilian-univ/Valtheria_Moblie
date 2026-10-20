@@ -24,6 +24,12 @@ import { emailValid } from '@/src/utils/onboarding';
 export const FORGOT_PASSWORD_ENABLED = true;
 const VAL_DIAMETER = 64;
 
+// Message d'un refus de connexion : celui du serveur, filtré par loginErrorText
+function loginFailureText(err: unknown): string {
+  const message = err instanceof Error ? err.message : undefined;
+  return loginErrorText({ status: null, code: null, message: message ?? null }, message);
+}
+
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -38,6 +44,14 @@ export default function LoginScreen() {
 
   const canSubmit = emailValid(email) && password.length > 0 && !submitting;
 
+  // Connecté : le parcours de première ouverture ne revient plus (à part :
+  // le compilateur React saute l'écran si un try/catch contient une condition)
+  const afterLogin = () => {
+    const fromOnboarding = onboardingStore.get().state.status === 'en-cours';
+    onboardingStore.update({ status: 'termine' });
+    if (fromOnboarding || !router.canGoBack()) router.replace('/apprendre');
+    else router.back();
+  };
   const handleLogin = async () => {
     if (!canSubmit) return;
     setError(null);
@@ -46,14 +60,9 @@ export default function LoginScreen() {
       // Une seule requête : login enregistre la session ; en cas de refus, il
       // lève le message du serveur, filtré par loginErrorText
       await login(email.trim(), password);
-      // Connecté : le parcours de première ouverture ne revient plus
-      const fromOnboarding = onboardingStore.get().state.status === 'en-cours';
-      onboardingStore.update({ status: 'termine' });
-      if (fromOnboarding || !router.canGoBack()) router.replace('/apprendre');
-      else router.back();
+      afterLogin();
     } catch (err) {
-      const message = err instanceof Error ? err.message : undefined;
-      setError(loginErrorText({ status: null, code: null, message: message ?? null }, message));
+      setError(loginFailureText(err));
       setSubmitting(false);
     }
   };

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -186,13 +186,13 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
     x.set(reduced ? 0 : withTiming(0, timing(motion.screen)));
   };
 
-  // Verdict affiché : la carte suivante arrive seule après 1,5 s
+  // Verdict affiché : la carte suivante arrive seule après 1,5 s (une
+  // attente par verdict ; advance lit les réponses données à ce moment-là)
+  const next = useEffectEvent(() => advance(answers));
   useEffect(() => {
     if (phase !== 'verdict') return;
-    const timer = setTimeout(() => advance(answers), motion.nextCard);
+    const timer = setTimeout(() => next(), motion.nextCard);
     return () => clearTimeout(timer);
-    // Une attente par verdict (advance lit les réponses données)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, answers]);
 
   // Bouton : la carte part du bon côté, comme balayée

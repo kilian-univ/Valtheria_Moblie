@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import type { ImageSourcePropType } from 'react-native';
 
 import { preloadAll } from '@/src/utils/preload';
@@ -12,7 +12,9 @@ import { runSafely } from '@/src/utils/safe';
 export function usePreloadedImages(sources: ImageSourcePropType[], maxWait = 800): boolean {
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
+  // Une seule fois, au démarrage (useEffectEvent : les sources du moment,
+  // sans relancer l'effet)
+  const start = useEffectEvent((): (() => void) => {
     let active = true;
     const finish = () => {
       if (active) setReady(true);
@@ -24,9 +26,8 @@ export function usePreloadedImages(sources: ImageSourcePropType[], maxWait = 800
       active = false;
       clearTimeout(cap);
     };
-    // Une seule fois, au démarrage
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
+  useEffect(() => start(), []);
 
   return ready;
 }

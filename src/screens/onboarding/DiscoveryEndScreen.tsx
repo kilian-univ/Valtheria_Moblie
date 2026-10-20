@@ -224,13 +224,13 @@ function EndContent() {
       active = false;
     };
   }, []);
+  // Une seule fois, à l'arrivée : la série augmente-t-elle ? (figé à ce
+  // moment-là ; la flamme grandit alors, avec son son)
+  const [streakGrew] = useState(streakFrom < streak);
   useEffect(() => {
     celebrate();
-    // La série augmente : la flamme grandit, avec son son
-    if (streakFrom < streak) feedback.streakUp();
-    // Une seule fois, à l'arrivée
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (streakGrew) feedback.streakUp();
+  }, [streakGrew]);
   const actions = endActions(closed, reminderOn);
   const { universes } = useSyncExternalStore(learningStore.subscribe, learningStore.getState);
   const suite = universeName(plan, universes);

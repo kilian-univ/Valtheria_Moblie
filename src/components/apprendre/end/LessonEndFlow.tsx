@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -101,7 +101,9 @@ export default function LessonEndFlow({
   // utilisateur) : l'écran de la médaille s'insère après celui de la série
   const [medal, setMedal] = useState<Medal | null>(null);
   const streakIndex = baseSteps.indexOf('streak');
-  useEffect(() => {
+  // Une seule fois, à l'arrivée sur la fin de leçon (useEffectEvent : les
+  // valeurs du moment, sans relancer l'effet)
+  const findMedal = useEffectEvent((): (() => void) | undefined => {
     if (!user || !gain) return;
     let active = true;
     streakRewardsStore.load(user.id).then((record) => {
@@ -115,9 +117,8 @@ export default function LessonEndFlow({
     return () => {
       active = false;
     };
-    // Une seule fois, à l'arrivée sur la fin de leçon
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
+  useEffect(() => findMedal(), []);
 
   const withMedal: FlowStep[] = medal
     ? [...baseSteps.slice(0, streakIndex + 1), 'medal', ...baseSteps.slice(streakIndex + 1)]

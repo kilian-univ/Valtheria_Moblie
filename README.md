@@ -39,13 +39,16 @@ Le premier démarrage sans compte arrive sur le parcours de bienvenue (`/bienven
 
 ## Vérifier avant de pousser
 
-Les trois commandes ci-dessous tournent aussi dans l'action GitHub (`.github/workflows/ci.yml`) à chaque push et sur chaque pull request. Elles doivent passer toutes les trois.
+Les quatre commandes ci-dessous tournent aussi dans l'action GitHub (`.github/workflows/ci.yml`) à chaque push et sur chaque pull request. Elles doivent passer toutes les quatre.
 
 ```bash
-npm test              # tests Node (node:test), sur la logique pure de src/utils, src/lesson, src/state
-npx tsc --noEmit      # types
-npm run lint          # ESLint (configuration Expo) ; la CI refuse le moindre avertissement
+npm test                  # tests Node (node:test), sur la logique pure de src/utils, src/lesson, src/state
+npx tsc --noEmit          # types
+npm run lint              # ESLint (configuration Expo) ; la CI refuse le moindre avertissement
+npm run check:compilateur # compilateur React : chaque composant et hook de src/ et app/ doit être compilé
 ```
+
+`scripts/compilateur.mjs` passe chaque fichier dans Babel comme Metro le fait et lit le journal du compilateur React : un composant sauté (voir « Conventions du code ») fait échouer la commande, avec la ligne et la raison.
 
 Les tests n'ont besoin ni de simulateur ni de rendu : `tests/register.mjs` apprend à Node l'alias `@/` et les imports sans extension, et Node exécute le TypeScript tel quel. Seuls les modules sans React Native sont testables ainsi.
 
@@ -100,7 +103,8 @@ Fonctions pures, sans React ni React Native, testées par `tests/`. Par domaine 
 - Alias `@/` vers la racine (`@/src/...`).
 - Tout est en français : interface, commentaires, messages de commit, documentation.
 - React Compiler activé : pas de `useMemo`/`useCallback` manuels superflus, pas de `setState` dans le corps d'un effet (ESLint le refuse).
-- Ce qui fait sauter silencieusement un composant entier par le compilateur React (constaté au lot 3, en lisant la sortie de Babel) : un `finally`, une condition (`? :`, `&&`, `?.`) à l'intérieur d'un `try`, une règle `eslint-disable` dans le composant, et tout ce qui dérive du résultat d'une fonction (une date, par exemple) passé ensuite à d'autres fonctions : le compilateur le croit modifiable et ne mémorise plus rien en aval. Pour une chaîne, un gabarit `` `${f()}` `` lève le doute.
+- Ce qui fait sauter silencieusement un composant ou un hook entier par le compilateur React (constaté aux lots 3 et 4, en lisant la sortie de Babel) : un `finally` ; une condition (`? :`, `&&`, `||`, `??`, `?.`) ou une clé calculée par un appel (`[f()]: v`) à l'intérieur d'un `try` ou d'un `catch`, même dans une fonction interne du composant ; une règle `react-hooks` désactivée par `eslint-disable` ; un `??=` ; une expression logique en valeur par défaut d'un paramètre. Et tout ce qui dérive du résultat d'une fonction (une date, par exemple) passé ensuite à d'autres fonctions : le compilateur le croit modifiable et ne mémorise plus rien en aval ; pour une chaîne, un gabarit `` `${f()}` `` lève le doute. `npm run check:compilateur` (aussi dans la CI) signale tout composant sauté.
+- Effet « une seule fois, à l'arrivée » qui lit des valeurs du moment : `useEffectEvent` (React 19.2) ou une valeur figée par `useState(valeur)`, jamais un `eslint-disable` de `react-hooks/exhaustive-deps`.
 - Reanimated : rien d'autre que des worklets dans les animations ; `tests/worklets.test.ts` le contrôle sur tout le code.
 - Espaces insécables : une seule source (`frenchSpaces`), appliquée à l'affichage ; `tests/frenchSpaces.test.ts` et `tests/espaces.test.ts`.
 - Aucun chiffre réglementaire écrit en dur : ils viennent de l'API (`/api/regulatory-figures`).

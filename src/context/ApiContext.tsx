@@ -209,53 +209,62 @@ export function ApiProvider({ children }: any) {
 
   // Écrit/efface le token à la fois dans le state React et AsyncStorage.
   const saveToken = useCallback(async (newToken: string | null) => {
+    // (pas de « finally » : le compilateur React sauterait le fournisseur)
+    let failure: unknown = null;
+    let failed = false;
     try {
       await writeStoredToken(newToken);
-    } finally {
-      // La session suit toujours la demande, même si le stockage échoue
-      tokenRef.current = newToken;
-      setToken(newToken);
+    } catch (e) {
+      failed = true;
+      failure = e;
     }
+    // La session suit toujours la demande, même si le stockage échoue
+    tokenRef.current = newToken;
+    setToken(newToken);
+    if (failed) throw failure;
   }, []);
 
   // Au montage : relit le token stocké, et si présent, recharge le profil
   // utilisateur associé (le token seul est persisté, pas les infos user).
   useEffect(() => {
-    (async () => {
+    // Profil du jeton stocké ; ne lève jamais (le compilateur React saute le
+    // fournisseur si un try contient une condition ou n'a pas de catch)
+    const loadProfile = async (stored: string) => {
+      let response: Response;
+      let json: unknown;
+      let readable: boolean;
       try {
-        const stored = await readStoredTokenSafely();
-        tokenRef.current = stored;
-        setToken(stored);
-
-        if (stored) {
-          try {
-            const { response, json, readable } = await request(`${API_BASE_URL}/user`, {
-              headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${stored}`,
-              },
-            });
-
-            if (response.ok && readable && json) {
-              setUser(unwrap(json));
-            } else if (response.status === 401 && tokenRef.current === stored) {
-              // Token expiré/invalide -> on nettoie tout (sauf si une
-              // connexion a remplacé ce jeton pendant la requête)
-              await writeStoredToken(null).catch(() => {});
-              tokenRef.current = null;
-              setToken(null);
-            }
-            // Autre erreur (500, 503 : maintenance, surcharge ; réponse
-            // illisible) : on garde le token, le profil sera rechargé plus
-            // tard (SessionRecovery)
-          } catch {
-            // Pas de réseau au démarrage : on garde le token, on retentera
-            // plus tard via une requête authentifiée classique.
-          }
-        }
-      } finally {
-        setIsLoading(false);
+        ({ response, json, readable } = await request(`${API_BASE_URL}/user`, {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${stored}`,
+          },
+        }));
+      } catch {
+        // Pas de réseau au démarrage : on garde le token, on retentera
+        // plus tard via une requête authentifiée classique.
+        return;
       }
+      if (response.ok && readable && json) {
+        setUser(unwrap(json));
+      } else if (response.status === 401 && tokenRef.current === stored) {
+        // Token expiré/invalide -> on nettoie tout (sauf si une
+        // connexion a remplacé ce jeton pendant la requête)
+        await writeStoredToken(null).catch(() => {});
+        tokenRef.current = null;
+        setToken(null);
+      }
+      // Autre erreur (500, 503 : maintenance, surcharge ; réponse
+      // illisible) : on garde le token, le profil sera rechargé plus
+      // tard (SessionRecovery)
+    };
+    (async () => {
+      // readStoredTokenSafely ne lève jamais ; le chargement du profil non plus
+      const stored = await readStoredTokenSafely();
+      tokenRef.current = stored;
+      setToken(stored);
+      if (stored) await loadProfile(stored);
+      setIsLoading(false);
     })();
   }, []);
 
@@ -363,10 +372,11 @@ export function ApiProvider({ children }: any) {
       await authRequest("/auth/logout", "POST");
     } catch {
       // hors ligne, ou jeton déjà expiré : la session locale est effacée quand même
-    } finally {
-      await saveToken(null);
-      setUser(null);
     }
+    // (après le try/catch, pas dans un « finally » : le compilateur React
+    // sauterait le fournisseur)
+    await saveToken(null);
+    setUser(null);
     if (userId != null) await purgeAccountData(userId, { keepLastProfile: true }).catch(() => {});
   }, [authRequest, saveToken, user?.id]);
 

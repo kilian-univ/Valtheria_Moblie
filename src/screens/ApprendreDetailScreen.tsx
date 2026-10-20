@@ -147,6 +147,11 @@ export type DiscoveryMode = {
   exitTo?: '/bienvenue/objectif' | '/client/carnet' | '/apprendre' | '/dictionary';
 };
 
+// Message d'une erreur quelconque (journal de développement) ; ici et pas
+// dans le catch : un « ?. » dans un catch fait sauter l'écran par le
+// compilateur React
+const errorMessageOf = (err: unknown): string | undefined => (err as { message?: string } | null | undefined)?.message;
+
 export default function ApprendreDetailScreen({ discovery }: { discovery?: DiscoveryMode } = {}) {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -421,6 +426,68 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     if (discoveryDone) onDiscoveryFinished?.(summaryRef.current, resultsRef.current, responsesRef.current);
   }, [discoveryDone, onDiscoveryFinished]);
 
+  // L'envoi lui-même, à part : le compilateur React saute tout l'écran
+  // quand un try/catch contient une condition ou un « finally »
+  const submitLesson = async () => {
+    // Format attendu : { "<index d'écran>": [tentative1, tentative2, ...] }
+    const responses = buildResponses(answers, screens);
+
+    const res = await completeLesson(Number(id), { responses, attempt_id: attemptId.current });
+    // Réponse complète (avec le profil) : jamais dans le journal d'une version publiée
+    if (__DEV__) console.log('COMPLETE RÉSULTAT:', JSON.stringify(res, null, 2));
+
+    // 1. Instantané : XP et série viennent directement de la réponse de /complete
+    if (res?.user) {
+      learningStore.setState({ xp: res.user.xp, streak: res.user.streak, ...streakFieldsOf(res.user) });
+    }
+
+    // 2. En tâche de fond pendant que l'utilisateur lit les écrans de fin :
+    //    la leçon terminée et la suivante débloquée seront prêtes au retour.
+    Promise.all([getModules(), getProgress()])
+      .then(([modulesData, progressData]) => {
+        // Liste vérifiée : la page module et l'accueil, encore montés sous le
+        // lecteur, la relisent tout de suite
+        if (!Array.isArray(modulesData)) return;
+        learningStore.setState({
+          modules: modulesData,
+          streak: progressData?.streak ?? 0,
+          xp: progressData?.xp ?? 0,
+        });
+      })
+      .catch(() => {});
+
+    // Sa phrase « À retenir » entre au carnet de déclics (une seule fois)
+    const { modules: known, universes } = learningStore.getState();
+    const declic = declicForLesson(Number(id), lessonInfo.marked, lessonInfo.title, known, universes, new Date().toISOString());
+    if (declic) addToNotebook(userKeyOf(user?.id), declic).catch(() => {});
+    // … et la leçon au journal de la semaine (graphique du profil)
+    recordLessonXp(userKeyOf(user?.id), typeof res?.xp_gained === 'number' ? res.xp_gained : 0).catch(() => {});
+    // Mémoire du téléphone : leçon du jour faite, module en cours le plus
+    // récent, et écrans gardés pour la révision (premier essai de chacun)
+    const lessonId = Number(id);
+    const owner = known.find((m) => (m.lessons ?? []).some((l) => l.id === lessonId));
+    const at = new Date();
+    if (owner) recordLessonDone(userKeyOf(user?.id), lessonId, owner.id, at).catch(() => {});
+    // Leçon du jour faite : plus de rappel aujourd'hui, les suivants repartent de demain
+    reminderAfterLesson(at).catch(() => {});
+    const slug = owner ? (universeOfModule(owner, universes)?.slug ?? null) : null;
+    rememberLesson(
+      userKeyOf(user?.id),
+      cachedLesson(lessonId, rawLesson.current, slug, at.toISOString()),
+      firstTryResults(answers, screens)
+    ).catch(() => {});
+
+    // Précision gardée sur le téléphone ; les défis gagnés sont fêtés à la fin
+    const firsts = firstTryResults(answers, screens);
+    const lessonAccuracy = { bestRun: bestRunOf(firsts), perfect: isPerfectLesson(summary) };
+    const challenges = await recordLessonAccuracy(userKeyOf(user?.id), { key: `l${lessonId}`, ...lessonAccuracy }).catch(
+      () => [] as Challenge[]
+    );
+    setAccuracy({ ...lessonAccuracy, challenges });
+
+    setModuleTitle(finishedModuleTitle(res ?? {}, learningStore.getState().modules, Number(id)));
+    setResult(res ?? {});
+  };
   const handleFinish = async () => {
     if (discovery) {
       setFinishing(true);
@@ -431,74 +498,15 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     setFinishing(true);
     setIsSubmitting(true);
     setSubmitError(null);
-
     try {
-      // Format attendu : { "<index d'écran>": [tentative1, tentative2, ...] }
-      const responses = buildResponses(answers, screens);
-
-      const res = await completeLesson(Number(id), { responses, attempt_id: attemptId.current });
-      // Réponse complète (avec le profil) : jamais dans le journal d'une version publiée
-      if (__DEV__) console.log('COMPLETE RÉSULTAT:', JSON.stringify(res, null, 2));
-
-      // 1. Instantané : XP et série viennent directement de la réponse de /complete
-      if (res?.user) {
-        learningStore.setState({ xp: res.user.xp, streak: res.user.streak, ...streakFieldsOf(res.user) });
-      }
-
-      // 2. En tâche de fond pendant que l'utilisateur lit les écrans de fin :
-      //    la leçon terminée et la suivante débloquée seront prêtes au retour.
-      Promise.all([getModules(), getProgress()])
-        .then(([modulesData, progressData]) => {
-          // Liste vérifiée : la page module et l'accueil, encore montés sous le
-          // lecteur, la relisent tout de suite
-          if (!Array.isArray(modulesData)) return;
-          learningStore.setState({
-            modules: modulesData,
-            streak: progressData?.streak ?? 0,
-            xp: progressData?.xp ?? 0,
-          });
-        })
-        .catch(() => {});
-
-      // Sa phrase « À retenir » entre au carnet de déclics (une seule fois)
-      const { modules: known, universes } = learningStore.getState();
-      const declic = declicForLesson(Number(id), lessonInfo.marked, lessonInfo.title, known, universes, new Date().toISOString());
-      if (declic) addToNotebook(userKeyOf(user?.id), declic).catch(() => {});
-      // … et la leçon au journal de la semaine (graphique du profil)
-      recordLessonXp(userKeyOf(user?.id), typeof res?.xp_gained === 'number' ? res.xp_gained : 0).catch(() => {});
-      // Mémoire du téléphone : leçon du jour faite, module en cours le plus
-      // récent, et écrans gardés pour la révision (premier essai de chacun)
-      const lessonId = Number(id);
-      const owner = known.find((m) => (m.lessons ?? []).some((l) => l.id === lessonId));
-      const at = new Date();
-      if (owner) recordLessonDone(userKeyOf(user?.id), lessonId, owner.id, at).catch(() => {});
-      // Leçon du jour faite : plus de rappel aujourd'hui, les suivants repartent de demain
-      reminderAfterLesson(at).catch(() => {});
-      const slug = owner ? (universeOfModule(owner, universes)?.slug ?? null) : null;
-      rememberLesson(
-        userKeyOf(user?.id),
-        cachedLesson(lessonId, rawLesson.current, slug, at.toISOString()),
-        firstTryResults(answers, screens)
-      ).catch(() => {});
-
-      // Précision gardée sur le téléphone ; les défis gagnés sont fêtés à la fin
-      const firsts = firstTryResults(answers, screens);
-      const lessonAccuracy = { bestRun: bestRunOf(firsts), perfect: isPerfectLesson(summary) };
-      const challenges = await recordLessonAccuracy(userKeyOf(user?.id), { key: `l${lessonId}`, ...lessonAccuracy }).catch(
-        () => [] as Challenge[]
-      );
-      setAccuracy({ ...lessonAccuracy, challenges });
-
-      setModuleTitle(finishedModuleTitle(res ?? {}, learningStore.getState().modules, Number(id)));
-      setResult(res ?? {});
-    } catch (err: any) {
-      if (__DEV__) console.log('ERREUR COMPLETE:', err?.message);
+      await submitLesson();
+    } catch (err: unknown) {
+      if (__DEV__) console.log('ERREUR COMPLETE:', errorMessageOf(err));
       // Les réponses restent en mémoire : « Réessayer » renvoie les mêmes
       errorHaptic();
       setSubmitError(submitErrorMessage(err));
-    } finally {
-      setIsSubmitting(false);
     }
+    setIsSubmitting(false);
   };
 
   const handleValidate = () => {

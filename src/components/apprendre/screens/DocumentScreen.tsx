@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
@@ -56,9 +56,9 @@ export default function DocumentScreen({
     });
   }, [selected, mode, lines, screen.source, onDraftChange]);
 
-  // Correction : défile jusqu'à la première erreur, sinon la première ligne manquée
-  useEffect(() => {
-    if (!answered) return;
+  // Correction : défile jusqu'à la première erreur, sinon la première ligne
+  // manquée (seulement au moment où la réponse est validée)
+  const scrollToFirstError = useEffectEvent((): (() => void) | undefined => {
     const touchable = lines.filter((l) => l.id !== null);
     const firstError =
       touchable.find((l) => selected.includes(l.id!) && !l.correct) ??
@@ -67,8 +67,10 @@ export default function DocumentScreen({
     const y = cardY.current + linesY.current + (lineY.current[firstError.id] ?? 0);
     const timer = setTimeout(() => scrollToY(Math.max(y - SCROLL_MARGIN, 0)), SCROLL_DELAY);
     return () => clearTimeout(timer);
-    // seulement au moment où la réponse est validée
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    if (!answered) return;
+    return scrollToFirstError();
   }, [answered]);
 
   const toggle = (id: string) => {

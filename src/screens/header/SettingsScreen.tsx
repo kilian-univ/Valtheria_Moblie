@@ -89,9 +89,10 @@ export default function SettingsScreen() {
       close();
     } catch (err) {
       setPseudoServerError(actionErrorText(err, 'La mise à jour n’a pas abouti. Réessaie dans un instant.'));
-    } finally {
-      setPseudoSaving(false);
     }
+    // (après le try/catch, pas dans un « finally » : le compilateur React
+    // sauterait tout l'écran)
+    setPseudoSaving(false);
   };
 
   // --- Mot de passe : l'API n'a pas de route pour le changer ; un lien de
@@ -105,8 +106,10 @@ export default function SettingsScreen() {
       WebBrowser.openBrowserAsync(FORGOT_PASSWORD_URL).catch(() => {});
       return;
     }
+    // (l'adresse hors du try : le compilateur React saute l'écran sinon)
+    const email = user?.email ?? '';
     try {
-      await post('/auth/forgot-password', { email: user?.email ?? '' });
+      await post('/auth/forgot-password', { email });
       setResetSent(true);
     } catch {
       setResetError('Impossible d’envoyer le lien pour l’instant. Réessaie dans un instant.');

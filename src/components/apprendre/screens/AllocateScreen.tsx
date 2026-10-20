@@ -67,9 +67,12 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
     setValues(updated);
   };
   const move = (key: string, next: number) => {
-    batch.current ??= createFrameBatch(apply, (run) => {
-      requestAnimationFrame(run);
-    });
+    // (pas de « ??= » : le compilateur React ne le compile pas encore)
+    if (batch.current === null) {
+      batch.current = createFrameBatch(apply, (run) => {
+        requestAnimationFrame(run);
+      });
+    }
     batch.current.push({ key, next });
   };
   // Lâcher : la valeur finale tout de suite, puis la répartition posée
