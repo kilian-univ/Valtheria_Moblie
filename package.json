@@ -1,5 +1,5 @@
 {
-  "name": "valtheraa",
+  "name": "valtheria",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
@@ -56,5 +56,8 @@
     "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"
   },
-  "private": true
+  "private": true,
+  "allowScripts": {
+    "@sentry/cli@2.58.4": true
+  }
 }
