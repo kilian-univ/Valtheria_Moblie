@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { devSlowLoading } from '@/src/constants/dev';
 import { Module, Progress, useApi } from '@/src/context/ApiContext';
 import type { Universe } from '@/src/lesson/model';
-import { learningStore } from '@/src/state/learningStore';
+import { EMPTY_LEARNING, learningStore } from '@/src/state/learningStore';
 import { restoreLearning, saveLearning } from '@/src/state/learningCache';
 import { isNetworkError, type LoadError } from '@/src/utils/loadError';
+import { streakFieldsOf } from '@/src/utils/streakServer';
 import { fetchUniverses } from '@/src/utils/universes';
 
 export type { LoadError } from '@/src/utils/loadError';
@@ -50,6 +51,8 @@ export function useLearningData() {
         level: progress?.level ?? 1,
         vals: progress?.vals ?? 0,
         loaded: true,
+        // Gels en réserve, record, gel utilisé hier (serveur du 20/10/2026 ou plus récent)
+        ...streakFieldsOf(progress),
       });
       // Gardé pour le prochain lancement (contenu d'apprentissage seulement)
       saveLearning(userId);
@@ -73,7 +76,7 @@ export function useLearningData() {
   // Déconnexion : on oublie les données du compte précédent
   useEffect(() => {
     if (!authPending && !isAuthenticated && learningStore.getState().loaded) {
-      learningStore.setState({ modules: [], universes: [], xp: 0, streak: 0, level: 1, vals: 0, loaded: false });
+      learningStore.setState(EMPTY_LEARNING);
     }
   }, [authPending, isAuthenticated]);
 
@@ -84,6 +87,9 @@ export function useLearningData() {
     streak: store.streak,
     level: store.level,
     vals: store.vals,
+    streakFreezes: store.streakFreezes,
+    streakBest: store.streakBest,
+    streakFrozenYesterday: store.streakFrozenYesterday,
     isAuthenticated,
     authPending,
     // Modules et chiffres (série, Vals) vraiment reçus : sans cela, jamais

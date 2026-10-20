@@ -28,6 +28,7 @@ import { useKnownPseudo } from '@/src/hooks/useKnownPseudo';
 import { useLearningMemory } from '@/src/hooks/useLearningMemory';
 import { useLessonLauncher } from '@/src/hooks/useLessonLauncher';
 import { useDailyIgnite } from '@/src/state/flameIgnition';
+import { useStreakImport } from '@/src/hooks/useStreakImport';
 import { useBestStreak } from '@/src/state/streakRewards';
 import { onboardingStore, useOnboarding } from '@/src/state/onboarding';
 import { DISCOVERY, toObjective } from '@/src/lesson/discovery';
@@ -71,8 +72,10 @@ export default function ApprendreHomeScreen() {
   const onboarding = useOnboarding();
   // Flamme de série : allumage à sa première apparition de la journée
   const ignite = useDailyIgnite();
-  // Compte connecté : meilleure série mémorisée (médailles gardées)
-  const bestStreak = useBestStreak(data.isAuthenticated ? user?.id : null, data.streak);
+  // Compte connecté : meilleure série (téléphone et serveur), médailles gardées
+  const bestStreak = useBestStreak(data.isAuthenticated ? user?.id : null, data.streak, data.streakBest);
+  // Première connexion sur ce téléphone : gels et record locaux repris par le compte
+  useStreakImport();
   useEffect(() => {
     onboardingStore.load();
   }, []);
@@ -366,7 +369,8 @@ export default function ApprendreHomeScreen() {
         <StreakSheet
           streak={data.streak}
           best={bestStreak}
-          freezes={null}
+          freezes={data.streakFreezes}
+          saved={data.streakFrozenYesterday}
           open={streakOpen}
           onRequestClose={closeStreak}
           onClosed={unmountStreak}

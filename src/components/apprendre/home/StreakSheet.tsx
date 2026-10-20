@@ -25,7 +25,7 @@ type StreakSheetProps = {
   streak: number;
   // Meilleure série atteinte (médailles gardées si la série casse)
   best: number;
-  // Gels en réserve ; null : compte connecté, le gel arrive bientôt
+  // Gels en réserve ; null : inconnus (serveur plus ancien, pas encore chargés)
   freezes: number | null;
   // Semaine en cours (sans compte : l'historique est sur le téléphone)
   week?: WeekDay[];

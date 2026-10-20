@@ -32,7 +32,8 @@ export function useProfile() {
   const xp = loaded ? learning.xp : (user?.xp ?? 0);
   const streak = loaded ? learning.streak : (user?.streak ?? 0);
   const vals = loaded ? learning.vals : (user?.vals ?? 0);
-  const best = useBestStreak(user?.id, streak);
+  const serverBest = learning.streakBest ?? (typeof user?.streak_best === 'number' ? user.streak_best : null);
+  const best = useBestStreak(user?.id, streak, serverBest);
   const level = levelInfo(xp);
 
   // Objectif : choisi sur ce téléphone, sinon celui du serveur, sinon celui
