@@ -117,7 +117,7 @@ function WordTestEnd({ entry, entries, won, userKey }: { entry: DictionaryEntry;
           {entry.term}
         </AppText>
         {won ? (
-          <Pill size="badge" icon="checkmark" label="MAÎTRISÉ" accessibilityLabel="Maîtrisé" background={colors.goldSoft} color={colors.gold} style={styles.pill} />
+          <Pill size="badge" icon="checkmark" label="Maîtrisé" background={colors.goldSoft} color={colors.gold} style={styles.pill} />
         ) : null}
 
         {won ? (

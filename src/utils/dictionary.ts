@@ -986,6 +986,14 @@ export function wordTest(unsorted: DictionaryEntry[], entry: DictionaryEntry, se
   return out.map((q, i) => (i === out.length - 1 ? q : { ...q, explanation: null }));
 }
 
+// Bulle de Val au-dessus d'une question sur un mot : elle encourage, sans
+// répéter la question, qui est déjà le titre de l'écran (audit C6)
+const WORD_INTROS: Record<WordQuestionFormat, string> = {
+  definition: 'Tu l’as déjà croisé, celui-là. À toi de jouer.',
+  expansion: 'Un sigle, ça se décode. Prends ton temps.',
+  term: 'La définition est là, le mot est à toi.',
+};
+
 // Une question au format d'un écran du serveur (choix unique, noté) : elle
 // se joue dans le lecteur des leçons
 export function wordQuestionScreen(q: WordQuestion): Record<string, unknown> {
@@ -993,7 +1001,8 @@ export function wordQuestionScreen(q: WordQuestion): Record<string, unknown> {
     type: 'choice',
     scored: true,
     val: {
-      intro: { line: q.ask, mood: 'complice' },
+      // La bulle encourage ; la question est déjà le titre de l'écran (audit C6)
+      intro: { line: WORD_INTROS[q.format] ?? 'À toi de jouer, prends ton temps.', mood: 'complice' },
       correct: { line: 'Bien vu !', mood: 'fier' },
       wrong: { line: 'Pas grave, il reviendra.', mood: 'rassurant' },
     },

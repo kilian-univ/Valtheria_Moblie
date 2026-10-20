@@ -296,11 +296,7 @@ function EndContent() {
                   d.isToday && { borderColor: colors.gold, borderWidth: 2, opacity: 1 },
                 ]}
               >
-                {done ? (
-                  <AppText allowFontScaling={false} style={styles.dayFlame}>
-                    🔥
-                  </AppText>
-                ) : null}
+                {done ? <Ionicons name="flame" size={13} color={colors.streak} /> : null}
               </View>
             );
             return (
@@ -317,7 +313,7 @@ function EndContent() {
         {/* Les six sujets */}
         <View style={[styles.card, { backgroundColor: colors.panel }]} accessible accessibilityLabel={`Sujets découverts : ${played} sur 6`}>
           <View style={styles.cardHead}>
-            <AppText style={[styles.kicker, { color: colors.gold }]}>SUJETS DÉCOUVERTS</AppText>
+            <AppText style={[styles.kicker, { color: colors.gold }]}>Sujets découverts</AppText>
             <AppText style={styles.count}>{`${played} sur 6`}</AppText>
           </View>
           <View style={styles.topics}>
@@ -506,6 +502,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 1.3,
+    textTransform: 'uppercase',
   },
   count: {
     fontFamily: fonts.title,

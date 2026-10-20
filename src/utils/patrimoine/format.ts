@@ -76,7 +76,7 @@ export function quantityLabel(value: number, ticker: string, type: string): stri
 export function updatedLabel(at: number | null, now: number): string {
   if (!at) return '';
   const minutes = Math.floor((now - at) / 60_000);
-  if (minutes < 1) return "Mis à jour à l'instant";
+  if (minutes < 1) return 'Mis à jour à l’instant';
   if (minutes < 60) return `Mis à jour il y a ${minutes}${NBSP}min`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `Mis à jour il y a ${hours}${NBSP}h`;

@@ -743,7 +743,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                         <Cascade index={RANK_VAL} delay={cascadeAt} style={styles.discoveryHead}>
                           <Pill
                             size="badge"
-                            label={discovery.badge ?? 'LEÇON DÉCOUVERTE'}
+                            label={discovery.badge ?? 'Leçon découverte'}
                             accessibilityLabel={(discovery.badge ?? 'Leçon découverte').toLowerCase()}
                             background={colors.goldSoft}
                             color={colors.gold}

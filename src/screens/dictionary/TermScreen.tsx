@@ -206,7 +206,7 @@ export default function TermScreen({ standalone = false }: { standalone?: boolea
       <PageState
         variant="error"
         title="Mot introuvable"
-        message="Ce mot n'est pas (ou plus) dans le dictionnaire."
+        message="Ce mot n’est pas (ou plus) dans le dictionnaire."
         retryLabel={standalone ? 'Retour' : 'Retour au dictionnaire'}
         onRetry={standalone ? goBack : () => router.replace('/dictionary')}
       />

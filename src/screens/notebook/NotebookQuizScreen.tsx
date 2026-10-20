@@ -66,7 +66,7 @@ function QuizPlayer({ declics, onFinished }: { declics: Declic[]; onFinished: (s
   const [lesson] = useState(() => normalizeLesson(quizLesson(buildQuiz(declics))));
   const finished = useCallback((summary: LessonSummary) => onFinished(summary), [onFinished]);
   const mode = useMemo(
-    () => ({ lesson, onFinished: finished, badge: 'MES DÉCLICS', retry: false, exitTo: '/client/carnet' as const }),
+    () => ({ lesson, onFinished: finished, badge: 'Mes déclics', retry: false, exitTo: '/client/carnet' as const }),
     [lesson, finished]
   );
   return <ApprendreDetailScreen discovery={mode} />;

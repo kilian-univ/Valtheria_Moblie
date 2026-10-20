@@ -96,7 +96,7 @@ export default function UniverseScreen() {
       <PageState
         variant="error"
         title="Univers introuvable"
-        message="Cet univers n'est plus disponible."
+        message="Cet univers n’est plus disponible."
         retryLabel="Retour aux univers"
         onRetry={() => router.replace('/apprendre')}
       />

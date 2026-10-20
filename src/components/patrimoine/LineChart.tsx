@@ -205,14 +205,9 @@ function ChartDrawing({ d, width, height, touched }: { d: Drawing; width: number
           </>
         ) : null}
       </Defs>
-      {/* Repères de valeur : lignes discrètes dans la zone, valeur dans la marge de droite */}
+      {/* Repères de valeur : lignes discrètes dans la zone, sous la courbe */}
       {ticks.map((t) => (
-        <G key={`tick-${t}`}>
-          <Line x1={0} x2={zoneW} y1={scale.y(t)} y2={scale.y(t)} stroke={withOpacity(colors.text, 0.06)} strokeWidth={1} />
-          <SvgText x={zoneW + 6} y={scale.y(t) + TICK_FONT / 2 - 1} fontSize={TICK_FONT} fill={colors.subtitle} fontFamily={fonts.bodyMedium}>
-            {d.formatTick!(t)}
-          </SvgText>
-        </G>
+        <Line key={`tick-${t}`} x1={0} x2={zoneW} y1={scale.y(t)} y2={scale.y(t)} stroke={withOpacity(colors.text, 0.06)} strokeWidth={1} />
       ))}
       {d.area && allNumbers ? <Path d={areaPath(allNumbers, scale, height)} fill={`url(#fill${uid})`} /> : null}
       {/* Ligne de départ : la valeur du début de la période */}
@@ -231,6 +226,12 @@ function ChartDrawing({ d, width, height, touched }: { d: Drawing; width: number
       ) : (
         <Path d={linePath(values, scale)} fill="none" stroke={lineColor} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
       )}
+      {/* Valeurs des repères, dans la marge de droite : dessinées après la courbe, jamais dessous (audit C15) */}
+      {ticks.map((t) => (
+        <SvgText key={`tick-label-${t}`} x={zoneW + 6} y={scale.y(t) + TICK_FONT / 2 - 1} fontSize={TICK_FONT} fill={colors.subtitle} fontFamily={fonts.bodyMedium}>
+          {d.formatTick!(t)}
+        </SvgText>
+      ))}
       {/* Pastilles des lignes de référence */}
       {levelBox && levelText && d.level ? (
         <G>

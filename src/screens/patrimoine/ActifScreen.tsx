@@ -243,7 +243,7 @@ export default function ActifScreen() {
         </View>
       ) : (
         <AppText variant="callout" tone="subtitle">
-          Position clôturée{closed?.closedAt ? ` le ${longDate(closed.closedAt)}` : ''}.
+          Position soldée{closed?.closedAt ? ` le ${longDate(closed.closedAt)}` : ''}.
         </AppText>
       )}
 

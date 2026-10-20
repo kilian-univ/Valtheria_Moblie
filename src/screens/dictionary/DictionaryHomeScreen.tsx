@@ -290,7 +290,7 @@ export default function DictionaryHomeScreen() {
       </AppText>
       {count > 0 ? (
         <AppText variant="body" tone="subtitle" style={styles.subtitle}>
-          {`${formatInteger(count)} mots de l'argent, expliqués simplement`}
+          {`${formatInteger(count)} mots de l’argent, expliqués simplement`}
         </AppText>
       ) : null}
       {data.offline ? <PageState variant="offline" text={OFFLINE_BANNER} style={styles.offline} /> : null}

@@ -42,39 +42,39 @@ import {
 // ---------------------------------------------------------------------------
 // Grande carte
 // ---------------------------------------------------------------------------
-test('carte : leçon jamais commencée → « POUR TOI, 1 MIN », accroche, COMMENCER', () => {
+test('carte : leçon jamais commencée → « Pour toi, 1 min », accroche, Commencer', () => {
   const card = homeCard({ objective: 'epargner', started: [], played: [], signupClosed: true });
   assert.equal(card.state, 'jamais');
-  assert.equal(card.badge, 'POUR TOI, 1 MIN');
+  assert.equal(card.badge, 'Pour toi, 1 min');
   assert.equal(card.title, 'L’argent qui fond');
   assert.equal(card.text, 'Pourquoi l’argent qui dort perd de la valeur');
-  assert.deepEqual([card.action, card.actionLabel], ['commencer', 'COMMENCER']);
+  assert.deepEqual([card.action, card.actionLabel], ['commencer', 'Commencer']);
 });
 
-test('carte : leçon commencée mais pas finie → REPRENDRE', () => {
+test('carte : leçon commencée mais pas finie → Reprendre', () => {
   const card = homeCard({ objective: 'crypto', started: ['crypto'], played: [], signupClosed: true });
   assert.equal(card.state, 'commencee');
-  assert.equal(card.badge, 'POUR TOI, 1 MIN');
+  assert.equal(card.badge, 'Pour toi, 1 min');
   assert.equal(card.text, 'Ce que la crypto peut faire en un an');
-  assert.deepEqual([card.action, card.actionLabel], ['reprendre', 'REPRENDRE']);
+  assert.deepEqual([card.action, card.actionLabel], ['reprendre', 'Reprendre']);
   // Une autre leçon jouée ne compte pas pour celle de l'objectif
   assert.equal(homeCard({ objective: 'crypto', started: ['crypto', 'impots'], played: ['impots'], signupClosed: true }).state, 'commencee');
 });
 
-test('carte : leçon terminée, inscription fermée → « LEÇON TERMINÉE », l’univers, UN AUTRE SUJET', () => {
+test('carte : leçon terminée, inscription fermée → « Leçon terminée », l’univers, Un autre sujet', () => {
   const card = homeCard({ objective: 'epargner', started: ['epargner'], played: ['epargner'], signupClosed: true });
   assert.equal(card.state, 'terminee');
-  assert.equal(card.badge, 'LEÇON TERMINÉE');
+  assert.equal(card.badge, 'Leçon terminée');
   assert.equal(card.text, 'La suite t’attend dans l’univers Avant d’investir.');
-  assert.deepEqual([card.action, card.actionLabel, card.secondary], ['autre-sujet', 'UN AUTRE SUJET', null]);
+  assert.deepEqual([card.action, card.actionLabel, card.secondary], ['autre-sujet', 'Un autre sujet', null]);
   assert.deepEqual(card.progress, { line: 'Encore 5 sujets à découvrir.', dots: [true, false, false, false, false, false] });
 });
 
-test('carte : leçon terminée, inscription ouverte → CRÉER MON COMPTE, « Un autre sujet » dessous', () => {
+test('carte : leçon terminée, inscription ouverte → Créer mon compte, « Un autre sujet » dessous', () => {
   const card = homeCard({ objective: 'investir', started: [], played: ['investir'], signupClosed: false });
   assert.deepEqual([card.action, card.actionLabel, card.secondary], [
     'creer-compte',
-    'CRÉER MON COMPTE',
+    'Créer mon compte',
     { action: 'autre-sujet', label: 'Un autre sujet' },
   ]);
   // Nom de l'univers du serveur s'il est chargé
@@ -104,7 +104,7 @@ test('phrases d’accroche des six leçons', () => {
       'Ce que le temps fait à 100 € par mois',
       'Ce que la crypto peut faire en un an',
       'Ce que coûte vraiment un emprunt',
-      'Pourquoi une prime ne fait jamais perdre d’argent',
+      'Pourquoi une prime ne fait pas perdre d’argent',
       'Ce que tu coûtes à ton employeur',
     ]
   );
@@ -365,17 +365,17 @@ test('carte six sur six : « Tu as fait le tour ! », texte et bouton selon l’
   const all = [...OBJECTIVES];
   const closed = homeCard({ objective: 'crypto', started: all, played: all, signupClosed: true });
   assert.equal(closed.state, 'six');
-  assert.equal(closed.badge, '6 SUR 6');
+  assert.equal(closed.badge, '6 sur 6');
   assert.equal(closed.title, 'Tu as fait le tour !');
   assert.equal(
     closed.text,
     'Six sujets, six déclics. La suite, ce sont les vrais modules : ils t’attendent dès l’ouverture des inscriptions.'
   );
-  assert.deepEqual([closed.action, closed.actionLabel, closed.secondary, closed.progress], ['rejouer', 'REJOUER UNE LEÇON', null, null]);
+  assert.deepEqual([closed.action, closed.actionLabel, closed.secondary, closed.progress], ['rejouer', 'Rejouer une leçon', null, null]);
   const open = homeCard({ objective: null, started: [], played: all, signupClosed: false });
   assert.equal(open.state, 'six');
   assert.equal(open.text, 'Six sujets, six déclics. Crée ton compte pour débloquer les vrais modules.');
-  assert.deepEqual([open.action, open.actionLabel], ['creer-compte', 'CRÉER MON COMPTE']);
+  assert.deepEqual([open.action, open.actionLabel], ['creer-compte', 'Créer mon compte']);
   assert.deepEqual(open.secondary, { action: 'autre-sujet', label: 'Rejouer une leçon' });
 });
 
@@ -384,7 +384,7 @@ test('carte du compte : jamais deux « Créer mon compte »', () => {
   // Ouverte, leçon terminée : la grande carte crée le compte, la petite disparaît
   assert.equal(done(false).action, 'creer-compte');
   assert.equal(showAccountCard(done(false), false), false);
-  // Fermée : « UN AUTRE SUJET » sur la carte, la petite carte « Se connecter »
+  // Fermée : « Un autre sujet » sur la carte, la petite carte « Se connecter »
   assert.equal(done(true).action, 'autre-sujet');
   assert.equal(showAccountCard(done(true), true), true);
   assert.equal(accountCard(true).actionLabel, 'Se connecter');

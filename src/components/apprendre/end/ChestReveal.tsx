@@ -78,10 +78,10 @@ const AMOUNT_SIZE = 44;
 const FOUNTAIN_FROM = HALO / 2 - 24;
 
 const RARITY_NAMES: Record<ChestRarity, string> = {
-  commun: 'COMMUN',
-  rare: 'RARE',
-  epique: 'ÉPIQUE',
-  legendaire: 'LÉGENDAIRE',
+  commun: 'Commun',
+  rare: 'Rare',
+  epique: 'Épique',
+  legendaire: 'Légendaire',
 };
 
 type Phase = 'anticipation' | 'ready' | 'open';
@@ -275,7 +275,7 @@ export default function ChestReveal({ rarity, amount, total, firstName, surprise
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} scrollEnabled={settled || !isOpen}>
         <View style={styles.texts}>
           <AppText variant="sectionLabel" style={styles.kicker}>
-            {isOpen ? (surprise ? 'COFFRE SURPRISE' : chestLabel(rarity).toUpperCase()) : surprise ? 'UNE SURPRISE' : 'TA RÉCOMPENSE'}
+            {isOpen ? (surprise ? 'Coffre surprise' : chestLabel(rarity)) : surprise ? 'Une surprise' : 'Ta récompense'}
           </AppText>
           <AppText accessibilityRole="header" maxFontSizeMultiplier={1.3} style={styles.title}>
             {isOpen
@@ -490,6 +490,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   amountRow: {
     flexDirection: 'row',

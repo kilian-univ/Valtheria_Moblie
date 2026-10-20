@@ -30,7 +30,7 @@ export default function WeekChart({ week }: { week: WeekSummary }) {
   return (
     <View style={[styles.card, { backgroundColor: colors.panel }]} accessible accessibilityLabel={spoken}>
       <View style={styles.head}>
-        <AppText variant="sectionLabel">CETTE SEMAINE</AppText>
+        <AppText variant="sectionLabel">Cette semaine</AppText>
         {empty ? null : (
           <AppText variant="caption" tone="subtitle">
             <AppText style={styles.total}>{`${formatInteger(week.totalXp).replace(/ /g, ' ')} XP`}</AppText>

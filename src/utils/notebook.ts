@@ -87,7 +87,7 @@ function sortRecent(list: Declic[]): Declic[] {
 
 export type DeclicGroup = { slug: string | null; name: string | null; items: Declic[] };
 
-// Écran « Ton carnet » : groupés par univers ; les groupes et les déclics du
+// Écran « Mon carnet » : groupés par univers ; les groupes et les déclics du
 // plus récent au plus ancien
 export function groupByUniverse(list: readonly Declic[]): DeclicGroup[] {
   const groups: DeclicGroup[] = [];

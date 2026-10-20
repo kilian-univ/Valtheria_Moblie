@@ -53,11 +53,13 @@ export default function DailyProgram({
   const reviseFirst = program.lessonDone || lesson === null;
   return (
     <View style={styles.wrap}>
+      {/* Compteur « <n> sur 2 » seulement avec la leçon et la révision : la
+          révision seule n'a rien à compter (audit G5) */}
       <ValHero
         flush
         mood={program.mood}
         text={program.line}
-        accent={programCounter(program.count, program.total)}
+        accent={program.total === 2 ? programCounter(program.count, program.total) : undefined}
         width={learnHome.valWidth}
         height={learnHome.valHeight}
       />
@@ -86,7 +88,8 @@ export default function DailyProgram({
           }
         >
           <Button
-            label="COMMENCER"
+            label="Commencer"
+            uppercase
             icon="play"
             onPress={onStartLesson}
             loading={starting}
@@ -109,7 +112,7 @@ export default function DailyProgram({
       {program.revisionDone ? (
         <DoneRow text={revisionDoneText} />
       ) : (
-        <RevisionRow count={revisionCount} emptyText={revisionEmptyText} primary={reviseFirst} onRevise={onRevise} />
+        <RevisionRow count={revisionCount} emptyText={revisionEmptyText} primary={reviseFirst} numbered={program.total === 2} onRevise={onRevise} />
       )}
     </View>
   );
@@ -142,18 +145,21 @@ function DoneRow({
   );
 }
 
-// « 2 · LA RÉVISION » : petit paquet de trois cartes, nombre d'écrans et
-// durée, bouton « Réviser » (contour or, ou or plein quand c'est l'action
-// principale). Rien à réviser : la phrase d'attente, sans bouton.
+// « 2 · LA RÉVISION » (« LA RÉVISION » seule quand il n'y a plus de leçon à
+// numéroter) : petit paquet de trois cartes, nombre d'écrans et durée, bouton
+// « Réviser » (contour or, ou or plein quand c'est l'action principale). Rien
+// à réviser : la phrase d'attente, sans bouton.
 function RevisionRow({
   count,
   emptyText,
   primary,
+  numbered,
   onRevise,
 }: {
   count: number | null;
   emptyText: string | null;
   primary: boolean;
+  numbered: boolean;
   onRevise: () => void;
 }) {
   const { colorScheme } = useTheme();
@@ -170,7 +176,7 @@ function RevisionRow({
       <CardStack />
       <View style={styles.rowText} accessible accessibilityLabel={`La révision. ${empty ? emptyLine : count === null ? 'En préparation' : revisionLabel(count)}`}>
         <AppText maxFontSizeMultiplier={1.3} style={[styles.kicker, { color: colors.gold }]}>
-          2 · LA RÉVISION
+          {numbered ? '2 · La révision' : 'La révision'}
         </AppText>
         {count === null ? (
           <Skeleton width={130} height={14} style={styles.skeleton} />
@@ -254,6 +260,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   revisionLine: {
     fontFamily: fonts.bodySemibold,

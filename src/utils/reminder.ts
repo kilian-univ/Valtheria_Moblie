@@ -35,25 +35,27 @@ export function clampTime(hour: number, minute: number): ReminderTime {
   return { hour: h, minute: m };
 }
 
-// Textes du rappel : Val parle, un texte différent chaque jour
+// Textes du rappel : Val parle, un texte différent chaque jour. Sans pression
+// sur la série, sans durée (« une minute ») ni promesse (« pour toujours »)
+// (audit G28)
 export const REMINDER_MESSAGES: readonly { title: string; body: string }[] = [
-  { title: 'Val t’attend', body: 'Une minute pour une nouvelle leçon ? Ta série compte sur toi.' },
-  { title: 'Petite pause argent ?', body: 'J’ai un nouveau déclic pour toi. Ça prend une minute.' },
-  { title: 'C’est l’heure de Val', body: 'On continue ? Chaque jour compte pour ta série.' },
+  { title: 'Val t’attend', body: 'Une nouvelle leçon est prête, quand tu veux.' },
+  { title: 'Petite pause argent ?', body: 'J’ai un nouveau déclic pour toi. C’est vite fait.' },
+  { title: 'C’est l’heure de Val', body: 'On continue ? Une leçon, à ton rythme.' },
   { title: 'Une question pour toi', body: 'Tu sais où part vraiment ton argent ? Viens voir.' },
-  { title: 'Ta série t’attend', body: 'Garde le rythme : une leçon et c’est réglé.' },
-  { title: 'Val a préparé la suite', body: 'Un chiffre qui va te surprendre. Une minute, promis.' },
-  { title: 'Un pas de plus', body: 'Ce que tu apprends aujourd’hui, tu le gardes pour toujours.' },
+  { title: 'Une leçon t’attend', body: 'Un petit pas aujourd’hui, et c’est réglé.' },
+  { title: 'Val a préparé la suite', body: 'Un chiffre qui va te surprendre. C’est court, promis.' },
+  { title: 'Un pas de plus', body: 'Ce que tu apprends aujourd’hui, tu le gardes longtemps.' },
 ];
 
 // Un texte par objectif, dans le ton de Val : la prochaine leçon du sujet
 // choisi, jamais de morale
 export const OBJECTIVE_REMINDERS: Readonly<Record<string, { title: string; body: string }>> = {
-  epargner: { title: 'Val t’attend', body: 'Ta prochaine leçon sur l’épargne t’attend. Une minute, promis.' },
+  epargner: { title: 'Val t’attend', body: 'Ta prochaine leçon sur l’épargne t’attend. Courte, promis.' },
   investir: { title: 'Val t’attend', body: 'Ta prochaine leçon sur l’investissement t’attend.' },
   crypto: { title: 'Val t’attend', body: 'Ta prochaine leçon sur la crypto t’attend. Sans le bruit autour.' },
   logement: { title: 'Val t’attend', body: 'Ta prochaine leçon sur le logement t’attend. Un pas de plus vers chez toi.' },
-  impots: { title: 'Val t’attend', body: 'Ta prochaine leçon sur les impôts t’attend. Moins de mystère en une minute.' },
+  impots: { title: 'Val t’attend', body: 'Ta prochaine leçon sur les impôts t’attend. Moins de mystère, promis.' },
   decouvrir: { title: 'Val t’attend', body: 'Un nouveau sujet t’attend. On le découvre ensemble ?' },
 };
 

@@ -25,13 +25,13 @@ import { euros } from '@/src/utils/budget/format';
 type Step = 0 | 1 | 2 | 3;
 
 const STEPS: { kicker: string; question: string }[] = [
-  { kicker: 'TES RENTRÉES', question: 'Combien te rentre-t-il chaque mois ?' },
-  { kicker: 'TES CHARGES FIXES', question: 'Qu’est-ce qui part chaque mois, quoi qu’il arrive ?' },
-  { kicker: 'METTRE DE CÔTÉ EN PREMIER', question: 'Combien mets-tu de côté dès que ta paie tombe ?' },
-  { kicker: 'TON SOLDE', question: 'Combien as-tu sur ton compte courant aujourd’hui ?' },
+  { kicker: 'Tes rentrées', question: 'Combien te rentre-t-il chaque mois ?' },
+  { kicker: 'Tes charges fixes', question: 'Qu’est-ce qui part chaque mois, quoi qu’il arrive ?' },
+  { kicker: 'Mettre de côté en premier', question: 'Combien mets-tu de côté dès que ta paie tombe ?' },
+  { kicker: 'Ton solde', question: 'Combien as-tu sur ton compte courant aujourd’hui ?' },
 ];
 // Modifier : le dernier relevé est gardé, la dernière étape ne garde que le mode
-const LAST_EDIT = { kicker: 'TON MODE', question: 'Quel mode te va le mieux ?' };
+const LAST_EDIT = { kicker: 'Ton mode', question: 'Quel mode te va le mieux ?' };
 
 const VAL_LINE = 'Pas besoin d’être précis au centime. Un ordre de grandeur suffit pour commencer.';
 
@@ -150,7 +150,7 @@ export default function BudgetSetupScreen({ budget, userKey, editing }: { budget
 
       <ScrollView contentContainerStyle={styles.content}>
         <AppText style={[styles.kicker, { color: colors.gold }]}>
-          {step + 1} SUR 4 · {stepCopy.kicker}
+          {step + 1} sur 4 · {stepCopy.kicker}
         </AppText>
         <AppText accessibilityRole="header" style={styles.title}>
           {editing && step === 0 ? 'Modifier mon budget' : stepCopy.question}
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 999 },
   dotCurrent: { width: 22 },
   content: { paddingHorizontal: space[5], paddingTop: space[3], paddingBottom: space[6], gap: space[3] },
-  kicker: { fontFamily: fonts.bodyExtraBold, fontSize: 11, letterSpacing: 1.4 },
+  kicker: { fontFamily: fonts.bodyExtraBold, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontFamily: fonts.title, fontSize: 28, lineHeight: 34, letterSpacing: titleLetterSpacing(28) },
   list: { gap: space[2], marginTop: space[1] },
   row: {

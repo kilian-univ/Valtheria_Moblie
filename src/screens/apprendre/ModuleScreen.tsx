@@ -353,7 +353,7 @@ export default function ModuleScreen() {
       <PageState
         variant="error"
         title="Module introuvable"
-        message="Ce module n'est plus disponible."
+        message="Ce module n’est plus disponible."
         retryLabel="Retour aux modules"
         onRetry={() => router.replace('/apprendre')}
       />

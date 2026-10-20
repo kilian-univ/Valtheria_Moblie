@@ -29,6 +29,8 @@ npx expo start          # Metro ; scanne le QR code avec Expo Go, ou touche « i
 npm run web             # la même app dans le navigateur (pratique pour relire un écran vite)
 ```
 
+Si un iPhone ou le navigateur tourne sur un ancien code (une modification ignorée, un écran qui ne change pas), relance Metro avec `npx expo start --clear` et vérifie que Watchman tourne (`watchman version` ; `brew install watchman` s'il manque) : sans lui, Metro ne voit pas toujours les fichiers modifiés.
+
 Pour travailler contre le staging plutôt que la production :
 
 ```bash

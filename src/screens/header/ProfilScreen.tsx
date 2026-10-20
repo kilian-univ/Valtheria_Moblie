@@ -218,9 +218,9 @@ export default function ProfileScreen() {
             }
             value={declics > 0 ? String(declics) : undefined}
             unit={declics > 0 ? (declics > 1 ? 'déclics' : 'déclic') : undefined}
-            caption={declics > 0 ? 'Ton carnet · me tester' : 'Ton carnet se remplit à chaque leçon'}
+            caption={declics > 0 ? 'Mon carnet · me tester' : 'Ton carnet se remplit à chaque leçon'}
             onPress={() => router.push('/client/carnet')}
-            accessibilityLabel={declics > 0 ? `Ton carnet : ${declics} ${declics > 1 ? 'déclics' : 'déclic'}` : 'Ton carnet, vide pour l’instant'}
+            accessibilityLabel={declics > 0 ? `Mon carnet : ${declics} ${declics > 1 ? 'déclics' : 'déclic'}` : 'Mon carnet, vide pour l’instant'}
             accessibilityHint="Ouvre ton carnet et le test sur tes déclics"
           />
           <MedalsCard

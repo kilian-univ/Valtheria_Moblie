@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 're
 import AppText from '@/src/components/common/AppText';
 import Button from '@/src/components/common/Button';
 import GoldConfetti from '@/src/components/common/GoldConfetti';
+import StreakFlame from '@/src/components/common/StreakFlame';
 import { motion } from '@/src/constants/motion';
 import { fonts, palette, radius, space, titleLetterSpacing, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -80,7 +81,7 @@ export default function LessonRecap({
   takeaway,
   onContinue,
   buttonLabel = 'Continuer',
-  kicker = 'LEÇON TERMINÉE',
+  kicker = 'Leçon terminée',
   bestRun = null,
   perfect = false,
 }: LessonRecapProps) {
@@ -116,7 +117,7 @@ export default function LessonRecap({
   if (total > 0) {
     const percent = precisionPercent(correct, total);
     tiles.push({
-      label: 'PRÉCISION',
+      label: 'Précision',
       ink: colors.success,
       icon: <Ionicons name={'locate' as IconName} size={20} color={colors.success} />,
       to: percent,
@@ -127,9 +128,9 @@ export default function LessonRecap({
   }
   if (streak !== null && streak > 0) {
     tiles.push({
-      label: 'SÉRIE',
+      label: 'Série',
       ink: colors.streak,
-      icon: <AppText style={styles.flame}>🔥</AppText>,
+      icon: <StreakFlame days={streak} size={22} />,
       to: streak,
       format: (n) => formatInteger(n),
       caption: streakDaysCaption(streak),
@@ -206,7 +207,7 @@ export default function LessonRecap({
                 >
                   <View style={styles.takeawayHead}>
                     <Ionicons name="star" size={14} color={colors.gold} />
-                    <AppText style={[styles.tileLabel, { color: colors.gold }]}>À RETENIR</AppText>
+                    <AppText style={[styles.tileLabel, { color: colors.gold }]}>À retenir</AppText>
                   </View>
                   <AppText maxFontSizeMultiplier={1.3} style={styles.takeawayText}>
                     {takeaway}
@@ -304,6 +305,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     letterSpacing: 1.6,
+    textTransform: 'uppercase',
   },
   title: {
     fontFamily: fonts.title,
@@ -359,6 +361,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   tileBody: {
     alignItems: 'center',

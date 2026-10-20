@@ -183,20 +183,7 @@ export default function BottomSheet({
               sheetStyle,
             ]}
           >
-            {dismissible ? (
-              <>
-                <View style={[styles.handle, { backgroundColor: colors.controlBorder }]} />
-
-                <IconButton
-                  icon="close"
-                  iconSize={CLOSE_SIZE}
-                  color={colors.subtitle}
-                  onPress={onRequestClose}
-                  accessibilityLabel="Fermer"
-                  style={styles.close}
-                />
-              </>
-            ) : null}
+            {dismissible ? <View style={[styles.handle, { backgroundColor: colors.controlBorder }]} /> : null}
 
             {collapsible ? (
               <Pressable
@@ -211,6 +198,19 @@ export default function BottomSheet({
             ) : null}
 
             {children}
+
+            {/* La croix après le contenu : VoiceOver lit d'abord le titre de la
+                feuille (audit C17) ; sa position à l'écran ne change pas */}
+            {dismissible ? (
+              <IconButton
+                icon="close"
+                iconSize={CLOSE_SIZE}
+                color={colors.subtitle}
+                onPress={onRequestClose}
+                accessibilityLabel="Fermer"
+                style={styles.close}
+              />
+            ) : null}
           </Animated.View>
         </GestureDetector>
       </GestureHandlerRootView>

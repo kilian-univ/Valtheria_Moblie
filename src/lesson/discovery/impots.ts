@@ -1,5 +1,5 @@
 // Leçon découverte 5 — objectif « Payer moins d'impôts ».
-// Déclic : changer de tranche ne fait jamais perdre d'argent ; seule la partie
+// Déclic : changer de tranche ne fait pas perdre d'argent, sauf effet sur certaines aides ; seule la partie
 // au-dessus du seuil est taxée plus. Barème de l'impôt sur le revenu (pour une
 // part) lu dans les chiffres réglementaires du site : ir_bareme_taux et
 // ir_bareme_seuils. Les trois premières tranches suffisent à l'exemple, et
@@ -42,9 +42,9 @@ export function buildImpots(figures: Figures) {
   return {
     title: 'Le mythe de la tranche',
     // Déclic du document : carte « À RETENIR » de la fin de leçon
-    takeaway: 'Changer de [tranche] ne fait jamais perdre d’argent ; seule la partie au-dessus du [seuil] est taxée plus.',
+    takeaway: 'Changer de [tranche] ne fait pas perdre d’argent, sauf effet sur certaines aides ; seule la partie au-dessus du [seuil] est taxée plus.',
     // Phrase d'accroche : carte de l'accueil sans compte
-    hook: 'Pourquoi une prime ne fait jamais perdre d’argent',
+    hook: 'Pourquoi une prime ne fait pas perdre d’argent',
     screens: [
       {
         type: 'slider',
