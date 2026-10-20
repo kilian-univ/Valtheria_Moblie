@@ -8,7 +8,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "node --import ./tests/register.mjs --test tests/*.test.ts"
+    "test": "node --import ./tests/register.mjs --test tests/*.test.ts",
+    "check:compilateur": "node scripts/compilateur.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/fraunces": "^0.4.1",
@@ -51,7 +52,10 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
+    "@babel/core": "7.29.7",
     "@types/react": "~19.2.4",
+    "babel-plugin-react-compiler": "1.0.0",
+    "babel-preset-expo": "57.0.16",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"

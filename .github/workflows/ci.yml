@@ -1,5 +1,6 @@
 # Vérifications de l'app à chaque push et sur chaque pull request :
-# tests Node, types TypeScript, ESLint. Les trois doivent passer avant toute fusion.
+# tests Node, types TypeScript, ESLint, et aucun composant sauté par le
+# compilateur React. Les quatre doivent passer avant toute fusion.
 name: CI
 
 on:
@@ -39,3 +40,6 @@ jobs:
 
       - name: Lint (ESLint, aucun avertissement toléré)
         run: npx eslint . --max-warnings=0
+
+      - name: Compilateur React (aucun composant sauté)
+        run: npm run check:compilateur
