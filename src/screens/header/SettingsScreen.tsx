@@ -95,9 +95,46 @@ export default function SettingsScreen() {
     setPseudoSaving(false);
   };
 
-  // --- Mot de passe : l'API n'a pas de route pour le changer ; un lien de
-  // réinitialisation par e-mail (dans l'app quand la route est en ligne,
-  // sinon sur le site) ---
+  // --- Mot de passe : changement dans l'app (POST /user/password : ancien et
+  // nouveau mot de passe, autres appareils déconnectés, courriel de
+  // confirmation) ; en secours, le lien de réinitialisation par e-mail ---
+  const [pwdCurrent, setPwdCurrent] = useState('');
+  const [pwdNew, setPwdNew] = useState('');
+  const [pwdConfirm, setPwdConfirm] = useState('');
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdDone, setPwdDone] = useState(false);
+  const pwdReady = pwdCurrent.length > 0 && pwdNew.length > 0 && pwdConfirm.length > 0 && !pwdSaving;
+  const openPassword = () => {
+    setPwdCurrent('');
+    setPwdNew('');
+    setPwdConfirm('');
+    setPwdError(null);
+    setPwdDone(false);
+    setResetSent(false);
+    setResetError(null);
+    open('password');
+  };
+  const changePassword = async () => {
+    if (pwdNew.length < 8) {
+      setPwdError('Ton nouveau mot de passe doit faire au moins 8 caractères.');
+      return;
+    }
+    if (pwdNew !== pwdConfirm) {
+      setPwdError('Les deux saisies du nouveau mot de passe ne sont pas identiques.');
+      return;
+    }
+    setPwdSaving(true);
+    setPwdError(null);
+    try {
+      await post('/user/password', { current_password: pwdCurrent, password: pwdNew, password_confirmation: pwdConfirm });
+      success();
+      setPwdDone(true);
+    } catch (err) {
+      setPwdError(actionErrorText(err, 'Le changement n’a pas abouti. Réessaie dans un instant.'));
+    }
+    setPwdSaving(false);
+  };
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const sendReset = async () => {
@@ -223,11 +260,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="lock-closed-outline"
             label="Mot de passe"
-            onPress={() => {
-              setResetSent(false);
-              setResetError(null);
-              open('password');
-            }}
+            onPress={openPassword}
             last
           />
         </SettingsSection>
@@ -286,24 +319,82 @@ export default function SettingsScreen() {
         <BottomSheet open={sheet === 'password'} onRequestClose={close} onClosed={unmount}>
           <View style={styles.sheet}>
             <AppText variant="title3" accessibilityRole="header">
-              Mot de passe
+              Changer de mot de passe
             </AppText>
-            <AppText variant="callout" tone="subtitle">
-              {FORGOT_PASSWORD_ENABLED
-                ? `Je t’envoie un lien à ${user?.email ?? 'ton adresse'} pour choisir un nouveau mot de passe.`
-                : 'Pour choisir un nouveau mot de passe, passe par le site : tu y reçois un lien par e-mail.'}
-            </AppText>
-            {resetSent ? (
-              <AppText variant="callout" tone="success" accessibilityRole="alert">
-                Si un compte existe avec cette adresse, un lien vient d’être envoyé.
-              </AppText>
-            ) : null}
-            {resetError ? (
-              <AppText variant="callout" tone="error" accessibilityRole="alert">
-                {resetError}
-              </AppText>
-            ) : null}
-            <Button label={FORGOT_PASSWORD_ENABLED ? 'Recevoir le lien' : 'Ouvrir le site'} onPress={sendReset} disabled={resetSent} />
+            {pwdDone ? (
+              <>
+                <AppText variant="callout" tone="success" accessibilityRole="alert">
+                  Mot de passe changé. Tes autres appareils ont été déconnectés, et un courriel de confirmation t’attend.
+                </AppText>
+                <Button label="Fermer" onPress={close} />
+              </>
+            ) : (
+              <>
+                <AppText variant="callout" tone="subtitle">
+                  Ton mot de passe actuel, puis le nouveau (8 caractères au moins). Tes autres appareils seront déconnectés.
+                </AppText>
+                <TextField
+                  label="Mot de passe actuel"
+                  value={pwdCurrent}
+                  onChangeText={(t) => {
+                    setPwdCurrent(t);
+                    setPwdError(null);
+                  }}
+                  secret
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="password"
+                  autoComplete="current-password"
+                  returnKeyType="next"
+                />
+                <TextField
+                  label="Nouveau mot de passe"
+                  value={pwdNew}
+                  onChangeText={(t) => {
+                    setPwdNew(t);
+                    setPwdError(null);
+                  }}
+                  secret
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="newPassword"
+                  autoComplete="new-password"
+                  returnKeyType="next"
+                />
+                <TextField
+                  label="Confirme le nouveau mot de passe"
+                  value={pwdConfirm}
+                  onChangeText={(t) => {
+                    setPwdConfirm(t);
+                    setPwdError(null);
+                  }}
+                  secret
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="newPassword"
+                  autoComplete="new-password"
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (pwdReady) changePassword();
+                  }}
+                  error={pwdError}
+                />
+                <Button label="Changer mon mot de passe" onPress={changePassword} disabled={!pwdReady} loading={pwdSaving} />
+                {FORGOT_PASSWORD_ENABLED ? (
+                  <Button
+                    variant="text"
+                    label={resetSent ? 'Lien envoyé : regarde tes courriels' : 'Mot de passe oublié ? Recevoir un lien'}
+                    onPress={sendReset}
+                    disabled={resetSent}
+                  />
+                ) : null}
+                {resetError ? (
+                  <AppText variant="callout" tone="error" accessibilityRole="alert">
+                    {resetError}
+                  </AppText>
+                ) : null}
+              </>
+            )}
           </View>
         </BottomSheet>
       ) : null}
