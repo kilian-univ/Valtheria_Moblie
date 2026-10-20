@@ -100,6 +100,7 @@ Fonctions pures, sans React ni React Native, testées par `tests/`. Par domaine 
 - Alias `@/` vers la racine (`@/src/...`).
 - Tout est en français : interface, commentaires, messages de commit, documentation.
 - React Compiler activé : pas de `useMemo`/`useCallback` manuels superflus, pas de `setState` dans le corps d'un effet (ESLint le refuse).
+- Ce qui fait sauter silencieusement un composant entier par le compilateur React (constaté au lot 3, en lisant la sortie de Babel) : un `finally`, une condition (`? :`, `&&`, `?.`) à l'intérieur d'un `try`, une règle `eslint-disable` dans le composant, et tout ce qui dérive du résultat d'une fonction (une date, par exemple) passé ensuite à d'autres fonctions : le compilateur le croit modifiable et ne mémorise plus rien en aval. Pour une chaîne, un gabarit `` `${f()}` `` lève le doute.
 - Reanimated : rien d'autre que des worklets dans les animations ; `tests/worklets.test.ts` le contrôle sur tout le code.
 - Espaces insécables : une seule source (`frenchSpaces`), appliquée à l'affichage ; `tests/frenchSpaces.test.ts` et `tests/espaces.test.ts`.
 - Aucun chiffre réglementaire écrit en dur : ils viennent de l'API (`/api/regulatory-figures`).
