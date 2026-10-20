@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useState } from 'react';
+import { memo, useEffect, useId, useLayoutEffect, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -254,10 +254,11 @@ function ChartDrawing({ d, width, height, touched }: { d: Drawing; width: number
           </SvgText>
         </G>
       ) : null}
-      {(d.dots ?? []).map((dot) => {
+      {(d.dots ?? []).map((dot, i) => {
         const v = dot.value ?? values[dot.index];
         if (v === null || v === undefined) return null;
-        return <Circle key={`${dot.index}-${dot.color}`} cx={scale.x(dot.index)} cy={scale.y(v)} r={4.5} fill={dot.color} stroke={colors.background} strokeWidth={2} />;
+        // Clé par rang : deux versements le même jour partagent un index
+        return <Circle key={`dot-${i}`} cx={scale.x(dot.index)} cy={scale.y(v)} r={4.5} fill={dot.color} stroke={colors.background} strokeWidth={2} />;
       })}
       {/* Le plus haut et le plus bas de la période */}
       {extremeBoxes.map((e) => {
@@ -287,7 +288,7 @@ function ChartDrawing({ d, width, height, touched }: { d: Drawing; width: number
 // met à jour son grand montant (onScrub). Vibration légère à chaque changement
 // de jour. Changer de période ou de mode fond l'ancienne courbe dans la nouvelle
 // (300 ms, sauf avec la réduction des animations). Le lecteur d'écran lit le résumé.
-export default function LineChart({ times, dateLabel, onScrub, height: heightProp, animateKey, summary, onLongPressPoint, ...drawing }: Props) {
+function LineChart({ times, dateLabel, onScrub, height: heightProp, animateKey, summary, onLongPressPoint, ...drawing }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
@@ -434,3 +435,7 @@ const styles = StyleSheet.create({
   belowSwatch: { width: 16, borderTopWidth: 1.5, borderStyle: 'dashed' },
   belowText: { fontFamily: fonts.bodyMedium, fontSize: PILL_FONT },
 });
+
+// Mémorisé : redessiné seulement quand ses propriétés changent, pas à chaque
+// rendu de l'écran qui le contient
+export default memo(LineChart);

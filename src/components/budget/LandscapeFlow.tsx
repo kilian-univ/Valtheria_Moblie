@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,7 +42,7 @@ type Props = {
 // familles → postes, avec les filtres. L'app reste en portrait (Expo Go ne
 // change pas l'orientation) : la vue est pivotée d'un quart de tour, plein
 // écran.
-export default function LandscapeFlow({ rotation, title, income, spent, saved, rate, postes, sources, focus, onFocus, summary, onClose }: Props) {
+function LandscapeFlow({ rotation, title, income, spent, saved, rate, postes, sources, focus, onFocus, summary, onClose }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
@@ -136,3 +137,7 @@ const styles = StyleSheet.create({
   filterText: { fontFamily: fonts.bodyBold, fontSize: 13 },
   diagram: { flex: 1, alignItems: 'center', paddingTop: space[2] },
 });
+
+// Mémorisé : redessiné seulement quand ses propriétés changent, pas à chaque
+// rendu de l'écran qui le contient
+export default memo(LandscapeFlow);

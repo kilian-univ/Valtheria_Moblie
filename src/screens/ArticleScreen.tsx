@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import Text from '@/src/components/common/Text';
 
 import Button from '@/src/components/common/Button';
@@ -73,10 +74,11 @@ export default function ArticlesScreen() {
       setMoreError(null);
     } catch (err: unknown) {
       setMoreError(loadErrorKind(err));
-    } finally {
-      busy.current = false;
-      setLoadingMore(false);
     }
+    // (après le try/catch, pas dans un « finally » : le compilateur React
+    // sauterait tout l'écran)
+    busy.current = false;
+    setLoadingMore(false);
   }, [feed]);
 
   const handleRefresh = () => {
@@ -137,7 +139,7 @@ export default function ArticlesScreen() {
         onEndReachedThreshold={0.6}
         renderItem={({ item }) => (
           <Pressable style={styles.card} onPress={() => router.push({ pathname: '/articles/[slug]', params: { slug: item.slug } })}>
-            {item.cover_image ? <Image source={{ uri: item.cover_image }} style={styles.cover} /> : null}
+            {item.cover_image ? <Image source={{ uri: item.cover_image }} contentFit="cover" recyclingKey={item.slug} style={styles.cover} /> : null}
 
             <View style={styles.cardBody}>
               <View style={styles.cardHeader}>

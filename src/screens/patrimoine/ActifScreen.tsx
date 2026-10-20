@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
@@ -116,24 +116,22 @@ export default function ActifScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const remove = useCallback(
-    async (op: Operation) => {
-      setBusy(true);
-      setError(null);
-      try {
-        await del(`/portfolio/operations/${op.id}`);
-        feedback.drop();
-        setSheetOpen(false);
-        await loadPatrimoine(userKey, getPortfolio, true);
-      } catch (e: unknown) {
-        feedback.wrong(0.6);
-        setError(actionErrorText(e, 'Suppression impossible pour l’instant. Réessaie dans un instant.'));
-      } finally {
-        setBusy(false);
-      }
-    },
-    [del, userKey, getPortfolio]
-  );
+  // (mémorisée par le compilateur React, comme le reste de l'écran : sans
+  // useCallback ni « finally », qu'il ne compile pas encore)
+  const remove = async (op: Operation) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await del(`/portfolio/operations/${op.id}`);
+      feedback.drop();
+      setSheetOpen(false);
+      await loadPatrimoine(userKey, getPortfolio, true);
+    } catch (e: unknown) {
+      feedback.wrong(0.6);
+      setError(actionErrorText(e, 'Suppression impossible pour l’instant. Réessaie dans un instant.'));
+    }
+    setBusy(false);
+  };
 
   // Pas encore de patrimoine à montrer : chargement, sans compte, ou erreur
   // (hors ligne, serveur) ; jamais « n'est plus dans ton patrimoine » à tort
@@ -184,219 +182,230 @@ export default function ActifScreen() {
   const periodAmount = position && first !== null && last !== null ? (chartCurrency === 'EUR' ? position.quantity * (last - first) : toEur(position.quantity * (last - first), chartCurrency, rates)) : null;
 
   const opLabel = (op: Operation) => `${op.side === 'buy' ? 'Achat' : 'Vente'} de ${quantityLabel(op.quantity, ticker, type)}`;
+  const opList = ops?.list ?? [];
+
+  // Tout ce qui précède les opérations : en-tête de la liste virtualisée
+  // (les opérations s'accumulent au fil des années, seules les lignes
+  // visibles sont montées)
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.head}>
+        <AssetIcon logoUrl={position?.logoUrl ?? closed?.logoUrl ?? null} name={name} ticker={ticker} type={type} size={52} />
+        <View style={styles.headText}>
+          <AppText accessibilityRole="header" numberOfLines={2} style={styles.name}>
+            {name}
+          </AppText>
+          <AppText variant="caption" tone="subtitle">
+            {headline}
+          </AppText>
+        </View>
+      </View>
+      {stale ? (
+        <AppText variant="caption" style={{ color: colors.gold }}>
+          Cours figé : la source ne répond pas, c’est le dernier cours connu{position?.priceUpdatedAt ? ` (${shortDate(position.priceUpdatedAt, now)})` : ''}.
+        </AppText>
+      ) : null}
+
+      {position ? (
+        <View
+          accessible
+          accessibilityLabel={`Ta position : ${hidden ? 'masquée' : money(valueShown)}${
+            market && !hidden ? `, ${signedMoney(gainShown)} depuis tes achats` : ''
+          }${market && !hidden && periodPct !== null && periodAmount !== null ? `, ${signedMoney(periodAmount)} ${periodText}` : ''}`}
+        >
+          <AppText variant="caption" tone="subtitle">
+            Ta position
+          </AppText>
+          <BigNumber
+            text={scrubValue !== null ? money(scrubValue, { hidden }) : money(valueShown, { hidden, currency: position.valueEur !== null ? 'EUR' : currency })}
+            size={40}
+            tone="text"
+            style={styles.left}
+          />
+          {market && !scrubbed ? (
+            <AppText style={[styles.variation, { color: gainShown >= 0 ? colors.success : colors.error }]}>
+              {signedMoney(gainShown, { hidden })} ({signedPercent(position.gainPct, hidden)}){' '}
+              <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>depuis tes achats</AppText>
+            </AppText>
+          ) : null}
+          {market && periodPct !== null && periodAmount !== null ? (
+            <AppText style={[styles.variation, { color: periodAmount >= 0 ? colors.success : colors.error }]}>
+              {signedMoney(periodAmount, { hidden })} ({signedPercent(periodPct, hidden)}){' '}
+              <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{periodText}</AppText>
+            </AppText>
+          ) : null}
+        </View>
+      ) : (
+        <AppText variant="callout" tone="subtitle">
+          Position clôturée{closed?.closedAt ? ` le ${longDate(closed.closedAt)}` : ''}.
+        </AppText>
+      )}
+
+      {market ? (
+        <>
+          <View style={styles.chart}>
+            {points.length >= 2 ? (
+              <LineChart
+                values={points.map((p) => p.price)}
+                color={colors.gold}
+                area={false}
+                level={
+                  pru !== null
+                    ? { value: pru, label: hidden ? 'prix de revient' : `prix de revient ${money(pru, { currency: chartCurrency, exact: true })}`, color: colors.frostInk }
+                    : null
+                }
+                // Point d'un achat ou d'une vente : à son prix, converti comme la liste
+                dots={marks.map((m) => {
+                  const op = ops?.list.find((o) => o.id === m.operationId);
+                  const at = op ? inChart(op.unitPrice, op.currency) : null;
+                  return { index: m.index, color: m.side === 'buy' ? colors.success : colors.error, value: at ?? undefined };
+                })}
+                formatTick={hidden ? undefined : (x) => (chartCurrency === 'EUR' ? compactTick(x, 'eur') : money(x, { currency: chartCurrency }))}
+                extremeLabel={hidden ? undefined : (x) => money(x, { currency: chartCurrency, exact: x < 100 })}
+                times={points.map((p) => p.t)}
+                dateLabel={(i) => scrubDateLabel(points[i].t, shownPeriod, now)}
+                onScrub={setScrub}
+                animateKey={shownPeriod}
+                summary={priceSummary(points, period, (x) => money(x, { currency: chartCurrency }), name)}
+              />
+            ) : (
+              <View style={[styles.chartEmpty, { borderColor: colors.border }]}>
+                <AppText variant="callout" tone="subtitle" style={styles.center}>
+                  {prices?.range !== range ? 'Chargement du cours…' : 'Pas de cours disponible sur cette période.'}
+                </AppText>
+              </View>
+            )}
+          </View>
+          {marks.length > 0 ? (
+            <View style={styles.legend} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <LegendDot color={colors.success} label="tes achats" />
+              {marks.some((m) => m.side === 'sell') ? <LegendDot color={colors.error} label="tes ventes" /> : null}
+            </View>
+          ) : null}
+          <View style={styles.periodRow}>
+            <View style={styles.flex}>
+              <PeriodPicker value={period} onChange={setPeriod} />
+            </View>
+            <ChartMenu
+              hide={hideAnomalies}
+              onChange={(hide) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, hideAnomalies: hide }))}
+              anomalies={anomalies.map((p) => ({ key: String(p.t), label: `${shortDate(p.t, now)} · ${money(p.price, { currency: chartCurrency, exact: true })}` }))}
+            />
+          </View>
+        </>
+      ) : null}
+
+      {position && market ? (
+        <View style={styles.grid}>
+          <View style={styles.gridRow}>
+            <Figure big label="Quantité" value={quantityLabel(position.quantity, ticker, type)} />
+            <Figure big label="Prix de revient moyen" value={me(position.avgCost, true)} note={orig(position.avgCost, true)} term="Prix de revient moyen" />
+          </View>
+          <View style={styles.gridRow}>
+            <Figure big label="Investi" value={money(position.investedEur ?? position.invested, { hidden, currency: position.investedEur !== null ? 'EUR' : currency })} note={orig(position.invested)} term="Montant investi" />
+            <Figure
+              big
+              label="Plus-value latente"
+              value={signedMoney(gainShown, { hidden })}
+              note={hidden || currency === 'EUR' ? null : signedMoney(position.gain, { currency })}
+              tone={gainShown >= 0 ? 'success' : 'error'}
+              term="Plus-value latente"
+            />
+          </View>
+          {Math.abs(realizedEur) > 0.004 ? (
+            <View style={styles.gridRow}>
+              <Figure big label="Plus-value réalisée" value={signedMoney(realizedEur, { hidden })} tone={realizedEur >= 0 ? 'success' : 'error'} term="Plus-value réalisée" />
+            </View>
+          ) : null}
+        </View>
+      ) : position ? (
+        <View style={styles.gridRow}>
+          {position.interestRatePct !== null ? (
+            <Figure
+              big
+              label="Taux par an"
+              value={`${String(position.interestRatePct).replace('.', ',')}\u00a0%`}
+              // Taux réglementaire : sa date (« taux au 1er août 2026 ») ; taux saisi : rien
+              note={position.interestRateSource === 'regulatory' ? rateDateLabel(position.interestRateEffectiveAt, position.interestRateVerifiedAt) : null}
+              term="Taux d’intérêt"
+            />
+          ) : null}
+          {position.interestEur !== null ? <Figure big label="Intérêts sur 1 an" value={signedMoney(position.interestEur, { hidden })} tone="gold" term="Intérêts" /> : null}
+          {position.isManual ? <Figure big label="Valeur estimée" value={me(position.value)} /> : null}
+        </View>
+      ) : (
+        <View style={styles.gridRow}>
+          <Figure big label="Plus-value réalisée" value={signedMoney(realizedEur, { hidden })} tone={realizedEur >= 0 ? 'success' : 'error'} term="Plus-value réalisée" />
+        </View>
+      )}
+
+      {opList.length > 0 ? (
+        <AppText variant="sectionLabel" accessibilityRole="header" style={styles.section}>
+          TES OPÉRATIONS
+        </AppText>
+      ) : null}
+    </View>
+  );
+
+  const footer = position ? (
+    <View style={styles.cta}>
+      <Button
+        label={market ? 'Noter une opération' : 'Mettre à jour'}
+        icon={market ? 'add' : 'create-outline'}
+        onPress={() => router.push({ pathname: '/outils/operation', params: { positionId: String(position.id) } })}
+      />
+      <AppText variant="caption" tone="subtitle" style={styles.center}>
+        {market
+          ? 'Un achat ou une vente faits chez ton courtier, pour garder ton suivi à jour.'
+          : position.isLivret
+            ? 'Un versement ou un retrait, pour garder ton suivi à jour.'
+            : 'Sa valeur estimée, mise à jour à la main.'}
+      </AppText>
+    </View>
+  ) : null;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.bar}>
         <BackButton onBack={() => router.back()} />
       </View>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space[8] }]}>
-        <View style={styles.head}>
-          <AssetIcon logoUrl={position?.logoUrl ?? closed?.logoUrl ?? null} name={name} ticker={ticker} type={type} size={52} />
-          <View style={styles.headText}>
-            <AppText accessibilityRole="header" numberOfLines={2} style={styles.name}>
-              {name}
-            </AppText>
-            <AppText variant="caption" tone="subtitle">
-              {headline}
-            </AppText>
-          </View>
-        </View>
-        {stale ? (
-          <AppText variant="caption" style={{ color: colors.gold }}>
-            Cours figé : la source ne répond pas, c’est le dernier cours connu{position?.priceUpdatedAt ? ` (${shortDate(position.priceUpdatedAt, now)})` : ''}.
-          </AppText>
-        ) : null}
-
-        {position ? (
-          <View
-            accessible
-            accessibilityLabel={`Ta position : ${hidden ? 'masquée' : money(valueShown)}${
-              market && !hidden ? `, ${signedMoney(gainShown)} depuis tes achats` : ''
-            }${market && !hidden && periodPct !== null && periodAmount !== null ? `, ${signedMoney(periodAmount)} ${periodText}` : ''}`}
+      <FlatList
+        data={opList}
+        keyExtractor={(op) => String(op.id)}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space[8] }]}
+        ListHeaderComponent={header}
+        ListFooterComponent={footer}
+        renderItem={({ item: op, index }) => (
+          <Pressable
+            onPress={() => {
+              tap();
+              setError(null);
+              setSheet({ op, confirm: false });
+              setSheetOpen(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`${opLabel(op)}, le ${longDate(op.executedAt)}, ${hidden ? 'montant masqué' : moneyEur(op.total, op.currency, rates)}`}
+            accessibilityHint="Modifier ou supprimer cette opération"
+            style={({ pressed }) => [
+              styles.opRow,
+              index < opList.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+              pressed && { opacity: 0.7 },
+            ]}
           >
-            <AppText variant="caption" tone="subtitle">
-              Ta position
-            </AppText>
-            <BigNumber
-              text={scrubValue !== null ? money(scrubValue, { hidden }) : money(valueShown, { hidden, currency: position.valueEur !== null ? 'EUR' : currency })}
-              size={40}
-              tone="text"
-              style={styles.left}
-            />
-            {market && !scrubbed ? (
-              <AppText style={[styles.variation, { color: gainShown >= 0 ? colors.success : colors.error }]}>
-                {signedMoney(gainShown, { hidden })} ({signedPercent(position.gainPct, hidden)}){' '}
-                <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>depuis tes achats</AppText>
+            <View style={[styles.opIcon, { backgroundColor: withOpacity(op.side === 'buy' ? colors.success : colors.error, 0.14) }]}>
+              <Ionicons name={op.side === 'buy' ? 'arrow-up' : 'arrow-down'} size={16} color={op.side === 'buy' ? colors.success : colors.error} />
+            </View>
+            <View style={styles.opBody}>
+              <AppText style={styles.opTitle}>{opLabel(op)}</AppText>
+              <AppText variant="caption" tone="subtitle">
+                {longDate(op.executedAt)} · {moneyEur(op.unitPrice, op.currency, rates, { hidden, exact: true })} l’unité
               </AppText>
-            ) : null}
-            {market && periodPct !== null && periodAmount !== null ? (
-              <AppText style={[styles.variation, { color: periodAmount >= 0 ? colors.success : colors.error }]}>
-                {signedMoney(periodAmount, { hidden })} ({signedPercent(periodPct, hidden)}){' '}
-                <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{periodText}</AppText>
-              </AppText>
-            ) : null}
-          </View>
-        ) : (
-          <AppText variant="callout" tone="subtitle">
-            Position clôturée{closed?.closedAt ? ` le ${longDate(closed.closedAt)}` : ''}.
-          </AppText>
+            </View>
+            <AppText style={styles.opAmount}>{money(toEur(op.total, op.currency, rates) ?? op.total, { hidden, currency: toEur(op.total, op.currency, rates) === null ? op.currency : 'EUR' })}</AppText>
+            <Ionicons name="chevron-forward" size={14} color={colors.subtitle} />
+          </Pressable>
         )}
-
-        {market ? (
-          <>
-            <View style={styles.chart}>
-              {points.length >= 2 ? (
-                <LineChart
-                  values={points.map((p) => p.price)}
-                  color={colors.gold}
-                  area={false}
-                  level={
-                    pru !== null
-                      ? { value: pru, label: hidden ? 'prix de revient' : `prix de revient ${money(pru, { currency: chartCurrency, exact: true })}`, color: colors.frostInk }
-                      : null
-                  }
-                  // Point d'un achat ou d'une vente : à son prix, converti comme la liste
-                  dots={marks.map((m) => {
-                    const op = ops?.list.find((o) => o.id === m.operationId);
-                    const at = op ? inChart(op.unitPrice, op.currency) : null;
-                    return { index: m.index, color: m.side === 'buy' ? colors.success : colors.error, value: at ?? undefined };
-                  })}
-                  formatTick={hidden ? undefined : (x) => (chartCurrency === 'EUR' ? compactTick(x, 'eur') : money(x, { currency: chartCurrency }))}
-                  extremeLabel={hidden ? undefined : (x) => money(x, { currency: chartCurrency, exact: x < 100 })}
-                  times={points.map((p) => p.t)}
-                  dateLabel={(i) => scrubDateLabel(points[i].t, shownPeriod, now)}
-                  onScrub={setScrub}
-                  animateKey={shownPeriod}
-                  summary={priceSummary(points, period, (x) => money(x, { currency: chartCurrency }), name)}
-                />
-              ) : (
-                <View style={[styles.chartEmpty, { borderColor: colors.border }]}>
-                  <AppText variant="callout" tone="subtitle" style={styles.center}>
-                    {prices?.range !== range ? 'Chargement du cours…' : 'Pas de cours disponible sur cette période.'}
-                  </AppText>
-                </View>
-              )}
-            </View>
-            {marks.length > 0 ? (
-              <View style={styles.legend} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                <LegendDot color={colors.success} label="tes achats" />
-                {marks.some((m) => m.side === 'sell') ? <LegendDot color={colors.error} label="tes ventes" /> : null}
-              </View>
-            ) : null}
-            <View style={styles.periodRow}>
-              <View style={styles.flex}>
-                <PeriodPicker value={period} onChange={setPeriod} />
-              </View>
-              <ChartMenu
-                hide={hideAnomalies}
-                onChange={(hide) => updatePatrimoinePrefs(userKey, (p) => ({ ...p, hideAnomalies: hide }))}
-                anomalies={anomalies.map((p) => ({ key: String(p.t), label: `${shortDate(p.t, now)} · ${money(p.price, { currency: chartCurrency, exact: true })}` }))}
-              />
-            </View>
-          </>
-        ) : null}
-
-        {position && market ? (
-          <View style={styles.grid}>
-            <View style={styles.gridRow}>
-              <Figure big label="Quantité" value={quantityLabel(position.quantity, ticker, type)} />
-              <Figure big label="Prix de revient moyen" value={me(position.avgCost, true)} note={orig(position.avgCost, true)} term="Prix de revient moyen" />
-            </View>
-            <View style={styles.gridRow}>
-              <Figure big label="Investi" value={money(position.investedEur ?? position.invested, { hidden, currency: position.investedEur !== null ? 'EUR' : currency })} note={orig(position.invested)} term="Montant investi" />
-              <Figure
-                big
-                label="Plus-value latente"
-                value={signedMoney(gainShown, { hidden })}
-                note={hidden || currency === 'EUR' ? null : signedMoney(position.gain, { currency })}
-                tone={gainShown >= 0 ? 'success' : 'error'}
-                term="Plus-value latente"
-              />
-            </View>
-            {Math.abs(realizedEur) > 0.004 ? (
-              <View style={styles.gridRow}>
-                <Figure big label="Plus-value réalisée" value={signedMoney(realizedEur, { hidden })} tone={realizedEur >= 0 ? 'success' : 'error'} term="Plus-value réalisée" />
-              </View>
-            ) : null}
-          </View>
-        ) : position ? (
-          <View style={styles.gridRow}>
-            {position.interestRatePct !== null ? (
-              <Figure
-                big
-                label="Taux par an"
-                value={`${String(position.interestRatePct).replace('.', ',')}\u00a0%`}
-                // Taux réglementaire : sa date (« taux au 1er août 2026 ») ; taux saisi : rien
-                note={position.interestRateSource === 'regulatory' ? rateDateLabel(position.interestRateEffectiveAt, position.interestRateVerifiedAt) : null}
-                term="Taux d’intérêt"
-              />
-            ) : null}
-            {position.interestEur !== null ? <Figure big label="Intérêts sur 1 an" value={signedMoney(position.interestEur, { hidden })} tone="gold" term="Intérêts" /> : null}
-            {position.isManual ? <Figure big label="Valeur estimée" value={me(position.value)} /> : null}
-          </View>
-        ) : (
-          <View style={styles.gridRow}>
-            <Figure big label="Plus-value réalisée" value={signedMoney(realizedEur, { hidden })} tone={realizedEur >= 0 ? 'success' : 'error'} term="Plus-value réalisée" />
-          </View>
-        )}
-
-        {ops && ops.list.length > 0 ? (
-          <View style={styles.section}>
-            <AppText variant="sectionLabel" accessibilityRole="header">
-              TES OPÉRATIONS
-            </AppText>
-            {ops.list.map((op, i) => (
-              <Pressable
-                key={op.id}
-                onPress={() => {
-                  tap();
-                  setError(null);
-                  setSheet({ op, confirm: false });
-                  setSheetOpen(true);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`${opLabel(op)}, le ${longDate(op.executedAt)}, ${hidden ? 'montant masqué' : moneyEur(op.total, op.currency, rates)}`}
-                accessibilityHint="Modifier ou supprimer cette opération"
-                style={({ pressed }) => [
-                  styles.opRow,
-                  i < ops.list.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <View style={[styles.opIcon, { backgroundColor: withOpacity(op.side === 'buy' ? colors.success : colors.error, 0.14) }]}>
-                  <Ionicons name={op.side === 'buy' ? 'arrow-up' : 'arrow-down'} size={16} color={op.side === 'buy' ? colors.success : colors.error} />
-                </View>
-                <View style={styles.opBody}>
-                  <AppText style={styles.opTitle}>{opLabel(op)}</AppText>
-                  <AppText variant="caption" tone="subtitle">
-                    {longDate(op.executedAt)} · {moneyEur(op.unitPrice, op.currency, rates, { hidden, exact: true })} l’unité
-                  </AppText>
-                </View>
-                <AppText style={styles.opAmount}>{money(toEur(op.total, op.currency, rates) ?? op.total, { hidden, currency: toEur(op.total, op.currency, rates) === null ? op.currency : 'EUR' })}</AppText>
-                <Ionicons name="chevron-forward" size={14} color={colors.subtitle} />
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-
-        {position ? (
-          <View style={styles.cta}>
-            <Button
-              label={market ? 'Noter une opération' : 'Mettre à jour'}
-              icon={market ? 'add' : 'create-outline'}
-              onPress={() => router.push({ pathname: '/outils/operation', params: { positionId: String(position.id) } })}
-            />
-            <AppText variant="caption" tone="subtitle" style={styles.center}>
-              {market
-                ? 'Un achat ou une vente faits chez ton courtier, pour garder ton suivi à jour.'
-                : position.isLivret
-                  ? 'Un versement ou un retrait, pour garder ton suivi à jour.'
-                  : 'Sa valeur estimée, mise à jour à la main.'}
-            </AppText>
-          </View>
-        ) : null}
-      </ScrollView>
+      />
 
       {sheet ? (
         <BottomSheet open={sheetOpen} onRequestClose={() => setSheetOpen(false)} onClosed={() => setSheet(null)}>
@@ -454,7 +463,11 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   periodRow: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
   bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space[4], minHeight: 52 },
-  content: { paddingHorizontal: space[5], gap: space[3] },
+  content: { paddingHorizontal: space[5] },
+  // Même rythme qu'avant la liste virtualisée : blocs à space[3] les uns des
+  // autres, titre des opérations à space[3] + space[1] des lignes, bouton
+  // final à space[3] + space[4]
+  header: { gap: space[3] },
   head: { flexDirection: 'row', alignItems: 'center', gap: space[3] },
   headText: { flex: 1, gap: 2 },
   name: { fontFamily: fonts.title, fontSize: 28, lineHeight: 34, letterSpacing: titleLetterSpacing(28) },
@@ -476,13 +489,13 @@ const styles = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   grid: { gap: space[2] },
   gridRow: { flexDirection: 'row', gap: space[2] },
-  section: { marginTop: space[3], gap: space[1] },
+  section: { marginTop: space[3], marginBottom: space[1] },
   opRow: { flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[3] },
   opIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   opBody: { flex: 1, gap: 2 },
   opTitle: { fontFamily: fonts.bodySemibold, fontSize: 15 },
   opAmount: { fontFamily: fonts.bodyBold, fontSize: 14, fontVariant: ['tabular-nums'] },
-  cta: { marginTop: space[4], gap: space[2] },
+  cta: { marginTop: space[3] + space[4], gap: space[2] },
   center: { textAlign: 'center' },
   left: { textAlign: 'left' },
   sheet: { gap: space[3], paddingTop: space[4] },

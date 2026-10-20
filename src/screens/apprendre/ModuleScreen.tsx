@@ -1,14 +1,16 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NativeScrollEvent, NativeSyntheticEvent, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   scrollTo,
   useAnimatedReaction,
   useAnimatedRef,
+  useAnimatedScrollHandler,
   useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GuestState from '@/src/components/apprendre/home/GuestState';
@@ -92,7 +94,10 @@ export default function ModuleScreen() {
   const level = module && universe
     ? (levelGroups(universeEntry(universe, data.modules).modules).find((g) => g.modules.some((m) => m.id === module.id)) ?? null)
     : null;
-  const bannerText = [universe?.name, level?.key ? level.label : null].filter(Boolean).join(' · ') || 'Module';
+  // (en trois temps : le compilateur React sautait tout l'écran sur « a ?: b || c »)
+  const levelLabel = level?.key ? level.label : null;
+  const bannerParts = [universe?.name, levelLabel].filter(Boolean).join(' · ');
+  const bannerText = bannerParts === '' ? 'Module' : bannerParts;
 
   // Ouvrir un module l'enregistre comme dernier module ouvert
   const openedId = module?.id ?? null;
@@ -146,25 +151,36 @@ export default function ModuleScreen() {
   const [viewportH, setViewportH] = useState(0);
   const contentHeight = useRef(0);
   const [headerH, setHeaderH] = useState(0);
-  const scrollY = useRef(0);
-  // Même défilement, côté animations (effet de profondeur des décors)
+  // Position du défilement : écrite sur le fil d'interface à chaque événement
+  // (useAnimatedScrollHandler) et lue là par les décors (effet de profondeur),
+  // sans passer par JavaScript ; d'ici, lue au moment d'un geste
   const scrollSV = useSharedValue(0);
   const [pathTop, setPathTop] = useState<number | null>(null);
   const [pathWidth, setPathWidth] = useState(0);
   const [focusRect, setFocusRect] = useState<Rect | null>(null);
   const [focusSide, setFocusSide] = useState<Visibility>('visible');
+  // Dernier côté connu, côté interface : JavaScript n'est prévenu qu'au changement
+  const sideSV = useSharedValue<Visibility>('visible');
 
   const updateSide = useCallback(() => {
     if (pathTop === null || !focusRect || viewport.current === 0) return;
-    const side = visibility(pathTop + focusRect.y, focusRect.h, scrollY.current, viewport.current);
+    const side = visibility(pathTop + focusRect.y, focusRect.h, scrollSV.get(), viewport.current);
+    sideSV.set(side);
     setFocusSide((s) => (s === side ? s : side));
-  }, [pathTop, focusRect]);
+  }, [pathTop, focusRect, scrollSV, sideSV]);
 
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollY.current = e.nativeEvent.contentOffset.y;
-    scrollSV.set(scrollY.current);
-    updateSide();
-  };
+  const focusTop = pathTop !== null && focusRect ? pathTop + focusRect.y : null;
+  const focusHeight = focusRect?.h ?? 0;
+  const onScroll = useAnimatedScrollHandler((e) => {
+    const y = e.contentOffset.y;
+    scrollSV.set(y);
+    if (focusTop === null || viewportH === 0) return;
+    const side = visibility(focusTop, focusHeight, y, viewportH);
+    if (side !== sideSV.get()) {
+      sideSV.set(side);
+      scheduleOnRN(setFocusSide, side);
+    }
+  });
 
   // Glisse jusqu'à y en 300 ms (animations réduites : directement)
   const smoothScroll = useCallback(
@@ -174,10 +190,10 @@ export default function ModuleScreen() {
         scrollRef.current?.scrollTo({ y, animated: false });
         return;
       }
-      glide.set(scrollY.current);
+      glide.set(scrollSV.get());
       glide.set(withTiming(y, timing(motion.screen)));
     },
-    [reduced, glide, scrollRef]
+    [reduced, glide, scrollRef, scrollSV]
   );
 
   const maxScroll = () => Math.max(0, contentHeight.current - viewport.current);
@@ -194,13 +210,13 @@ export default function ModuleScreen() {
           : revealScroll({
               top: top - NODE_RING_PAD,
               bottom: top + focusRect.h + NODE_RING_PAD,
-              scrollY: scrollY.current,
+              scrollY: scrollSV.get(),
               viewport: viewport.current,
               maxScroll: Math.max(0, contentHeight.current - viewport.current),
             });
       if (target !== null) smoothScroll(target);
     },
-    [pathTop, focusRect, smoothScroll]
+    [pathTop, focusRect, smoothScroll, scrollSV]
   );
 
   // Arrivée : une seule fois, après la cascade des ronds
@@ -229,11 +245,11 @@ export default function ModuleScreen() {
     const wanted = revealScroll({
       top: nodeTop - NODE_RING_PAD,
       bottom: nodeTop + rect.h + CARD_GAP + CARD_HEIGHT,
-      scrollY: scrollY.current,
+      scrollY: scrollSV.get(),
       viewport: viewport.current,
       maxScroll: maxScroll(),
     });
-    const target = wanted ?? scrollY.current;
+    const target = wanted ?? scrollSV.get();
     if (wanted !== null) smoothScroll(wanted);
     setCard({
       view,

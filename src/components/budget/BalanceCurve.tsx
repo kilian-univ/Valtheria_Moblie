@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 
@@ -16,7 +16,7 @@ const PAD_X = 5;
 // « Ton solde ce mois-ci » (maquette, écran 4) : la courbe réelle jusqu'à
 // aujourd'hui, en pointillés ensuite, avec le solde attendu en fin de mois.
 // Dessin fixe, sans animation : rien à réduire.
-export default function BalanceCurve({ points, end }: { points: CurvePoint[]; end: number }) {
+function BalanceCurve({ points, end }: { points: CurvePoint[]; end: number }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const [width, setWidth] = useState(0);
@@ -72,3 +72,7 @@ export default function BalanceCurve({ points, end }: { points: CurvePoint[]; en
 const styles = StyleSheet.create({
   end: { position: 'absolute', right: 0, bottom: 0 },
 });
+
+// Mémorisé : redessiné seulement quand ses propriétés changent, pas à chaque
+// rendu de l'écran qui le contient
+export default memo(BalanceCurve);

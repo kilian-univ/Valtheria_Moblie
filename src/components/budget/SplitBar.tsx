@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import AppText from '@/src/components/common/AppText';
@@ -15,7 +16,7 @@ type Percents = { besoins: number; envies: number; epargne: number };
 
 // « Ta répartition » : besoins, envies, épargne, avec les repères 50/30/20
 // marqués sur la barre (à 50 % et à 80 %)
-export default function SplitBar({ p }: { p: Percents }) {
+function SplitBar({ p }: { p: Percents }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const tint = familyColors(colors);
@@ -63,3 +64,7 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
   note: { marginTop: space[1] },
 });
+
+// Mémorisé : redessiné seulement quand ses propriétés changent, pas à chaque
+// rendu de l'écran qui le contient
+export default memo(SplitBar);
