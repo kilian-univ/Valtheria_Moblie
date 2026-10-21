@@ -108,7 +108,7 @@ export default function EntrySheet({ open, onRequestClose, onClosed, today, choi
                   style={[styles.pill, sel ? { backgroundColor: colors.gold, borderColor: colors.gold } : { borderColor: colors.controlBorder }]}
                 >
                   <Ionicons name={categoryIcon(c) as never} size={18} color={sel ? colors.onGold : colors.text} />
-                  <AppText style={[styles.pillText, { color: sel ? colors.onGold : colors.text }]}>{categoryLabel(c)}</AppText>
+                  <AppText maxFontSizeMultiplier={1.4} style={[styles.pillText, { color: sel ? colors.onGold : colors.text }]}>{categoryLabel(c)}</AppText>
                 </Pressable>
               );
             })}
@@ -132,7 +132,7 @@ export default function EntrySheet({ open, onRequestClose, onClosed, today, choi
                   accessibilityLabel={name}
                   style={[styles.pill, sel ? { backgroundColor: colors.surfaceAlt, borderColor: colors.gold } : { borderColor: colors.controlBorder }]}
                 >
-                  <AppText style={[styles.pillText, { color: colors.text }]}>{name}</AppText>
+                  <AppText maxFontSizeMultiplier={1.4} style={[styles.pillText, { color: colors.text }]}>{name}</AppText>
                 </Pressable>
               );
             })}
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { textAlign: 'center', alignSelf: 'center' },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2], justifyContent: 'center' },
-  pill: { height: 44, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1.5, flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  pill: { minHeight: 44, paddingVertical: space[1], paddingHorizontal: 14, borderRadius: 999, borderWidth: 1.5, flexDirection: 'row', alignItems: 'center', gap: space[2] },
   pillText: { fontFamily: fonts.bodyBold, fontSize: 15 },
   recurring: { flexDirection: 'row', alignItems: 'center', gap: space[3], paddingVertical: space[1] },
 });

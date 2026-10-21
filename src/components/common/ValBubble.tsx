@@ -344,6 +344,9 @@ type SpeechBubbleProps = {
   // Petit texte doré en gras après la réplique (« 1 sur 2 »), écrit avec le
   // dernier mot
   accent?: string;
+  // Grand texte : agrandissement maximal du texte (2 par défaut ; moins dans
+  // une bulle posée sur un décor de hauteur fixe)
+  maxFontScale?: number;
   onLayout?: (width: number, height: number) => void;
 };
 
@@ -366,6 +369,7 @@ export function SpeechBubble({
   onLayout,
   typing = true,
   accent,
+  maxFontScale = 2,
 }: SpeechBubbleProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
@@ -443,7 +447,7 @@ export function SpeechBubble({
         ) : null}
         {/* Tout le texte est posé dès le départ (taille de bulle stable) ;
             les mots pas encore écrits sont simplement invisibles. */}
-        <Text maxFontSizeMultiplier={2} style={[styles.text, { color: colors.onBubble }]}>
+        <Text maxFontSizeMultiplier={maxFontScale} style={[styles.text, { color: colors.onBubble }]}>
           {words.map((word, i) => (
             <Text key={i} style={[word.bold && styles.emphasis, i >= shown && styles.hidden]}>
               {word.text}
