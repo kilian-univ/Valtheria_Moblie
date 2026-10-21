@@ -10,6 +10,6 @@ export default function PatrimoineGate() {
   const v = usePatrimoineView();
   // Objectifs de l'ancien outil Épargne repris, une seule fois, avec les placements
   useSavingsImport(v.view === 'ready' ? (v.data.portfolio?.positions ?? null) : null);
-  if (v.view !== 'ready') return <PatrimoineStateScreen view={v.view} title="Mon patrimoine" errorKind={v.errorKind} onRetry={v.retry} />;
+  if (v.view !== 'ready') return <PatrimoineStateScreen view={v.view} title="Mon patrimoine" errorKind={v.errorKind} onRetry={v.retry} retrying={v.retrying} />;
   return <PatrimoineScreen />;
 }

@@ -25,17 +25,21 @@ export function usePatrimoineView() {
 
   let view: PatrimoineView;
   let errorKind: LoadError = 'server';
+  // Nouvelle tentative en cours depuis l'erreur : l'erreur reste affichée
+  let retrying = false;
   if (session.profile === 'pending' || session.profile === 'loading') view = 'loading';
   else if (session.profile === 'guest') view = 'guest';
   else if (session.profile === 'error') {
     view = 'error';
     errorKind = session.errorKind;
+    retrying = session.profileRetrying;
   } else if (data.portfolio && data.ledger) view = 'ready';
   // Réponse à un format que l'app ne sait pas lire : erreur du serveur
   else if (data.portfolio && !data.ledger) view = 'error';
   else if (data.status === 'error') {
     view = 'error';
     errorKind = data.errorKind ?? 'server';
+    retrying = data.retrying;
   } else view = 'loading';
 
   const retry = useCallback(() => {
@@ -48,6 +52,7 @@ export function usePatrimoineView() {
     data,
     view,
     errorKind,
+    retrying,
     // Données affichées, mais le dernier rechargement a échoué
     stale: view === 'ready' && data.error !== null,
     staleKind: data.errorKind ?? 'server',

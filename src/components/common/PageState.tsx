@@ -23,6 +23,8 @@ type ErrorProps = {
   message: string;
   retryLabel?: string;
   onRetry: () => void;
+  // Nouvelle tentative en cours : le message reste en place, le bouton le dit
+  retrying?: boolean;
 };
 
 type OfflineProps = {
@@ -81,7 +83,13 @@ export default function PageState(props: PageStateProps) {
             {props.message}
           </AppText>
         </View>
-        <Button variant="secondary" label={props.retryLabel ?? 'Réessayer'} onPress={props.onRetry} />
+        <Button
+          variant="secondary"
+          label={props.retrying ? 'Nouvelle tentative…' : (props.retryLabel ?? 'Réessayer')}
+          onPress={props.onRetry}
+          loading={props.retrying}
+          disabled={props.retrying}
+        />
       </View>
     );
   }
