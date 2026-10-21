@@ -8,11 +8,15 @@ export type LoadError = 'network' | 'server';
 
 // fetch lève un TypeError quand il n'y a pas de réseau (« Network request
 // failed » sur iPhone, « Failed to fetch » ou « Load failed » sur le web) ;
-// toute autre erreur vient du serveur.
+// toute autre erreur vient du serveur. Le délai dépassé de la couche API
+// (« Network request timed out », au bout de 15 s) veut dire que la requête
+// est partie sans réponse à temps : le serveur ne répond pas, ce n'est pas
+// le réseau qui manque (lot 7, retours de TestFlight).
 export function isNetworkError(err: unknown): boolean {
-  if (err instanceof TypeError) return true;
   const message = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
-  return /network|internet|offline|timed? ?out|failed to fetch|load failed/i.test(message);
+  if (/timed? ?out/i.test(message)) return false;
+  if (err instanceof TypeError) return true;
+  return /network|internet|offline|failed to fetch|load failed/i.test(message);
 }
 
 export function loadErrorKind(err: unknown): LoadError {

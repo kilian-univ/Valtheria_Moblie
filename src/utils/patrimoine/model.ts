@@ -274,3 +274,14 @@ export function isStalePrice(p: Position): boolean {
   if (p.isLivret || p.isManual) return false;
   return p.priceSource === 'stored' || p.priceSource === 'buy_price';
 }
+
+// Lecture de la réponse : une réponse que l'app ne sait pas lire est une
+// erreur du serveur (une TypeError de lecture passerait sinon pour une
+// coupure du réseau)
+export function readPortfolio(raw: unknown): { ledger: boolean; portfolio: Portfolio | null } {
+  try {
+    return { ledger: supportsLedger(raw), portfolio: parsePortfolio(raw) };
+  } catch {
+    throw new Error('Réponse du portefeuille illisible');
+  }
+}

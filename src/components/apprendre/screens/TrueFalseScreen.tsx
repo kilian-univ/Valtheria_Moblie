@@ -52,6 +52,9 @@ const REST_TILT = -1.5;
 const FLY_OUT = 1.2;
 const FLY = timing(motion.screen);
 const CARD_HEIGHT = 236;
+// Grand texte : la carte grandit avec l'affirmation (plafonnée à 1,3), au
+// lieu de la couper par le bas (lot 7)
+const STATEMENT_MAX_SCALE = 1.3;
 const CARD_DEPTH = 8;
 const STATEMENT_SIZE = 27;
 // Verdict : grande icône dans un cercle, « Bien vu ! » ou « Raté ! »
@@ -89,7 +92,8 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
+  const cardHeight = Math.round(CARD_HEIGHT * Math.min(Math.max(fontScale, 1), STATEMENT_MAX_SCALE));
   const lockScroll = useScrollLock();
   const flashEdges = useEdgeFlash();
   const { cards } = screen;
@@ -327,7 +331,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
             <AppText style={[styles.hintText, { color: colors.error }]}>FAUX</AppText>
           </View>
 
-          <View style={styles.pile}>
+          <View style={[styles.pile, { height: cardHeight + 2 * BACK_DROP }]}>
             {/* Cartes du dessous, plus sombres */}
             {BACK_TILTS.slice(0, behind).map((deg, i) => (
               <View
@@ -335,6 +339,7 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
                 style={[
                   styles.back,
                   {
+                    height: cardHeight - 4,
                     backgroundColor: i === 0 ? colors.pileBack : colors.pileBackDeep,
                     transform: [{ rotate: `${reduced ? 0 : deg}deg` }],
                     top: BACK_DROP * (i + 1),
@@ -358,12 +363,13 @@ export default function TrueFalseScreen({ screen, answered, onDraftChange, setVa
                   style={[
                     styles.cardEdge,
                     {
+                      height: cardHeight,
                       backgroundColor: colors.optionEdge,
                       boxShadow: [{ ...CARD_SHADOW, color: withOpacity(colors.groundShadow, CARD_SHADOW.opacity) }],
                     },
                   ]}
                 />
-                <View style={[styles.card, { backgroundColor: verdictFace, borderColor: verdictInk }]}>
+                <View style={[styles.card, { height: cardHeight, backgroundColor: verdictFace, borderColor: verdictInk }]}>
                   <Sheen spots={[{ cx: 0.3, cy: 0, r: 0.55, color: colors.nodeHighlight, opacity: 0.08 }]} />
                   <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.success }, trueTint]} />
                   <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.error }, falseTint]} />

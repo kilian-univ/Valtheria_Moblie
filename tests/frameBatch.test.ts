@@ -85,7 +85,13 @@ test('écrans : grand chiffre isolé, mises à jour lourdes regroupées par imag
   assert.ok(pari.includes('<Live store={live}>'));
   assert.ok(pari.includes('onChange={live.set}') && pari.includes('onCommit={commit}'));
   const sim = read('src/components/apprendre/screens/SimulatorScreen.tsx');
-  assert.ok(sim.includes('const value = useFrameValue(live);'));
+  // Simulateur : courbe et montants au plus 30 fois par seconde pendant un
+  // glissement, sans animation à relancer ; la valeur du curseur suit chaque cran
+  assert.ok(sim.includes('const following = useThrottledValue(live, LIVE_UPDATE_MS);'));
+  assert.match(sim, /const LIVE_UPDATE_MS = 33;/);
+  assert.ok(sim.includes('animate={!dragging}'));
+  assert.ok(sim.includes('<Live store={live}>'));
+  assert.ok(sim.includes('value={settled}'));
   assert.ok(sim.includes('<RollingBigNumber'));
   // La réplique de Val ne change qu'au changement de tranche
   assert.match(sim, /\}, \[moved, valText, valMood, setVal\]\);/);

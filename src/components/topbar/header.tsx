@@ -44,14 +44,14 @@ export default function Header({ showBack = false, hideAuthActions = false }: He
                 style={header_styles.pillBtn}
                 onPress={() => router.push('/client/login')}
               >
-                <Text style={header_styles.pillBtnLabel}>Se connecter</Text>
+                <Text maxFontSizeMultiplier={1.3} style={header_styles.pillBtnLabel}>Se connecter</Text>
               </Pressable>
 
               <Pressable
                 style={header_styles.pillBtn}
                 onPress={() => router.push('/client/register')}
               >
-                <Text style={header_styles.pillBtnLabel}>Créer mon compte</Text>
+                <Text maxFontSizeMultiplier={1.3} style={header_styles.pillBtnLabel}>Créer mon compte</Text>
               </Pressable>
             </>
           )}

@@ -69,7 +69,7 @@ export default function AnalyseScreen() {
 
   // Pas encore de patrimoine : chargement, sans compte, ou erreur (jamais
   // « Ajoute un premier actif » à tort)
-  if (v.view !== 'ready') return <PatrimoineStateScreen view={v.view} title="Analyse" errorKind={v.errorKind} onRetry={v.retry} />;
+  if (v.view !== 'ready') return <PatrimoineStateScreen view={v.view} title="Analyse" errorKind={v.errorKind} onRetry={v.retry} retrying={v.retrying} />;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>

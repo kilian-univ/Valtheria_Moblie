@@ -10,11 +10,13 @@ type Props = {
   what: string;
   kind: LoadError;
   onRetry: () => void;
+  // Nouvelle tentative en cours (« Nouvelle tentative… »)
+  retrying?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
 // Chargement en échec, sans données à montrer : jamais d'état vide qui
 // ment (« Aucun article »), toujours la cause et « Réessayer »
-export default function LoadErrorState({ title, what, kind, onRetry, style }: Props) {
-  return <PageState variant="error" title={title} message={loadErrorText(kind, what)} onRetry={onRetry} style={style} />;
+export default function LoadErrorState({ title, what, kind, onRetry, retrying, style }: Props) {
+  return <PageState variant="error" title={title} message={loadErrorText(kind, what)} onRetry={onRetry} retrying={retrying} style={style} />;
 }

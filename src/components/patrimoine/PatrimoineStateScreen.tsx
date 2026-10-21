@@ -17,11 +17,13 @@ type Props = {
   title?: string;
   errorKind: LoadError;
   onRetry: () => void;
+  // Nouvelle tentative en cours : l'erreur reste affichée, sans squelette
+  retrying?: boolean;
 };
 
 // Écran du patrimoine sans données à montrer : chargement, sans compte ou
 // erreur, toujours avec le retour et le titre de la page
-export default function PatrimoineStateScreen({ view, title, errorKind, onRetry }: Props) {
+export default function PatrimoineStateScreen({ view, title, errorKind, onRetry, retrying = false }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -37,7 +39,7 @@ export default function PatrimoineStateScreen({ view, title, errorKind, onRetry 
         {view === 'loading' ? <PortfolioSkeleton /> : null}
         {view === 'guest' ? <GuestState /> : null}
         {view === 'error' ? (
-          <LoadErrorState title="Patrimoine indisponible" what="ton patrimoine" kind={errorKind} onRetry={onRetry} />
+          <LoadErrorState title="Patrimoine indisponible" what="ton patrimoine" kind={errorKind} onRetry={onRetry} retrying={retrying} />
         ) : null}
       </ScrollView>
     </View>

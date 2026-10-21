@@ -55,6 +55,8 @@ const BUBBLE_GAP = 10;
 const SIDE_GAP = 14;
 const SIDE_MIN_WIDTH = 136;
 const BUBBLE_HEIGHT_GUESS = bubble.lineHeight + bubble.paddingY * 2;
+// Grand texte : la bulle tient dans le décor (lot 7)
+const BUBBLE_MAX_FONT_SCALE = 1.4;
 const LOGO_HEIGHT = 28;
 // Dégradés : sombre en haut (logo lisible), fondu vers le fond en bas
 const TOP_SHADE = 120;
@@ -144,7 +146,11 @@ export default function VaultScene({ width, height, topInset, tab, line }: Vault
     bubbleLeft = sideLeft;
     // Pointe à mi-hauteur d'une ligne, au niveau de la bouche
     anchor = Math.min(Math.max(edge, bubbleSize.height / 2), BUBBLE_HEIGHT_GUESS / 2);
-    bubbleTop = mouth.y - anchor;
+    // Grand texte : la bulle ne sort jamais du bas du décor (elle y serait
+    // coupée) ; elle remonte, la pointe reste à hauteur de bouche
+    const lift = Math.max(0, mouth.y - anchor + bubbleSize.height - (height - space[2]));
+    bubbleTop = mouth.y - anchor - lift;
+    anchor += lift;
     aim = { x: mouth.x - bubbleLeft, y: 0 };
     tail = tailLength(SIDE_GAP);
   } else {
@@ -248,6 +254,7 @@ export default function VaultScene({ width, height, topInset, tab, line }: Vault
           tailLength={tail}
           delay={BUBBLE_DELAY}
           maxWidth={side ? width - margin - sideLeft : width - margin * 2}
+          maxFontScale={BUBBLE_MAX_FONT_SCALE}
           onLayout={(w, h) => {
             if (w !== bubbleSize.width || h !== bubbleSize.height) setBubbleSize({ width: w, height: h });
           }}

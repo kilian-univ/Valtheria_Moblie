@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import AdjustableValue from '@/src/components/common/AdjustableValue';
 import AppText from '@/src/components/common/AppText';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
@@ -92,9 +93,11 @@ function Stepper({ label, value, onMinus, onPlus }: { label: string; value: stri
   return (
     <View style={styles.stepper}>
       <IconButton icon="chevron-up" onPress={onPlus} accessibilityLabel={`${label} suivant`} />
-      <AppText maxFontSizeMultiplier={1.2} style={styles.stepValue} accessibilityLabel={`${label} : ${value}`}>
-        {value}
-      </AppText>
+      <AdjustableValue label={label} valueText={value} onIncrement={onPlus} onDecrement={onMinus}>
+        <AppText maxFontSizeMultiplier={1.2} style={styles.stepValue}>
+          {value}
+        </AppText>
+      </AdjustableValue>
       <IconButton icon="chevron-down" onPress={onMinus} accessibilityLabel={`${label} précédent`} />
     </View>
   );

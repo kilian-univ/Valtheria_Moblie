@@ -4,6 +4,7 @@ import Text from '@/src/components/common/Text';
 
 import { fonts, palette } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import { announce } from '@/src/utils/announce';
 import { select } from '@/src/utils/haptics';
 import { ALPHABET } from '@/src/utils/dictionary';
 
@@ -52,12 +53,16 @@ export default function AlphabetIndex({ available, onLetter }: AlphabetIndexProp
     jumpTo(target(Math.floor((e.nativeEvent.pageY - top.current) / letterH)));
   };
 
-  // Lecteur d'écran : balayer vers le haut / le bas change de lettre
+  // Lecteur d'écran : balayer vers le haut / le bas change de lettre ; la
+  // lettre est annoncée (iOS lirait l'ancienne, pas encore mise à jour)
   const step = (delta: number) => {
     const letters = ALPHABET.filter((l) => available.has(l));
     const at = last.current ? letters.indexOf(last.current) : -1;
     const next = letters[Math.max(0, Math.min(letters.length - 1, at + delta))];
-    if (next) jumpTo(next);
+    if (next) {
+      jumpTo(next);
+      announce(next);
+    }
   };
 
   return (

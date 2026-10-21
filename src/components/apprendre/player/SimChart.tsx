@@ -21,9 +21,11 @@ const AREA_OPACITY = 0.18;
 
 // Courbes qui passent en 300 ms (ease-out) de l'ancienne forme à la nouvelle,
 // point par point, les deux ensemble (un seul rendu par image). Animations
-// réduites : la nouvelle tout de suite.
-function useTween(target: number[]): number[] {
-  const reduced = useReducedMotion();
+// réduites, ou `animate` à faux (glissement en cours, la courbe suit le
+// curseur) : la nouvelle tout de suite.
+function useTween(target: number[], animate: boolean): number[] {
+  const reducedMotion = useReducedMotion();
+  const reduced = reducedMotion || !animate;
   const [shown, setShown] = useState(target);
   const current = useRef(target);
   const key = target.join(',');
@@ -61,11 +63,14 @@ type SimChartProps = {
   base: number[];
   // Valeur du haut du dessin, la même quelle que soit la position du curseur
   scale: number;
+  // Passage animé de l'ancienne courbe à la nouvelle (faux pendant un
+  // glissement : la courbe suit directement, sans animation à relancer)
+  animate?: boolean;
 };
 
 // Petite courbe du simulateur, décorative : les chiffres sont lus ailleurs.
 // Mémorisée : elle ne se redessine que quand ses courbes changent.
-export default memo(function SimChart({ main, base, scale }: SimChartProps) {
+export default memo(function SimChart({ main, base, scale, animate = true }: SimChartProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const id = useId().replace(/[^a-zA-Z0-9]/g, '');
@@ -73,7 +78,7 @@ export default memo(function SimChart({ main, base, scale }: SimChartProps) {
   const { height: windowHeight } = useWindowDimensions();
   const HEIGHT_NOW = windowHeight < REFERENCE_SCREEN_HEIGHT ? HEIGHT_MIN : HEIGHT;
   // Les deux courbes bout à bout, animées d'un seul tenant
-  const both = useTween([...main, ...base]);
+  const both = useTween([...main, ...base], animate);
   const mainShown = both.slice(0, main.length);
   const baseShown = both.slice(main.length);
 

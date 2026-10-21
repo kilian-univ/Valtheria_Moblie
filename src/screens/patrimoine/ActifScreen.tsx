@@ -135,7 +135,7 @@ export default function ActifScreen() {
 
   // Pas encore de patrimoine à montrer : chargement, sans compte, ou erreur
   // (hors ligne, serveur) ; jamais « n'est plus dans ton patrimoine » à tort
-  if (v.view !== 'ready') return <PatrimoineStateScreen view={v.view} errorKind={v.errorKind} onRetry={v.retry} />;
+  if (v.view !== 'ready') return <PatrimoineStateScreen view={v.view} errorKind={v.errorKind} onRetry={v.retry} retrying={v.retrying} />;
 
   if (!position && !closed) {
     return (

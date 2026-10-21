@@ -137,7 +137,7 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
               return (
                 <View key={b.key} style={[styles.segment, { flex: share, backgroundColor: inkOf(i) }]}>
                   {share * barWidth >= SEGMENT_TEXT_MIN ? (
-                    <AppText style={[styles.segmentText, { color: colors.onGold }]}>
+                    <AppText maxFontSizeMultiplier={1.2} style={[styles.segmentText, { color: colors.onGold }]}>
                       {withUnit(formatNumber(values[b.key] ?? 0), unit)}
                     </AppText>
                   ) : null}
@@ -174,9 +174,12 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
                 onChange={(next) => move(b.key, next)}
                 onCommit={(next) => settle(b.key, next)}
                 accessibilityLabel={b.reservoir ? `${b.label}, s’ajuste quand tu bouges les autres` : b.label}
-                valueText={`${withUnit(formatNumber(values[b.key] ?? 0), unit)}${
-                  percent ? `, soit ${amountText(values[b.key] ?? 0)}` : ''
-                }, au plus ${withUnit(formatNumber(allocationMax(screen, values, b.key)), unit)}`}
+                formatValue={(n) =>
+                  `${withUnit(formatNumber(n), unit)}${percent ? `, soit ${amountText(n)}` : ''}, au plus ${withUnit(
+                    formatNumber(allocationMax(screen, values, b.key)),
+                    unit
+                  )}`
+                }
               />
             </BucketRow>
           ))}
