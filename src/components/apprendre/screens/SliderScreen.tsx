@@ -47,7 +47,6 @@ export default function SliderScreen({ screen, answered, onDraftChange, enterDel
     });
   };
 
-  const shown = format(value);
   // Taille fixe : celle de la valeur la plus longue du curseur
   const longest = widestText([withUnit(formatNumber(min), unit), withUnit(formatNumber(max), unit)]);
 
@@ -68,7 +67,7 @@ export default function SliderScreen({ screen, answered, onDraftChange, enterDel
             onCommit={commit}
             disabled={answered}
             accessibilityLabel={screen.question ?? 'Ton pari'}
-            valueText={shown}
+            formatValue={format}
             // Le bouton invite à glisser une fois l'écran arrivé
             inviteDelay={enterDelay + motion.sheet}
           />

@@ -15,6 +15,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { motion, springs, timing } from '@/src/constants/motion';
 import { palette, radius, reliefDepth, size as sizes, space } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
+import { announce } from '@/src/utils/announce';
 import { safeGesture } from '@/src/utils/gestureSafety';
 import { devFlags } from '@/src/state/devFlags';
 import { feedback } from '@/src/utils/feedback';
@@ -48,9 +49,10 @@ type TrackSliderProps = {
   // du lecteur d'écran
   onCommit?: (value: number) => void;
   disabled?: boolean;
-  // Lecteur d'écran : nom du curseur et valeur lue (« 30 ans »)
+  // Lecteur d'écran : nom du curseur, et texte lu pour une valeur, avec son
+  // unité (« 30 ans ») : lu sur le curseur et annoncé à chaque ajustement
   accessibilityLabel: string;
-  valueText: string;
+  formatValue: (value: number) => string;
   // Piste seule, sans bouton (pot réservoir du répartir)
   readOnly?: boolean;
   size?: keyof typeof SIZES;
@@ -95,7 +97,7 @@ export default function TrackSlider({
   onCommit,
   disabled,
   accessibilityLabel,
-  valueText,
+  formatValue,
   readOnly,
   size = 'lg',
   inviteDelay,
@@ -251,13 +253,31 @@ export default function TrackSlider({
     );
   const gesture = Gesture.Race(pan, tap);
 
+  // Lecteur d'écran (VoiceOver, TalkBack) : balayer vers le haut ou le bas
+  // ajuste d'un cran ; toucher deux fois valide la valeur. iOS lit la valeur
+  // du curseur juste après le geste, avant que l'écran ne l'ait mise à jour :
+  // la nouvelle valeur est donc annoncée, avec son unité.
+  const validate = () => {
+    if (!interactive) return;
+    const chosen = current.get();
+    feedback.sliderRelease();
+    onCommit?.(chosen);
+    announce(`${formatValue(chosen)}, valeur choisie`);
+  };
   const onAccessibilityAction = (e: AccessibilityActionEvent) => {
+    const action = e.nativeEvent.actionName;
+    if (action === 'activate') {
+      validate();
+      return;
+    }
     const base = current.get();
-    const delta = e.nativeEvent.actionName === 'increment' ? step : e.nativeEvent.actionName === 'decrement' ? -step : 0;
+    const delta = action === 'increment' ? step : action === 'decrement' ? -step : 0;
     if (delta === 0 || !interactive) return;
     const next = Math.min(ceiling, Math.max(min, base + delta));
     if (next === base) {
       if (base + delta > ceiling) hitLimit();
+      // Butée : la valeur ne bouge plus, on le dit
+      announce(`${formatValue(base)}, ${delta > 0 ? 'au maximum' : 'au minimum'}`);
       return;
     }
     current.set(next);
@@ -265,6 +285,7 @@ export default function TrackSlider({
     stepped(next);
     feedback.sliderRelease();
     onCommit?.(next);
+    announce(formatValue(next));
   };
 
   const ink = color ?? colors.gold;
@@ -287,13 +308,19 @@ export default function TrackSlider({
         accessible
         accessibilityRole={readOnly ? undefined : 'adjustable'}
         accessibilityLabel={accessibilityLabel}
+        accessibilityHint={interactive ? 'Balaie vers le haut ou le bas pour ajuster, touche deux fois pour valider.' : undefined}
         accessibilityState={{ disabled: !interactive }}
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
-        aria-valuetext={valueText}
-        accessibilityActions={interactive ? [{ name: 'increment' }, { name: 'decrement' }] : undefined}
+        aria-valuetext={formatValue(value)}
+        accessibilityActions={
+          interactive ? [{ name: 'increment' }, { name: 'decrement' }, { name: 'activate', label: 'Valider' }] : undefined
+        }
         onAccessibilityAction={onAccessibilityAction}
+        // Toucher deux fois : sans cette réponse, iOS simulerait un toucher au
+        // centre du curseur, qui y sauterait (geste Tap)
+        onAccessibilityTap={interactive ? validate : undefined}
       >
         {/* Une piste à 0 % reste visible */}
         <View style={[styles.track, { height: track, backgroundColor: colors.surface }]} pointerEvents="none">
