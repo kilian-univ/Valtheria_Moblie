@@ -59,6 +59,54 @@ export function createFrameBatch<T>(send: (value: T) => void, schedule: (run: ()
   };
 }
 
+// Cadence limitée : des valeurs en rafale sont envoyées au plus une fois
+// toutes les `minGap` ms. La première part tout de suite ; pendant l'attente,
+// seule la dernière est gardée, et elle part à la fin de l'attente (jamais
+// perdue). flush() envoie tout de suite celle en attente ; cancel() l'oublie.
+export type TrailingThrottle<T> = {
+  push(value: T): void;
+  flush(): void;
+  cancel(): void;
+};
+
+export function createTrailingThrottle<T>(
+  send: (value: T) => void,
+  minGap: number,
+  now: () => number,
+  later: (run: () => void, ms: number) => unknown,
+  cancelLater: (handle: unknown) => void
+): TrailingThrottle<T> {
+  let last: number | null = null;
+  let pending: { value: T } | null = null;
+  let timer: unknown = null;
+  const fire = () => {
+    timer = null;
+    const p = pending;
+    pending = null;
+    if (!p) return;
+    last = now();
+    send(p.value);
+  };
+  return {
+    push(value) {
+      pending = { value };
+      if (timer !== null) return;
+      const wait = last === null ? 0 : minGap - (now() - last);
+      if (wait <= 0) fire();
+      else timer = later(fire, wait);
+    },
+    flush() {
+      if (timer !== null) cancelLater(timer);
+      fire();
+    },
+    cancel() {
+      if (timer !== null) cancelLater(timer);
+      timer = null;
+      pending = null;
+    },
+  };
+}
+
 // Limitation de fréquence : au plus un passage toutes les `minGap` ms
 export function createThrottle(minGap: number, now: () => number): () => boolean {
   let last: number | null = null;

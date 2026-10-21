@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState, useSyncExternalStore } from 'react';
 
-import { createFrameBatch, createLiveValue, type LiveValue } from '@/src/utils/frameBatch';
+import { createFrameBatch, createLiveValue, createTrailingThrottle, type LiveValue } from '@/src/utils/frameBatch';
 
 // Une valeur vivante propre au composant (créée une fois)
 export function useLiveStore<T>(initial: T): LiveValue<T> {
@@ -25,6 +25,30 @@ export function useFrameValue<T>(store: LiveValue<T>): T {
     batch.push(store.get());
     return store.subscribe(() => batch.push(store.get()));
   }, [store]);
+  return value;
+}
+
+// Lecture à cadence limitée : au plus un rendu toutes les `minGap` ms, la
+// dernière valeur jamais perdue (courbe et montants du simulateur : environ
+// 30 fois par seconde pendant un glissement, sans charger le fil JavaScript)
+export function useThrottledValue<T>(store: LiveValue<T>, minGap: number): T {
+  const [value, setValue] = useState(store.get);
+  useEffect(() => {
+    const throttle = createTrailingThrottle<T>(
+      setValue,
+      minGap,
+      () => Date.now(),
+      (run, ms) => setTimeout(run, ms),
+      (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>)
+    );
+    // Valeur changée entre le rendu et l'abonnement
+    throttle.push(store.get());
+    const unsubscribe = store.subscribe(() => throttle.push(store.get()));
+    return () => {
+      unsubscribe();
+      throttle.cancel();
+    };
+  }, [store, minGap]);
   return value;
 }
 
