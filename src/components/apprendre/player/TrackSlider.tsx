@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AccessibilityActionEvent, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  type SharedValue,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -42,9 +43,16 @@ type TrackSliderProps = {
   min: number;
   max: number;
   step: number;
-  // Chaque nouveau cran, pendant le glissement (JavaScript n'est prévenu
-  // qu'au changement de cran, jamais à chaque image)
-  onChange: (value: number) => void;
+  // Chaque nouveau cran, pendant le glissement, côté JavaScript (prévenu
+  // qu'au changement de cran, jamais à chaque image). Facultatif : un écran
+  // qui suit le curseur sur le fil d'interface (uiValue) n'en a pas besoin,
+  // et aucun rendu React n'a lieu pendant le geste.
+  onChange?: (value: number) => void;
+  // Valeur partagée du curseur, sur le fil d'interface : le curseur y écrit
+  // chaque nouveau cran (l'écran y réagit : courbe et montants du simulateur,
+  // barre de la paie du répartir) ; une piste seule (readOnly) la lit pour
+  // sa position (pot réservoir du répartir)
+  uiValue?: SharedValue<number>;
   // Valeur finale, exacte : fin du glissement, toucher de la piste, action
   // du lecteur d'écran
   onCommit?: (value: number) => void;
@@ -94,6 +102,7 @@ export default function TrackSlider({
   max,
   step,
   onChange,
+  uiValue,
   onCommit,
   disabled,
   accessibilityLabel,
@@ -156,7 +165,7 @@ export default function TrackSlider({
     // Développement : « Sans mises à jour de l'écran pendant le glissement »
     // (l'écran ne suit qu'au lâcher, voir settle)
     if (jsDragging && devFlags.get().noLiveUpdates) return;
-    onChange(next);
+    onChange?.(next);
   };
   const hitLimit = () => {
     feedback.tickBlocked();
@@ -168,7 +177,7 @@ export default function TrackSlider({
     lockScroll(false);
     // Un seul tick discret, pour confirmer
     feedback.sliderRelease();
-    onChange(final);
+    onChange?.(final);
     onCommit?.(final);
   };
   const startDrag = () => {
@@ -196,6 +205,7 @@ export default function TrackSlider({
     }
     if (allowed !== current.get()) {
       current.set(allowed);
+      if (uiValue && !readOnly) uiValue.set(allowed);
       scheduleOnRN(stepped, allowed);
     }
   };
@@ -290,7 +300,11 @@ export default function TrackSlider({
 
   const ink = color ?? colors.gold;
 
-  const fillStyle = useAnimatedStyle(() => ({ width: pos.get() }));
+  // Piste seule suivie sur le fil d'interface : sa position vient de uiValue
+  const fillStyle = useAnimatedStyle(() => {
+    if (readOnly && uiValue && max > min) return { width: ((uiValue.get() - min) / (max - min)) * width.get() };
+    return { width: pos.get() };
+  });
   const thumbStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: pos.get() - thumb / 2 + nudge.get() }, { scale: grow.get() }],
   }));
