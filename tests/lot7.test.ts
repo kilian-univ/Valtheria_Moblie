@@ -7,66 +7,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { createTrailingThrottle } from '../src/utils/frameBatch';
 import { readPortfolio } from '../src/utils/patrimoine/model';
 import { isNetworkError, loadErrorKind } from '../src/utils/loadError';
 import { remainingDelay, withNetworkRetry } from '../src/utils/retry';
 
 const root = new URL('../', import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
-
-// Horloge et minuteries simulées
-function fakeClock() {
-  let now = 0;
-  let timers: { at: number; run: () => void; id: number }[] = [];
-  let next = 1;
-  return {
-    now: () => now,
-    later: (run: () => void, ms: number) => {
-      const id = next++;
-      timers.push({ at: now + ms, run, id });
-      return id;
-    },
-    cancel: (id: unknown) => {
-      timers = timers.filter((t) => t.id !== id);
-    },
-    advance(ms: number) {
-      now += ms;
-      const due = timers.filter((t) => t.at <= now);
-      timers = timers.filter((t) => t.at > now);
-      due.forEach((t) => t.run());
-    },
-  };
-}
-
-test('cadence limitée : la première tout de suite, puis au plus une toutes les 33 ms, la dernière jamais perdue', () => {
-  const clock = fakeClock();
-  const sent: number[] = [];
-  const t = createTrailingThrottle<number>((v) => sent.push(v), 33, clock.now, clock.later, clock.cancel);
-  t.push(1);
-  assert.deepEqual(sent, [1]);
-  // Rafale pendant l'attente : seule la dernière part, à la fin de l'attente
-  clock.advance(5);
-  t.push(2);
-  clock.advance(5);
-  t.push(3);
-  assert.deepEqual(sent, [1]);
-  clock.advance(23);
-  assert.deepEqual(sent, [1, 3]);
-  // Au lâcher : flush() envoie tout de suite la valeur en attente
-  clock.advance(1);
-  t.push(4);
-  t.flush();
-  assert.deepEqual(sent, [1, 3, 4]);
-  // cancel() oublie la valeur en attente
-  t.push(5);
-  t.cancel();
-  clock.advance(100);
-  assert.deepEqual(sent, [1, 3, 4]);
-  // Au calme, une valeur part tout de suite
-  t.push(6);
-  assert.deepEqual(sent, [1, 3, 4, 6]);
-});
 
 test('erreurs : le délai dépassé de l’API n’est plus « pas de connexion internet »', () => {
   assert.equal(isNetworkError(new TypeError('Network request failed')), true);

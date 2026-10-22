@@ -44,7 +44,7 @@ test('diagnostic des curseurs : développement seulement', () => {
   const slider = read('src/components/apprendre/player/TrackSlider.tsx');
   assert.ok(slider.includes('if (jsDragging && devFlags.get().noLiveUpdates) return;'));
   // Au lâcher, l'écran reçoit toujours la valeur finale
-  assert.match(slider, /onChange\(final\);\s*onCommit\?\.\(final\);/);
+  assert.match(slider, /onChange\?\.\(final\);\s*onCommit\?\.\(final\);/);
 });
 
 test('filets d’erreur : un global et un par écran, au layout racine', () => {
