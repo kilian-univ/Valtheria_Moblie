@@ -1,10 +1,19 @@
 import { memo, useEffect, useId, useLayoutEffect, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  type SharedValue,
+  useAnimatedProps,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, ClipPath, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 
 import AppText from '@/src/components/common/AppText';
+import LiveText from '@/src/components/common/LiveText';
 import { fonts, palette, radius, withOpacity } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
 import { select } from '@/src/utils/haptics';
@@ -54,8 +63,9 @@ type Props = Drawing & {
   times?: number[];
   // Date écrite au-dessus de la courbe pendant le glissement
   dateLabel?: (index: number) => string;
-  // Point touché (null au relâcher) : l'écran met à jour son grand montant
-  onScrub?: (index: number | null) => void;
+  // Point touché, sur le fil d'interface (-1 au relâcher) : l'écran y lit son
+  // grand montant (textes vivants), sans rendu React pendant le geste
+  scrub?: SharedValue<number>;
   // Hauteur de la zone (sinon selon l'écran : 220 sur iPhone SE, 260 sur grand iPhone)
   height?: number;
   // Change avec la période ou le mode : passage animé d'une courbe à l'autre
@@ -169,7 +179,7 @@ function layoutOf(d: Drawing, width: number, height: number) {
 
 // Courbe dessinée : repères à droite, ligne de départ, lignes de référence et
 // leurs pastilles, extrêmes de la période, points ; rien ne se pose sur la courbe
-function ChartDrawing({ d, width, height, touched }: { d: Drawing; width: number; height: number; touched: number | null }) {
+function ChartDrawing({ d, width, height }: { d: Drawing; width: number; height: number }) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
@@ -184,7 +194,6 @@ function ChartDrawing({ d, width, height, touched }: { d: Drawing; width: number
   const levelText = levelPill?.inside ? levelPill.text : null;
   const dashedBox = dashedPill?.inside ? dashedPill.box : null;
   const dashedText = dashedPill?.inside ? dashedPill.text : null;
-  const touchedValue = touched !== null ? values[touched] : null;
   const pillStyle = (stroke: string) => ({ fill: withOpacity(colors.background, 0.88), stroke: withOpacity(stroke, 0.6) });
 
   return (
@@ -275,29 +284,29 @@ function ChartDrawing({ d, width, height, touched }: { d: Drawing; width: number
           </G>
         );
       })}
-      {touched !== null && touchedValue !== null && touchedValue !== undefined ? (
-        <>
-          <Line x1={scale.x(touched)} x2={scale.x(touched)} y1={0} y2={height} stroke={withOpacity(colors.text, 0.4)} strokeWidth={1} />
-          <Circle cx={scale.x(touched)} cy={scale.y(touchedValue)} r={5.5} fill={lineColor} stroke={colors.background} strokeWidth={2} />
-        </>
-      ) : null}
     </Svg>
   );
 }
 
 // Courbe avec toucher-glisser : trait vertical, point, date au-dessus ; l'écran
-// met à jour son grand montant (onScrub). Vibration légère à chaque changement
-// de jour. Changer de période ou de mode fond l'ancienne courbe dans la nouvelle
-// (300 ms, sauf avec la réduction des animations). Le lecteur d'écran lit le résumé.
-function LineChart({ times, dateLabel, onScrub, height: heightProp, animateKey, summary, onLongPressPoint, ...drawing }: Props) {
+// lit le point touché (scrub) pour son grand montant. Vibration légère à
+// chaque changement de jour. Tout le toucher-glisser vit sur le fil
+// d'interface (lot 8) : geste, repère, date et montants de l'écran, sans
+// aucun rendu React pendant le geste. Changer de période ou de mode fond
+// l'ancienne courbe dans la nouvelle (300 ms, sauf avec la réduction des
+// animations). Le lecteur d'écran lit le résumé.
+function LineChart({ times, dateLabel, scrub, height: heightProp, animateKey, summary, onLongPressPoint, ...drawing }: Props) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
   const screen = useWindowDimensions();
   const height = heightProp ?? chartHeight(screen.height);
   const [width, setWidth] = useState(0);
-  const [touched, setTouched] = useState<number | null>(null);
-  const [lastDay, setLastDay] = useState<string | null>(null);
+  // Point touché (-1 : aucun) : celui de l'écran, ou le sien
+  const ownScrub = useSharedValue(-1);
+  const touched = scrub ?? ownScrub;
+  // Jour du dernier point touché (vibration à chaque changement)
+  const lastDay = useSharedValue('');
   const { values } = drawing;
   const layout = layoutOf(drawing, Math.max(1, width), height);
   const { scale, zoneW } = layout;
@@ -331,56 +340,91 @@ function LineChart({ times, dateLabel, onScrub, height: heightProp, animateKey, 
   const currentStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   const previousStyle = useAnimatedStyle(() => ({ opacity: 1 - progress.value }));
 
-  const pick = (x: number) => {
-    if (values.length === 0) return;
-    const i = scale.index(x);
-    if (i === touched) return;
-    setTouched(i);
-    onScrub?.(i);
-    // Une vibration par jour franchi (par point si tous sont du même jour)
+  // Tout ce que le geste lit sur le fil d'interface, calculé une fois par
+  // courbe et par largeur : position des points, date et pastille de chaque
+  // point, jour de chaque point
+  const count = values.length;
+  const firstX = count > 0 ? scale.x(0) : 0;
+  const stepX = count > 1 ? scale.x(1) - scale.x(0) : 0;
+  // (calcul simple : le compilateur React le mémorise)
+  const marks = (() => {
+    const xs: number[] = [];
+    const ys: number[] = [];
+    const dates: string[] = [];
+    const dateBoxes: { left: number; width: number }[] = [];
+    const days: string[] = [];
     const sameDay = !times || times.length < 2 || dayKey(times[0]) === dayKey(times[times.length - 1]);
-    const key = times && !sameDay ? dayKey(times[i]) : String(i);
-    if (key !== lastDay) {
-      setLastDay(key);
-      select();
+    for (let i = 0; i < count; i++) {
+      const v = values[i];
+      xs.push(scale.x(i));
+      ys.push(v === null || v === undefined ? -1 : scale.y(v));
+      const date = dateLabel ? dateLabel(i) : '';
+      dates.push(date);
+      const w = date ? textWidth(date, DATE_FONT) + 16 : 0;
+      dateBoxes.push({ width: w, left: Math.max(0, Math.min(zoneW - w, scale.x(i) - w / 2)) });
+      days.push(times && !sameDay ? dayKey(times[i]) : String(i));
+    }
+    return { xs, ys, dates, dateBoxes, days };
+  })();
+
+  // Point le plus proche du doigt (points régulièrement espacés)
+  const pickIndex = (x: number) => {
+    'worklet';
+    if (count <= 1 || stepX === 0) return 0;
+    return Math.max(0, Math.min(count - 1, Math.round((x - firstX) / stepX)));
+  };
+  const pick = (x: number) => {
+    'worklet';
+    if (count === 0) return;
+    const i = pickIndex(x);
+    if (i === touched.get()) return;
+    touched.set(i);
+    // Une vibration par jour franchi (par point si tous sont du même jour)
+    const key = marks.days[i];
+    if (key !== lastDay.get()) {
+      lastDay.set(key);
+      scheduleOnRN(select);
     }
   };
   const release = () => {
-    setTouched(null);
-    setLastDay(null);
-    onScrub?.(null);
+    'worklet';
+    touched.set(-1);
+    lastDay.set('');
+  };
+  const longPress = (i: number) => {
+    onLongPressPoint?.(i);
   };
 
   const pan = Gesture.Pan()
-    .runOnJS(true)
     .activeOffsetX([-6, 6])
     .failOffsetY([-14, 14])
     .onStart((e) => pick(e.x))
     .onUpdate((e) => pick(e.x))
-    .onFinalize(release);
+    .onFinalize(() => release());
   const press = Gesture.LongPress()
-    .runOnJS(true)
     .minDuration(120)
     .maxDistance(4000)
     .onStart((e) => pick(e.x))
-    .onFinalize(release);
+    .onFinalize(() => release());
   const hold = Gesture.LongPress()
-    .runOnJS(true)
     .enabled(!!onLongPressPoint)
     .minDuration(HOLD_MS)
     .maxDistance(10)
     .onStart((e) => {
-      if (values.length === 0 || !onLongPressPoint) return;
-      const i = scale.index(e.x);
+      if (count === 0) return;
+      const i = pickIndex(e.x);
       release();
-      onLongPressPoint(i);
+      scheduleOnRN(longPress, i);
     });
   const gesture = Gesture.Simultaneous(pan, press, hold);
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(Math.round(e.nativeEvent.layout.width));
-  const date = touched !== null && dateLabel ? dateLabel(touched) : null;
-  const dateW = date ? textWidth(date, DATE_FONT) + 16 : 0;
-  const dateLeft = touched !== null ? Math.max(0, Math.min(zoneW - dateW, scale.x(touched) - dateW / 2)) : 0;
+  // Pastille de la date, sur le fil d'interface
+  const dateStyle = useAnimatedStyle(() => {
+    const i = touched.get();
+    const box = i >= 0 && i < marks.dateBoxes.length ? marks.dateBoxes[i] : null;
+    return box && box.width > 0 ? { opacity: 1, left: box.left, width: box.width } : { opacity: 0, left: 0, width: 0 };
+  });
 
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={summary}>
@@ -391,23 +435,22 @@ function LineChart({ times, dateLabel, onScrub, height: heightProp, animateKey, 
               <>
                 {previous ? (
                   <Animated.View style={[StyleSheet.absoluteFill, previousStyle]} pointerEvents="none">
-                    <ChartDrawing d={previous} width={width} height={height} touched={null} />
+                    <ChartDrawing d={previous} width={width} height={height} />
                   </Animated.View>
                 ) : null}
                 <Animated.View style={[StyleSheet.absoluteFill, currentStyle]} pointerEvents="none">
-                  <ChartDrawing d={drawing} width={width} height={height} touched={touched} />
+                  <ChartDrawing d={drawing} width={width} height={height} />
+                  <ScrubMarker touched={touched} xs={marks.xs} ys={marks.ys} width={width} height={height} color={drawing.color} />
                 </Animated.View>
-                {date ? (
-                  <View
+                {dateLabel ? (
+                  <Animated.View
                     pointerEvents="none"
                     accessibilityElementsHidden
                     importantForAccessibility="no-hide-descendants"
-                    style={[styles.date, { left: dateLeft, width: dateW, backgroundColor: colors.surfaceAlt, borderColor: withOpacity(colors.text, 0.1) }]}
+                    style={[styles.date, { backgroundColor: colors.surfaceAlt, borderColor: withOpacity(colors.text, 0.1) }, dateStyle]}
                   >
-                    <AppText numberOfLines={1} style={styles.dateText}>
-                      {date}
-                    </AppText>
-                  </View>
+                    <LiveText texts={marks.dates} index={touched} style={[styles.dateText, { color: colors.text }]} />
+                  </Animated.View>
                 ) : null}
               </>
             ) : null}
@@ -425,6 +468,47 @@ function LineChart({ times, dateLabel, onScrub, height: heightProp, animateKey, 
         </View>
       ) : null}
     </View>
+  );
+}
+
+const AnimatedLine = Animated.createAnimatedComponent(Line);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// Repère du point touché (trait vertical et point), posé sur le fil
+// d'interface par-dessus la courbe
+function ScrubMarker({
+  touched,
+  xs,
+  ys,
+  width,
+  height,
+  color,
+}: {
+  touched: SharedValue<number>;
+  xs: number[];
+  ys: number[];
+  width: number;
+  height: number;
+  color: string;
+}) {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  const lineProps = useAnimatedProps(() => {
+    const i = touched.get();
+    const on = i >= 0 && i < xs.length && ys[i] >= 0;
+    const x = on ? xs[i] : 0;
+    return { x1: x, x2: x, opacity: on ? 1 : 0 };
+  });
+  const dotProps = useAnimatedProps(() => {
+    const i = touched.get();
+    const on = i >= 0 && i < xs.length && ys[i] >= 0;
+    return { cx: on ? xs[i] : 0, cy: on ? ys[i] : 0, opacity: on ? 1 : 0 };
+  });
+  return (
+    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+      <AnimatedLine animatedProps={lineProps} y1={0} y2={height} stroke={withOpacity(colors.text, 0.4)} strokeWidth={1} />
+      <AnimatedCircle animatedProps={dotProps} r={5.5} fill={color} stroke={colors.background} strokeWidth={2} />
+    </Svg>
   );
 }
 

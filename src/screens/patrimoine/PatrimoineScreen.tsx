@@ -1,13 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSharedValue } from 'react-native-reanimated';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
 import BottomSheet from '@/src/components/common/BottomSheet';
-import BigNumber from '@/src/components/common/BigNumber';
+import BigNumber, { LiveBigNumber } from '@/src/components/common/BigNumber';
+import LiveText from '@/src/components/common/LiveText';
+import { widestText } from '@/src/utils/fit';
+import ScrubSwap from '@/src/components/patrimoine/ScrubSwap';
 import Button from '@/src/components/common/Button';
 import ValBubble from '@/src/components/common/ValBubble';
 import IconButton from '@/src/components/common/IconButton';
@@ -121,8 +125,9 @@ export default function PatrimoineScreen() {
   if (ready && shown?.sig !== sig) setShown({ sig, points: periodPoints, period });
   const points = ready ? periodPoints : (shown?.points ?? []);
   const shownPeriod = ready ? period : (shown?.period ?? period);
-  // Point touché sur la courbe : le grand montant et sa variation le suivent
-  const [scrub, setScrub] = useState<number | null>(null);
+  // Point touché sur la courbe (-1 : aucun), sur le fil d'interface : le
+  // grand montant et sa variation le suivent sans rendu React (lot 8)
+  const scrub = useSharedValue(-1);
   const anomalies = useMemo(() => (split ? clipPoints(split.hidden, period, new Date(now)) : []), [split, period, now]);
 
   // Supprimer un relevé (appui long sur un point, ou depuis le menu de la courbe)
@@ -224,9 +229,19 @@ export default function PatrimoineScreen() {
   const shares = byType(positions);
   const tip = chooseValTip({ positions, now: new Date(now), monthlyExpenses: emergencyPrefs?.monthlyExpenses ?? null });
   const regularity = streakLabel(progress.streak);
-  const scrubbed = scrub !== null && scrub < points.length ? points[scrub] : null;
-  const v = scrubbed ? variation(points.slice(0, (scrub as number) + 1)) : variation(points);
-  const variationText = scrubbed && points.length > 0 ? `depuis le ${shortDate(points[0].date, new Date(now))}` : periodLabel(shownPeriod);
+  const v = variation(points);
+  const variationText = periodLabel(shownPeriod);
+  // Textes de chaque point de la courbe, pour le doigt posé dessus
+  const sinceStart = points.length > 0 ? `depuis le ${shortDate(points[0].date, new Date(now))}` : '';
+  const scrubTexts = {
+    total: points.map((p) => money(p.value, { hidden })),
+    variation: points.map((p) => {
+      const at = variation([points[0], p]);
+      if (!at) return '';
+      return `${signedMoney(at.delta, { hidden })}${at.pct !== null ? ` (${signedPercent(at.pct, hidden)})` : ''} ${sinceStart}`;
+    }),
+    colors: points.map((p) => (p.value - (points[0]?.value ?? 0) >= 0 ? colors.success : colors.error)),
+  };
   const values = modeSeries(points, mode);
   const deposits = mode === 'valeur' ? depositIndexes(points) : [];
   const m = (x: number) => money(x, { hidden });
@@ -293,17 +308,45 @@ export default function PatrimoineScreen() {
           <AppText variant="caption" tone="subtitle">
             Valeur totale
           </AppText>
-          <BigNumber text={money(scrubbed ? scrubbed.value : portfolio.totalEur, { hidden })} size={44} tone="text" style={styles.left} />
+          <ScrubSwap
+            scrub={scrub}
+            rest={<BigNumber text={money(portfolio.totalEur, { hidden })} size={44} tone="text" style={styles.left} />}
+            live={
+              <LiveBigNumber
+                texts={scrubTexts.total}
+                index={scrub}
+                fallback={money(portfolio.totalEur, { hidden })}
+                sizingText={widestText([...scrubTexts.total, money(portfolio.totalEur, { hidden })])}
+                size={44}
+                tone="text"
+                align="left"
+              />
+            }
+          />
         </View>
         {v ? (
-          <AppText
-            style={[styles.variation, { color: v.delta >= 0 ? colors.success : colors.error }]}
-            accessibilityLabel={hidden ? `Variation ${variationText} masquée` : `${signedMoney(v.delta)} ${v.pct !== null ? `soit ${signedPercent(v.pct)}` : ''} ${variationText}`}
-          >
-            {signedMoney(v.delta, { hidden })}
-            {v.pct !== null ? ` (${signedPercent(v.pct, hidden)})` : ''}{' '}
-            <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{variationText}</AppText>
-          </AppText>
+          <ScrubSwap
+            scrub={scrub}
+            rest={
+              <AppText
+                style={[styles.variation, { color: v.delta >= 0 ? colors.success : colors.error }]}
+                accessibilityLabel={hidden ? `Variation ${variationText} masquée` : `${signedMoney(v.delta)} ${v.pct !== null ? `soit ${signedPercent(v.pct)}` : ''} ${variationText}`}
+              >
+                {signedMoney(v.delta, { hidden })}
+                {v.pct !== null ? ` (${signedPercent(v.pct, hidden)})` : ''}{' '}
+                <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{variationText}</AppText>
+              </AppText>
+            }
+            live={
+              <LiveText
+                texts={scrubTexts.variation}
+                index={scrub}
+                colors={scrubTexts.colors}
+                maxFontSizeMultiplier={1.4}
+                style={[styles.variation, styles.variationLive]}
+              />
+            }
+          />
         ) : null}
 
         <View style={styles.figures}>
@@ -335,7 +378,7 @@ export default function PatrimoineScreen() {
               extremeLabel={extremeLabel}
               times={points.map((p) => Date.parse(p.date))}
               dateLabel={(i) => scrubDateLabel(points[i].date, shownPeriod, new Date(now))}
-              onScrub={setScrub}
+              scrub={scrub}
               animateKey={`${mode}-${shownPeriod}`}
               summary={summary}
               onLongPressPoint={(i) => askDelete(points[i])}
@@ -513,6 +556,8 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.title, fontSize: 26, lineHeight: 32, letterSpacing: titleLetterSpacing(26) },
   hero: { marginTop: space[2], gap: 2 },
   variation: { fontFamily: fonts.bodyBold, fontSize: 14 },
+  // Variation au point touché : sur une ligne, toute la largeur
+  variationLive: { alignSelf: 'stretch' },
   variationPeriod: { fontFamily: fonts.bodyMedium, fontSize: 14 },
   figures: { flexDirection: 'row', gap: space[2] },
   chart: { marginTop: space[1] },
