@@ -57,5 +57,24 @@ export function captureError(where: string, error: unknown): void {
   }
 }
 
+// Erreur de test, déclenchée à la main (7 touchers sur le numéro de version,
+// dans les Réglages) : vérifier que la version installée envoie bien ses
+// erreurs à Sentry. Le message seul, nettoyé comme tout rapport (scrubEvent :
+// ni personne, ni requête, ni données libres) ; envoyée tout de suite.
+// Renvoie faux si le suivi est inactif ici (développement, Expo Go, ou pas
+// d'adresse d'envoi à la construction) : rien n'est envoyé.
+export const TEST_ERROR_MESSAGE = 'Test Sentry Valtheria';
+
+export async function sendTestError(): Promise<boolean> {
+  if (!MONITORING_ON) return false;
+  try {
+    Sentry.captureException(new Error(TEST_ERROR_MESSAGE), { tags: { endroit: 'reglages', test: 'oui' } });
+    await Sentry.flush();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Enveloppe du composant racine : capte les erreurs non rattrapées
 export const wrapRoot = Sentry.wrap;

@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
@@ -32,6 +32,8 @@ import { success } from '@/src/utils/haptics';
 import { actionErrorText } from '@/src/utils/loadError';
 import { pseudoError } from '@/src/utils/onboarding';
 import { initialOf, levelA11y, truncateEmail } from '@/src/utils/profile';
+import { SECRET_TAP_START, type SecretTapState, secretTap } from '@/src/utils/secretTap';
+import { sendTestError } from '@/src/monitoring';
 
 const AVATAR = 64;
 
@@ -226,6 +228,19 @@ export default function SettingsScreen() {
   const pseudoNow = user?.pseudo ?? '';
   const version = Constants.expoConfig?.version ?? '';
 
+  // Test de Sentry, caché : 7 touchers de suite sur le numéro de version
+  // envoient une erreur de test (« Test Sentry Valtheria »), rien d'autre
+  const [taps, setTaps] = useState<SecretTapState>(SECRET_TAP_START);
+  const [testNote, setTestNote] = useState<string | null>(null);
+  const tapVersion = () => {
+    const next = secretTap(taps, Date.now());
+    setTaps(next.state);
+    if (!next.fire) return;
+    sendTestError().then((sent) => {
+      setTestNote(sent ? 'Erreur de test envoyée' : 'Suivi des plantages inactif ici : rien n’a été envoyé');
+    });
+  };
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.bar}>
@@ -280,9 +295,17 @@ export default function SettingsScreen() {
           <SettingsRow icon="trash-outline" label="Supprimer mon compte" onPress={handleDelete} muted last />
         </SettingsSection>
 
-        <AppText variant="caption" tone="subtitle" style={styles.version}>
-          {`Valtheria, version ${version}`}
-        </AppText>
+        {/* Pas un bouton : le toucher caché ne s'annonce pas */}
+        <Pressable onPress={tapVersion} accessible={false} hitSlop={8}>
+          <AppText variant="caption" tone="subtitle" style={styles.version}>
+            {`Valtheria, version ${version}`}
+          </AppText>
+        </Pressable>
+        {testNote ? (
+          <AppText variant="caption" tone="gold" accessibilityRole="alert" style={styles.version}>
+            {testNote}
+          </AppText>
+        ) : null}
       </ScrollView>
       )}
 
