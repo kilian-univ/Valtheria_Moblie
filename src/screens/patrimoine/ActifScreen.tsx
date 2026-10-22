@@ -1,12 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
+import { useSharedValue } from 'react-native-reanimated';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppText from '@/src/components/common/AppText';
 import BackButton from '@/src/components/common/BackButton';
-import BigNumber from '@/src/components/common/BigNumber';
+import BigNumber, { LiveBigNumber } from '@/src/components/common/BigNumber';
+import LiveText from '@/src/components/common/LiveText';
+import ScrubSwap from '@/src/components/patrimoine/ScrubSwap';
+import { widestText } from '@/src/utils/fit';
 import BottomSheet from '@/src/components/common/BottomSheet';
 import Button from '@/src/components/common/Button';
 import PageState from '@/src/components/common/PageState';
@@ -107,7 +111,8 @@ export default function ActifScreen() {
   const points = split ? periodPoints : (shown?.points ?? []);
   const shownPeriod = split ? period : (shown?.period ?? period);
   // Point touché sur la courbe : la position et sa variation le suivent
-  const [scrub, setScrub] = useState<number | null>(null);
+  // Point touché sur la courbe (-1 : aucun), sur le fil d'interface (lot 8)
+  const scrub = useSharedValue(-1);
   const marks = operationMarks(points, ops?.list ?? []);
 
   // Opération touchée : modifier ou supprimer
@@ -173,7 +178,6 @@ export default function ActifScreen() {
   // Variation du cours sur la période affichée (jusqu'au point touché), appliquée
   // à la quantité détenue
   const opList = ops?.list ?? [];
-  const scrubbed = scrub !== null && scrub < points.length ? points[scrub] : null;
   // La variation ne remonte jamais avant le premier achat (audit G41) : sur
   // une période plus longue que la détention, elle part du cours au premier
   // achat et le dit
@@ -181,12 +185,27 @@ export default function ActifScreen() {
   const startIndex = firstBuyAt !== null && points.length >= 2 && points[0].t < firstBuyAt ? points.findIndex((p) => p.t >= firstBuyAt) : 0;
   const sinceBuy = startIndex > 0;
   const first = points.length >= 2 && startIndex >= 0 ? points[startIndex].price : null;
-  const last = scrubbed ? scrubbed.price : points.length >= 2 ? points[points.length - 1].price : null;
-  const periodText = scrubbed && points.length > 0 ? `depuis le ${shortDate(points[startIndex > 0 ? startIndex : 0].t, now)}` : sinceBuy ? 'depuis ton premier achat' : periodLabel(shownPeriod);
-  // Valeur de la position au cours du point touché
-  const scrubValue = scrubbed && position ? (chartCurrency === 'EUR' ? position.quantity * scrubbed.price : toEur(position.quantity * scrubbed.price, chartCurrency, rates)) : null;
+  const last = points.length >= 2 ? points[points.length - 1].price : null;
+  const periodText = sinceBuy ? 'depuis ton premier achat' : periodLabel(shownPeriod);
+  const inEur = (amount: number) => (chartCurrency === 'EUR' ? amount : toEur(amount, chartCurrency, rates));
   const periodPct = first !== null && last !== null && first > 0 ? (last / first - 1) * 100 : null;
-  const periodAmount = position && first !== null && last !== null ? (chartCurrency === 'EUR' ? position.quantity * (last - first) : toEur(position.quantity * (last - first), chartCurrency, rates)) : null;
+  const periodAmount = position && first !== null && last !== null ? inEur(position.quantity * (last - first)) : null;
+  // Textes de chaque point de la courbe, pour le doigt posé dessus : valeur de
+  // la position au cours du point, et variation depuis le début de la période
+  const sinceStart = points.length > 0 ? `depuis le ${shortDate(points[startIndex > 0 ? startIndex : 0].t, now)}` : '';
+  const scrubTexts = {
+    value: points.map((p) => {
+      const at = position ? inEur(position.quantity * p.price) : null;
+      return at === null ? '' : money(at, { hidden });
+    }),
+    period: points.map((p) => {
+      if (!position || first === null || !(first > 0)) return '';
+      const amount = inEur(position.quantity * (p.price - first));
+      if (amount === null) return '';
+      return `${signedMoney(amount, { hidden })} (${signedPercent((p.price / first - 1) * 100, hidden)}) ${sinceStart}`;
+    }),
+    colors: points.map((p) => (first !== null && p.price - first >= 0 ? colors.success : colors.error)),
+  };
 
   const opLabel = (op: Operation) => `${op.side === 'buy' ? 'Achat' : 'Vente'} de ${quantityLabel(op.quantity, ticker, type)}`;
 
@@ -222,23 +241,60 @@ export default function ActifScreen() {
           <AppText variant="caption" tone="subtitle">
             Ta position
           </AppText>
-          <BigNumber
-            text={scrubValue !== null ? money(scrubValue, { hidden }) : money(valueShown, { hidden, currency: position.valueEur !== null ? 'EUR' : currency })}
-            size={40}
-            tone="text"
-            style={styles.left}
+          <ScrubSwap
+            scrub={scrub}
+            rest={
+              <BigNumber
+                text={money(valueShown, { hidden, currency: position.valueEur !== null ? 'EUR' : currency })}
+                size={40}
+                tone="text"
+                style={styles.left}
+              />
+            }
+            live={
+              <LiveBigNumber
+                texts={scrubTexts.value}
+                index={scrub}
+                fallback={money(valueShown, { hidden, currency: position.valueEur !== null ? 'EUR' : currency })}
+                sizingText={widestText([...scrubTexts.value, money(valueShown, { hidden, currency: position.valueEur !== null ? 'EUR' : currency })])}
+                size={40}
+                tone="text"
+                align="left"
+              />
+            }
           />
-          {market && !scrubbed ? (
-            <AppText style={[styles.variation, { color: gainShown >= 0 ? colors.success : colors.error }]}>
-              {signedMoney(gainShown, { hidden })} ({signedPercent(position.gainPct, hidden)}){' '}
-              <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>depuis tes achats</AppText>
-            </AppText>
+          {/* Doigt sur la courbe : la ligne « depuis tes achats » s'efface (sa place reste) */}
+          {market ? (
+            <ScrubSwap
+              scrub={scrub}
+              rest={
+                <AppText style={[styles.variation, { color: gainShown >= 0 ? colors.success : colors.error }]}>
+                  {signedMoney(gainShown, { hidden })} ({signedPercent(position.gainPct, hidden)}){' '}
+                  <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>depuis tes achats</AppText>
+                </AppText>
+              }
+              live={null}
+            />
           ) : null}
           {market && periodPct !== null && periodAmount !== null ? (
-            <AppText style={[styles.variation, { color: periodAmount >= 0 ? colors.success : colors.error }]}>
-              {signedMoney(periodAmount, { hidden })} ({signedPercent(periodPct, hidden)}){' '}
-              <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{periodText}</AppText>
-            </AppText>
+            <ScrubSwap
+              scrub={scrub}
+              rest={
+                <AppText style={[styles.variation, { color: periodAmount >= 0 ? colors.success : colors.error }]}>
+                  {signedMoney(periodAmount, { hidden })} ({signedPercent(periodPct, hidden)}){' '}
+                  <AppText style={[styles.variationPeriod, { color: colors.subtitle }]}>{periodText}</AppText>
+                </AppText>
+              }
+              live={
+                <LiveText
+                  texts={scrubTexts.period}
+                  index={scrub}
+                  colors={scrubTexts.colors}
+                  maxFontSizeMultiplier={1.4}
+                  style={[styles.variation, styles.variationLive]}
+                />
+              }
+            />
           ) : null}
         </View>
       ) : (
@@ -270,7 +326,7 @@ export default function ActifScreen() {
                 extremeLabel={hidden ? undefined : (x) => money(x, { currency: chartCurrency, exact: x < 100 })}
                 times={points.map((p) => p.t)}
                 dateLabel={(i) => scrubDateLabel(points[i].t, shownPeriod, now)}
-                onScrub={setScrub}
+                scrub={scrub}
                 animateKey={shownPeriod}
                 summary={priceSummary(points, period, (x) => money(x, { currency: chartCurrency }), name)}
               />
@@ -478,6 +534,8 @@ const styles = StyleSheet.create({
   headText: { flex: 1, gap: 2 },
   name: { fontFamily: fonts.title, fontSize: 28, lineHeight: 34, letterSpacing: titleLetterSpacing(28) },
   variation: { fontFamily: fonts.bodyBold, fontSize: 14 },
+  // Variation au point touché : sur une ligne, toute la largeur
+  variationLive: { alignSelf: 'stretch' },
   variationPeriod: { fontFamily: fonts.bodyMedium, fontSize: 14 },
   chart: { marginTop: space[1] },
   chartEmpty: {

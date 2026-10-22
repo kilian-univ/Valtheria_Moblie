@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
+  type SharedValue,
+  useAnimatedReaction,
   useAnimatedStyle,
+  useDerivedValue,
   useReducedMotion,
   useSharedValue,
   withRepeat,
@@ -11,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import AppText from '@/src/components/common/AppText';
+import LiveText from '@/src/components/common/LiveText';
 import { motion, timing } from '@/src/constants/motion';
 import { fonts, palette, radius, space, titleLetterSpacing } from '@/src/constants/style/Style';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -23,16 +27,16 @@ import {
   initialAllocation,
   moveAllocation,
 } from '@/src/lesson/interactive';
-import type { AllocateScreen as AllocateModel, ValLine } from '@/src/lesson/model';
+import type { AllocateBucket, AllocateScreen as AllocateModel, ValLine } from '@/src/lesson/model';
 import { formatNumber, withUnit } from '@/src/utils/format';
 import { grade } from '@/src/utils/grade';
-import { createFrameBatch, type FrameBatch } from '@/src/utils/frameBatch';
 import { warning } from '@/src/utils/haptics';
 import ScreenIntro from '../player/ScreenIntro';
 import TrackSlider from '../player/TrackSlider';
 import { LessonScreenProps } from '../types';
 
 const PAY_BAR_HEIGHT = 40;
+const SEGMENT_GAP = 2;
 const DOT = 10;
 const PERCENT_SIZE = 22;
 // Pourcentage écrit dans un segment de la barre s'il a au moins cette largeur
@@ -40,6 +44,15 @@ const SEGMENT_TEXT_MIN = 40;
 // Pot en cause après « Valider » : deux clignotements doux
 const BLINKS = 2;
 const BLINK_OPACITY = 0.35;
+// Textes qui changent pendant le glissement : grandissement plafonné
+const LIVE_MAX_SCALE = 1.3;
+
+// Le gabarit « live » d'un pot (« Dans un an : {epargne_montant*12} € ») ne
+// dépend-il que de ce pot ? Alors il se calcule d'avance, cran par cran.
+export function liveDependsOnlyOn(template: string, key: string): boolean {
+  const keys = [...template.matchAll(/\{(\w+)/g)].map((m) => m[1]);
+  return keys.every((k) => k === key || k === `${key}_montant`);
+}
 
 // allocate — répartir un total fixe entre des pots, un curseur chacun. Le pot
 // réservoir absorbe les changements des autres, sans passer sous zéro : le
@@ -47,39 +60,29 @@ const BLINK_OPACITY = 0.35;
 // paie découpée en segments qui bougent en direct. Valider : règles de la
 // leçon (screen.rules) ; le pot en cause clignote, puis la feuille.
 // Réponse : { clé du pot: valeur }.
+// Pendant un glissement, AUCUN rendu React (lot 8) : la répartition vit dans
+// une valeur partagée (fil d'interface) ; la barre de la paie, les
+// pourcentages, les montants et « Dans un an » la suivent sans passer par
+// React (textes calculés d'avance pour chaque cran). Au lâcher, React
+// reprend la main avec la répartition exacte.
 export default function AllocateScreen({ screen, answered, onDraftChange }: LessonScreenProps<AllocateModel>) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const { buckets, total, step, unit } = screen;
-  const [values, setValues] = useState(() => initialAllocation(buckets));
   // Répartition posée (au lâcher) : c'est elle qui part au lecteur
-  const [settled, setSettled] = useState(values);
+  const [values, setValues] = useState(() => initialAllocation(buckets));
   const [barWidth, setBarWidth] = useState(0);
+  const reservoir = buckets.findIndex((b) => b.reservoir);
 
-  // Pendant un glissement, la barre de la paie, les montants et « Dans un
-  // an » suivent au plus une fois par image (dernière valeur de la rafale)
-  const latest = useRef(values);
-  const batch = useRef<FrameBatch<{ key: string; next: number }> | null>(null);
-  const apply = ({ key, next }: { key: string; next: number }) => {
-    const updated = moveAllocation(screen, latest.current, key, next);
-    if (updated === latest.current) return;
-    latest.current = updated;
-    setValues(updated);
-  };
-  const move = (key: string, next: number) => {
-    // (pas de « ??= » : le compilateur React ne le compile pas encore)
-    if (batch.current === null) {
-      batch.current = createFrameBatch(apply, (run) => {
-        requestAnimationFrame(run);
-      });
-    }
-    batch.current.push({ key, next });
-  };
-  // Lâcher : la valeur finale tout de suite, puis la répartition posée
+  // Répartition vivante, un nombre par pot, sur le fil d'interface
+  const ui = useSharedValue(buckets.map((b) => values[b.key] ?? 0));
+  useEffect(() => {
+    ui.set(buckets.map((b) => values[b.key] ?? 0));
+  }, [values, buckets, ui]);
+
+  // Lâcher (ou lecteur d'écran) : la répartition exacte, posée par React
   const settle = (key: string, next: number) => {
-    move(key, next);
-    batch.current?.flush();
-    setSettled(latest.current);
+    setValues((current) => moveAllocation(screen, current, key, next));
   };
 
   // Couleurs de la palette des graphiques, une par pot
@@ -93,14 +96,33 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
   const passed = grade(screen.source, values) === true;
   const failed = firstFailedRule(screen, values);
 
+  // Textes de chaque cran (0, step, 2 × step… total), calculés une fois
+  const crans = useMemo(() => {
+    const list: number[] = [];
+    for (let v = 0; v <= total + 1e-9; v += step > 0 ? step : 1) list.push(Math.round(v * 1000) / 1000);
+    return list;
+  }, [total, step]);
+  const texts = useMemo(
+    () => ({
+      value: crans.map((v) => withUnit(formatNumber(v), unit)),
+      amount: crans.map((v) => withUnit(formatNumber(allocationAmount(screen, v)), screen.baseUnit)),
+      live: buckets.map((b) =>
+        b.live && liveDependsOnlyOn(b.live, b.key)
+          ? crans.map((v) => fillTemplate(b.live as string, allocationTemplateValues(screen, { [b.key]: v }), (n) => formatNumber(n)))
+          : null
+      ),
+    }),
+    [crans, unit, buckets, screen]
+  );
+
   useEffect(() => {
-    const correct = grade(screen.source, settled) === true;
+    const correct = grade(screen.source, values) === true;
     const success = screen.val.correct;
     const val: ValLine | null = correct
-      ? success && { ...success, line: fillTemplate(success.line, allocationTemplateValues(screen, settled), (n) => formatNumber(n)) }
-      : (firstFailedRule(screen, settled)?.val ?? screen.val.wrong);
+      ? success && { ...success, line: fillTemplate(success.line, allocationTemplateValues(screen, values), (n) => formatNumber(n)) }
+      : (firstFailedRule(screen, values)?.val ?? screen.val.wrong);
     onDraftChange({
-      raw: settled,
+      raw: values,
       correct,
       correctText: null,
       val,
@@ -108,7 +130,7 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
       // Le pot en cause clignote avant la feuille
       sheetDelay: correct ? undefined : BLINKS * 2 * motion.state,
     });
-  }, [settled, screen, onDraftChange]);
+  }, [values, screen, onDraftChange]);
 
   return (
     <View style={styles.wrap}>
@@ -131,19 +153,20 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
             </AppText>
           </View>
           <View style={[styles.payBar, { backgroundColor: colors.surface }]} onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}>
-            {buckets.map((b, i) => {
-              const share = (values[b.key] ?? 0) / total;
-              if (share <= 0) return null;
-              return (
-                <View key={b.key} style={[styles.segment, { flex: share, backgroundColor: inkOf(i) }]}>
-                  {share * barWidth >= SEGMENT_TEXT_MIN ? (
-                    <AppText maxFontSizeMultiplier={1.2} style={[styles.segmentText, { color: colors.onGold }]}>
-                      {withUnit(formatNumber(values[b.key] ?? 0), unit)}
-                    </AppText>
-                  ) : null}
-                </View>
-              );
-            })}
+            {buckets.map((b, i) => (
+              <Segment
+                key={b.key}
+                ui={ui}
+                index={i}
+                total={total}
+                step={step}
+                barWidth={barWidth}
+                ink={inkOf(i)}
+                textColor={colors.onGold}
+                texts={texts.value}
+                fallback={withUnit(formatNumber(values[b.key] ?? 0), unit)}
+              />
+            ))}
           </View>
         </View>
 
@@ -151,37 +174,33 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
           {buckets.map((b, i) => (
             <BucketRow
               key={b.key}
-              label={b.label}
+              bucket={b}
+              index={i}
+              ui={ui}
+              step={step}
               ink={inkOf(i)}
-              value={values[b.key] ?? 0}
+              valueTexts={texts.value}
+              amountTexts={percent ? texts.amount : null}
+              liveTexts={texts.live[i]}
               valueText={withUnit(formatNumber(values[b.key] ?? 0), unit)}
               amount={percent ? amountText(values[b.key] ?? 0) : null}
               live={b.live ? fillTemplate(b.live, templateValues, (n) => formatNumber(n)) : null}
-              reservoir={b.reservoir}
               blink={answered && !passed && failed?.bucket === b.key}
-            >
-              <TrackSlider
-                size="md"
-                color={inkOf(i)}
-                value={values[b.key] ?? 0}
-                min={0}
-                max={total}
-                step={step}
-                readOnly={b.reservoir}
-                disabled={answered}
-                limit={allocationMax(screen, values, b.key)}
-                onBlocked={warning}
-                onChange={(next) => move(b.key, next)}
-                onCommit={(next) => settle(b.key, next)}
-                accessibilityLabel={b.reservoir ? `${b.label}, s’ajuste quand tu bouges les autres` : b.label}
-                formatValue={(n) =>
+              reservoirIndex={reservoir}
+              slider={{
+                value: values[b.key] ?? 0,
+                total,
+                disabled: answered,
+                limit: allocationMax(screen, values, b.key),
+                onCommit: (next: number) => settle(b.key, next),
+                accessibilityLabel: b.reservoir ? `${b.label}, s’ajuste quand tu bouges les autres` : b.label,
+                formatValue: (n: number) =>
                   `${withUnit(formatNumber(n), unit)}${percent ? `, soit ${amountText(n)}` : ''}, au plus ${withUnit(
                     formatNumber(allocationMax(screen, values, b.key)),
                     unit
-                  )}`
-                }
-              />
-            </BucketRow>
+                  )}`,
+              }}
+            />
           ))}
         </View>
       </View>
@@ -189,26 +208,116 @@ export default function AllocateScreen({ screen, answered, onDraftChange }: Less
   );
 }
 
-type BucketRowProps = {
-  label: string;
+// Un segment de la barre de la paie : sa largeur et son texte suivent la
+// répartition vivante sur le fil d'interface
+function Segment({
+  ui,
+  index,
+  total,
+  step,
+  barWidth,
+  ink,
+  textColor,
+  texts,
+  fallback,
+}: {
+  ui: SharedValue<number[]>;
+  index: number;
+  total: number;
+  step: number;
+  barWidth: number;
   ink: string;
+  textColor: string;
+  texts: readonly string[];
+  fallback: string;
+}) {
+  const cran = useDerivedValue(() => ui.get()[index] / (step > 0 ? step : 1));
+  const shape = useAnimatedStyle(() => {
+    const all = ui.get();
+    const share = all[index] / total;
+    // Un filet de 2 px avant chaque segment visible, sauf le premier
+    let before = false;
+    for (let j = 0; j < index; j++) if (all[j] > 0) before = true;
+    return { flex: share > 0 ? share : 0, marginLeft: share > 0 && before ? SEGMENT_GAP : 0 };
+  });
+  const label = useAnimatedStyle(() => ({ opacity: (ui.get()[index] / total) * barWidth >= SEGMENT_TEXT_MIN ? 1 : 0 }));
+  return (
+    <Animated.View style={[styles.segment, { backgroundColor: ink }, shape]}>
+      <Animated.View style={label}>
+        <LiveText
+          texts={texts}
+          index={cran}
+          fallback={fallback}
+          maxFontSizeMultiplier={1.2}
+          style={[styles.segmentText, { color: textColor }]}
+        />
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+type SliderProps = {
   value: number;
+  total: number;
+  disabled: boolean;
+  limit: number;
+  onCommit: (next: number) => void;
+  accessibilityLabel: string;
+  formatValue: (n: number) => string;
+};
+
+type BucketRowProps = {
+  bucket: AllocateBucket;
+  index: number;
+  // Rang du pot réservoir (-1 : aucun)
+  reservoirIndex: number;
+  ui: SharedValue<number[]>;
+  step: number;
+  ink: string;
+  // Textes de chaque cran (pourcentage ou valeur, montant, « Dans un an »)
+  valueTexts: readonly string[];
+  amountTexts: readonly string[] | null;
+  liveTexts: readonly string[] | null;
+  // Textes au repos (posés par React)
   valueText: string;
   amount: string | null;
   live: string | null;
-  reservoir: boolean;
   // Règle non respectée après « Valider »
   blink: boolean;
-  children: ReactNode;
+  slider: SliderProps;
 };
 
 // Une ligne compacte : pastille de couleur, nom, montant en petit,
 // pourcentage dans la couleur du pot, puis son curseur
-function BucketRow({ label, ink, valueText, amount, live, reservoir, blink, children }: BucketRowProps) {
+function BucketRow({ bucket, index, reservoirIndex, ui, step, ink, valueTexts, amountTexts, liveTexts, valueText, amount, live, blink, slider }: BucketRowProps) {
   const { colorScheme } = useTheme();
   const colors = palette[colorScheme];
   const reduced = useReducedMotion();
   const opacity = useSharedValue(1);
+  const { label, reservoir } = bucket;
+  // Valeur vivante du pot (fil d'interface) et son cran
+  const current = useDerivedValue(() => ui.get()[index]);
+  const cran = useDerivedValue(() => ui.get()[index] / (step > 0 ? step : 1));
+  // Valeur écrite par le curseur de ce pot à chaque cran (fil d'interface) :
+  // le réservoir absorbe la différence, la répartition vivante suit
+  const dragged = useSharedValue(slider.value);
+  useEffect(() => {
+    dragged.set(slider.value);
+  }, [slider.value, dragged]);
+  useAnimatedReaction(
+    () => dragged.get(),
+    (next, previous) => {
+      if (previous === null || reservoirIndex < 0 || index === reservoirIndex) return;
+      const all = ui.get();
+      const delta = next - all[index];
+      if (delta === 0) return;
+      const out = all.slice();
+      out[index] = next;
+      out[reservoirIndex] = all[reservoirIndex] - delta;
+      ui.set(out);
+    },
+    [index, reservoirIndex]
+  );
 
   useEffect(() => {
     if (!blink || reduced) return;
@@ -233,26 +342,52 @@ function BucketRow({ label, ink, valueText, amount, live, reservoir, blink, chil
           <AppText variant="bodyMedium" style={styles.name}>
             {label}
           </AppText>
-          {amount ? (
-            <AppText variant="caption" tone="subtitle" style={styles.tabular}>
-              {amount}
-            </AppText>
+          {amount !== null && amountTexts ? (
+            <LiveText
+              texts={amountTexts}
+              index={cran}
+              fallback={amount}
+              maxFontSizeMultiplier={LIVE_MAX_SCALE}
+              style={[styles.amount, { color: colors.subtitle }]}
+            />
           ) : null}
           {/* La couleur n'est jamais le seul signal */}
           {blink ? <Ionicons name="alert-circle" size={18} color={colors.error} accessibilityLabel="Règle non respectée" /> : null}
         </View>
-        <AppText maxFontSizeMultiplier={1.3} style={[styles.percent, { color: ink }]}>
-          {valueText}
-        </AppText>
+        <LiveText texts={valueTexts} index={cran} fallback={valueText} maxFontSizeMultiplier={LIVE_MAX_SCALE} style={[styles.percent, { color: ink }]} />
       </View>
-      {children}
+      <TrackSlider
+        size="md"
+        color={ink}
+        value={slider.value}
+        min={0}
+        max={slider.total}
+        step={step}
+        readOnly={reservoir}
+        uiValue={reservoir ? current : dragged}
+        disabled={slider.disabled}
+        limit={slider.limit}
+        onBlocked={warning}
+        onCommit={slider.onCommit}
+        accessibilityLabel={slider.accessibilityLabel}
+        formatValue={slider.formatValue}
+      />
       {reservoir ? (
         <AppText variant="caption" tone="subtitle">
           S’ajuste quand tu bouges les autres
         </AppText>
       ) : null}
-      {live ? (
-        <AppText variant="callout" tone="gold" style={styles.live} accessibilityLiveRegion="polite">
+      {live && liveTexts ? (
+        <LiveText
+          texts={liveTexts}
+          index={cran}
+          fallback={live}
+          maxFontSizeMultiplier={LIVE_MAX_SCALE}
+          style={[styles.live, styles.liveText, { color: colors.gold }]}
+        />
+      ) : live ? (
+        // Gabarit qui dépend d'autres pots : suivi au lâcher seulement
+        <AppText variant="callout" tone="gold" style={styles.live}>
           {live}
         </AppText>
       ) : null}
@@ -281,7 +416,6 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     overflow: 'hidden',
     flexDirection: 'row',
-    gap: 2,
   },
   segment: {
     alignItems: 'center',
@@ -328,13 +462,27 @@ const styles = StyleSheet.create({
   percent: {
     fontFamily: fonts.title,
     fontSize: PERCENT_SIZE,
-    lineHeight: PERCENT_SIZE + 6,
+    // « 100 % » tient : le texte change sans nouvelle mise en page
+    minWidth: 72,
+    textAlign: 'right',
     letterSpacing: titleLetterSpacing(PERCENT_SIZE),
     fontVariant: ['tabular-nums'],
   },
   live: {
     fontFamily: fonts.bodyBold,
     marginTop: space[1],
+  },
+  // « Dans un an » suivi en direct (style « callout » d'AppText)
+  liveText: {
+    alignSelf: 'stretch',
+    fontSize: 14,
+  },
+  // Montant du pot (style « caption » d'AppText)
+  amount: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    minWidth: 64,
+    fontVariant: ['tabular-nums'],
   },
   tabular: {
     fontVariant: ['tabular-nums'],

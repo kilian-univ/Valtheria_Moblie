@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { Platform, StyleProp, StyleSheet, TextStyle, View } from 'react-native';
 
-import { fonts, titleLetterSpacing } from '@/src/constants/style/Style';
+import type { SharedValue } from 'react-native-reanimated';
+
+import { fonts, palette, titleLetterSpacing } from '@/src/constants/style/Style';
+import { useTheme } from '@/src/context/ThemeContext';
 import { fitFontSize } from '@/src/utils/fit';
 import AppText, { TextTone } from './AppText';
+import LiveText from './LiveText';
 
 // Interligne du grand chiffre, proportionnel à sa taille
 const LINE_RATIO = 1.08;
@@ -54,6 +58,52 @@ export default function BigNumber({ text, size, sizingText, tone = 'gold', style
             prend l'insécable (même rendu partout) */}
         {text.replace(/\u202F/g, '\u00A0')}
       </AppText>
+    </View>
+  );
+}
+
+type LiveBigNumberProps = {
+  // Textes d'avance, un par position, déjà formatés (« 120 846 € »)
+  texts: readonly string[];
+  index: SharedValue<number>;
+  // Texte hors des bornes (au repos) et texte du premier affichage
+  fallback: string;
+  // Texte sur lequel la taille se calcule (le plus long possible)
+  sizingText: string;
+  size: number;
+  tone?: TextTone;
+  align?: 'center' | 'left';
+};
+
+// Grand chiffre qui change sans rendu React, pendant un glissement (curseur
+// du simulateur, doigt sur une courbe) : même police, même taille fixe que
+// BigNumber, texte posé par le fil d'interface (LiveText). Décoratif pour
+// le lecteur d'écran.
+export function LiveBigNumber({ texts, index, fallback, sizingText, size, tone = 'gold', align = 'center' }: LiveBigNumberProps) {
+  const { colorScheme } = useTheme();
+  const colors = palette[colorScheme];
+  const [width, setWidth] = useState(0);
+  const fontSize = fitFontSize(sizingText, size, MIN_SIZE, width);
+  const lineHeight = Math.round(fontSize * LINE_RATIO);
+  // Fraunces n'a pas d'espace fine : l'insécable ordinaire (comme BigNumber)
+  const fraunces = (t: string) => t.replace(/ /g, ' ');
+  return (
+    <View style={styles.wrap} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <LiveText
+        texts={texts.map(fraunces)}
+        index={index}
+        fallback={fraunces(fallback)}
+        style={[
+          styles.text,
+          {
+            color: colors[tone],
+            fontSize,
+            height: lineHeight,
+            letterSpacing: titleLetterSpacing(fontSize),
+            textAlign: align,
+          },
+        ]}
+      />
     </View>
   );
 }

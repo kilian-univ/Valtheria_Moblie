@@ -6,7 +6,7 @@ import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 // le geste l'interrompt, au lieu de défiler en même temps
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
-import Animated, { SlideInRight, SlideOutLeft, useReducedMotion } from 'react-native-reanimated';
+import Animated, { SlideInRight, SlideOutLeft, useAnimatedProps, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import EndFlowBoundary from '@/src/components/apprendre/end/EndFlowBoundary';
@@ -79,6 +79,10 @@ import {
 } from '@/src/utils/lessonPlayer';
 
 type LoadError = 'network' | 'server';
+
+// Vue défilante du lecteur, dont le défilement se coupe sur le fil
+// d'interface pendant un geste (verrou du lecteur)
+const LockableScrollView = Animated.createAnimatedComponent(ScrollView);
 
 // Hauteur de la feuille de réponse repliée, moins le bouton du bas qu'elle
 // recouvre (place laissée sous le contenu)
@@ -242,9 +246,13 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
     setMoreBelow(m.layout > 0 && m.content - m.y - m.layout > 12);
   };
   const screenY = useRef(0);
-  // Défilement coupé pendant un geste (curseur, carte, ligne déplacée)
-  const [scrollLocked, setScrollLocked] = useState(false);
-  const lockScroll = useCallback((locked: boolean) => setScrollLocked(locked), []);
+  // Défilement coupé pendant un geste (curseur, carte, ligne déplacée) : une
+  // valeur partagée lue par la vue défilante sur le fil d'interface, sans
+  // aucun rendu React (avant le lot 8, un état : tout le lecteur se
+  // redessinait au début et à la fin de chaque glissement)
+  const scrollLocked = useSharedValue(false);
+  const lockScroll = useCallback((locked: boolean) => scrollLocked.set(locked), [scrollLocked]);
+  const scrollLockProps = useAnimatedProps(() => ({ scrollEnabled: !scrollLocked.get() }));
   // Flash des bords de l'écran : réussite ou erreur
   const [flash, setFlash] = useState({ key: 0, right: true });
   const flashEdges = useCallback((right: boolean) => setFlash((f) => ({ key: f.key + 1, right })), []);
@@ -714,10 +722,10 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                     exiting={SLIDE_OUT}
                     style={StyleSheet.absoluteFill}
                   >
-                    <ScrollView
+                    <LockableScrollView
                       ref={scrollRef}
                       style={styles.scroll}
-                      scrollEnabled={!scrollLocked}
+                      animatedProps={scrollLockProps}
                       onScroll={(e) => {
                         scrollMetrics.current.y = e.nativeEvent.contentOffset.y;
                         updateMoreBelow();
@@ -782,7 +790,7 @@ export default function ApprendreDetailScreen({ discovery }: { discovery?: Disco
                           ) : null}
                         </View>
                       </Cascade>
-                    </ScrollView>
+                    </LockableScrollView>
                   </Animated.View>
                   {moreBelow ? (
                     <LinearGradient pointerEvents="none" colors={[withOpacity(colors.background, 0), colors.background]} style={styles.fade} />
