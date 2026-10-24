@@ -191,7 +191,7 @@ Côté Apple : accepté, tant que la mise à jour ne change pas la nature de l'a
 ### Avant
 
 ```bash
-cd /Users/kant1/Developer/Valtheria_Moblie
+cd /Volumes/NVMe/Projets/Valtheria_Moblie/app   # racine du dépôt sur le Mac du projet (disque NVMe branché)
 git checkout main && git pull
 npx eas-cli whoami                      # doit afficher « valtheria »
 npx eas-cli project:info                # doit afficher @valtheria/Valtheria
