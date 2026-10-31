@@ -1,17 +1,28 @@
-# Vérifications de l'app à chaque push et sur chaque pull request :
-# tests Node, types TypeScript, ESLint, et aucun composant sauté par le
-# compilateur React. Les quatre doivent passer avant toute fusion.
+# Vérifications de l'app : tests Node, types TypeScript, ESLint, et aucun
+# composant sauté par le compilateur React. Les quatre doivent passer avant
+# toute fusion.
+#
+# Économie de minutes (31/10/2026) : la CI ne tourne que sur les pull requests
+# vers main et sur main (plus à chaque envoi sur toutes les branches, qui
+# doublait chaque exécution, ni pour un changement de documentation seule) ;
+# une exécution remplacée par un nouvel envoi est annulée ; node_modules et le
+# cache ESLint sont conservés d'une exécution à l'autre ; les vérifications
+# sont regroupées en une étape. Rien n'est retiré.
 name: CI
 
 on:
   push:
+    branches: [main]
+    paths-ignore: ['**.md']
   pull_request:
+    branches: [main]
+    paths-ignore: ['**.md']
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -27,19 +38,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
+
+      # node_modules réutilisé tant que package-lock.json ne change pas
+      # (npm ci l'efface : il n'est lancé qu'en l'absence de cache)
+      - name: Cache node_modules
+        id: node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-node24-${{ hashFiles('package-lock.json') }}
+
+      # Cache ESLint : seuls les fichiers modifiés depuis la dernière exécution
+      # sont réanalysés (clé par commit, repli sur la plus récente)
+      - name: Cache ESLint
+        uses: actions/cache@v4
+        with:
+          path: .eslintcache
+          key: eslint-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: eslint-${{ hashFiles('package-lock.json') }}-
 
       - name: Installer les dépendances (package-lock.json)
+        if: steps.node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: Tests (npm test)
-        run: npm test
-
-      - name: Types (tsc --noEmit)
-        run: npx tsc --noEmit
-
-      - name: Lint (ESLint, aucun avertissement toléré)
-        run: npx eslint . --max-warnings=0
-
-      - name: Compilateur React (aucun composant sauté)
-        run: npm run check:compilateur
+      - name: Tests, types, lint et compilateur React
+        run: |
+          set -euo pipefail
+          etape() { echo "::group::$1"; shift; "$@"; echo "::endgroup::"; }
+          etape "Tests (npm test)" npm test
+          etape "Types (tsc --noEmit)" npx tsc --noEmit
+          etape "Lint (ESLint, aucun avertissement toléré)" npx eslint . --max-warnings=0 --cache --cache-location .eslintcache
+          etape "Compilateur React (aucun composant sauté)" npm run check:compilateur
