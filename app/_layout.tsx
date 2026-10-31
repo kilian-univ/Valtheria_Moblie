@@ -7,6 +7,7 @@ import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
 import { Inter_600SemiBold_Italic } from '@expo-google-fonts/inter/600SemiBold_Italic';
 import { Inter_400Regular_Italic } from '@expo-google-fonts/inter/400Regular_Italic';
+import { installTokenRenewal } from '@/src/auth/installTokenRenewal';
 import { ApiProvider } from '@/src/context/ApiContext';
 import { initMonitoring, navigationIntegration, wrapRoot } from '@/src/monitoring';
 import { useFonts } from 'expo-font';
@@ -39,6 +40,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 // Suivi des plantages (Sentry) : installé avant tout rendu, actif seulement
 // dans la version publiée, sans donnée personnelle (src/monitoring.ts)
 initMonitoring();
+
+// Renouvellement transparent du jeton de connexion : quand le serveur annonce
+// l'échéance (X-Token-Renew), un nouveau jeton est demandé en arrière-plan et
+// remplace l'ancien, sans reconnexion (src/auth/tokenRenewal.ts)
+installTokenRenewal();
 
 // Démarrage : le splash natif (fond + logo, voir app.json) reste jusqu'à ce
 // que l'app soit prête (polices + session lue sur le téléphone), puis se
